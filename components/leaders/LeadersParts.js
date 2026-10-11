@@ -2,6 +2,8 @@
 import { TYPE } from '../../lib/theme'
 import { alpha } from '../../lib/scales'
 import { useSportTheme } from '../SportTheme'
+import { useIsPhone } from '../MobileFold'
+import { Children, useState } from 'react'
 
 // MOONSHOT'S LEADERS PAGE, IN PARTS (2026-09-29, Donovan: "make sure the
 // leaders page for nfl and nhl look like mlb"). The pieces of
@@ -138,5 +140,32 @@ export function LeadersSection({ title, lead, tint, children }) {
       </div>
       {children}
     </div>
+  )
+}
+
+/**
+ * THE TILE GRID, CAPPED ON A PHONE (Wave 2, 2026-10-11). TUDDY's and LAMP's Leaders led with six to eight tiles
+ * (about 1,000px) before the first table row. `cap` shows the first N tiles on a phone and a "+N more leaders" button
+ * opens the rest; with no `cap` (MOONSHOT's Leaders never passes it) it is the same grid div it always was.
+ * A single hidden tile is not worth a button: it shows all when only one would be hidden.
+ */
+export function CappedTiles({ cap = null, word = 'leaders', className, style, children }) {
+  const { C, NUM_FONT, accent } = useSportTheme()
+  const phone = useIsPhone()
+  const [open, setOpen] = useState(false)
+  const kids = Children.toArray(children)
+  const rest = kids.length - (cap || 0)
+  const capped = Boolean(cap) && phone && !open && rest > 1
+  return (
+    <>
+      <div className={className} style={capped || (cap && phone && open) ? { ...style, marginBottom: 4 } : style}>{capped ? kids.slice(0, cap) : kids}</div>
+      {cap && phone && rest > 1 ? (
+        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
+          style={{ display: 'block', width: '100%', minHeight: 44, margin: '0 0 10px', padding: '0 12px', borderRadius: 10, border: `1px solid ${C.border}`, background: 'transparent', color: C.text2, font: `800 12px/1 ${NUM_FONT}`, letterSpacing: '.04em', cursor: 'pointer' }}>
+          {open ? 'Fewer leaders' : `+${rest} more ${word}`}
+          <span aria-hidden style={{ marginLeft: 8, color: accent }}>{open ? '▴' : '▾'}</span>
+        </button>
+      ) : null}
+    </>
   )
 }

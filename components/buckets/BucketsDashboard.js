@@ -133,7 +133,7 @@ export default function BucketsDashboard() {
             {tab === 'game' && <Game id={gameId} {...nav} backLabel={backLabel('scores')} onBack={() => goBack('scores')} />}
             {tab === 'schedule' && <Schedule date={date} setDate={setDate} onOpenGame={openGame} onOpenTeam={openTeam} />}
             {tab === 'odds' && <BucketsOdds date={date} onOpenPlayer={peekPlayer} />}
-            {tab === 'storylines' && <StorylinesPage sport="nba" eyebrow="BUCKETS · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.purple} onOpenPlayer={peekPlayer} onOpenGame={openGame} date={date} />}
+            {tab === 'storylines' && <StorylinesPage sport="nba" previewGames={4} eyebrow="BUCKETS · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.purple} onOpenPlayer={peekPlayer} onOpenGame={openGame} date={date} />}
             {tab === 'watchlist' && <Watchlist onOpenPlayer={peekPlayer} />}
             {/* THE LEDGER (2026-10-07): Tonight | Record -- BUCKETS has no called table or archive yet (components/pages/LedgerShell) */}
             {tab === 'ledger' && <LedgerShell sport="nba" bodies={{

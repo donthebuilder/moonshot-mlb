@@ -60,7 +60,7 @@ export default function FollowingStrip({ sport = 'mlb', onPlayerClick = null, li
                 {row.team ? <em style={chipTeam()}>{row.team}</em> : null}
                 {live ? <i style={dot(accent)} title="On the current board" /> : null}
               </button>
-              <button type="button" onClick={() => unfollow(row.id)} style={chipX()} title="Stop following">×</button>
+              <button type="button" onClick={() => unfollow(row.id)} style={chipX()} title="Stop following" aria-label={`Stop following ${row.name || 'him'}`}>×</button>
             </span>
           )
         })}
@@ -98,13 +98,13 @@ const grid = () => ({ display: 'flex', flexWrap: 'wrap', gap: 6 })
 const chip = () => ({ display: 'inline-flex', alignItems: 'stretch', border: `1px solid ${C.border2}`, borderRadius: 999, overflow: 'hidden', background: C.bg3 })
 // Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
 // module-level literal keeps the palette it was imported with. See #23.
-const chipName = () => ({ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 9px', border: 0, background: 'transparent', color: C.text, font: '700 11px/1 inherit', cursor: 'pointer' })
+const chipName = () => ({ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 9px', minHeight: 44, border: 0, background: 'transparent', color: C.text, font: '700 11px/1 inherit', cursor: 'pointer' })   // 44px tap target (2026-10-10)
 // Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
 // module-level literal keeps the palette it was imported with. See #23.
 const chipTeam = () => ({ color: C.text3, font: '800 8px/1 monospace', fontStyle: 'normal' })
 // Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
 // module-level literal keeps the palette it was imported with. See #23.
-const chipX = () => ({ padding: '0 8px', border: 0, borderLeft: `1px solid ${C.border2}`, background: 'transparent', color: C.text3, fontSize: 13, cursor: 'pointer' })
+const chipX = () => ({ padding: '0 8px', minWidth: 44, minHeight: 44, border: 0, borderLeft: `1px solid ${C.border2}`, background: 'transparent', color: C.text3, fontSize: 13, cursor: 'pointer' })
 // Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
 // module-level literal keeps the palette it was imported with. See #23.
 const dot = (accent) => ({ width: 5, height: 5, borderRadius: 999, background: accent || C.orange, display: 'inline-block' })

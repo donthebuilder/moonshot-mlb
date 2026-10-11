@@ -183,7 +183,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'hotsticks' && <HotSticks onOpenPlayer={peekPlayer} />}
             {tab === 'power' && <Power onOpenPlayer={peekPlayer} />}
             {tab === 'watchlist' && <Watchlist onOpenPlayer={peekPlayer} />}
-            {tab === 'storylines' && <StorylinesPage sport="nhl" eyebrow="LAMP · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.ice} onOpenPlayer={peekPlayer} onOpenGame={openGame} date={date} />}
+            {tab === 'storylines' && <StorylinesPage sport="nhl" previewGames={4} eyebrow="LAMP · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.ice} onOpenPlayer={peekPlayer} onOpenGame={openGame} date={date} />}
             {/* MOONSHOT's Odds page, sport="nhl" (2026-10-02, components/lamp/LampOdds.js) */}
             {tab === 'odds' && <LampOdds onOpenPlayer={peekPlayer} />}
             {tab === 'longshots' && <Longshots sport="nhl" eyebrow="LAMP · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.ice} Table={LampTable} onOpenPlayer={peekPlayer} />}

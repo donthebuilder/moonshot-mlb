@@ -42,18 +42,20 @@ export default function FollowButton({ sport = 'mlb', id, name, team, position, 
       title={on
         ? `${name || 'He'} is on your watchlist — saved to ${where}. It clears after his next game; his card keeps how he did for you.`
         : `Watch ${name || 'him'} for his next game — saved to ${where}. It clears after the game; his card keeps how he did for you.`}
-      style={{
+      // 44px TAP TARGET (2026-10-10, the star is shared by every sport): the button is the 44px box, pulled back with a negative
+      // margin so the row keeps its height; the pill inside is the same pill as before (same padding, border, colour).
+      aria-pressed={on}
+      style={{ minHeight: 44, minWidth: 44, margin: '-10px 0', padding: 0, border: 0, background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+    ><span style={{
         padding: compact ? '3px 9px' : '4px 11px',
         fontSize: compact ? 10 : 11,
         fontWeight: 700,
         fontFamily: NUM_FONT,
         borderRadius: 7,
-        cursor: 'pointer',
         border: `1px solid ${on ? C.cyan : C.border}`,
         background: on ? (themed ? alpha(C.cyan, 0.14) : 'rgba(34,211,238,.14)') : 'transparent',
         color: on ? C.cyan : C.text3,
         whiteSpace: 'nowrap',
-      }}
-    >{on ? '★ Watching' : '☆ Watch'}</button>
+      }}>{on ? '★ Watching' : '☆ Watch'}</span></button>
   )
 }

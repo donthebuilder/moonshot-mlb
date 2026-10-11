@@ -7,6 +7,8 @@ import PageHeader from './PageHeader'
 import HelpTip from './HelpTip'
 import StoryRow, { StoryParts, BoardBadge } from './StoryRow'
 import { localDayTime } from '../lib/localTime'
+import Fold from './Fold'
+import { ShowMoreButton } from './ListPreview'
 
 // 📰 STORYLINES, BY GAME (BATCH-STORYLINES-PAGE step 2, 2026-09-27). One page,
 // all three products (theme / number font / accent come in as props). Reads
@@ -41,10 +43,14 @@ const timeOf = (iso) => {
   return localDayTime(ms)
 }
 
+// `previewGames` (Wave 2, 2026-10-11; TUDDY and LAMP pass it, MOONSHOT does not, so its page is unchanged): a slate of
+// thirteen games was 3,589px of phone before the first table row. With it, the list shows the first N games that
+// HAVE stories (start order kept; games with none follow them) and "Show N more games" opens the rest; "How stories did"
+// is a fold. Filters, search and every deep link behave the same -- a filter that matches fewer games just shows them.
 // `searchBox` false + `keepIds` (a Set of player ids, or null for everyone):
 // for a product whose shell already has a search / team filter (MOONSHOT), the
 // page follows that filter instead of stacking a second box under it.
-export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, accent, onOpenPlayer = null, onOpenGame = null, date = null, searchBox = true, keepIds = null }) {
+export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, accent, onOpenPlayer = null, onOpenGame = null, date = null, searchBox = true, keepIds = null, previewGames = null }) {
   // a team story opens the club (0g A7) where the product has a team door
   const teamNav = useTeamNav()
   const [data, setData] = useState(null)
@@ -54,6 +60,7 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
   const [rareOnly, setRareOnly] = useState(false)
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(() => new Set())
+  const [allGames, setAllGames] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -75,6 +82,12 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
       && (!keepIds || (s.board && keepIds.has(String(s.player_id)))))
   }, [data, types, calledOnly, rareOnly, q, keepIds])
   const games = useMemo(() => (data?.games || []).slice().sort((a, b) => (ORDER[a.state] ?? 0) - (ORDER[b.state] ?? 0)), [data])
+  // previewGames: games with a story to show first (a stable sort keeps the start order inside each half)
+  const ordered = useMemo(() => {
+    if (!previewGames) return games
+    const has = (g) => shown.some((s) => s.game_id === g.game_id)
+    return games.slice().sort((a, b) => Number(has(b)) - Number(has(a)))
+  }, [games, shown, previewGames])
   const filtering = types.size || calledOnly || rareOnly || q.trim() || keepIds
 
   const chip = (on) => ({
@@ -85,6 +98,28 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
   const Badge = ({ b }) => <BoardBadge b={b} theme={C} numFont={numFont} accent={accent} />
   const Parts = ({ parts }) => <StoryParts parts={parts} theme={C} numFont={numFont} />
 
+  const howStoriesDid = (
+
+      <section aria-label="How stories did" style={{ border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2, padding: '10px 12px' }}>
+        <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.1em', color: accent, fontFamily: numFont }}>HOW STORIES DID</div>
+        <div style={{ fontSize: 12, color: C.text3, margin: '4px 0 6px' }}>Record since {data?.summary?.length ? data.summary.reduce((a, r) => (r.since < a ? r.since : a), data.summary[0].since) : 'the first game'}{data?.summary?.length ? '' : ': no game has been graded yet'}.<HelpTip label="How stories are graded" color={C.text3} text="Every story is frozen at the start of its game and checked after it against the player's own line. A story with no outcome of its own is graded on a productive night; 'everyone' is the same bar for every player who played those nights." /></div>
+        {data?.summary?.length ? (
+          <div style={{ overflowX: 'auto' }}>
+            {/* THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b). A rate under
+                MIN_PCT graded prints as "h of n", as before; sorts by the rate. */}
+            <DenseTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={40} accent={accent}
+              caption="Each kind of story: how often it came true, against everyone"
+              rows={data.summary.map((r) => ({ ...r, _key: r.type, rate: r.n ? r.hit / r.n : null, baseRate: r.base?.players ? r.base.hits / r.base.players : null }))}
+              columns={[
+                { key: 'type', label: 'Story', heat: false, sticky: true, w: 180, fmt: (v, r) => <span>{TYPE_LABEL[v] || v}{r.bar ? <span style={{ color: C.text3 }}> · {barWord(r.bar)}</span> : null}</span> },
+                { key: 'n', label: 'Graded', w: 56, dp: 0 },
+                { key: 'rate', label: 'Came true', w: 76, fmt: (_, r) => (r.n >= MIN_PCT ? `${Math.round((100 * r.hit) / r.n)}%` : `${r.hit} of ${r.n}`), tone: () => ({ color: C.text }) },
+                { key: 'baseRate', label: 'Everyone', w: 76, fmt: (_, r) => (r.base ? (r.base.players >= MIN_PCT ? `${Math.round((100 * r.base.hits) / r.base.players)}%` : `${r.base.hits} of ${r.base.players}`) : '—'), tone: () => ({ color: C.text3 }) },
+              ]} />
+          </div>
+        ) : null}
+      </section>
+  )
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <PageHeader eyebrow={eyebrow} title="Storylines" theme={C} numFont={numFont} accent={accent}
@@ -105,7 +140,7 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
       {!data && !err ? <div style={{ color: C.text3, fontSize: 12 }}>Reading tonight&apos;s games…</div> : null}
       {data && !games.length ? <div style={{ color: C.text3, fontSize: 12 }}>No games on the schedule for this date.</div> : null}
 
-      {games.map((g) => {
+      {(previewGames && !allGames ? ordered.filter((g) => !(filtering && !shown.some((s) => s.game_id === g.game_id))).slice(0, previewGames) : ordered).map((g) => {
         const rows = shown.filter((s) => s.game_id === g.game_id)
         if (filtering && !rows.length) return null
         const all = open.has(g.game_id)
@@ -144,25 +179,15 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
           </section>
         )
       })}
-      <section aria-label="How stories did" style={{ border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2, padding: '10px 12px' }}>
-        <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.1em', color: accent, fontFamily: numFont }}>HOW STORIES DID</div>
-        <div style={{ fontSize: 12, color: C.text3, margin: '4px 0 6px' }}>Record since {data?.summary?.length ? data.summary.reduce((a, r) => (r.since < a ? r.since : a), data.summary[0].since) : 'the first game'}{data?.summary?.length ? '' : ': no game has been graded yet'}.<HelpTip label="How stories are graded" color={C.text3} text="Every story is frozen at the start of its game and checked after it against the player's own line. A story with no outcome of its own is graded on a productive night; 'everyone' is the same bar for every player who played those nights." /></div>
-        {data?.summary?.length ? (
-          <div style={{ overflowX: 'auto' }}>
-            {/* THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b). A rate under
-                MIN_PCT graded prints as "h of n", as before; sorts by the rate. */}
-            <DenseTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={40} accent={accent}
-              caption="Each kind of story: how often it came true, against everyone"
-              rows={data.summary.map((r) => ({ ...r, _key: r.type, rate: r.n ? r.hit / r.n : null, baseRate: r.base?.players ? r.base.hits / r.base.players : null }))}
-              columns={[
-                { key: 'type', label: 'Story', heat: false, sticky: true, w: 180, fmt: (v, r) => <span>{TYPE_LABEL[v] || v}{r.bar ? <span style={{ color: C.text3 }}> · {barWord(r.bar)}</span> : null}</span> },
-                { key: 'n', label: 'Graded', w: 56, dp: 0 },
-                { key: 'rate', label: 'Came true', w: 76, fmt: (_, r) => (r.n >= MIN_PCT ? `${Math.round((100 * r.hit) / r.n)}%` : `${r.hit} of ${r.n}`), tone: () => ({ color: C.text }) },
-                { key: 'baseRate', label: 'Everyone', w: 76, fmt: (_, r) => (r.base ? (r.base.players >= MIN_PCT ? `${Math.round((100 * r.base.hits) / r.base.players)}%` : `${r.base.hits} of ${r.base.players}`) : '—'), tone: () => ({ color: C.text3 }) },
-              ]} />
-          </div>
-        ) : null}
-      </section>
+      {previewGames ? (() => {
+        const visible = ordered.filter((g) => !(filtering && !shown.some((s) => s.game_id === g.game_id)))
+        return visible.length > previewGames
+          ? <ShowMoreButton open={allGames} restN={visible.length - previewGames} toggle={() => setAllGames((v) => !v)} itemWord="games" />
+          : null
+      })() : null}
+      {previewGames ? (
+        <Fold id={`storylines-record-${sport}`} title="How stories did" meta="every kind of story, graded against everyone">{howStoriesDid}</Fold>
+      ) : howStoriesDid}
     </div>
   )
 }
