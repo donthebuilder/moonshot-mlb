@@ -27,7 +27,7 @@ export default function SectionView({ section, ui, nav, theme }) {
               {...(b.initialSort ? { initialSort: b.initialSort } : {})}
               {...(b.bareTable ? { bare: true, noGroups: true, tight: true } : {})}
               {...(b.statusKey ? { statusOf: (r) => r[b.statusKey] || null } : {})}
-              onRowClick={handler} caption={b.caption} />
+              onRowClick={handler ? (r) => { if (!r.noOpen) handler(r) } : undefined} caption={b.caption} />
           </div>
         )
       })}

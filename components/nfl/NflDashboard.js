@@ -130,7 +130,7 @@ const cardViewOf = (h) => {
   const v = h.get('view')
   return CARD_VIEWS.has(v) ? v : ''
 }
-const NFL_TAB_KEEP = { player: new Set(['players']), team: new Set(['players', 'team']), game: new Set(['games']), lv: new Set(['ledger']) }   // lv=: The Ledger's sub-tab (lib/ledger/views.js)
+const NFL_TAB_KEEP = { player: new Set(['players']), team: new Set(['players', 'team']), game: new Set(['games']), lv: new Set(['ledger']), sec: new Set(['team']) }   // sec=: the team page's section (components/team/TeamPage.js); lv=: The Ledger's sub-tab (lib/ledger/views.js)
 
 export default function NflDashboard({ palettePass = 0 }) {
   const [tab, setTabRaw] = useState('home')
@@ -525,7 +525,7 @@ export default function NflDashboard({ palettePass = 0 }) {
               archive: () => <TuddyLedger data={data} results={nflResults} onPlayerClick={openPlayer} initialView="season" />,
             }} />}
             {tab === 'scores' && <Scores data={slate} onPlayerClick={openPlayer} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
-            {tab === 'team' && <NflTeam data={slate} picks={picks} onOpenPlayer={openPlayer} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
+            {tab === 'team' && <NflTeam data={slate} picks={picks} matchup={matchup} logs={logs} results={nflResults} onOpenPlayer={openPlayer} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
             {tab === 'standings' && <Standings onOpenTeam={openTeamPage} />}
             {tab === 'pairs' && <Pairs data={data} results={nflResults} onPlayerClick={openPlayer} setTab={setTab} />}
             {tab === 'guide' && <Guide onNavigate={setTab} data={data} />}
