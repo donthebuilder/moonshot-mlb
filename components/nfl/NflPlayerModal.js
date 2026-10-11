@@ -16,6 +16,7 @@ import PlayerNotes from '../PlayerNotes'
 import HisNumbers from '../HisNumbers'
 import InTheLedger from '../ledger/InTheLedger'
 import { etToday } from '../../lib/freshness'
+import BornLine from '../player/BirthdayChip'
 import { VerdictStamp, PutOnCard } from './CardActions'
 import NflCardMatchup from './NflCardMatchup'
 import NflSplitsTable, { splitRows } from './NflSplitsTable'
@@ -166,18 +167,7 @@ export function splitsWhy(player, fullLog, slateSeason) {
 // does not mean "a long drought after a score" -- it means "no touchdown in
 // any game we hold". The log is already in this component, so the card can
 // tell those two apart instead of printing a number that reads as the first.
-// Whole years, from the published birth_date. Client-only component, so
-// there is no server/client clock split to worry about here.
-function ageOf(birth) {
-  if (!birth) return null
-  const d = new Date(birth)
-  if (Number.isNaN(d.getTime())) return null
-  const now = new Date()
-  let age = now.getFullYear() - d.getFullYear()
-  const m = now.getMonth() - d.getMonth()
-  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age -= 1
-  return age > 0 && age < 70 ? age : null
-}
+// (His age and birthday live in lib/birthday.js, shown by <BornLine>.)
 
 function Fact({ label, term, value, sub, accent }) {
   return (
@@ -418,7 +408,6 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
           {/* the clubs open their team pages (route audit B6; team page since 10-03) */}
           <RoleTag player={player} season={matchup?.slate_season || matchup?.season} /> · {player.team ? <a href={`#sport=nfl&tab=team&team=${player.team}`} style={CLUB_LINK} title={`${player.team} team page`}>{player.team}</a> : null}
           {player.opp ? <>{' vs '}<a href={`#sport=nfl&tab=team&team=${player.opp}`} style={CLUB_LINK} title={`${player.opp} team page`}>{player.opp}</a></> : null}
-          {ageOf(player.birth_date) ? ` · age ${ageOf(player.birth_date)}` : ''}
           {tag && <span title={injuryTitle(tag)} style={{ color: injuryColor(tag, C), fontWeight: 900 }}>{' · '}{tag}</span>}
           {player.low_sample && <span style={{ color: C.text3 }}> · low sample</span>}
         </>}
@@ -429,6 +418,8 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
           }}>✕</button>
         ) : null}
       />
+      {/* HIS BIRTHDAY (published birth_date; nothing when unknown) */}
+      <BornLine birth={player.birth_date} on={etToday()} accent={C.green} C={C} font={NUM_FONT} style={{ marginTop: -4 }} />
 
       {/* TAGS: his ball-security tags and the tags of the defence he faces, each with its number on a tap (lib/nfl/tags.js) */}
       {rowTags.length > 0 && <div style={{ margin: '-4px 0 10px' }}><TagChips tags={rowTags} onPlayerRow /></div>}

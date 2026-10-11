@@ -63,7 +63,7 @@ export default function DayNumbers({ sport, date, theme: C, numFont, accent, eve
   })()
   const y = recap && recap.graded ? recap : null
   return (
-    <div style={{ display: 'grid', gap: 10 }}>
+    <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'minmax(0, 1fr)' }}>
       <section aria-label="Today's numbers" style={box}>
         {head("TODAY'S NUMBERS", date)}
         <div style={{ ...small, marginBottom: 4 }}>The date, added up the ways the lanes read it. Master numbers (11, 22, 33) are shown as themselves.</div>
@@ -73,7 +73,7 @@ export default function DayNumbers({ sport, date, theme: C, numFont, accent, eve
             <div style={{ ...small, fontWeight: 800, color: C.text2 }}>HOT AND TRENDING NUMBERS</div>
             <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
               {hotRows.slice(0, 4).map((r) => (
-                <li key={r._key} style={{ display: 'flex', gap: 8, alignItems: 'baseline', padding: '4px 0', borderTop: `1px solid ${C.border}`, fontSize: 12 }}>
+                <li key={r._key} style={{ display: 'flex', flexWrap: 'wrap', gap: '0 8px', alignItems: 'baseline', padding: '4px 0', borderTop: `1px solid ${C.border}`, fontSize: 12 }}>
                   <b style={{ fontFamily: numFont, fontSize: 16, minWidth: 30, color: C.text }}>{r.value}</b>
                   <span style={{ color: C.text2 }}>{r.label} <span style={{ color: C.text3 }}>· {r.when}</span></span>
                   <span style={{ marginLeft: 'auto', fontFamily: numFont, color: C.text3, fontSize: 11 }}>{r.events} {eventWord} vs {Number(r.expected).toFixed(1)}</span>
@@ -96,13 +96,13 @@ export default function DayNumbers({ sport, date, theme: C, numFont, accent, eve
                 : (
                   <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                     {y.udRows.slice(0, 3).map((r) => (
-                      <li key={`ud${r.kind}`} style={{ display: 'flex', gap: 8, alignItems: 'baseline', padding: '4px 0', borderTop: `1px solid ${C.border}`, fontSize: 12 }}>
+                      <li key={`ud${r.kind}`} style={{ display: 'flex', flexWrap: 'wrap', gap: '0 8px', alignItems: 'baseline', padding: '4px 0', borderTop: `1px solid ${C.border}`, fontSize: 12 }}>
                         <span style={{ color: C.text2 }}>{r.label} {r.value} <span style={{ color: C.text3 }}>(the Universal Day)</span></span>
                         <span style={{ marginLeft: 'auto', fontFamily: numFont, color: C.text3, fontSize: 11 }}>{r.events} {eventWord} vs {Number(r.expected).toFixed(1)}</span>
                       </li>
                     ))}
                     {y.lanes.slice(0, 3).map((l) => (
-                      <li key={l.lane} style={{ display: 'flex', gap: 8, alignItems: 'baseline', padding: '4px 0', borderTop: `1px solid ${C.border}`, fontSize: 12 }}>
+                      <li key={l.lane} style={{ display: 'flex', flexWrap: 'wrap', gap: '0 8px', alignItems: 'baseline', padding: '4px 0', borderTop: `1px solid ${C.border}`, fontSize: 12 }}>
                         <span style={{ color: C.text2, minWidth: 0 }}>{l.label}</span>
                         <span style={{ marginLeft: 'auto', fontFamily: numFont, color: C.text3, fontSize: 11, whiteSpace: 'nowrap' }}>{l.hits}/{l.matched} · all {pct(l.eligible ? l.eligibleHits / l.eligible : null)}</span>
                       </li>

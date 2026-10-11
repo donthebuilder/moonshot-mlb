@@ -114,7 +114,7 @@ export default function Alignments({ players = [], watchIds = null, slateDate = 
       days={{ yesterdayArchive, todayArchive, tomorrowKey, tomorrowRoot }}
       watchedRows={watchedRows} hasWatch={Boolean(watchIds && watchIds.size > 0)}
       builder onBuildAround={onBuildAround}
-      children={<div style={{ display: 'grid', gap: 10 }}><DayNumbers sport="mlb" date={todayKey} theme={C} numFont={NUM_FONT} accent={C.orange} eventWord="HRs" /><LaneTable sport="mlb" theme={C} numFont={NUM_FONT} accent={C.orange} tonight={laneTonight} /></div>}
+      children={<div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'minmax(0, 1fr)' }}><DayNumbers sport="mlb" date={todayKey} theme={C} numFont={NUM_FONT} accent={C.orange} eventWord="HRs" /><LaneTable sport="mlb" theme={C} numFont={NUM_FONT} accent={C.orange} tonight={laneTonight} /></div>}
       head={(
         <>
           {/* ONE PAGE, ONE EXPLAINER (2026-10-07, Donovan: Numerology and Alignments on one page). The page is
