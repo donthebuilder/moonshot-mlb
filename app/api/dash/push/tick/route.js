@@ -38,7 +38,8 @@ import { reduceScoreDay } from '../../../../../lib/nhl/reduce'
 import { hasVapid, vapidDetails, vapidProblem } from '../../../../../lib/dash/vapid'
 import { claimBoardWindow, fetchBoard } from '../../../../../lib/dash/board'
 import { byeStarterEventsFrom, franchiseEventsFrom, lineupGapEventsFrom, starterScoreEventsFrom } from '../../../../../lib/dash/franchise'
-import { audienceFrom, boardInfoFrom, deviceWantsSport, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, followNameKey, nflFollowMisses, nhlEventsFrom, nbaEventsFrom, pregameEventsFrom, nhlPregameEventsFrom, nflPregameEventsFrom, nbaPregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
+import { audienceFrom, boardInfoFrom, deviceWantsSport, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, followNameKey, nflFollowMisses, nhlEventsFrom, nbaEventsFrom, pregameEventsFrom, nhlPregameEventsFrom, nhlInjuryOutEventsFrom, mlbInjuryOutEventsFrom, nflPregameEventsFrom, nbaPregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
+import { readInjuries } from '../../../../../lib/injuries/read'
 import { nhlPregameSnap, nflPregameSnap, nbaPregameSnap, priorStartersFrom } from '../../../../../lib/dash/pregameSources'
 import { bundleTitle, bundleBody } from '../../../../../lib/copy/notifications'
 import { fanOutToDiscord } from '../../../../../lib/dash/discordAlerts'
@@ -217,7 +218,10 @@ async function pregameEvents(db, audience) {
   if (!(await claimBoardWindow(db))) return []
   const rows = await fetchBoard('today')
   if (rows) await saveBoardDay(db, rows)
-  return rows ? pregameEventsFrom(rows, snap, today(), audience) : []
+  if (!rows) return []
+  // the injury layer: a followed hitter listed OUT before his lineup is posted ('scratched', no new category)
+  const inj = await readInjuries('mlb').catch(() => null)
+  return [...pregameEventsFrom(rows, snap, today(), audience), ...mlbInjuryOutEventsFrom(rows, snap, inj, today(), audience)]
 }
 
 // ── PREGAME NEWS: NHL, NFL, NBA (2026-10-09) ───────────────────────────────
@@ -233,12 +237,14 @@ async function nhlPregameEvents(db, audience) {
   if (!audience?.nhl?.size) return []
   const snap = await nhlPregameSnap(today(), audience)
   if (!snap) return []
-  const first = nhlPregameEventsFrom(snap, today(), audience)
+  const inj = await readInjuries('nhl').catch(() => null)
+  const injOuts = nhlInjuryOutEventsFrom(snap, inj, today(), audience)   // a followed skater listed OUT (lib/injuries), category 'scratched'
+  const first = [...nhlPregameEventsFrom(snap, today(), audience), ...injOuts]
   if (!first.some((e) => e.category === 'starter' && !knownClaimed.keys.has(e.key))) return first
   const { data, error } = await db.from('dash_push_seen').select('event_key').like('event_key', 'nhl:%:starter:%')
   if (error) { console.error(`[push] prior starters read failed: ${error.message}`); return first }
   const prior = priorStartersFrom((data || []).map((r) => r.event_key), audience.nameOf)
-  return nhlPregameEventsFrom(snap, today(), audience, Date.now(), prior)
+  return [...nhlPregameEventsFrom(snap, today(), audience, Date.now(), prior), ...injOuts]
 }
 // NFL: a followed player ruled Out, a delay, a moved kickoff. His card opens when the slate knows his id.
 async function nflPregameEvents(audience) {

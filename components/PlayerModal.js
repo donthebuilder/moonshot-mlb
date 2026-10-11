@@ -63,6 +63,7 @@ import PlayerCompare from './PlayerCompare'
 import ContactSection from './ContactSection'
 import { reasonContext, boardReasonFor, reasonLines } from '../lib/mlb/boardReason'
 import BotOnHim from './BotOnHim'
+import PlayerInjuryChip from './injuries/PlayerInjuryChip'
 
 // 🧱 "How far is HIS wall tonight" (audit #7, 2026-08-08). fieldInfo hydrate
 // verified live; percentile computed from the same payload. Switch hitters
@@ -687,6 +688,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                 <span style={{ color: C.text3, fontWeight: 700, fontFamily: NUM_FONT }}>#{jersey} </span>
               )}
               {nameOf(p)}
+              <PlayerInjuryChip who={{ player_id: p?.player_id, name: nameOf(p), team: teamOf(p) }} />
             </>}
             badge={apiOnly ? 'LIVE' : heroRole === 'NONE' ? 'NO BADGE' : heroRole === 'WATCH' ? '👀 WATCH' : heroRole}
             badgeQuiet={apiOnly || heroRole === 'NONE' || heroRole === 'WATCH'}

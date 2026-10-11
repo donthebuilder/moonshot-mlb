@@ -1,4 +1,5 @@
 'use client'
+import PlayerInjuryChip from '../injuries/PlayerInjuryChip'
 import { useEffect, useMemo, useState } from 'react'
 
 import useScrollLock from '../../lib/useScrollLock'
@@ -401,7 +402,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         photo={faceUrl({ sport: 'nfl', espnId: player.espn_id, size: 96 })}
         col={g0.color} score={Number.isFinite(s0) ? s0 : null}
         // the name is the player's own link (a shared link to his page; check-clickable)
-        title={<a href={playerHref('nfl', player.player_id)} style={{ color: 'inherit', textDecoration: 'none' }}>{player.name}</a>} badge={Number.isFinite(s0) ? g0.label : 'UNSCORED'} badgeQuiet={!Number.isFinite(s0)}
+        title={<><a href={playerHref('nfl', player.player_id)} style={{ color: 'inherit', textDecoration: 'none' }}>{player.name}</a>{!tag && <PlayerInjuryChip who={{ player_id: player.player_id, name: player.name, team: player.team }} C={C} font={NUM_FONT} />}</>} badge={Number.isFinite(s0) ? g0.label : 'UNSCORED'} badgeQuiet={!Number.isFinite(s0)}
         market={spec?.label || market}
         meta={<>
           {player.jersey_number ? `#${player.jersey_number} · ` : ''}

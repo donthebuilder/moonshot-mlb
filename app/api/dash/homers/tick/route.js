@@ -41,6 +41,7 @@ import { admit, xOk, recentNamed, repeatCheck, logPosted, logDroppedRepeat, sche
 import { windowOpen, payloadFor } from '../../../../../lib/dash/xSchedule'
 import { namedInText, withNamed, isRetiredForever } from '../../../../../lib/dash/xPolicy'
 import { resolveNaming, mlbNamingProblem } from '../../../../../lib/dash/namingChecks'
+import { primeInjuries } from '../../../../../lib/injuries/read'
 import { postSlateOnce } from '../../../../../lib/posts/slate'
 import { periodsDue, postPeriodOnce, postReceiptOnce } from '../../../../../lib/posts/receipt'
 import { receiptLoader } from '../../../../../lib/posts/receiptLoad'
@@ -1754,6 +1755,7 @@ export async function GET(request) {
       // X the longest version that fits the account's limit. A write-up that fails the
       // checker posts the old CALL text instead -- never an unchecked long post.
       if (perGameOn(day)) {
+        await primeInjuries(['mlb'])   // lib/injuries: the naming check below reads it (memoised 20 min, no new poll)
         const nowMs = Date.now()
         const slate = callRows()
         for (const call of gameCalls(slate)) {
@@ -1865,6 +1867,7 @@ export async function GET(request) {
       // lineup that can still change is least accurate called off a board
       // published hours before lineups lock.
       if (pregameLockReady && !knownTaken(day, 'board')) {
+        await primeInjuries(['mlb'])
         // BEFORE THEY ARE NAMED (2026-10-09): same naming rule as the pregame post (the board
         // is exempt from the cap and the repeat guard -- it is the page's essential feed).
         const bn = resolveNaming({ rows: callRows(), check: mlbNamingProblem, pickFrom: (rs) => boardRolePicks(rs), startOf: (r) => Date.parse(r?.game_time), trim: true, now: Date.now() })

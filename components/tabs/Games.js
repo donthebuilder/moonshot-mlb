@@ -27,6 +27,9 @@ import Explain from '../Explain'
 import OffBot from '../OffBot'
 import GameDeepDive from '../GameDeepDive'
 import MlbWriteupBlock from '../MlbWriteupBlock'
+import InjuryOut from '../injuries/InjuryOut'
+import { useOutCounts } from '../injuries/InjuryLayer'
+import { nameKey } from '../../lib/injuries/lookup'
 import GameLedgerLine from '../ledger/GameLedgerLine'
 import GameSimPanel from '../GameSimPanel'
 import LineupSlotMatchup from '../LineupSlotMatchup'
@@ -442,6 +445,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   // CARDS FIRST (2026-09-28, Donovan: "have it open the slate as cards first") --
   // reverses the 2026-08-30 table-first call; Table is one tap away.
   const [gview, setGview] = useState('games')
+  const outCounts = useOutCounts('mlb')   // lib/injuries: "3 out" on the game row and the Out pill (null while loading / unavailable)
   // ── THE LEAGUE'S LINEUP, NOT THE BOT'S (2026-08-10) ──────────────────────
   //
   // Donovan: "make sure the live wire and games can update the lineups — does
@@ -1435,6 +1439,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                           />
                         </span>
                         <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{localTime(g.game_time)}</span>
+                        {(() => { const oc = outCounts([g.away, g.home]); return oc?.out ? <span title="Players listed out or on the injured list for these two clubs (injury report)" style={{ fontSize: TYPE.micro, color: C.yellow, fontFamily: NUM_FONT, fontWeight: 700 }}>{oc.out} out</span> : null })()}
                         <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 9, fontSize: TYPE.micro, fontFamily: NUM_FONT, flexShrink: 0 }}>
                           {/* Same reason as the duel below: open, the air is a
                               full sentence in GameDeepDive's AirLine. */}
@@ -1613,7 +1618,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                           gamePk={g.game_pk}
                           panels={GAME_PANELS}
                           subs={PANEL_SUB}
-                          badges={{ lineups: (() => { const w = (g.players || []).filter((p) => p?.weak_spot_flag).length; return w ? `★${w}` : '' })(), picks: sorted.length ? String(sorted.length) : '' }}
+                          badges={{ lineups: (() => { const w = (g.players || []).filter((p) => p?.weak_spot_flag).length; return w ? `★${w}` : '' })(), picks: sorted.length ? String(sorted.length) : '', out: (() => { const oc = outCounts([g.away, g.home]); return oc?.out ? String(oc.out) : '' })() }}
                           note={panel === 'lineups' && sides.map((s) => s.arm).filter(Boolean).length ? <span style={{ color: C.text3 }}> Tonight: {sides.map((s) => s.arm).filter(Boolean).join(' / ')}.</span> : null}
                         />
 
@@ -1654,6 +1659,18 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
 
                         <div id={`gp-h2h-${g.game_pk}`} style={{ borderTop: `1px solid ${C.border}`, marginTop: 14, paddingTop: 12 }}>
                           <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} results={results} odds={odds} onPlayerClick={onPlayerClick} section="h2h" />
+                        </div>
+
+                        <div id={`gp-out-${g.game_pk}`} style={{ marginTop: 14 }}>
+                          {(() => {
+                            const rowsIn = (g.players || [])
+                            const find = (e) => rowsIn.find((p) => p.team === e.team && nameKey(p.name) === nameKey(e.name)) || null
+                            return (
+                              <InjuryOut sport="mlb" clubs={[g.away, g.home]} theme={{ C, NUM_FONT, accent: C.orange }} title="Out tonight" openSignal={panel === 'out'}
+                                isOurs={(e) => Boolean(find(e))}
+                                openPlayer={(e) => { const p = find(e); return p ? () => onPlayerClick?.(p) : null }} />
+                            )
+                          })()}
                         </div>
 
                         <div id={`gp-picks-${g.game_pk}`} style={{ borderTop: `1px solid ${C.border}`, marginTop: 14, paddingTop: 12 }} />
@@ -1908,6 +1925,7 @@ const GAME_PANELS = [
   ['read',    'The read'],
   ['lineups', 'Lineups'],
   ['h2h',     'Head-to-head'],
+  ['out',     'Out'],
   ['picks',   'Picks'],
 ]
 const PANEL_SUB = {
@@ -1917,6 +1935,7 @@ const PANEL_SUB = {
   // hunting for a click that no longer exists.
   lineups: 'both batting orders 1 through 9 as the full stat table — every column sortable, with the spot read (what this arm has done to each slot, in words) one pill over.',
   h2h: 'what these hitters have done against tonight’s starter this season, both sides.',
+  out: 'who is out for both clubs, from the injury report.',
   picks: 'MOONSHOT’s designated slots for this game as full cards — score bars, pills, add to slip.',
 }
 // ── THE LIVE STAMP (2026-09-01) ───────────────────────────────────────────────

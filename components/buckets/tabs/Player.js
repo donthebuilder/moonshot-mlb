@@ -37,6 +37,7 @@ import PlayerBars from '../PlayerBars'
 import BucketsPropsMatrix from '../PropsMatrix'
 import PlayerDdTd from '../PlayerDdTd'
 import { EmptyState, DelayedBanner, Loading, Kicker, BackBtn, PlayerFace, SeasonTypeChip, fmtDay, fmtTip, RimDot } from '../ui'
+import PlayerInjuryChip from '../../injuries/PlayerInjuryChip'
 
 // 📄 ONE PLAYER -- MOONSHOT's card, as a page (NHL's components/lamp/tabs/Player.js is the closest pattern, TUDDY's
 // NflPlayerModal the other): a sticky header (who, which club, the board's word and score, his key numbers) over
@@ -197,7 +198,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
             <PlayerFace sport="nba" id={card.id} photo={card.headshot} name={card.name} size={44} />
             <div style={{ minWidth: 0, flex: 1 }}>
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, lineHeight: 1.2, color: C.text }}>
-                {card.jersey ? <span style={{ color: C.text3, fontFamily: NUM_FONT }}>#{card.jersey} </span> : null}<a href={playerHref('nba', pid)} style={{ color: 'inherit', textDecoration: 'none' }}>{card.name}</a>
+                {card.jersey ? <span style={{ color: C.text3, fontFamily: NUM_FONT }}>#{card.jersey} </span> : null}<a href={playerHref('nba', pid)} style={{ color: 'inherit', textDecoration: 'none' }}>{card.name}</a><PlayerInjuryChip who={{ player_id: card.id, name: card.name, team: card.team }} />
               </h2>
               <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px 8px', fontSize: 12, color: C.text2, marginTop: 2 }}>
                 {card.team && (

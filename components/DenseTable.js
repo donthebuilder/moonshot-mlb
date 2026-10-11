@@ -15,6 +15,7 @@ import { edgeOn } from '../lib/palette'
 import { seqColor, divTone, SEQ_AUTO, DIV_FIELD, fieldAnchor, fieldLabel } from '../lib/scales'
 import { explainFor, explainFrom, InfoDot, ExplainBanner } from './Explain'
 import { useSportTheme } from './SportTheme'
+import { useInjuryLayer } from './injuries/InjuryLayer'
 import { readSkin, renderV2 } from './table/v2'
 import { useTeamNav } from '../lib/teamNav'
 import { useIsPhone } from './MobileFold'
@@ -172,6 +173,7 @@ export default function DenseTable({
   // fallback the plan keeps; then classic is deleted.
   const skin = skinProp || skinAuto || 'v2'
   const sportTheme = useSportTheme()
+  const injuryLayer = useInjuryLayer()   // the availability chip beside a player's name (lib/injuries); null outside the app shell
   const teamNav = useTeamNav()
   // MULTI-SORT. `sort` is an ordered list of keys, not one key.
   //
@@ -423,7 +425,7 @@ export default function DenseTable({
       heatMode, ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
       explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
       truncated, maxRows, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
-      capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam: teamNav,
+      capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam: teamNav, injuryLayer,
     })
   }
 

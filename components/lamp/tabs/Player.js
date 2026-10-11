@@ -36,6 +36,7 @@ import { arenaOf } from '../../../lib/nhl/arenas'
 import PlayerSplits from '../PlayerSplits'
 import GoalTracking from '../GoalTracking'
 import { PlayerDepthToggle } from '../NhlDepth'
+import PlayerInjuryChip from '../../injuries/PlayerInjuryChip'
 
 // 🏒 PLAYER — one man's file, at a stable address (#sport=nhl&tab=player&
 // player=<id>). A skater and a goalie share the route and NOT the page:
@@ -233,7 +234,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 18, fontWeight: 800, lineHeight: 1.2, color: C.text }}>
-              {p.number != null && <span style={{ color: C.text3, fontFamily: NUM_FONT }}>#{p.number} </span>}<a href={playerHref('nhl', p.id)} style={{ color: 'inherit', textDecoration: 'none' }}>{p.name}</a>
+              {p.number != null && <span style={{ color: C.text3, fontFamily: NUM_FONT }}>#{p.number} </span>}<a href={playerHref('nhl', p.id)} style={{ color: 'inherit', textDecoration: 'none' }}>{p.name}</a><PlayerInjuryChip who={{ player_id: p.id, name: p.name, team: p.team }} />
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px 8px', fontSize: 12, color: C.text2, marginTop: 2 }}>
               {p.team && (

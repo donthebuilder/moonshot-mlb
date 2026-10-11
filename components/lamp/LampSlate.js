@@ -14,6 +14,9 @@ import { GameBoard, NavBtn, AllGamesTable, spotOf, pct1, restWord } from './tabs
 import LampProjected from './LampProjected'
 import LampWeakSpots from './LampWeakSpots'
 import NhlWriteupBlock from './NhlWriteupBlock'
+import InjuryOut from '../injuries/InjuryOut'
+import { useOutCounts } from '../injuries/InjuryLayer'
+import { nameKey } from '../../lib/injuries/lookup'
 import BoardTopBar from '../BoardTopBar'
 import { LampCards } from './LampCard'
 import { STATUS_WORD } from '../../lib/callStatus'
@@ -37,11 +40,12 @@ import { downloadLampGameCard } from './shareCard'
 // the starting goalie is only named once the feed has him (after the game).
 // The open game rides the address (#…&game=<id>).
 
-const PANELS = [['read', 'The read'], ['board', 'Every player'], ['calls', 'The calls']]
+const PANELS = [['read', 'The read'], ['board', 'Every player'], ['calls', 'The calls'], ['out', 'Out']]
 const SUBS = {
   read: 'goals to expect, power play and penalty kill.',
   board: 'every skater in this game. Scroll the table sideways for more.',
   calls: 'one skater called per team.',
+  out: 'who is out for both clubs, from the injury report.',
 }
 // The words Donovan asked for. The number is the TEAM model's projected goals (lamp-team-v1, 2026-10-08;
 // lib/nhl/teamProj.js, on the board as game.proj): each club's shot volume x shot quality x the other side's
@@ -70,6 +74,7 @@ function CardTitle({ g, st }) {
 export default function LampSlate({ date = null, setDate = () => {}, onOpenPlayer, onOpenTeam, onOpenGame }) {
   const { data, error, loading } = useLampBoard(date, 'GOAL')
   const isPhone = useIsPhone()
+  const outCounts = useOutCounts('nhl')   // lib/injuries: "3 out" on the game row and the Out pill
   const [gfilter, setGfilter] = useState('all')
   const [panel, setPanel] = useState('read')
   const [hashGame, setHashGame] = useHashFilter('game')
@@ -135,7 +140,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
       band: topId === g.game.id && games.length > 1 ? { icon: '🌋', word: 'MAIN EVENT' } : heatTier(heat) === 'hot' ? { icon: '🔥', word: '' } : heatTier(heat) === 'cold' && games.length > 2 ? { icon: '🧊', word: '' } : null,
       lead: <span title={g.locked ? 'The board locked before puck drop' : g.setting ? 'Setting: the calls can still change until puck drop' : 'A preview until the board locks'}>{g.locked ? '🔒' : '◻'}</span>,
       status: st === 'live' ? { kind: 'live', text: g.game.statusLine || 'LIVE' } : st === 'final' ? { kind: 'final', text: 'FINAL' } : { kind: 'time', text: timeOf(g) },
-      extra: <span>{XG_WORDS}</span>,
+      extra: (() => { const oc = outCounts([g.game.away.abbrev, g.game.home.abbrev]); return <span>{XG_WORDS}{oc?.out ? ` · ${oc.out} out` : ''}</span> })(),
       score: null,   // the title carries it: each club once, with its score beside it
       chips: called.map((r) => ({
         key: String(r.playerId), tag: 'CALL', color: C.ice, name: r.name, score: Math.round(r.score ?? 0),
@@ -225,7 +230,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
               </div>
               <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px 14px', background: 'rgba(0,0,0,.15)' }}>
                 <GamePanelPills panels={PANELS} subs={SUBS} panel={panel} setPanel={setPanel} gamePk={g.game.id} isPhone={isPhone} accent={C.ice} stickyTop="var(--gsw-h, 0px)"
-                  badges={{ calls: called.length ? String(called.length) : '' }} />
+                  badges={{ calls: called.length ? String(called.length) : '', out: (() => { const oc = outCounts([away, home]); return oc?.out ? String(oc.out) : '' })() }} />
 
                 <PanelAnchor id="read" gamePk={g.game.id}>
                   {/* THE CALL (2026-10-05): the game's write-up, from this same board game */}
@@ -266,6 +271,19 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
                   {called.length
                     ? <LampCards market="GOAL" onOpen={onOpenPlayer} items={called.map((r) => ({ key: String(r.playerId), r, g, rank: r.rank, facts: { pp: pct1(spotOf(g, r.team, true)?.ppPct), pk: pct1(spotOf(g, r.team, false)?.pkPct), rest: restWord(spotOf(g, r.team, true)) } }))} />
                     : <p style={{ margin: 0, fontSize: 13, color: C.text3 }}>No skater in this game has played enough NHL games to be called.</p>}
+                </PanelAnchor>
+
+                <PanelAnchor id="out" gamePk={g.game.id}>
+                  {(() => {
+                    const board = new Map(g.rows.map((r) => [`${r.team}|${nameKey(r.name)}`, r]))
+                    const find = (e) => board.get(`${e.team}|${nameKey(e.name)}`) || null
+                    return (
+                      <InjuryOut sport="nhl" clubs={[away, home]} theme={{ C, NUM_FONT, accent: C.ice }} title="Out tonight" openSignal={panel === 'out'}
+                        isOurs={(e) => { const r = find(e); return Boolean(r && r.status !== 'off') }}
+                        openPlayer={(e) => { const r = find(e); return r && onOpenPlayer ? () => onOpenPlayer(r.playerId) : null }}
+                        onOpenTeam={onOpenTeam} />
+                    )
+                  })()}
                 </PanelAnchor>
               </div>
             </GameFrame>

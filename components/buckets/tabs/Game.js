@@ -13,6 +13,7 @@ import BucketsTable from '../BucketsTable'
 import ShotChart from '../ShotChart'
 import BucketsTeamExpected from '../BucketsTeamExpected'
 import NbaWriteupBlock from '../NbaWriteupBlock'
+import InjuryOut from '../../injuries/InjuryOut'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, BackBtn, NavBtn, RimDot, fmtTip, gameDay, fmtDay } from '../ui'
 
 // the 3D court loads only when opened (next/dynamic, as the other 3D views)
@@ -58,6 +59,9 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
       <GameLedgerLine sport="nba" gameId={id} day={gameDay(data.date)} />
       <NbaWriteupBlock gameId={id} date={gameDay(data.date)} onOpenPlayer={onOpenPlayer} />
       <GameCalls id={id} date={gameDay(data.date)} onOpenPlayer={onOpenPlayer} />
+      {/* lib/injuries: who is out for both clubs (BUCKETS stays hidden: the API 404s until BUCKETS_PUBLIC is on) */}
+      <InjuryOut sport="nba" clubs={[away.abbrev, home.abbrev]} theme={{ C, NUM_FONT, accent: C.purple }} title="Out tonight"
+        openPlayer={(e) => (e.espnId && onOpenPlayer ? () => onOpenPlayer(e.espnId) : null)} onOpenTeam={onOpenTeam} />
       {[away, home].map((t) => <BoxTable key={t.id} team={t} box={(data.box || []).filter((p) => p.team === t.abbrev)} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />)}
       {(data.shots || []).length > 0 ? (
         <section>

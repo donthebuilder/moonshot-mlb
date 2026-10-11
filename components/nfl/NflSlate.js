@@ -18,6 +18,10 @@ import { easternDate } from '../../lib/data'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
 import { localDayTime } from '../../lib/localTime'
 import { slateTotals, TD_WORD } from '../../lib/nfl/teamTdModel'
+import InjuryOut from '../injuries/InjuryOut'
+import { useOutCounts } from '../injuries/InjuryLayer'
+import { nameKey } from '../../lib/injuries/lookup'
+import { depthRole } from '../../lib/nfl/roles'
 
 // TUDDY'S SLATE (2026-09-28). Donovan: "there's no breakdown page like the
 // slate page for mlb ... I should be able to see each game and get a good
@@ -39,12 +43,13 @@ import { slateTotals, TD_WORD } from '../../lib/nfl/teamTdModel'
 
 const HEADLINE_MARKETS = ['TD', 'REC_YDS', 'RUSH_YDS', 'REC', 'PASS_YDS', 'KICK_PTS']
 const MARKET_TAG = { TD: 'TD', REC_YDS: 'REC YDS', RUSH_YDS: 'RUSH YDS', REC: 'REC', PASS_YDS: 'PASS YDS', KICK_PTS: 'KICK' }
-const PANELS = [['field', 'The field'], ['players', 'Players'], ['matchup', 'Matchup'], ['research', 'Research']]
+const PANELS = [['field', 'The field'], ['players', 'Players'], ['matchup', 'Matchup'], ['research', 'Research'], ['out', 'Out']]
 const SUBS = {
   field: 'where this offense attacks, where the other defense is weak, and where they meet.',
   players: 'who gets the ball, who they face, and the calls.',
   matchup: 'the numbers that decide a game, side by side.',
   research: 'every scored player in the game, and the top touchdown looks.',
+  out: 'who is out this week for both clubs, from the injury report.',
 }
 
 const stateOf = (g) => (g.state === 'in' ? 'live' : g.completed ? 'final' : 'upcoming')
@@ -80,6 +85,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
   const pool = useMemo(() => tdPool(data), [data])
   const gameCalls = useGameCalls()   // BATCH-GAME-CALLS G5: TOP + TD per game
   const playersById = useMemo(() => Object.fromEntries(players.map((p) => [String(p.player_id), p])), [players])
+  const outCounts = useOutCounts('nfl')   // lib/injuries: "3 out" on the game row and the Out pill (null while loading / unavailable)
 
   const [gfilter, setGfilter] = useState('all')
   const [panel, setPanel] = useState('field')
@@ -129,7 +135,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
       dial: { value: x, dp: 1, pct: 100 * heat, title: x == null ? `${TD_WORD} — loading` : `${x.toFixed(1)} ${TD_WORD} between the two teams — each club's touchdown rate against the other's defence. The ring shows where it sits among all matchups in the league.` },
       band: x == null ? null : top && g.game_id === top.game_id ? { icon: '🌋', word: 'MAIN EVENT' } : heat >= 0.8 ? { icon: '🔥', word: '' } : heat <= 0.2 ? { icon: '🧊', word: '' } : null,
       status: live ? { kind: 'live', text: g.detail || 'LIVE' } : g.completed ? { kind: 'final', text: 'FINAL' } : { kind: 'time', text: kickText(g) },
-      extra: airText(g) ? <span>{airText(g)}</span> : null,
+      extra: (() => { const oc = outCounts([g.away, g.home]); const line = [airText(g), oc?.out ? `${oc.out} out` : null].filter(Boolean).join(' · '); return line ? <span>{line}</span> : null })(),
       score: (live || g.completed) ? { away: g.away, home: g.home, awayScore: g.away_score, homeScore: g.home_score, live } : null,
       chips: chipsFrom.map((k) => ({
         key: `${k.market}-${k.pid}`, tag: MARKET_TAG[k.market] || k.market, color: gradeFor(k.score).color,
@@ -169,7 +175,8 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
                 <GameHeader game={g} when={kickWhen(g)} air={airText(g)} xtd={x} heat={heatOf(g)} past={Boolean(g.completed)} onOpenTeam={onOpenTeam} />
               </div>
               <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px 14px', background: 'rgba(0,0,0,.15)' }}>
-                <GamePanelPills panels={PANELS} subs={SUBS} panel={panel} setPanel={setPanel} gamePk={g.game_id} isPhone={isPhone} accent={C.green} stickyTop="var(--gsw-h, 0px)" />
+                <GamePanelPills panels={PANELS} subs={SUBS} panel={panel} setPanel={setPanel} gamePk={g.game_id} isPhone={isPhone} accent={C.green} stickyTop="var(--gsw-h, 0px)"
+                  badges={{ out: (() => { const oc = outCounts([g.away, g.home]); return oc?.out ? String(oc.out) : '' })() }} />
 
                 {/* 2. OFFENSE vs DEFENSE: where it attacks, where it is weak, where they meet */}
                 <PanelAnchor id="field" gamePk={g.game_id}>
@@ -215,6 +222,21 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
                       )}
                     </div>
                   )}
+                </PanelAnchor>
+
+                {/* 6. WHO IS OUT (lib/injuries): collapsed, both clubs, our board men first */}
+                <PanelAnchor id="out" gamePk={g.game_id}>
+                  {(() => {
+                    const mine = new Set(callsIn(picks, g).map(({ call }) => nameKey(call.name)))
+                    const find = (e) => players.find((p) => p.team === e.team && nameKey(p.name) === nameKey(e.name)) || null
+                    return (
+                      <InjuryOut sport="nfl" clubs={[g.away, g.home]} theme={{ C, NUM_FONT, accent: C.green }} title="Out this week" openSignal={panel === 'out'}
+                        isOurs={(e) => mine.has(nameKey(e.name)) || Boolean(find(e) && Number.isFinite(find(e).scores?.TD))}
+                        openPlayer={(e) => { const p = find(e); return p ? () => onPlayerClick?.(p, 'TD') : null }}
+                        roleOf={(e) => { const p = find(e); return p ? depthRole(matchup, p.player_id, p.position) : null }}
+                        onOpenTeam={onOpenTeam} />
+                    )
+                  })()}
                 </PanelAnchor>
               </div>
             </GameFrame>

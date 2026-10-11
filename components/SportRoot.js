@@ -7,6 +7,7 @@ import { applyTheme, C } from '../lib/theme'
 import dynamic from 'next/dynamic'
 import AccountNudge from './AccountNudge'
 import ExplainToast from './ExplainToast'
+import { InjuryLayer } from './injuries/InjuryLayer'
 
 // One switch, two dashboards.
 //
@@ -104,5 +105,5 @@ export default function SportRoot() {
   const nudge = <><AccountNudge sport={sport} /><ExplainToast sport={sport} /></>
   // one shell per sport key (0g D6); a key without one is MOONSHOT, as it always was
   const Shell2 = SHELLS[sport] || Dashboard
-  return <><Shell2 palettePass={pass} />{nudge}</>
+  return <><InjuryLayer sport={sport}><Shell2 palettePass={pass} /></InjuryLayer>{nudge}</>
 }

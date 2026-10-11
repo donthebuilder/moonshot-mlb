@@ -31,6 +31,7 @@ import Tap from '../Tap'
 import { STATUS_WORD } from '../../lib/callStatus'
 import PlayerFace from '../PlayerFace'
 import CallStatusBadge from '../CallStatusBadge'
+import InjuryChip from '../injuries/InjuryChip'
 import { ShowMoreButton } from '../ListPreview'
 import { InfoDot, ExplainBanner, explainFor, explainFrom } from '../Explain'
 import { ANSWERS } from '../../lib/scoreAnswers'
@@ -250,7 +251,7 @@ export function renderV2(ctx) {
     heatMode = 'full', ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
     explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
     truncated, maxRows, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
-    capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam = null,
+    capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam = null, injuryLayer = null,
     adding = false, setAdding = () => {}, tierSig = null, phone = false,
   } = ctx
   const ordered = noGroups ? rawColumns.map((c) => ({ ...c, group: null })) : orderByGroup(rawColumns)
@@ -549,6 +550,12 @@ export function renderV2(ctx) {
                       {light && <span title={`Highlight: ${light.name || 'match'}`} style={cellMark(light.color)}>{light.mark || SPOT_MARK}</span>}
                       {faceOf && (() => { const f = faceOf(r); return f ? <PlayerFace {...f} variant="table" size={18} className="dense-face" style={{ margin: '-6px 5px -6px 0' }} /> : null })()}
                       {go ? <Tap onClick={go}>{nameEl}</Tap> : nameEl}
+                      {(() => {
+                        // availability beside the call (lib/injuries): CALLED stays CALLED, the chip says OUT / Q / D beside it. Information only.
+                        const raw = r._raw ?? r
+                        const inj = injuryLayer?.entryFor ? injuryLayer.entryFor({ player_id: raw.player_id ?? raw.playerId, name: raw.name ?? raw.player ?? (typeof content === 'string' ? content : ''), team: raw.team }) : null
+                        return inj ? <InjuryChip entry={inj} C={C} font={NUM_FONT} size={8.5} /> : null
+                      })()}
                       {sub.length > 0 && (
                         <div className="sub">{sub.map((x, i) => <span key={i}>{x}</span>)}</div>
                       )}
