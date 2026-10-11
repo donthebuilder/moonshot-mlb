@@ -21,6 +21,7 @@ import DashChip, { useDashLines, DASH_OF } from '../DashChip'
 import MarketStat from '../MarketStat'
 import { useNowTick } from '../../../lib/useNowTick'
 import { useRankMove } from '../../../lib/useRankMove'
+import { nflGameDate } from '../../../lib/rankSnapshots/compute'
 import { RankMoveCell, RankMoveNote } from '../../RankMove'
 import { roleLabel, roleOptions, roleMatches } from '../../../lib/nfl/roles'
 
@@ -231,7 +232,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   // his place on this market's board (low samples are left off it), not on the filtered list
   const rankOf = useMemo(() => new Map(eligible.filter((p) => !p.low_sample).sort((a, b) => b.scores[market] - a.scores[market]).map((p, i) => [String(p.player_id), i + 1])), [eligible, market])
   // RANK MOVES (2026-10-10): places moved in this market's order since the last update (lib/useRankMove.js). Information only.
-  const rankMv = useRankMove({ sport: 'nfl', board: market, date: data?.week != null ? `${data.season ?? ''}-W${data.week}` : null, ranks: rankOf, rows: data?.players, idOf: nflRankId })
+  const rankMv = useRankMove({ sport: 'nfl', board: market, date: nflGameDate(data?.games) || null, ranks: rankOf, rows: data?.players, idOf: nflRankId })
   const capped = all ? rows : rows.slice(0, SOFT_CAP)
   const hidden = rows.length - capped.length
 

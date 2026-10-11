@@ -184,7 +184,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   // his place on THIS WEEK'S board, not on the filtered list: the pool is in board order
   const rankOf = useMemo(() => new Map(rows.map((p, i) => [String(p.player_id), i + 1])), [rows])
   // RANK MOVES (2026-10-10): places moved in the TD board's order since the last update (lib/useRankMove.js). Information only.
-  const rankMv = useRankMove({ sport: 'nfl', board: 'TD', date: data?.week != null ? `${data.season ?? ''}-W${data.week}` : null, ranks: rankOf, rows: data?.players, idOf: nflRankId })
+  const rankMv = useRankMove({ sport: 'nfl', board: 'TD', date: slateDay || null, ranks: rankOf, rows: data?.players, idOf: nflRankId })
 
   const roleOpts = useMemo(() => roleOptions(rows), [rows])
   const positionOptions = useMemo(() => {
