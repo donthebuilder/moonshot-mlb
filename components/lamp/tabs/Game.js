@@ -7,6 +7,7 @@ import { nhlLogo, nhlTeam } from '../../../lib/nhl/teams'
 import { strengthTag } from '../ScoreTable'
 import LampTable from '../LampTable'
 import GoalieQuality from '../GoalieQuality'
+import GoalieWeakSpots from '../GoalieWeakSpots'
 import Tap from '../../Tap'
 import SiteTeamMark from '../../TeamMark'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, GoalLabel, fmtDay, fmtPuckDrop, zoneAbbrev } from '../ui'
@@ -73,7 +74,11 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
           </div>
           <Side team={g.home} lead={lead('home')} align="right" />
         </div>
-        <div style={{ marginTop: 8, color: C.text3, fontSize: 11 }}>{g.venue}{g.venueLocation ? `, ${g.venueLocation}` : ''}{g.neutralSite ? ' · neutral site' : ''}</div>
+        {/* the venue and, on the right, the goalie weak-spots chip (2026-10-10): one row, so the block costs the page almost no height; it opens below the row */}
+        <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', alignItems: 'center', columnGap: 10 }}>
+          <span style={{ color: C.text3, fontSize: 11 }}>{g.venue}{g.venueLocation ? `, ${g.venueLocation}` : ''}{g.neutralSite ? ' · neutral site' : ''}</span>
+          <GoalieWeakSpots game={{ id: g.id, date: g.date, away: g.away.abbrev, home: g.home.abbrev, season: g.season, state: g.state }} onOpenPlayer={onOpenPlayer} />
+        </div>
       </header>
       <GameLedgerLine sport="nhl" gameId={g.id} day={g.date} />
 
