@@ -525,7 +525,7 @@ export default function NflDashboard({ palettePass = 0 }) {
               archive: () => <TuddyLedger data={data} results={nflResults} onPlayerClick={openPlayer} initialView="season" />,
             }} />}
             {tab === 'scores' && <Scores data={slate} onPlayerClick={openPlayer} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
-            {tab === 'team' && <NflTeam data={slate} picks={picks} onOpenPlayer={openPlayer} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
+            {tab === 'team' && <NflTeam data={slate} picks={picks} matchup={matchup} onOpenPlayer={openPlayer} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
             {tab === 'standings' && <Standings onOpenTeam={openTeamPage} />}
             {tab === 'pairs' && <Pairs data={data} results={nflResults} onPlayerClick={openPlayer} setTab={setTab} />}
             {tab === 'guide' && <Guide onNavigate={setTab} data={data} />}

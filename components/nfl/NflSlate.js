@@ -9,6 +9,7 @@ import GameSwitcher from '../GameSwitcher'
 import { GameFilterRail, SlateStrip, GamePanelPills, PanelAnchor, GameFrame, PrevNextGame } from '../slate/SlateParts'
 import GameOffDef, { Kicker } from './GameOffDef'
 import { GameHeader, KeyPlayers, MatchupScoreboard, ImportantStats } from './GameSections'
+import { DefenseFile } from './DefenseSections'
 import { Card as TdCard, tdPool } from './tabs/Touchdowns'
 import NflTable from './NflTable'
 import { useGameCalls } from './GameCalls'
@@ -179,6 +180,9 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
                 {/* 3. KEY PLAYERS, then the calls (one block) */}
                 <PanelAnchor id="players" gamePk={g.game_id} style={{ marginTop: 6 }}>
                   <KeyPlayers matchup={matchup} data={data} game={g} onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />
+                  {/* BOTH DEFENCES (2026-10-10): each club's defence tags and its key defenders, the defence the other offence faces */}
+                  <DefenseFile matchup={matchup} slateSeason={data?.season} def={g.home} off={g.away} />
+                  <DefenseFile matchup={matchup} slateSeason={data?.season} def={g.away} off={g.home} />
                   {story && (
                     <p style={{ margin: '0 0 14px', fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
                       <b style={{ color: C.green, fontFamily: NUM_FONT, fontSize: 12, letterSpacing: '.08em' }}>{story.kind === 'model' ? 'THE CALL' : 'MILESTONE'} </b>

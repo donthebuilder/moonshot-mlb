@@ -51,6 +51,10 @@ import { playerHref } from '../../lib/routes'
 import { gameVenue } from '../../lib/nfl/venueOf'
 import DashChip, { useDashLines, DASH_OF } from './DashChip'
 import RoleTag from './RoleTag'
+import TagChips from './TagChips'
+import { DefenderFile } from './DefenseSections'
+import { useTagBook } from '../../lib/nfl/useDefense'
+import { isDefPosition } from '../../lib/nfl/defStats'
 // 44px tap around a club code, text in place; 9px a side so the two clubs
 // either side of " vs " don't share a target (10-04).
 const CLUB_LINK = { color: 'inherit', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2, display: 'inline-block', padding: '17px 9px', margin: '-17px -9px' }
@@ -330,6 +334,8 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
   // the TD market's status word (lib/callStatus tdCallStatus, through lib/nfl/tdStatus): the same one the TD board wears
   const gameCalls = useGameCalls()
   const tdStatus = useMemo(() => tdStatusFor({ picksCard: picks?.card, gameCalls, games: slate?.games, board: tdPool(slate).rows }), [picks, gameCalls, slate])
+  // TAGS (lib/nfl/tags.js): his own ball-security tags and the tags of the defence he faces. Labels with their numbers; no score reads them.
+  const tagBookOf = useTagBook(matchup, slate?.season)
   const [tab, setTab] = useState('overview')
   const [season, setSeason] = useState('')
   const [allStats, setAllStats] = useState(false)
@@ -348,7 +354,10 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
   // Escape lives in lib/useDialog.js now (2026-09-24), with focus and Tab.
 
   if (!player) return null
-  const spec = (markets || []).find((m) => m.key === market)
+  // A DEFENDER (DL / LB / CB / S): no TD score, so his page is the defense file, not the offence verdict
+  const defender = isDefPosition(player.position)
+  const rowTags = defender ? [] : tagBookOf.row(player).all
+  const spec =(markets || []).find((m) => m.key === market)
   const weights = spec?.weights || {}
   const s0 = player.scores?.[market]
   const g0 = gradeFor(s0)
@@ -401,8 +410,8 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         photo={faceUrl({ sport: 'nfl', espnId: player.espn_id, size: 96 })}
         col={g0.color} score={Number.isFinite(s0) ? s0 : null}
         // the name is the player's own link (a shared link to his page; check-clickable)
-        title={<a href={playerHref('nfl', player.player_id)} style={{ color: 'inherit', textDecoration: 'none' }}>{player.name}</a>} badge={Number.isFinite(s0) ? g0.label : 'UNSCORED'} badgeQuiet={!Number.isFinite(s0)}
-        market={spec?.label || market}
+        title={<a href={playerHref('nfl', player.player_id)} style={{ color: 'inherit', textDecoration: 'none' }}>{player.name}</a>} badge={Number.isFinite(s0) ? g0.label : defender ? 'DEFENDER' : 'UNSCORED'} badgeQuiet={!Number.isFinite(s0)}
+        market={defender ? 'Defense' : (spec?.label || market)}
         meta={<>
           {player.jersey_number ? `#${player.jersey_number} · ` : ''}
           {/* the clubs open their team pages (route audit B6; team page since 10-03) */}
@@ -420,6 +429,11 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         ) : null}
       />
 
+      {/* TAGS: his ball-security tags and the tags of the defence he faces, each with its number on a tap (lib/nfl/tags.js) */}
+      {rowTags.length > 0 && <div style={{ margin: '-4px 0 10px' }}><TagChips tags={rowTags} onPlayerRow /></div>}
+
+      {defender && <DefenderFile player={player} matchup={matchup} slateSeason={slate?.season} />}
+      {!defender && <>
       <StarMemory sport="nfl" id={player?.player_id} />
       {/* MOONSHOT's multi-HR line, TUDDY's words */}
       <MultiLine sport="nfl" playerId={player?.player_id} words={{ TD: 'multi-TD', PASS_TD: '2+ passing-TD' }} color={C.green} textColor={C.text2} />
@@ -522,8 +536,9 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
           </>
         )}
       </>}
+      </>}
 
-      {onFullProfile && (
+      {onFullProfile && !defender && (
         <button type="button" onClick={() => onFullProfile(player)} style={{ display: 'block', width: '100%', marginTop: 18, background: `${C.green}20`, border: `1px solid ${C.green}70`, color: C.green, borderRadius: 10, minHeight: 44, cursor: 'pointer', fontSize: 12, fontWeight: 900, letterSpacing: '.06em' }}>OPEN HIS FULL FILE →</button>
       )}
 

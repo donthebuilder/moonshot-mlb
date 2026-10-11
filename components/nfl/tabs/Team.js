@@ -15,6 +15,7 @@ import { tdStatusFor } from '../../../lib/nfl/tdStatus'
 import { useGameCalls } from '../GameCalls'
 import { STATUS_WORD } from '../../../lib/callStatus'
 import { roleLabel } from '../../../lib/nfl/roles'
+import { TeamDefenders } from '../DefenseSections'
 
 // 🏈 TUDDY'S TEAM PAGE (2026-10-03, Donovan: "research teams and see their
 // stats just like the same way you would do a player"). A tapped club used to
@@ -38,7 +39,7 @@ const TEAM_COLUMNS = [
 ]
 const n = (v, dp = 1) => (v == null || !Number.isFinite(Number(v)) ? '—' : Number(v).toFixed(dp))
 
-export default function Team({ data, picks = null, onOpenPlayer, onOpenGame }) {
+export default function Team({ data, picks = null, matchup = null, onOpenPlayer, onOpenGame }) {
   const [code, setCode] = useState(null)
   useEffect(() => { const t = String(takeTarget('team') || '').toUpperCase(); if (t) setCode(t) }, [])
   useEffect(() => {
@@ -119,6 +120,9 @@ export default function Team({ data, picks = null, onOpenPlayer, onOpenGame }) {
           </div>
         </section>
       )}
+
+      {/* HIS DEFENDERS (2026-10-10): the club's defence tags and every defender by position group, this season's finished games */}
+      <TeamDefenders team={code} matchup={matchup} slateSeason={data?.season} />
 
       {div && (
         <section>
