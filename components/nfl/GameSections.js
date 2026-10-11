@@ -13,6 +13,7 @@ import { ordinal } from '../../lib/format'
 import { Kicker } from './GameOffDef'
 import { TD_WORD } from '../../lib/nfl/teamTdModel'
 import { roleLabel } from '../../lib/nfl/roles'
+import { sideFor } from '../../lib/nfl/whoLines'
 import NflTable from './NflTable'
 
 // THE GAME PAGE'S PLAIN SECTIONS (2026-10-06, fix5-nflgame). Donovan on the old
@@ -111,7 +112,7 @@ export function KeyPlayers({ matchup, data, game, onPlayerClick, onOpenTeam }) {
       const r = rowOf(t.player_id)
       const c = cb[i] || null
       list.push({ _key: `${off}-${t.player_id}`, _raw: r || { player_id: t.player_id, name: t.name, team: off }, name: r?.name || t.name, team: off,
-        role: (r ? roleLabel(r) : t.position) || '—', share: Number(t.share), corner: c?.name || '—', slot: c ? (SLOT_WORD[c.slot] || c.slot) : '—', def: c ? def : '—',
+        role: (r ? roleLabel(r) : t.position) || '—', side: (() => { const q = sideFor({ matchup, id: t.player_id, position: t.position }); return q.basis === 'role' ? `${q.word} · role` : q.word })(), share: Number(t.share), corner: c?.name || '—', slot: c ? (SLOT_WORD[c.slot] || c.slot) : '—', def: c ? def : '—',
         edge: i === 0 && edge ? edge.word : '', espn: r?.espn_id })
     })
     notes.push(edge ? `${def} allow ${edge.yds} yards a game to a top receiver, ${ordinal(edge.rank)} most.` : `${off}'s three most-targeted players.`)
@@ -122,6 +123,7 @@ export function KeyPlayers({ matchup, data, game, onPlayerClick, onOpenTeam }) {
     { key: 'name', label: 'Receiver', sticky: true, bold: true, heat: false, w: 150, group: 'WHO GETS THE BALL' },
     { key: 'team', label: 'Team', heat: false, w: 44, group: 'WHO GETS THE BALL' },
     { key: 'role', label: 'Role', heat: false, w: 46, group: 'WHO GETS THE BALL' },
+    { key: 'side', label: 'Side', heat: false, w: 92, group: 'WHO GETS THE BALL', title: "Where he is targeted most (left / middle / right, the offence's own view); 'role' = only his depth-chart spot is known; Spread = his targets go everywhere. Slot is not published." },
     { key: 'share', label: 'Targets', w: 62, dp: 1, primary: true, group: 'WHO GETS THE BALL', fmt: (v) => `${v}%`, title: "His share of his team's targets" },
     { key: 'corner', label: 'Corner', heat: false, w: 120, group: 'THE CORNER HE FACES' },
     { key: 'slot', label: 'Spot', heat: false, w: 84, group: 'THE CORNER HE FACES' },
@@ -133,7 +135,7 @@ export function KeyPlayers({ matchup, data, game, onPlayerClick, onOpenTeam }) {
       <Kicker>KEY PLAYERS · WHO GETS THE BALL, AND THE CORNER HE FACES</Kicker>
       <NflTable rows={list} columns={cols} onRowClick={(r) => onPlayerClick?.(r?._raw ?? r)} bare maxRows={3} maxHeight={9999}
         faceOf={(r) => ({ sport: 'nfl', espnId: r.espn, team: r.team, name: r.name })}
-        caption={`${notes.join(' ')}${old ? ` (${old} season)` : ''} Rows pair the depth chart in order. No source says who really covers whom.`} />
+        caption={`${notes.join(' ')}${old ? ` (${old} season)` : ''} Rows pair the depth chart in order. No source says who really covers whom. Side is from his own targets (left and right as the offence faces the defence), or 'role' when only his depth spot is known.`} />
     </section>
   )
 }
