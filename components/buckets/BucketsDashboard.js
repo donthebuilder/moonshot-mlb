@@ -9,7 +9,6 @@
 // HIDDEN until it opens: SportRoot renders this only for a visitor
 // /api/buckets/access lets in, and every /api/buckets route enforces the same.
 import LedgerShell from '../pages/LedgerShell'
-import TopTotals from '../TopTotals'
 import BucketsTable from './BucketsTable'
 import { useMemo } from 'react'
 import { TeamNav } from '../../lib/teamNav'
@@ -129,7 +128,7 @@ export default function BucketsDashboard() {
             {tab === 'board' && <button type="button" onClick={() => setTab('fullboard')} style={{ display: 'block', minHeight: 44, marginTop: 14, padding: '0 4px', border: 0, background: 'transparent', color: C.purple, font: `800 12px/1 ${NUM_FONT}`, cursor: 'pointer' }}>Every player, every number, and why: {NBA_NAV.fullboard.label} ›</button>}
             {tab === 'fullboard' && <Board date={date} setDate={setDate} market={market} {...nav} />}
             {tab === 'scores' && <Scores date={date} setDate={setDate} onOpenGame={openGame} />}
-            {tab === 'games' && <TopTotals sport="nba" Table={BucketsTable} />}
+            {/* TOP TOTALS now ride each game (components/GameTotalLine.js); the record stays in the Ledger */}
             {tab === 'games' && <Slate date={date} setDate={setDate} market={market} {...nav} />}
             {tab === 'game' && <Game id={gameId} {...nav} backLabel={backLabel('scores')} onBack={() => goBack('scores')} />}
             {tab === 'schedule' && <Schedule date={date} setDate={setDate} onOpenGame={openGame} onOpenTeam={openTeam} />}

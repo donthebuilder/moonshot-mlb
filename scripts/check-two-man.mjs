@@ -532,7 +532,7 @@ await t('the admin form: gated by ADMIN_EMAILS (404 otherwise), refuses a save o
 
 await t('the surfaces read the one table: the Card on each sport\'s Games tab, the record lines on the Ledger and /called, the cron', () => {
   const has = (f, re) => assert.ok(re.test(fs.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8')), `${f} ${re}`)
-  has('components/Dashboard.js', /<CardSection sport="mlb" \/>/); has('components/lamp/LampDashboard.js', /<CardSection sport="nhl" Table=\{LampTable\} \/>/); has('components/nfl/NflDashboard.js', /<CardSection sport="nfl" Table=\{NflTable\}( compact)? \/>/)
+  has('components/Dashboard.js', /<CardSection sport="mlb"( compact)? \/>/); has('components/lamp/LampDashboard.js', /<CardSection sport="nhl" Table=\{LampTable\}( compact)? \/>/); has('components/nfl/NflDashboard.js', /<CardSection sport="nfl" Table=\{NflTable\}( compact)? \/>/)
   has('components/pages/LedgerShell.js', /<CardSection sport=\{sport\} mode="record" \/>/); has('components/record/CalibrationSection.js', /<CardSection sport=\{sport\} mode="record" \/>/)
   has('app/api/totals/tick/route.js', /cardTick\(db, now\)/)
   assert.ok(!/api\/card\/tick/.test(fs.readFileSync(new URL('../vercel.json', import.meta.url), 'utf8')), 'the Card has no cron of its own (the daily invocation budget)')

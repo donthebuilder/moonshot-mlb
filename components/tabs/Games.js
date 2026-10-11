@@ -31,6 +31,7 @@ import InjuryOut from '../injuries/InjuryOut'
 import { useOutCounts } from '../injuries/InjuryLayer'
 import { nameKey } from '../../lib/injuries/lookup'
 import GameLedgerLine from '../ledger/GameLedgerLine'
+import GameTotalLine, { totalRowFor, useGameTotals } from '../GameTotalLine'
 import GameSimPanel from '../GameSimPanel'
 import LineupSlotMatchup from '../LineupSlotMatchup'
 import PairTray from '../PairTray'
@@ -445,6 +446,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   // CARDS FIRST (2026-09-28, Donovan: "have it open the slate as cards first") --
   // reverses the 2026-08-30 table-first call; Table is one tap away.
   const [gview, setGview] = useState('games')
+  const gameTotals = useGameTotals('mlb')   // each game's own Top Totals row, said on its own game (components/GameTotalLine.js)
   const outCounts = useOutCounts('mlb')   // lib/injuries: "3 out" on the game row and the Out pill (null while loading / unavailable)
   // ── THE LEAGUE'S LINEUP, NOT THE BOT'S (2026-08-10) ──────────────────────
   //
@@ -1460,6 +1462,9 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                           <span style={{ color: isActive ? C.orange : C.text3, fontWeight: 800 }}>{isActive ? '▾' : '▸'}</span>
                         </span>
                       </div>
+
+                      {/* THIS GAME'S TOTAL (2026-10-10): the Top Totals row the lock stored for it; a game off the board wears none until it is open */}
+                      <GameTotalLine sport="mlb" row={totalRowFor(gameTotals, g.game_pk, isActive)} style={{ marginTop: 6 }} />
 
                       {/* ── THE HEADER STEPS BACK WHEN THE GAME IS OPEN ──────
                           (2026-08-15) This strip is a CARD SUMMARY: closed, the
