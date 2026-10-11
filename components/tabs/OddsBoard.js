@@ -4,6 +4,7 @@ import { C as MLB_C, NUM_FONT as MLB_NUM, TYPE } from '../../lib/theme'
 import { nameOf, teamOf, oppOf, n, clean } from '../../lib/player'
 import { fmtOdds, impliedPct, fairOdds, edgeOf, priceBand, priceTaken } from '../../lib/odds'
 import { oddsAdapter } from '../../lib/odds/adapters'
+import { TWO_PLUS, PRICES_STORED } from '../../lib/twoPlus/rules'
 import { SPORT_ACCENT } from '../../lib/sportAccent'
 import { verdictInk } from '../../lib/scales'
 import { edgeBand } from '../../lib/hrRateBand'
@@ -1078,6 +1079,12 @@ key={market}
           maxHeight={560}
           caption={`Click a header to sort, a row to open his card. LINE in yellow with a ≠ means the book is NOT on the standard ${live.std} bar for ${live.label} — the boards' hit rates are measured against ${live.std}, so read those two together carefully.${market === A.rateMarket ? ` Dimmed rows are hitters with under ${LEAD_MIN_PA} plate appearances this season: their rate is real arithmetic on a sample too thin to lead with, and no dimmed row is ever named in the read above.` : ''}`}
         />
+      )}
+      {/* 2+ (TWO-SCORE batch, 2026-10-11): where the 2+ market's price stands. Read off the sport's rule table (lib/twoPlus/rules.js), never a sport test. */}
+      {TWO_PLUS[A.sport] && !PRICES_STORED[A.sport] && (
+        <p style={{ margin: '12px 0 0', fontSize: TYPE.micro, color: C.text3, lineHeight: 1.55 }}>
+          {TWO_PLUS[A.sport].label} prices are not published: the odds tick stores {TWO_PLUS[A.sport].anytime.toLowerCase()} and the over/under lines only. A player priced shorter than {TWO_PLUS[A.sport].trigger} is meant to be checked against the {TWO_PLUS[A.sport].label} price; with none posted, no Card straight is made from it. Nothing is guessed in its place.
+        </p>
       )}
     </div>
   )

@@ -72,6 +72,7 @@ const BAND_DEFS = {
   SOG: [{ key: 'shotsPg', label: 'Shots / GP' }, { key: 'toi', label: 'Ice time' }, { key: 'oppSaPg', label: 'Opp shots allowed' }],
   PTS: [{ key: 'ptsPg', label: 'Points / GP' }, { key: 'toi', label: 'Ice time' }, { key: 'oppGaPg', label: 'Opp goals allowed' }],
   AST: [{ key: 'astPg', label: 'Assists / GP' }, { key: 'toi', label: 'Ice time' }, { key: 'oppGaPg', label: 'Opp goals allowed' }],
+  G2: [{ key: 'shotsPg', label: 'Shots / GP' }, { key: 'shPct', label: 'Shooting %' }, { key: 'toi', label: 'Ice time' }, { key: 'goalsPg', label: 'Goals / GP' }],
 }
 
 export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = null, setDate = () => {}, market: marketTab = null, onMarket = null }) {
@@ -87,12 +88,14 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   const M = marketOf(market)
   // ONE READ PER MARKET (2026-10-08): each chip carries its count (skaters with a score for that market), as TUDDY's do
   const bGoal = useLampBoard(date, 'GOAL'), bSog = useLampBoard(date, 'SOG'), bPts = useLampBoard(date, 'PTS'), bAst = useLampBoard(date, 'AST')
-  const boardsBy = { GOAL: bGoal, SOG: bSog, PTS: bPts, AST: bAst }
+  // 2+ GOALS (goal2_site_v1, a new model): read only once its pill is opened (one more night build is not paid for every visit)
+  const bG2 = useLampBoard(date, 'G2', market === 'G2')
+  const boardsBy = { GOAL: bGoal, SOG: bSog, PTS: bPts, AST: bAst, G2: bG2 }
   const { data, error, loading } = boardsBy[market] || bGoal
   const marketCounts = useMemo(() => Object.fromEntries(MARKETS.map((m) => {
     const d = boardsBy[m.key]?.data
     return [m.key, d ? (d.games || []).filter((g) => !g.noMarketLock).reduce((n, g) => n + g.rows.filter((r) => r.status !== 'off' && r.score != null && Number.isFinite(Number(r.score))).length, 0) : null]
-  })), [bGoal.data, bSog.data, bPts.data, bAst.data]) // eslint-disable-line react-hooks/exhaustive-deps
+  })), [bGoal.data, bSog.data, bPts.data, bAst.data, bG2.data]) // eslint-disable-line react-hooks/exhaustive-deps
   // TEST is a small tag inside the chip, not a longer label: the record rule (no record until 30 graded nights) stays printed
   const marketOptions = MARKETS.map((m) => ({ key: m.key, count: marketCounts[m.key] ?? undefined, title: m.label.replace(' \u00b7 TEST', '') + (m.test ? ' (a test: no record until 30 graded nights)' : ''),
     label: <>{m.short}{m.test ? <span style={{ marginLeft: 6, padding: '1px 4px', borderRadius: 4, border: `1px solid ${C.border2}`, color: C.text3, font: `800 9px/1.2 ${NUM_FONT}`, letterSpacing: '.06em' }}>TEST</span> : null}</>, }))
@@ -421,6 +424,8 @@ const MARKETS = [
   // 10-01 (lamp-pts / lamp-ast), shown as a TEST until each has 30 graded nights (the record rule)
   { key: 'PTS', label: 'POINTS 1+ · TEST', short: 'POINTS 1+', test: true, eyebrow: 'LAMP · RANKINGS · POINTS · TEST', note: 'Who we rank tonight, and why. A TEST: three called per game for 1+ point, locked before puck drop, graded after; no record is printed until 30 graded nights. Score = mean of three percentile ranks tonight: points per game over his last 82, ice time, and how many goals his opponent allows.', result: 'PTS', log: 'lamp_prop_log' },
   { key: 'AST', label: 'ASSISTS 1+ · TEST', short: 'ASSISTS 1+', test: true, eyebrow: 'LAMP · RANKINGS · ASSISTS · TEST', note: 'Who we rank tonight, and why. A TEST: three called per game for 1+ assist, locked before puck drop, graded after; no record is printed until 30 graded nights. Score = mean of three percentile ranks tonight: assists per game over his last 82, ice time, and how many goals his opponent allows.', result: 'AST', log: 'lamp_prop_log' },
+  // 2+ GOALS (TWO-SCORE batch, 2026-10-11, Donovan): a NEW MODEL, tracked, never CALLED (goals are exempt from the Card price floor; no 2+ goals price is stored)
+  { key: 'G2', label: '2+ GOALS · NEW MODEL', short: '2+ GOALS', test: true, eyebrow: 'LAMP · RANKINGS · 2+ GOALS · NEW MODEL', note: 'Who could score two. Two-goal ranking: a new model, not part of the goal score. Ranked tonight by shots per game, shooting %, ice time and goals per game over his last 82 games; ON THE BOARD is the top third. Recorded before puck drop and graded on the real result, 2 or more goals; no record is printed until 30 graded nights. Information only.', result: 'GOALS', log: 'lamp_prop_log' },
 ]
 // The SCORE header's ⓘ, per market (it had none, so no explanation and no
 // picture). The legs are the models' own: lib/nhl/goalModel.js and
@@ -430,6 +435,7 @@ const SCORE_TITLE = {
   SOG: 'Tonight\u2019s shots score: shots and ice time per game, and how many shots his opponent allows, each ranked against tonight\u2019s skaters. Higher ranks better.',
   PTS: 'Tonight\u2019s points score (a TEST): points and ice time per game, and how many goals his opponent allows, each ranked against tonight\u2019s skaters. Higher ranks better.',
   AST: 'Tonight\u2019s assists score (a TEST): assists and ice time per game, and how many goals his opponent allows, each ranked against tonight\u2019s skaters. Higher ranks better.',
+  G2: 'Tonight\u2019s two-goal ranking (a new model, not part of the goal score): shots, shooting %, ice time and goals per game over his last 82 games, each ranked against tonight\u2019s skaters, then weighted. A ranking, not a probability. Higher ranks better.',
 }
 const SCORE_ART = { GOAL: 'nhl-goal' }   // components/ScoreArt.js
 const marketOf = (k) => MARKETS.find((m) => m.key === k) || MARKETS[0]
@@ -439,6 +445,7 @@ const RATE_COLS = {
   SOG: [{ key: 'spg', label: 'S/GP', leg: 'shotsPg', dp: 2, w: 44 }, { key: 'osa', label: 'OPP SA/60', leg: 'oppSaPg', dp: 1, w: 62 }],
   PTS: [{ key: 'ptspg', label: 'P/GP', leg: 'ptsPg', dp: 2, w: 44 }, { key: 'oga', label: 'OPP GA/GP', leg: 'oppGaPg', dp: 2, w: 66 }],
   AST: [{ key: 'apg', label: 'A/GP', leg: 'astPg', dp: 2, w: 44 }, { key: 'oga', label: 'OPP GA/GP', leg: 'oppGaPg', dp: 2, w: 66 }],
+  G2: [{ key: 'spg', label: 'S/GP', leg: 'shotsPg', dp: 2, w: 44 }, { key: 'shp', label: 'SH%', leg: 'shPct', dp: 3, w: 48 }],
 }
 const rateCols = (market) => (RATE_COLS[market] || RATE_COLS.GOAL).map(({ key, label, dp, w }) => ({ key, label, primary: true, dp, w }))
 const rateVals = (r, market) => Object.fromEntries((RATE_COLS[market] || RATE_COLS.GOAL).map((c) => [c.key, r.legs ? r.legs[c.leg] ?? null : null]))

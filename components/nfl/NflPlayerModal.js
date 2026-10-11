@@ -43,6 +43,7 @@ import VerdictBlock from '../player/VerdictBlock'
 import StatRow from '../player/StatRow'
 import ScrollHint from '../player/ScrollHint'
 import { nflVerdict, nflStatRow } from '../player/nflAdapter'
+import { twoBoard } from '../../lib/nfl/twoScore'
 import { tdStatusFor } from '../../lib/nfl/tdStatus'
 import { tdPool } from '../../lib/nfl/tdPool'
 import { useGameCalls } from './GameCalls'
@@ -325,6 +326,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
   const watchlist = useNflWatchlist(slate)
   // the TD market's status word (lib/callStatus tdCallStatus, through lib/nfl/tdStatus): the same one the TD board wears
   const gameCalls = useGameCalls()
+  const twoRow = useMemo(() => twoBoard(slate, matchup).rows.find((r) => String(r.player_id) === String(player?.player_id)) || null, [slate, matchup, player?.player_id])
   const tdStatus = useMemo(() => tdStatusFor({ picksCard: picks?.card, gameCalls, games: slate?.games, board: tdPool(slate).rows }), [picks, gameCalls, slate])
   // TAGS (lib/nfl/tags.js): his own ball-security tags and the tags of the defence he faces. Labels with their numbers; no score reads them.
   const tagBookOf = useTagBook(matchup, slate?.season)
@@ -434,7 +436,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
       {/* THE PLAYER MODEL (components/player/): TUDDY ON HIM first -- the word (TD market only), the score, why, his other
           markets as chips -- then ONE row of his key numbers (per game, ranked in his position; L10 and season at the bar). */}
       <VerdictBlock sport="nfl" style={{ marginTop: 10 }}
-        {...nflVerdict({ player, market, spec, score: s0, statusWord: tdStatus.statusOf(player), whyLines, watch: against?.text || null, whyExplain })} />
+        {...nflVerdict({ player, market, spec, score: s0, statusWord: tdStatus.statusOf(player), whyLines, watch: against?.text || null, whyExplain, two: twoRow })} />
       <StatRow noun={`${player.position || 'player'}s`} poolLabel="this week's slate" style={{ marginBottom: 8 }}
         stats={nflStatRow({ player, slate, rate: ratesFor(player, markets, fullLog).find((x) => x.key === market) })} />
       {/* THE PRICE: the line for the market on screen, the best book, the break-even. */}
