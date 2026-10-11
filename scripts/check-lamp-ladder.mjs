@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { ladderFromRecords, ladderFrom, ladderSentence, ladderScope, ladderRows, versionRows, versionsAddUp, priceNote, versionLabel, LADDER_RUNGS } from '../lib/record/ladder.js'
+import { ladderFromRecords, ladderFrom, ladderSentence, ladderOneLine, ladderScope, ladderRows, versionRows, versionsAddUp, priceNote, versionLabel, LADDER_RUNGS } from '../lib/record/ladder.js'
 import { toRecord } from '../lib/record/nhl.js'
 import { straightLine } from '../lib/record/callsLanded.js'
 import { readNhlCalibration } from '../lib/calibration/readSportCalibration.js'
@@ -170,6 +170,12 @@ ok('no second definition: only lib/record/ladder.js builds a ladder; nothing els
   assert.deepEqual(defs, ['lib/record/ladder.js'])
   const byVersion = files.filter((p) => !['lib/record/ladder.js', 'lib/record/nhl.js'].includes(p) && /model_version/.test(read(p)) && /byVersion|perVersion|groupBy\(.*model_version/.test(read(p)))
   assert.deepEqual(byVersion, [])
+})
+ok('scroll cost: /start and /called fold the table behind a one-line summary (44px target); the Record tab keeps it open', () => {
+  for (const p of ['app/start/page.js', 'app/called/page.js']) assert.match(read(p), /<LadderBlock [^>]*\bfold\b/, p)
+  assert.match(read('components/record/LadderBlock.js'), /minHeight: 44/)
+  assert.ok(!/fold/.test(read('components/lamp/tabs/Results.js')))
+  assert.equal(ladderOneLine(L), 'CALLED scored 48 of 147 (32.7%) vs 15.1% for every dressed skater')
 })
 ok('the old front-door headline (capture as the LAMP number) is gone', () => {
   const door = read('app/(front)/page.js')

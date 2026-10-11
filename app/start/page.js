@@ -603,7 +603,7 @@ export default async function StartPage({ searchParams }) {
         {ladder ? (
           // THE LADDER LEADS (2026-10-10, LAMP hero plan item 1): did the skaters we called score, against everyone? The
           // capture count (how many of the scorers we had called) is a different question and follows, labelled.
-          <LadderBlock ladder={ladder} sport={sportKey} compact>
+          <LadderBlock ladder={ladder} sport={sportKey} compact fold>
             {record ? (
               <LadderAside label="CAPTURE">
                 {record.called} of {record.total} {sport.event} {sport.calledPhrase} over the last {record.days} {sport.unit}{record.days === 1 ? '' : 's'} ({Math.round((100 * record.called) / record.total)}%): coverage of the scorers, not how often a call scores.{' '}

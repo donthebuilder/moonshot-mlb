@@ -571,7 +571,7 @@ export default async function CalledPage({ searchParams }) {
               <span className={styles.big}>{landed.hits.toLocaleString('en-US')}</span> of <span className={styles.big}>{landed.n.toLocaleString('en-US')}</span> {sport.callWord} landed
             </h1>
             <p className={styles.sub}>{landedLine[1]}</p>
-            {ladder ? <LadderBlock ladder={ladder} sport={sport.key} compact><LadderOddsNote sport={sport.key} /></LadderBlock> : null}
+            {ladder ? <LadderBlock ladder={ladder} sport={sport.key} compact fold><LadderOddsNote sport={sport.key} /></LadderBlock> : null}
           </>
         ) : null}
         {tonight.total ? (

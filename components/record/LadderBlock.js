@@ -18,7 +18,7 @@ import { C as NHL_C, NUM_FONT as NHL_NUM } from '../../lib/nhl/theme'
 import { C as NFL_C, NUM_FONT as NFL_NUM } from '../../lib/nfl/theme'
 import { straightLine } from '../../lib/record/callsLanded'
 import { appHref } from '../../lib/routes'
-import { ladderFrom, ladderRows, ladderCells, ladderSentence, ladderScope, ladderScopeShort, versionRows, POOLED_LABEL, BASE_LABEL, priceNote } from '../../lib/record/ladder'
+import { ladderFrom, ladderRows, ladderCells, ladderSentence, ladderOneLine, ladderScope, ladderScopeShort, versionRows, POOLED_LABEL, BASE_LABEL, priceNote } from '../../lib/record/ladder'
 
 const THEMES = {
   nhl: { theme: NHL_C, accent: NHL_C.ice, numFont: NHL_NUM },
@@ -77,10 +77,27 @@ function LadderTable({ ladder, accent, C, NUM_FONT, compact }) {
   )
 }
 
-function LadderInner({ ladder, compact = false, heading = 'THE LADDER', children = null }) {
+function LadderInner({ ladder, compact = false, fold = false, heading = 'THE LADDER', children = null }) {
   const { C, NUM_FONT, accent } = useSportTheme()
   const sentence = useMemo(() => ladderSentence(ladder), [ladder])
   if (!ladder) return null
+  if (fold) {
+    // ONE LINE, THE TABLE ON TAP (scroll cost, 2026-10-10): the summary is the whole claim; the table, scope and
+    // capture open under it. No JS needed: a native <details>, 44px target.
+    return (
+      <details aria-label="The ladder" style={{ margin: '8px 0', border: `1px solid ${C.border2}`, borderRadius: 10, padding: '0 12px' }}>
+        <summary style={{ minHeight: 44, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', listStyle: 'none', fontSize: 13, lineHeight: 1.3, color: C.text, fontWeight: 700 }}>
+          <span style={{ flex: 1 }}>{ladderOneLine(ladder)}</span>
+          <span style={{ color: accent, fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, letterSpacing: '.08em', whiteSpace: 'nowrap' }}>THE LADDER ▾</span>
+        </summary>
+        <div style={{ paddingBottom: 10 }}>
+          <LadderTable ladder={ladder} accent={accent} C={C} NUM_FONT={NUM_FONT} compact />
+          <p style={{ margin: '6px 0 0', fontSize: 11.5, lineHeight: 1.45, color: C.text3 }}>{ladderScopeShort(ladder)}</p>
+          {children}
+        </div>
+      </details>
+    )
+  }
   return (
     <section aria-label="The ladder" style={{ margin: compact ? '8px 0' : '4px 0 14px' }}>
       <div style={kicker(C, NUM_FONT, accent)}>{heading}</div>
