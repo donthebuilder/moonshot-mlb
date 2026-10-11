@@ -13,7 +13,9 @@ import { useWhySheet, whyColumn } from '../../WhySheet'
 import BucketWatch from '../BucketWatch'
 import CalledLastNight, { CalledLastFilter, lastNightColumn } from '../../CalledLastNight'
 import { useCalledLastLens } from '../../../lib/calledLast/useCalledLast'
-import { AngleRow, PillRow } from '../../Filters'
+import { AngleRow, PillRow, PositionNote, PositionEmpty } from '../../Filters'
+import usePositionFilter from '../../../lib/usePositionFilter'
+import { overallRanks } from '../../../lib/positions'
 import BoardTopBar from '../../BoardTopBar'
 import FiltersDrawer, { DrawerSection, drawerChip } from '../../FiltersDrawer'
 import RangeDual from '../../RangeDual'
@@ -143,7 +145,8 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
   const angleDef = angle ? angles.find((a) => a.key === angle) : null
   const pool = angleDef ? all.filter(angleDef.test) : all
   const needle = q.trim().toLowerCase()
-  const rows = pool.filter((r) => {
+  // everything EXCEPT the position: a pill's count is what tapping it alone would show under the other filters
+  const rowsBeforePos = pool.filter((r) => {
     if (needle && !`${r.name} ${r.team} ${r.opp}`.toLowerCase().includes(needle)) return false
     if (team && r.team !== team) return false
     if (gameF && r.gameId !== gameF) return false
@@ -154,6 +157,11 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
     if (cln.on && !cln.test(r.playerId)) return false
     return true
   })
+  // POSITION (2026-10-10): PG / SG / SF / PF / C and the G and F groups, multi-select, pos= in the address (lib/positions.js)
+  const pf = usePositionFilter('nba', all, { posOf: (r) => r.pos, countRows: rowsBeforePos })
+  const rows = rowsBeforePos.filter(pf.test)
+  // his place on the night's board for this market (the cards print it): over the whole night, a filter never renumbers
+  const cardRank = useMemo(() => overallRanks(all.filter((r) => r.score != null && Number.isFinite(Number(r.score))), (r) => r._id || `${r.gameId}-${r.playerId}`, (r) => r.score), [all]) // eslint-disable-line react-hooks/exhaustive-deps
   const scored = rows.filter((r) => r.score != null)
   const noStarters = D.startersOnly && data && !scored.length
   const games = data?.games || []
@@ -176,9 +184,10 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
     angleDef ? { key: 'angle', label: angleDef.label || angle, onClear: () => setAngle(null) } : null,
     calledOnly ? { key: 'called', label: 'Called only', onClear: () => setCalledOnly(false) } : null,
     cln.chip,
+    pf.chip,
   ].filter(Boolean)
   const heldTop = (team ? 1 : 0) + (gameF ? 1 : 0) + (needle ? 1 : 0)
-  const clearAll = () => { cln.setMode(''); setAngle(null); setCalledOnly(false); setScoreMin(0); setScoreMax(100); setBands([]); setGameSel([]); setMinX(0); setQ(''); setTeam(''); setGameF('') }
+  const clearAll = () => { cln.setMode(''); pf.clear(); setAngle(null); setCalledOnly(false); setScoreMin(0); setScoreMax(100); setBands([]); setGameSel([]); setMinX(0); setQ(''); setTeam(''); setGameF('') }
   const drawerSections = (
     <>
       <DrawerSection label={`Score · ${D.label}`}>
@@ -217,7 +226,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
   const drawerProps = {
     active: chips.length + drawerChips.length > 0, activeCount: chips.length + drawerChips.length,
     activeFilters: [...chips, ...drawerChips].map((c) => ({ key: c.key, label: c.label, onRemove: c.onClear })),
-    reset: clearAll, shown: rows.length, total: pool.length, accent: C.purple, accentInk: C.bg,
+    reset: clearAll, shown: rows.length, total: pool.length, accent: C.purple, accentInk: C.bg, positions: pf.control,
     poolTitle: 'Players on tonight’s board that clear the filters. Stacks with the search, team and game above.', emptyNote: 'Nothing clears every filter at once. Loosen one.',
   }
   // The row the "How to read this" picture draws: the night's real #1 for this market (a row the table below also shows).
@@ -279,7 +288,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
       {m !== ALL && <Pills ariaLabel="Layout" value={layout} onChange={setLayout} options={[{ key: 'table', text: 'TABLE' }, { key: 'cards', text: 'CARDS' }]} />}
       <FiltersDrawer ledger="nba" share={shareBtn} {...drawerProps}>{drawerSections}</FiltersDrawer>
       </>)}
-      {m === ALL ? <FullBoard embedded keep={(r) => (!needle || `${r.name} ${r.team} ${r.opp}`.toLowerCase().includes(needle)) && (!team || r.team === team) && (!gameF || r.gameId === gameF) && (!gameSel.length || gameSel.includes(r.gameId))} date={date} setDate={setDate} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} /> : (<>
+      {m === ALL ? <FullBoard embedded keep={(r) => (!needle || `${r.name} ${r.team} ${r.opp}`.toLowerCase().includes(needle)) && (!team || r.team === team) && (!gameF || r.gameId === gameF) && (!gameSel.length || gameSel.includes(r.gameId)) && pf.test(r)} empty={pf.active ? <PositionEmpty control={pf.control} othersActive={chips.length + drawerChips.length - 1 > 0 || heldTop > 0} onClearAll={clearAll} /> : null} date={date} setDate={setDate} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} /> : (<>
       <DelayedBanner error={error} what="the board" />
       {loading && !data ? <Loading what="the board" /> : null}
       {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Nothing to rank. Try another day, or open the Slate." />}
@@ -292,8 +301,10 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
           {games.some((g) => g.seasonType === 1) ? ' · PRESEASON' : ''}
         </div>
       )}
+      {pf.active && m !== ALL && rows.length > 0 && !noStarters && <PositionNote control={pf.control} shown={rows.length} total={pool.length} />}
+      {pf.active && m !== ALL && rows.length === 0 && data && games.length > 0 && !noStarters && <PositionEmpty control={pf.control} othersActive={chips.length + drawerChips.length - 1 > 0 || heldTop > 0} onClearAll={clearAll} />}
       {rows.length > 0 && !noStarters && layout === 'cards' && (
-        <BucketsCards market={mk} onOpen={onOpenPlayer} rows={[...rows].filter((r) => r.score != null && Number.isFinite(Number(r.score))).sort((a, b) => b.score - a.score).map((r) => ({ ...r, rankMove: rankMv.cell(r._id) }))} />
+        <BucketsCards market={mk} onOpen={onOpenPlayer} rankOf={(r) => cardRank.get(r._id || `${r.gameId}-${r.playerId}`)} rows={[...rows].filter((r) => r.score != null && Number.isFinite(Number(r.score))).sort((a, b) => b.score - a.score).map((r) => ({ ...r, rankMove: rankMv.cell(r._id) }))} />
       )}
       {rows.length > 0 && !noStarters && layout === 'table' && (
         <BucketsTable rows={rows.map((r) => ({ ...r, ...(cln.on ? { cln: cln.cell(r.playerId) } : null), rankMove: rankMv.cell(r._id) }))} columns={withLastNight(boardColumns(m, { onOpenTeam, onOpenGame, withXpts: true, whyCol: whyColumn({ textOf: (r) => (r.status === 'off' && r.reason ? r.reason : plainWhy(r, m)?.short || ''), itemOf: (r) => whyItemFor(r, m, r.nightRank), open: openWhy, theme: C, numFont: NUM_FONT, w: 165 }) }), cln)} statusOf={(r) => r.status}

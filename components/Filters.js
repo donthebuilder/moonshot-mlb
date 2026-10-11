@@ -1,8 +1,10 @@
 'use client'
 import { useSportTheme } from './SportTheme'
-import { createContext, useContext, useEffect, useRef } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { STATE, alpha } from '../lib/scales'
+import { useIsPhone } from './MobileFold'
+import { posWords, emptySentence } from '../lib/positions'
 
 // ══ THE UNIVERSAL FILTER (rebuilt 2026-08-23; original build 2026-08-22 was
 // lost with its session before it reached GitHub — spec preserved in
@@ -284,6 +286,88 @@ export function AngleRow({ defs, pool, value, onChange, accent: accentProp, clas
           </button>
         )
       })}
+    </div>
+  )
+}
+
+// ── THE POSITION ROW, ALL FOUR PRODUCTS (2026-10-10, Donovan: "filter rankings by positions") ────────────
+// Multi-select pills with a count on each and "All" first (lib/positions.js builds the options from the rows on the
+// page; lib/usePositionFilter.js holds the choice in the address as pos=). `control` is that hook's `control`.
+// Same look as the AngleRow above: one sideways-scrolling row, the count beside each label, tap again to clear.
+// On a phone (or `wrap`, inside the Filters sheet) the taps are 44px around a 30px pill; inline on a desktop the
+// pills are 26px so the row sits level with the Filters button and adds no height. A pill with nobody left under
+// the other filters is dimmed, not hidden: it can still be cleared.
+// a touch screen at any width (a phone turned sideways is 844px wide): the pills get the 44px tap there too
+function useCoarsePointer() {
+  const [coarse, setCoarse] = useState(false)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return undefined
+    const mq = window.matchMedia('(pointer: coarse)')
+    const apply = () => setCoarse(mq.matches)
+    apply()
+    if (mq.addEventListener) { mq.addEventListener('change', apply); return () => mq.removeEventListener('change', apply) }
+    return undefined
+  }, [])
+  return coarse
+}
+
+export function PositionRow({ control, accent: accentProp, wrap = false, inline = false, label = 'POS' }) {
+  const ctxAccent = useAccent()
+  const phone = useIsPhone()
+  const coarse = useCoarsePointer()
+  const accent = accentProp || ctxAccent
+  if (!control) return null
+  const { options, value, onToggle, onClear } = control
+  const tall = phone || wrap || coarse
+  const pill = (on, children, key, title, onClick, dim = false) => (
+    <button key={key} type="button" title={title} onClick={onClick} aria-pressed={on}
+      style={{ flexShrink: 0, minHeight: tall ? 44 : 0, minWidth: tall ? 44 : 0, padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', opacity: dim ? 0.55 : 1 }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: tall ? 30 : 26, padding: '0 11px', borderRadius: 999, whiteSpace: 'nowrap',
+        border: `1px solid ${on ? accent : C.border}`, background: on ? alpha(accent, 0.14) : 'transparent', color: on ? accent : C.text2,
+        font: `700 ${tall ? 11 : 10.5}px/1 ${NUM_FONT}` }}>{children}</span>
+    </button>
+  )
+  return (
+    <div role="group" aria-label="Position" className="position-row"
+      style={{ display: 'flex', gap: tall ? 6 : 5, alignItems: 'center', flexWrap: wrap ? 'wrap' : 'nowrap', overflowX: wrap ? 'visible' : 'auto', scrollbarWidth: 'none', minWidth: 0,
+        ...(inline ? { flex: '1 1 auto' } : null) }}>
+      {label ? <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.1em', color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>{label}</span> : null}
+      {pill(value.length === 0, 'All', 'all', 'Every position', onClear)}
+      {options.map((o, i) => (
+        <span key={o.key} style={{ display: 'inline-flex', alignItems: 'center', gap: tall ? 6 : 5, flexShrink: 0 }}>
+          {i > 0 && options[i - 1].seg !== o.seg && <span aria-hidden="true" style={{ width: 1, height: 16, background: C.border2 }} />}
+          {pill(value.includes(o.key), <>{o.label} <span style={{ color: value.includes(o.key) ? accent : C.text3 }}>{o.count}</span></>, o.key,
+            `${o.title}. Pick several to see any of them.`, () => onToggle(o.key), o.count === 0 && !value.includes(o.key))}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+/** The sentence under the filters while a position is picked: what is shown, and that the # is the board's own. */
+export function PositionNote({ control, shown, total }) {
+  if (!control || !control.value.length) return null
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 12, lineHeight: 1.45, color: C.text2 }}>
+      <span>Showing <b style={{ color: C.text }}>{posWords(control.value)}</b> only{shown != null && total != null ? <> {'·'} <b style={{ fontFamily: NUM_FONT }}>{shown}</b> of <span style={{ fontFamily: NUM_FONT }}>{total}</span></> : null}. The # is still the board&apos;s overall rank.</span>
+      <button type="button" onClick={control.onClear} style={{ minHeight: 44, padding: '0 6px', background: 'transparent', border: 'none', cursor: 'pointer', color: C.text3, font: `700 12px/1 ${NUM_FONT}`, textDecoration: 'underline' }}>Clear</button>
+    </div>
+  )
+}
+
+/** The honest empty state: names the position, says why, and offers the way out. */
+export function PositionEmpty({ control, onClearAll = null, othersActive = false }) {
+  const accent = useAccent()
+  if (!control) return null
+  const btn = { minHeight: 44, padding: '0 16px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${accent}`, background: alpha(accent, 0.14), color: accent, font: `800 12px/1 ${NUM_FONT}` }
+  return (
+    <div role="status" style={{ border: `1px dashed ${C.border2}`, borderRadius: 10, padding: '16px 14px', display: 'grid', gap: 10, justifyItems: 'start' }}>
+      <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{emptySentence(control.value, control.noun)}</div>
+      <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{othersActive ? 'The other filters narrow it too (team, game, tags, injury). Clear the position, or everything.' : 'Clear the position to see the whole board.'}</div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="button" onClick={control.onClear} style={btn}>Clear</button>
+        {othersActive && onClearAll && <button type="button" onClick={onClearAll} style={{ ...btn, border: `1px solid ${C.border2}`, background: 'transparent', color: C.text2 }}>Clear all filters</button>}
+      </div>
     </div>
   )
 }

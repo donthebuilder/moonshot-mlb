@@ -17,7 +17,8 @@ import StatStrip from '../../StatStrip'
 import { SportTheme } from '../../SportTheme'
 import RankCard from '../../card/RankCard'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
-import { ActiveFilters, FilterBar, FilterPill } from '../../Filters'
+import { ActiveFilters, FilterBar, FilterPill, PositionNote, PositionEmpty } from '../../Filters'
+import usePositionFilter from '../../../lib/usePositionFilter'
 import NflBoardFilters, { useNflBoardFilter } from '../NflBoardFilters'
 import MobileFold, { useIsPhone } from '../../MobileFold'
 import { NflBoardList, BoardHead, ViewSwitch, DrawerPills, AngleRow, angleDefs, useNflDrawerFilters, TdWatch } from '../NflBoardExtras'
@@ -83,7 +84,7 @@ import { useNowTick } from '../../../lib/useNowTick'
 import { explain } from '../../../lib/explain'
 import { useRankMove } from '../../../lib/useRankMove'
 import { RankMoveCell, RankMoveNote } from '../../RankMove'
-import { roleLabel, roleOptions, roleMatches } from '../../../lib/nfl/roles'
+import { roleLabel, roleKeys, ROLE_PILLS } from '../../../lib/nfl/roles'
 
 // Exported (2026-09-28) for the Slate's Picks section -- the same card, not a copy.
 // MOONSHOT'S CARD FRAME (2026-09-29, parity plan E; components/PlayerCard.js
@@ -163,8 +164,6 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   // Search, team and game come from the hub's top bar (2026-09-27).
   const query = top?.query || ''
   const team = top?.team || 'all'
-  const [position, setPosition] = useState('all')
-  const [role, setRole] = useState('all')   // WR1 / RB2 / ... off the bot's depth chart (lib/nfl/roles.js)
   const [onlyPriced, setOnlyPriced] = useState(false)
   const [onlyUpcoming, setOnlyUpcoming] = useState(false)
   const [onlyWatched, setOnlyWatched] = useState(false)
@@ -186,16 +185,6 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   // RANK MOVES (2026-10-10): places moved in the TD board's order since the last update (lib/useRankMove.js). Information only.
   const rankMv = useRankMove({ sport: 'nfl', board: 'TD', date: slateDay || null, ranks: rankOf, rows: data?.players, idOf: nflRankId })
 
-  const roleOpts = useMemo(() => roleOptions(rows), [rows])
-  const positionOptions = useMemo(() => {
-    const counts = {}
-    for (const p of rows) counts[p.position] = (counts[p.position] || 0) + 1
-    return [
-      { key: 'all', label: 'All positions', count: rows.length },
-      ...Object.keys(counts).sort().map((k) => ({ key: k, label: k, count: counts[k] })),
-    ]
-  }, [rows])
-
 
   // Same bands as Boards, on the same market this page is fixed to. They cut
   // the pool before the ranking and before the soft cap, so a banded board
@@ -211,36 +200,11 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   ], [matchup, logs, data?.season, data?.week])
   const drawer = useNflDrawerFilters(rows, data?.games, MARKET, { game: top?.game || '', matchup, season: data?.season })   // TUDDY 3 + 4
 
-  // One removable chip per narrowing dimension, bands included. Touchdowns had
-  // no chip row at all, so a tier or a team filter was invisible once you had
-  // scrolled past the control that set it. (Was pasted into ScoreBar's scope
-  // by mistake on 2026-09-21 -- none of these exist there, which is what
-  // broke the whole tab with "tdFilterChips is not defined". Moved to where
-  // it actually belongs, unchanged otherwise.)
-  const tdFilterChips = [
-    ...bandState.activeFilters,
-    ...drawer.chips,
-    position !== 'all' ? { key: 'pos', label: position, onClear: () => setPosition('all') } : null,
-    role !== 'all' ? { key: 'role', label: role === 'SLOT' ? 'Slot' : role, onClear: () => setRole('all') } : null,
-    angle ? { key: 'angle', label: angles.find((x) => x.key === angle)?.label || angle, onClear: () => setAngle(null) } : null,
-    onlyPriced ? { key: 'priced', label: 'Priced', onClear: () => setOnlyPriced(false) } : null,
-    onlyUpcoming ? { key: 'upcoming', label: 'Not kicked off', onClear: () => setOnlyUpcoming(false) } : null,
-    onlyWatched ? { key: 'watch', label: 'Watchlist', onClear: () => setOnlyWatched(false) } : null,
-    cln.chip,
-  ].filter(Boolean)
-  const clearTdFilters = () => {
-    cln.setMode('')
-    bandState.reset()
-    setPosition('all'); setRole('all'); setAngle(null); drawer.reset(); setSortBy('score')
-    setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false)
-  }
-
-  const filtered = useMemo(() => {
+  // everything EXCEPT the position / role pills: the numbers on those pills are what tapping one alone would show
+  const beforePos = useMemo(() => {
     const needle = query.trim().toLowerCase()
     let out = bandFiltered.filter(drawer.test)
     if (cln.on) out = out.filter((p) => cln.test(p.player_id))
-    if (position !== 'all') out = out.filter((p) => p.position === position)
-    if (role !== 'all') out = out.filter((p) => roleMatches(p, role))
     if (team !== 'all') out = out.filter((p) => p.team === team)
     if (needle) out = out.filter((p) => String(p.name || '').toLowerCase().includes(needle))
     if (angle) { const d = angles.find((x) => x.key === angle); if (d) out = out.filter(d.test) }
@@ -253,7 +217,37 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
       const q = quoteFor(odds, p, MARKET)
       return !!q && q.over != null && q.matches !== false
     })
+    return out
+  }, [bandFiltered, drawer, query, team, angle, angles, onlyWatched, onlyUpcoming, onlyPriced, matchup, watchlist, odds, data, now, cln])
+  // POSITION (2026-10-10): one multi-select row for every sport (lib/positions.js, lib/usePositionFilter.js), pos= in the
+  // address. Position and depth role (RB1, WR1 ...) are pills in the same row; picking several shows any of them.
+  const pf = usePositionFilter('nfl', rows, { posOf: (p) => p.position, extraOf: roleKeys, extraOrder: ROLE_PILLS, countRows: beforePos })
 
+  // One removable chip per narrowing dimension, bands included. Touchdowns had
+  // no chip row at all, so a tier or a team filter was invisible once you had
+  // scrolled past the control that set it. (Was pasted into ScoreBar's scope
+  // by mistake on 2026-09-21 -- none of these exist there, which is what
+  // broke the whole tab with "tdFilterChips is not defined". Moved to where
+  // it actually belongs, unchanged otherwise.)
+  const tdFilterChips = [
+    ...bandState.activeFilters,
+    ...drawer.chips,
+    pf.chip,
+    angle ? { key: 'angle', label: angles.find((x) => x.key === angle)?.label || angle, onClear: () => setAngle(null) } : null,
+    onlyPriced ? { key: 'priced', label: 'Priced', onClear: () => setOnlyPriced(false) } : null,
+    onlyUpcoming ? { key: 'upcoming', label: 'Not kicked off', onClear: () => setOnlyUpcoming(false) } : null,
+    onlyWatched ? { key: 'watch', label: 'Watchlist', onClear: () => setOnlyWatched(false) } : null,
+    cln.chip,
+  ].filter(Boolean)
+  const clearTdFilters = () => {
+    cln.setMode('')
+    bandState.reset()
+    pf.clear(); setAngle(null); drawer.reset(); setSortBy('score')
+    setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false)
+  }
+
+  const filtered = useMemo(() => {
+    const out = beforePos.filter(pf.test)
     const cmp = sortBy === 'price'
       ? (a, b) => {
         const qa = quoteFor(odds, a, MARKET), qb = quoteFor(odds, b, MARKET)
@@ -268,7 +262,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
         }
         : (a, b) => (b.scores[MARKET] ?? 0) - (a.scores[MARKET] ?? 0)
     return [...out].sort(cmp)
-  }, [bandFiltered, drawer, rows, query, position, role, team, angle, angles, onlyWatched, onlyUpcoming, onlyPriced, sortBy, matchup, watchlist, odds, data, now, cln])
+  }, [beforePos, pf.test, sortBy, odds, data])
 
   const capped = all ? filtered : filtered.slice(0, SOFT_CAP)
   // The card's ‹ › walk THIS list -- your filters, in this order (NflDashboard's
@@ -284,15 +278,9 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
 
   // Position, the Only toggles and the sort live in the Filters drawer now
   // (MOONSHOT keeps its board chrome to one Filters button and a pool pill).
-  const drawerExtraCount = drawer.activeCount + (position !== 'all') + (role !== 'all') + onlyPriced + onlyUpcoming + onlyWatched + (sortBy !== 'score') + (cln.on ? 1 : 0)
+  const drawerExtraCount = drawer.activeCount + onlyPriced + onlyUpcoming + onlyWatched + (sortBy !== 'score') + (cln.on ? 1 : 0)
   const drawerExtra = (
     <>
-      <DrawerPills label="Position">
-        {positionOptions.map((o) => <FilterPill key={o.key} active={position === o.key} count={o.count} onClick={() => { setPosition(o.key); setAll(false) }}>{o.key === 'all' ? 'All' : o.label}</FilterPill>)}
-      </DrawerPills>
-      {roleOpts.length > 0 && <DrawerPills label="Role">
-        {roleOpts.map((o) => <FilterPill key={o.key} active={role === o.key} count={o.count} onClick={() => { setRole(role === o.key ? 'all' : o.key); setAll(false) }} title={o.key === 'SLOT' ? 'Receivers whose published slot share is 50% or more of his snaps.' : 'Where TUDDY\u2019s depth chart puts him this week. A label, not a forecast.'}>{o.label}</FilterPill>)}
-      </DrawerPills>}
       <DrawerPills label="Only">
         <FilterPill active={onlyPriced} onClick={() => { setOnlyPriced(!onlyPriced); setAll(false) }} title="The book has posted a number on this player's anytime-TD line.">💵 Priced</FilterPill>
         <FilterPill active={onlyUpcoming} onClick={() => { setOnlyUpcoming(!onlyUpcoming); setAll(false) }} title="His game has not kicked off yet.">⏱ Not kicked off</FilterPill>
@@ -308,7 +296,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
       <CalledLastFilter lens={cln} />
     </>
   )
-  const extraReset = () => { cln.setMode(''); drawer.reset(); setPosition('all'); setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false); setSortBy('score') }
+  const extraReset = () => { cln.setMode(''); drawer.reset(); pf.clear(); setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false); setSortBy('score') }
 
   return (
     <div>
@@ -318,7 +306,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
 
       <div style={{ marginTop: 8 }}>
         <FilterBar>
-          <NflBoardFilters ledger="nfl" state={bandState} total={rows.length} shown={filtered.length} extra={drawerExtra} extraCount={drawerExtraCount} extraReset={extraReset} />
+          <NflBoardFilters ledger="nfl" positions={pf.control} state={bandState} total={rows.length} shown={filtered.length} extra={drawerExtra} extraCount={drawerExtraCount} extraReset={extraReset} />
         </FilterBar>
         {Boolean(tdFilterChips.length) && (
           <div style={{ marginTop: 8 }}>
@@ -343,7 +331,10 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
       {!phone && (<BoardHead title="Anytime TD" count={capped.length} view={view} setView={setView}
         sub={null} />)}
 
-      {filtered.length === 0 ? (
+      {pf.active && filtered.length > 0 && <div style={{ marginTop: 8 }}><PositionNote control={pf.control} shown={filtered.length} total={rows.length} /></div>}
+      {filtered.length === 0 && pf.active ? (
+        <div style={{ marginTop: 10 }}><PositionEmpty control={pf.control} othersActive={tdFilterChips.length > 1} onClearAll={clearTdFilters} /></div>
+      ) : filtered.length === 0 ? (
         <div style={{ fontSize: TYPE.body, color: C.text3, marginTop: 10 }}>
           Nothing matches.{' '}
           {onlyPriced || onlyUpcoming || onlyWatched

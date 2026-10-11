@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { STATE, alpha } from '../lib/scales'
 import LedgerChip from './LedgerChip'
 import WatchChip from './WatchChip'
+import { PositionRow } from './Filters'
 
 // ══ THE BOARD FILTERS DRAWER, ONE FOR ALL THREE PRODUCTS (2026-09-28) ═══════
 // Donovan: "on the boards we can toggle teams, games, multi filters, all type
@@ -80,6 +81,9 @@ export default function FiltersDrawer({
   // THE 📸 BUTTON (fix15): LAMP's and BUCKETS' Rankings put their ranked-list card button after the Ledger / Watchlist
   // chips, in this same row. Every other caller leaves it null and draws exactly what it drew before.
   share = null,
+  // THE POSITION FILTER (2026-10-10, lib/usePositionFilter.js `control`): on a desktop its pills sit inline in this same
+  // row (no extra line); inside a compact (phone) sheet they are the first section of the panel. Null = no row.
+  positions = null,
 }) {
   const [open, setOpen] = useState(false)
   const wrap = useOutsideClose(open, setOpen)
@@ -140,6 +144,11 @@ export default function FiltersDrawer({
               border: `1px solid ${C.border2}`, borderRadius: 12, padding: 14,
               boxShadow: '0 20px 60px rgba(0,0,0,.5)',
             }}>
+              {compact && positions && (
+                <DrawerSection label="Position" hint="Pick several to see any of them. Ranks stay the board's overall ranks.">
+                  <PositionRow control={positions} accent={accent} wrap label="" />
+                </DrawerSection>
+              )}
               {lead}
               {children}
 
@@ -161,6 +170,8 @@ export default function FiltersDrawer({
         {ledger && (compact ? <><LedgerChip sport={ledger} /><WatchChip sport={ledger} /></> : <span className="ledger-chip-wide" style={{ display: 'inline-flex', gap: 6 }}><LedgerChip sport={ledger} /><WatchChip sport={ledger} /></span>)}
 
         {share}
+
+        {!compact && positions && <PositionRow control={positions} accent={accent} inline />}
 
         {compact && beside ? <div style={{ flex: '1 1 100%', minWidth: 0 }}>{beside}</div> : null}
 

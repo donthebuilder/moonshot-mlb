@@ -5,7 +5,9 @@ import { useEffect, useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import LampTable from '../LampTable'
-import { AngleRow, Segmented, PillRow } from '../../Filters'
+import { AngleRow, Segmented, PillRow, PositionNote, PositionEmpty } from '../../Filters'
+import usePositionFilter from '../../../lib/usePositionFilter'
+import { overallRanks, canonPos } from '../../../lib/positions'
 import BoardTopBar from '../../BoardTopBar'
 import FiltersDrawer, { DrawerSection, drawerChip } from '../../FiltersDrawer'
 import { TIME_WINDOWS, inWindow } from '../../BoardFilters'
@@ -117,7 +119,6 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   const [view, setView] = useState('all')
   const [q, setQ] = useState('')
   const [team, setTeam] = useHashFilter('fteam')
-  const [pos, setPos] = useState('all')
   const [gameF, setGameF] = useHashFilter('fgame')
   const [calledOnly, setCalledOnly] = useState(false)
   // LIST | CARDS (2026-09-28, plan C2): MOONSHOT's and TUDDY's toggle. List leads.
@@ -163,10 +164,10 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   const angles = useMemo(() => lampAngles(flat, market), [flat, market])
   const angleTest = angle ? angles.find((a) => a.key === angle)?.test : null
   const needle = q.trim().toLowerCase()
-  const kept = flat.filter((x) => {
+  // everything EXCEPT the position: a pill's count is what tapping it alone would show under the other filters
+  const keptBeforePos = flat.filter((x) => {
     const { r, g } = x
     if (team && r.team !== team) return false
-    if (pos !== 'all' && (pos === 'D' ? r.pos !== 'D' : r.pos === 'D')) return false
     if (gameF && String(g.game.id) !== gameF) return false
     if (calledOnly && r.status !== 'called') return false
     if (cln.on && !cln.test(r.playerId)) return false
@@ -179,6 +180,11 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
     if (minPpg && (r.ppg ?? 0) < minPpg) return false
     return true
   })
+  // POSITION (2026-10-10): C / LW / RW / D (+ the F group), multi-select, pos= in the address (lib/positions.js)
+  const pf = usePositionFilter('nhl', flat, { posOf: (x) => x.r.pos, countRows: keptBeforePos })
+  const kept = keptBeforePos.filter(pf.test)
+  // His place on tonight's board for this market, all games together, over the WHOLE night: a filter hides rows, it never renumbers them
+  const overall = overallRanks(flat, ({ r, g }) => `${g.game.id}|${r.playerId}`, ({ r }) => r.score ?? 0)
   const keepIds = new Set(kept.map(({ r, g }) => `${g.game.id}|${r.playerId}`))
   // RANK MOVES (2026-10-10): places moved in this board's default order since the last update (lib/useRankMove.js). All games: tonight's
   // order by score over every scored skater; By game: the in-game rank. Never the filtered list's, never a sort of the reader's.
@@ -190,13 +196,13 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   }, [flat, view])
   const rankMv = useRankMove({ sport: 'nhl', board: `${market}:${view}`, date: shown, ranks: moveRanks })
   const drawerOn = scoreMin > 0 || scoreMax < 100 || bands.length > 0 || gameSel.length > 0 || timeWindow !== 'all' || minPpg > 0
-  const filtering = cln.on || Boolean(team) || pos !== 'all' || Boolean(gameF) || calledOnly || Boolean(needle) || Boolean(angle) || drawerOn
+  const filtering = cln.on || Boolean(team) || pf.active || Boolean(gameF) || calledOnly || Boolean(needle) || Boolean(angle) || drawerOn
   // A filter the day no longer has stays in the select, named (the Controls.js pattern, 2026-10-05):
   // a stale #fteam / #fgame matched nothing while the select read "All".
   const teams = [...new Set([...flat.map(({ r }) => r.team), ...(team && data ? [team] : [])])].sort()
   const chips = [
     angle ? { key: 'angle', label: angles.find((a) => a.key === angle)?.label || angle, onClear: () => setAngle(null) } : null,
-    pos !== 'all' ? { key: 'pos', label: pos === 'D' ? 'Defence' : 'Forwards', onClear: () => setPos('all') } : null,
+    pf.chip,
     calledOnly ? { key: 'called', label: 'Called only', onClear: () => setCalledOnly(false) } : null,
     cln.chip,
   ].filter(Boolean)
@@ -212,7 +218,8 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
     timeWindow !== 'all' ? { key: 'time', label: TIME_WINDOWS.find((w) => w.key === timeWindow)?.label || timeWindow, onClear: () => setTimeWindow('all') } : null,
     minPpg > 0 ? { key: 'ppg', label: `PP goals ${minPpg}+`, onClear: () => setMinPpg(0) } : null,
   ].filter(Boolean)
-  const clearAll = () => { cln.setMode(''); setAngle(null); setPos('all'); setCalledOnly(false); setScoreMin(0); setScoreMax(100); setBands([]); setGameSel([]); setTimeWindow('all'); setMinPpg(0) }
+  const othersActive = chips.length + drawerChips.length - (pf.chip ? 1 : 0) > 0 || Boolean(team) || Boolean(gameF) || Boolean(needle)
+  const clearAll = () => { cln.setMode(''); setAngle(null); pf.clear(); setCalledOnly(false); setScoreMin(0); setScoreMax(100); setBands([]); setGameSel([]); setTimeWindow('all'); setMinPpg(0) }
   // MOONSHOT'S ORDER (2026-09-27, Donovan: "doesn't feel anything like the mlb
   // pages"): the search / team / game bar first, the market as the parent
   // pills under it, the day, the angle row, then the night's header and the
@@ -233,11 +240,6 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
     </div>)
   const drawerSections = (<>
     <CalledLastFilter lens={cln} />
-    <DrawerSection label="Position">
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
-        {[['all', 'All'], ['F', 'Forwards'], ['D', 'Defence']].map(([k, l]) => <button key={k} type="button" onClick={() => setPos(k)} style={drawerChip(pos === k)}>{l}</button>)}
-      </div>
-    </DrawerSection>
     <DrawerSection label={`Score · ${M.label || market}`}>
       <div style={{ fontSize: 12, fontFamily: NUM_FONT, color: C.text, marginTop: 2 }}>{scoreMin}–{scoreMax}</div>
       <RangeDual min={0} max={100} step={1} low={scoreMin} high={scoreMax} onLow={setScoreMin} onHigh={setScoreMax} label="Score" />
@@ -281,7 +283,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   const drawerProps = {
     active: nActive > 0, activeCount: nActive,
     activeFilters: [...chips, ...drawerChips].map((c) => ({ key: c.key, label: c.label, onRemove: c.onClear })),
-    reset: clearAll, shown: kept.length, total: flat.length, accent: C.ice, accentInk: C.bg,
+    reset: clearAll, shown: kept.length, total: flat.length, accent: C.ice, accentInk: C.bg, positions: pf.control,
     poolTitle: "Skaters on tonight's board that clear the filters. Stacks with the team and game above.", emptyNote: 'Nothing clears every filter at once. Loosen one.',
   }
   return (
@@ -353,18 +355,19 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
           {pv === kept.length ? 'EVERY GAME IS STILL PREVIEW — NOT A CALL YET' : `${pv} OF ${kept.length} ROWS ARE PREVIEW — NOT A CALL YET`}
         </div>) : null })()}
       {data && games.length === 0 && <EmptyState title="NO GAMES ON THIS DATE" note="No NHL games on this date." />}
+      {pf.active && kept.length > 0 && <PositionNote control={pf.control} shown={kept.length} total={flat.length} />}
       {view === 'all' && flat.length > 0 && (
         kept.length ? (layout === 'cards'
-          ? <LampCards market={market} onOpen={onOpenPlayer} items={[...kept].sort((a, b) => (b.r.score ?? 0) - (a.r.score ?? 0)).map(({ r, g }, i) => ({ key: `${g.game.id}|${r.playerId}`, r, g, rank: i + 1, facts: factsOf(g, r), rankMove: rankMv.cell(`${g.game.id}|${r.playerId}`) }))} />
-          : <AllGamesTable cln={cln} wk={wk} rankMv={rankMv} kept={kept} market={market} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} />)
-          : <EmptyState title="NOTHING MATCHES" note="Clear a filter above." />
+          ? <LampCards market={market} onOpen={onOpenPlayer} items={[...kept].sort((a, b) => (b.r.score ?? 0) - (a.r.score ?? 0)).map(({ r, g }, i) => ({ key: `${g.game.id}|${r.playerId}`, r, g, rank: overall.get(`${g.game.id}|${r.playerId}`) ?? i + 1, facts: factsOf(g, r), rankMove: rankMv.cell(`${g.game.id}|${r.playerId}`) }))} />
+          : <AllGamesTable cln={cln} wk={wk} rankMv={rankMv} overall={overall} kept={kept} market={market} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} />)
+          : (pf.active ? <PositionEmpty control={pf.control} othersActive={othersActive} onClearAll={clearAll} /> : <EmptyState title="NOTHING MATCHES" note="Clear a filter above." />)
       )}
       {view === 'game' && games.map((g) => (g.noMarketLock
         ? (filtering ? null : <EmptyState key={g.game.id} title={`${g.game.away.abbrev} @ ${g.game.home.abbrev} · NO ${M.label} LOCK`} note={`No call: it locked before the ${M.label} board existed.`} />)
         : (!filtering || g.rows.some((r) => keepIds.has(`${g.game.id}|${r.playerId}`)))
           ? <GameBoard key={g.game.id} cln={cln} wk={wk} rankMv={rankMv} g={g} market={market} layout={layout} keep={filtering ? keepIds : null} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} onOpenTeam={onOpenTeam} />
           : null))}
-      {view === 'game' && filtering && flat.length > 0 && !kept.length && <EmptyState title="NOTHING MATCHES" note="Clear a filter above." />}
+      {view === 'game' && filtering && flat.length > 0 && !kept.length && (pf.active ? <PositionEmpty control={pf.control} othersActive={othersActive} onClearAll={clearAll} /> : <EmptyState title="NOTHING MATCHES" note="Clear a filter above." />)}
       <RankMoveNote show={rankMv.any} color={C.text3} />
       {phone && data && market === 'GOAL' && <GoalWatch flat={flat} onOpenPlayer={onOpenPlayer} date={shown} />}
       {/* under the board on every width, so the first ranked row does not move */}
@@ -551,7 +554,7 @@ export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'G
   // Rank order as the board gives it -- no initial sort, so no "sorted by"
   // line above the table (a phone row the old table didn't spend).
   const rows = [...scored].sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999)).map((r) => ({
-    id: r.playerId, rank: r.rank, name: r.name, pos: r.pos, team: r.team, score: r.score,
+    id: r.playerId, rank: r.rank, name: r.name, pos: canonPos('nhl', r.pos), team: r.team, score: r.score,
     ...rateVals(r, market), toi: r.legs ? r.legs.toi : null,
     osa: r.legs ? r.legs.oppSaPg ?? null : null,
     pctl: r.status === 'called' ? 1 : 0, result: r.status, status: r.status, _row: r,
@@ -716,10 +719,10 @@ function withLastNight(columns, cln) {
   return at < 0 ? [...columns, col] : [...columns.slice(0, at + 1), col, ...columns.slice(at + 1)]
 }
 
-export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam, onOpenGame, cln = null, wk = null, rankMv = null }) {
+export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam, onOpenGame, cln = null, wk = null, rankMv = null, overall = null }) {
   const { open, sheet } = useWhySheet({ theme: C, accent: C.ice, numFont: NUM_FONT })
   const rows = [...kept].sort((a, b) => (b.r.score ?? 0) - (a.r.score ?? 0)).map(({ r, g }, i) => ({
-    id: r.playerId, rank: i + 1, name: r.name, pos: r.pos, team: r.team, game: `${g.game.away.abbrev}@${g.game.home.abbrev}`,
+    id: r.playerId, rank: overall?.get(`${g.game.id}|${r.playerId}`) ?? i + 1, name: r.name, pos: canonPos('nhl', r.pos), team: r.team, game: `${g.game.away.abbrev}@${g.game.home.abbrev}`,
     score: r.score, ...rateVals(r, market), toi: r.legs ? r.legs.toi : null, gameRank: r.rank,
     osa: r.legs ? r.legs.oppSaPg ?? null : null, status: r.status, _row: r, _g: g,
     cln: cln?.on ? cln.cell(r.playerId) : '', [WEAK_ZONE_KEY]: wk ? weakZoneCell(r, g, wk.map) : null,

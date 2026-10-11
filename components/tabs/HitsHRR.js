@@ -471,7 +471,8 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
   // switch instead of silently resetting every time view changes.
   // CALLED LAST NIGHT (2026-10-10): the previous slate's calls and results; a filter in the sheet, a section under the board
   const cln = useCalledLastLens('mlb', slateDate, null, { enabled: rankings && Boolean(slateDate) })
-  const filterState = useBoardFilter(players, SCORE_TYPE_FOR_VIEW[viewKey] || null, cln)
+  // POSITION (2026-10-10): Rankings only; the pills and pos= ride the shared filter (components/BoardFilters.js)
+  const filterState = useBoardFilter(players, SCORE_TYPE_FOR_VIEW[viewKey] || null, cln, { positions: rankings })
   const { filtered, state } = filterState
   const setupHomers = useSetupHomers(slateDate)
   // useBackToBack, not backToBack: the watch accumulates for the slate so a

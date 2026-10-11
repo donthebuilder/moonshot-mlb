@@ -54,7 +54,7 @@ export function BucketsCard({ r, rank, market = 'pts', onOpen, rankMove = null }
 }
 
 /** The grid, LampCards' rules: 1 across on a phone, 300px columns above; a preview, then "Show all". */
-export function BucketsCards({ rows, market, onOpen }) {
+export function BucketsCards({ rows, market, onOpen, rankOf = null }) {
   const phone = useIsPhone()
   const [all, setAll] = useState(false)
   const cap = phone ? 5 : 9
@@ -62,7 +62,7 @@ export function BucketsCards({ rows, market, onOpen }) {
   return (
     <div>
       <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
-        {shown.map((r, i) => <BucketsCard key={r._id || `${r.gameId}-${r.playerId}`} r={r} rank={i + 1} market={market} onOpen={onOpen} rankMove={r.rankMove || null} />)}
+        {shown.map((r, i) => <BucketsCard key={r._id || `${r.gameId}-${r.playerId}`} r={r} rank={rankOf?.(r) ?? i + 1} market={market} onOpen={onOpen} rankMove={r.rankMove || null} />)}
       </div>
       {rows.length > shown.length && (
         <button type="button" onClick={() => setAll(true)} style={{ marginTop: 10, minHeight: 44, padding: '0 16px', borderRadius: 999, border: `1px solid ${C.border2}`, background: 'transparent', color: C.purple, font: `800 11px/1 ${NUM_FONT}`, cursor: 'pointer' }}>

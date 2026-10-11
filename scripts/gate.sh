@@ -6,7 +6,7 @@
 #   scripts/gate.sh --base https://dashnetwork.vercel.app "..." # after the deploy, against prod
 #
 # Local: npm run build, check-routes, check-parity, check-scales, check-shell-route, check-no-printed-probability, then `next start` on :3108 and
-# check-market-chips + check-interactions --quick (taps), check-mobile --all + check-clickable on the pages. Reports go to a temp folder
+# check-market-chips + check-interactions --quick (taps), check-position-filter (the Rankings position pills; its browser twin check-position-filter-ui.mjs is run by hand), check-mobile --all + check-clickable on the pages. Reports go to a temp folder
 # (never the repo's mobile-report/). Exit 0 = green.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -25,6 +25,7 @@ if [ -z "$BASE" ]; then
   echo "--- scales"; node scripts/check-scales.mjs > "$OUT/scales.log" 2>&1 || { tail -20 "$OUT/scales.log"; echo "GATE FAIL: check-scales"; exit 1; }
   echo "--- shell routes + slate words"; node scripts/check-shell-route.mjs > "$OUT/shell.log" 2>&1 || { grep FAIL "$OUT/shell.log"; echo "GATE FAIL: check-shell-route"; exit 1; }
   echo "--- no printed probability"; node scripts/check-no-printed-probability.mjs || { echo "GATE FAIL: check-no-printed-probability"; exit 1; }
+  echo "--- position filter"; node --no-warnings --import ./scripts/_esm-resolve.mjs scripts/check-position-filter.mjs > "$OUT/posfilter.log" 2>&1 || { grep FAIL "$OUT/posfilter.log"; echo "GATE FAIL: check-position-filter"; exit 1; }
   npx next start -p 3108 > "$OUT/server.log" 2>&1 &
   SERVER=$!
   trap 'kill $SERVER 2>/dev/null || true' EXIT
