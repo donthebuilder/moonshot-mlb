@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { fetchNfl, nflGameCallsPaths, nflGameCallsTotalsPaths } from '../../lib/nfl/dataSource'
 import { reasonFor } from './ScoreAnatomy'
+import { sharedRead } from '../../lib/sharedRead'
 
 /** The week's game-calls file, fetched once per mount. null = loading; { missing: true } = not there. */
 export function useGameCalls() {
@@ -21,7 +22,7 @@ export function useGameCalls() {
   useEffect(() => {
     let alive = true
     // a failed or missing file is said, not hidden (0g E1): { missing: true } draws the waiting line
-    fetchNfl(nflGameCallsPaths()).then((d) => { if (alive) setData(d || { missing: true }) }).catch(() => { if (alive) setData({ missing: true }) })
+    sharedRead('nfl-game-calls', () => fetchNfl(nflGameCallsPaths())).then((d) => { if (alive) setData(d || { missing: true }) }).catch(() => { if (alive) setData({ missing: true }) })
     return () => { alive = false }
   }, [])
   return data

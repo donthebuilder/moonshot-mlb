@@ -55,7 +55,14 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
   const leagueLeaders = useLampLeaders()
   const reg = useLampRecord(60)
   const regT = reg.data?.total
-  const pre = useLampRecord(60, { pre: true })
+  // ONE RECORD READ IN SEASON (2026-10-10, Wave 3 data diet). The preseason-inclusive record only differs from the regular-season one
+  // by the preseason nights, which are all older than the first regular-season night -- so once the regular-season record has graded
+  // calls, its newest night IS the preseason-inclusive record's newest night and its total is the number the hero prints, and the
+  // second read answered nothing new. It is asked for only while the regular-season record has none (preseason, a failed read),
+  // exactly when the page needs the preseason figures.
+  const regHasCalls = Boolean(regT?.calledN) && Boolean(reg.data?.nights?.length)
+  const preRead = useLampRecord(60, { pre: true, enabled: !regHasCalls && !reg.loading })
+  const pre = regHasCalls ? reg : preRead
   const lockedN = boardGames.filter((g) => g.locked).length
   const allLocked = boardGames.length > 0 && lockedN === boardGames.length
   const firstDrop = games.map((g) => g.startUtc).filter(Boolean).sort()[0] || null

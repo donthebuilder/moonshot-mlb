@@ -14,8 +14,7 @@ import { tdPool } from './tabs/Touchdowns'
 import { boardReason } from '../../lib/nfl/boardReason'
 import { tdCallStatus } from '../../lib/callStatus'
 import { withNflFullSet } from '../../lib/nfl/boardColumns'
-import GameTotalLine, { useGameTotals } from '../GameTotalLine'
-import CallStatusBadge from '../CallStatusBadge'
+import GameTotalLine, { GameTotalMark, totalRowFor, useGameTotals } from '../GameTotalLine'
 import NflTable from './NflTable'
 import { useGameCalls } from './GameCalls'
 import WriteupBlock from './WriteupBlock'
@@ -163,7 +162,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
       extra: (() => {
         const oc = outCounts([g.away, g.home]); const line = [airText(g), oc?.out ? `${oc.out} out` : null].filter(Boolean).join(' · ')
         const tr = gameTotals?.[String(g.game_id)]
-        const tot = tr && tr.status !== 'off' ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{`total #${tr.rank}`}<CallStatusBadge status={tr.status} size={8} /></span> : null
+        const tot = totalRowFor(gameTotals, g.game_id) ? <GameTotalMark row={tr} /> : null
         return line || tot ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>{line}{tot}</span> : null
       })(),
       score: (live || g.completed) ? { away: g.away, home: g.home, awayScore: g.away_score, homeScore: g.home_score, live } : null,
@@ -231,7 +230,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
 
                 {/* 3. THE FIELD: offense vs defense, then who gets the ball against which corner */}
                 <PanelAnchor id="field" gamePk={g.game_id}>
-                  <GameOffDef key={g.game_id} matchup={matchup} players={players} game={g} />
+                  <GameOffDef key={g.game_id} matchup={matchup} players={players} game={g} onPlayerClick={onPlayerClick} />
                   <KeyPlayers matchup={matchup} data={data} game={g} onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />
                 </PanelAnchor>
 

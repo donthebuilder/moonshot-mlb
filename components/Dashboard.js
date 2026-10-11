@@ -11,7 +11,6 @@ import { resolveTab, pageTitle, isSport, isLiveTab } from '../lib/routes'
 import { canonLedgerHash, queueLedgerView, carryLedgerView } from '../lib/ledger/views'
 import { queueSlipSeed } from '../lib/slipSeed'
 import LedgerShell from './pages/LedgerShell'
-import TopTotals from './TopTotals'
 import CardSection from './card/CardSection'
 import { usePageTitle } from '../lib/usePageTitle'
 import TabNotFound from './TabNotFound'
@@ -1018,9 +1017,10 @@ export default function Dashboard({ palettePass = 0 }) {
                 standalone component where that is the safer render. Nothing
                 was deleted; see lib/theme.js for the map. */}
             {tab === 'home'        && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} />}
-            {tab === 'games'       && <CardSection sport="mlb" />}
-            {tab === 'games'       && <TopTotals sport="mlb" />}
+            {/* TOP TOTALS now ride each game (components/GameTotalLine.js: on the game's card and its slate card); the record stays in the Ledger.
+                The Card is one line, under the slate (it was a block above the first game). */}
             {tab === 'games'       && <Games players={players} allPlayers={allPlayers} slateDate={slateDate} slateMode={mode} pairHistorySummary={pairSummary} results={resultsForSlate} odds={odds} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
+            {tab === 'games'       && <CardSection sport="mlb" compact />}
             {tab === 'pitchers'    && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'matchups'    && <Matchups players={players} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
             {/* PROPS GRID — the mobile pilot page (2026-08-23). Its own tab

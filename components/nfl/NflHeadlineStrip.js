@@ -8,6 +8,7 @@ import HistoryWatch from '../HistoryWatch'
 import LongshotsPreview from '../LongshotsPreview'
 import { buildNflHeadlines, buildNflLeaderRows } from '../../lib/nfl/headlines'
 import { slateTotals } from '../../lib/nfl/teamTdModel'
+import { sharedJSON } from '../../lib/sharedRead'
 
 // ── THE HEADLINE STRIP (moved out of tabs/Home.js 2026-09-25) ───────────────
 // Donovan's 09-25 pass: Live before kickoff opens the way MOONSHOT's Morning
@@ -40,7 +41,7 @@ export default function NflHeadlineStrip({ players, games, markets, matchup, log
   const [hist, setHist] = useState(null)
   useEffect(() => {
     let alive = true
-    fetch('/api/history/watch?sport=nfl').then((r) => (r.ok ? r.json() : null)).then((j) => { if (alive) setHist(j?.items?.[0] || null) }).catch(() => {})
+    sharedJSON('/api/history/watch?sport=nfl').then((j) => { if (alive) setHist(j?.items?.[0] || null) }).catch(() => {})
     return () => { alive = false }
   }, [])
   const cards = useMemo(() => {

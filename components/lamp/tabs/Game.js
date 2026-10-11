@@ -9,6 +9,7 @@ import LampTable from '../LampTable'
 import GoalieQuality from '../GoalieQuality'
 import GoalieWeakSpots from '../GoalieWeakSpots'
 import Tap from '../../Tap'
+import GameTotalLine, { useGameTotals } from '../../GameTotalLine'
 import SiteTeamMark from '../../TeamMark'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, GoalLabel, fmtDay, fmtPuckDrop, zoneAbbrev } from '../ui'
 
@@ -26,6 +27,7 @@ import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, L
 // with the ice-map component, not before). Nothing here is a placeholder.
 export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = null, onOpenGame = null, backLabel = 'Scores' }) {
   const { data: g, error, loading } = useLampGame(id)
+  const gameTotals = useGameTotals('nhl')   // this game's own Top Totals row, on its header (components/GameTotalLine.js)
   // none given vs a bad one (audit 14 N2: a mistyped id read 'NO GAME PICKED')
   if (!id) return <EmptyState title="NO GAME PICKED" note="Open a game from Scores or the Schedule."><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   if (!/^\d{10}$/.test(String(id))) {
@@ -79,6 +81,7 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
           <span style={{ color: C.text3, fontSize: 11 }}>{g.venue}{g.venueLocation ? `, ${g.venueLocation}` : ''}{g.neutralSite ? ' · neutral site' : ''}</span>
           <GoalieWeakSpots game={{ id: g.id, date: g.date, away: g.away.abbrev, home: g.home.abbrev, season: g.season, state: g.state }} onOpenPlayer={onOpenPlayer} />
         </div>
+        <GameTotalLine sport="nhl" row={gameTotals?.[String(g.id)]} style={{ marginTop: 8 }} />
       </header>
       <GameLedgerLine sport="nhl" gameId={g.id} day={g.date} />
 
