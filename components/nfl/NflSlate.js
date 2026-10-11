@@ -87,14 +87,14 @@ function callsIn(picks, g) {
 // groups in order: PLAYER, THE CALL, USAGE, then boardColumns' own (model scores 3, scoring chances 4, receiving 5 ...)
 const GROUP_PLAYER = { key: 'player', label: 'PLAYER', order: 0 }
 const GROUP_CALL = { key: 'call', label: 'THE CALL', order: 1 }
-const GROUP_USAGE = { key: 'usage', label: 'USAGE', order: 2 }
+const GROUP_USAGE = { key: 'usage', label: 'Role & usage', order: 2 }   // the same group as lib/nfl/boardColumns.js NFL_BOARD_GROUPS.usage (the share columns: Snap %, Snap L3, Tgt %)
 const pctOf = (v) => (Number.isFinite(Number(v)) ? Math.round(Number(v)) : null)
 const usageOf = (p) => {
   const c = p?.components?.TD || {}
   return { u_snap: pctOf(c.f_snap_pct), u_rz: pctOf(c.f_rz_opp), u_gl: pctOf(c.f_gl_opp), u_touch: pctOf(c.f_touches), u_xtd: pctOf(c.f_xtd) }
 }
 const USAGE_COLS = [
-  { key: 'u_snap', label: 'Snaps', w: 56, dp: 0, group: GROUP_USAGE, explain: 'Snap share, as a percentile among this week\'s scored players (100 = on the field the most).' },
+  { key: 'u_snap', label: 'Snap %ile', w: 66, dp: 0, group: GROUP_USAGE, explain: 'Snap share, as a percentile among this week\'s scored players (100 = on the field the most).' },
   { key: 'u_touch', label: 'Touches', w: 62, dp: 0, group: GROUP_USAGE, explain: 'Touches (carries + targets), as a percentile among this week\'s scored players.' },
   { key: 'u_rz', label: 'RZ touches', w: 70, dp: 0, group: GROUP_USAGE, explain: 'Red-zone touches, as a percentile among this week\'s scored players.' },
   { key: 'u_gl', label: 'Goal line', w: 64, dp: 0, group: GROUP_USAGE, explain: 'Goal-line opportunity, as a percentile among this week\'s scored players.' },
