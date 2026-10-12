@@ -2,8 +2,7 @@
 // This holds the list to the components that walk it:
 //   - every sport has an entry, and both surfaces (slate, page) are a list or say why not
 //   - ids are unique on a surface; roles come from the shared vocabulary; every pill has its words
-//   - each id has a renderer in the component (or, for MOONSHOT's pill-names-only adoption, an anchor), and the component
-//     really asks the registry for its list
+//   - each id has a renderer in the component's SECTIONS map, and the component really walks the registry's list
 //   - every section with an `empty` state: its words are in the component
 //   - every shared role is carried or has a stated reason in `lacks` (and a role listed in `lacks` is not carried)
 //   - no sport ternary in the registry
@@ -21,9 +20,10 @@ let bad = 0
 const fail = (m) => { console.log(`FAIL ${m}`); bad += 1 }
 
 // where each (sport, surface) is drawn, and how: 'walk' = the component maps the list to its own renderers; 'names' = the
-// component takes the pill names/words only (MOONSHOT: the 1,977-line page keeps its JSX order; proven by screenshot).
+// component takes the pill names/words only (no sport uses it now: MOONSHOT walked from stage 2, 2026-10-12, proven
+// pixel-identical by screenshot + DOM diff at 390 and 1280).
 const WHERE = {
-  'mlb/slate': { file: 'components/tabs/Games.js', mode: 'names' },
+  'mlb/slate': { file: 'components/tabs/Games.js', mode: 'walk' },
   'nfl/slate': { file: 'components/nfl/NflSlate.js', mode: 'walk' },
   'nhl/slate': { file: 'components/lamp/LampSlate.js', mode: 'walk' },
   'nhl/page': { file: 'components/lamp/tabs/Game.js', mode: 'walk' },
