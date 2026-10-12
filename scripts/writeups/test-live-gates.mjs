@@ -5,6 +5,10 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
+// PIN THE CLOCK (2026-10-12): the test slate starts 2026-10-12T23:00Z; with the real clock past that moment every NHL case read 'game already started'.
+const _realNow = Date.now
+Date.now = () => Date.parse('2026-10-12T12:00:00Z')
+
 process.env.NEXT_PUBLIC_SITE_URL = 'https://test.example'
 Object.assign(process.env, { X_API_KEY: 'TEST', X_API_SECRET: 'TEST', X_ACCESS_TOKEN: 'TEST', X_ACCESS_SECRET: 'TEST', DISCORD_MLB_WEBHOOKS: 'https://discord.test/hook-a' })
 for (const k of ['X_WRITEUPS_PAUSE', 'WRITEUPS_AUTOPOST', 'X_POSTS_PAUSE', 'X_GUARDS_OFF', 'X_SCHEDULE_OFF', 'X_DAILY_CAP', 'X_TEXT_LIMIT', 'DISCORD_HOMER_WEBHOOK']) delete process.env[k]
