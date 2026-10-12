@@ -23,6 +23,7 @@ import { reduceScoreDay } from '../../../../lib/nhl/reduce'
 import { buildNight, toLogRow } from '../../../../lib/nhl/goalBoard'
 import { gradeRows } from '../../../../lib/nhl/goalModel'
 import { VERSIONS, versionsFor } from '../../../../lib/nhl/versions'
+import { recheckReason, changedResults, resultPatch, RECHECK_MAX_MS } from '../../../../lib/nhl/regrade'
 import { cronAuthorized, adminClient } from '../../../../lib/supabase/admin'
 import { LOCK_WINDOW_MS, readBoard } from '../../../../lib/nhl/boardRead'
 import { startersFromPlayByPlay, goaliesFromBoxscore } from '../../../../lib/nhl/goalies'
@@ -268,6 +269,55 @@ export async function GET(request) {
       console.error(`[lamp tick] grade ${p.game_id}: ${e?.message}`); out.skipped.push({ game: p.game_id, why: `grade: ${e?.message}` })
     }
   }
+  // ── RECHECK (2026-10-11, lib/nhl/regrade.js): the league keeps correcting a boxscore for hours after the horn (10-10 TBL@NYI: the
+  // 11:39 goal moved from Schaefer to Pageau at 03:39Z, 90 minutes after we graded; Pageau stayed a 0, Schaefer a scorer). A game graded
+  // in the last 12h is read again when its goal feed changed after the grade, and once at the settle window, and graded by the SAME
+  // functions. Only the result columns (dressed / goals or value / hit) of a row whose result changed are written; the locked model
+  // columns never are. Its own failure, logged; never the tick's.
+  try {
+    const nowMs = Date.now()
+    const recent = await db.from('lamp_goal_games').select('game_id, game_date, graded_at').in('model_version', VERSIONS.goal).not('graded_at', 'is', null).gte('graded_at', new Date(nowMs - RECHECK_MAX_MS).toISOString())
+    if (recent.error) throw new Error(recent.error.message)
+    const rIds = (recent.data || []).map((x) => x.game_id)
+    const fed = rIds.length ? await db.from('lamp_goal_feed').select('game_id, first_seen_at, confirmed_at, overturned_at').in('game_id', rIds) : { data: [] }
+    if (fed.error) throw new Error(fed.error.message)
+    const feedBy = new Map()
+    for (const f of fed.data || []) { const k = String(f.game_id); if (!feedBy.has(k)) feedBy.set(k, []); feedBy.get(k).push(f) }
+    out.regraded = []
+    for (const p of recent.data || []) {
+      const why = recheckReason({ gradedAt: p.graded_at, now: nowMs, feedRows: feedBy.get(String(p.game_id)) })
+      if (!why) continue
+      try {
+        const box = await nhlGet(`/gamecenter/${p.game_id}/boxscore`, 0)
+        if (!box?.playerByGameStats || !['OFF', 'FINAL'].includes(String(box.gameState || '').toUpperCase())) continue
+        const Vp = versionsFor(p.game_date)
+        const changes = []
+        const goalLog = await db.from('lamp_goal_log').select('*').eq('game_id', p.game_id).eq('model_version', Vp.goal).not('graded_at', 'is', null)
+        if (goalLog.error) throw new Error(goalLog.error.message)
+        const goalAfter = gradeRows((goalLog.data || []).map((r) => ({ ...r, playerId: r.player_id })), box.playerByGameStats)
+        for (const c of changedResults(goalLog.data, goalAfter, 'goals')) {
+          const u = await db.from('lamp_goal_log').update(resultPatch('goals', c.to)).eq('game_id', p.game_id).eq('player_id', c.row.player_id).eq('model_version', Vp.goal)
+          if (u.error) throw new Error(u.error.message)
+          changes.push({ table: 'lamp_goal_log', who: c.row.name, status: c.row.status, from: c.from, to: c.to })
+        }
+        for (const m of [{ market: SOG, key: 'sog', grade: gradeSogRows }, ...SHADOW]) {
+          const rows = await db.from('lamp_prop_log').select('*').eq('game_id', p.game_id).eq('market', m.market).eq('model_version', Vp[m.key]).not('graded_at', 'is', null)
+          if (rows.error) throw new Error(rows.error.message)
+          if (!rows.data?.length) continue
+          for (const c of changedResults(rows.data, m.grade(rows.data, box.playerByGameStats), 'value')) {
+            const u = await db.from('lamp_prop_log').update(resultPatch('value', c.to)).eq('game_id', p.game_id).eq('player_id', c.row.player_id).eq('market', m.market).eq('model_version', Vp[m.key])
+            if (u.error) throw new Error(u.error.message)
+            changes.push({ table: 'lamp_prop_log', market: `${m.market}/${Vp[m.key]}`, who: c.row.name, status: c.row.status, from: c.from, to: c.to })
+          }
+        }
+        if (changes.length) {
+          console.warn(`[lamp tick] REGRADED ${p.game_id} (${why}): ${changes.length} result(s) changed after the league corrected the box: ${JSON.stringify(changes)}`)
+          out.regraded.push({ game: p.game_id, why, changes: changes.length })
+        }
+      } catch (e) { console.error(`[lamp tick] recheck ${p.game_id}: ${e?.message}`) }
+    }
+  } catch (e) { console.error(`[lamp tick] recheck: ${e?.message}`) }
+
   // 🔢 HOT NUMBERS (numerology step 6b): once a night's games are all graded,
   // the dressed skaters' numbers against who scored, written once.
   // Today and yesterday every tick (a failed write retries); two small counts
