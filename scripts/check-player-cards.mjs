@@ -233,8 +233,15 @@ check(!/https?:|www\.|\.com|#\w+tag|QR/i.test(allText), 'no link, no QR, no hash
   const table = (rows) => { const b = { eq: () => b, in: () => b, order: () => b, limit: () => b, then: (res) => res({ data: rows, error: null }) }; return { select: () => b } }
   const row = (o) => ({ id: 1, sport: 'nhl', card_date: '2026-01-02', lane: 'bot', product: 'two_man', slot: 1, model_version: 'card-v1', locks_at: '2026-01-02T00:00:00Z', start_at: '2026-01-02T20:00:00Z', result: null, stake: 0.5, legs: [{ player_id: 'P1', name: 'Test Skater 1' }, { player_id: 'P2', name: 'Test Skater 2' }], ...o })
   const fakeDb = (rows) => ({ from: () => table(rows) })
-  const early = await loadDualModel({ sport: 'nhl', date: '2026-01-02', lane: 'bot', db: fakeDb([row()]), now: Date.parse('2026-01-02T15:00:00Z'), publicOnly: true })
-  check(!early.ok && early.status === 404 && /not public yet/.test(early.why), "dual route policy: the bot's Two-Man before its games is 404 (members content)")
+  // MEMBERS FIRST (10-12): the bot's Two-Man is 404 until a row of the Card is GRADED (stored result), whatever the clock says; same refusal as a day with no Two-Man
+  const late = Date.parse('2026-01-02T23:59:00Z')       // every game long started, nothing graded: the clock alone reveals nothing
+  const early = await loadDualModel({ sport: 'nhl', date: '2026-01-02', lane: 'bot', db: fakeDb([row()]), now: late, publicOnly: true })
+  const absent = await loadDualModel({ sport: 'nhl', date: '2026-01-03', lane: 'bot', db: fakeDb([]), now: late, publicOnly: true })
+  check(!early.ok && early.status === 404 && early.why === absent.why, "dual route policy: the bot's Two-Man before any graded row is 404, the same refusal as no Two-Man (members content)")
+  const graded = row({ id: 2, product: 'straight', slot: 1, stake: 1, result: 'hit', legs: [{ player_id: 'P9', name: 'Test Skater 9', board_pct: 90, start_at: '2026-01-02T20:00:00Z' }] })
+  const after = await loadDualModel({ sport: 'nhl', date: '2026-01-02', lane: 'bot', db: fakeDb([row(), graded]), now: late, publicOnly: true }).catch((e) => ({ ok: null, err: e.message }))
+  console.log('   (after-grade probe:', after.ok, after.status, after.why || after.err || '', ')')
+  check(after.ok === true, "dual route policy: once a row of the Card is graded the bot's Two-Man is served (past the reveal gate, not the held 404)")
   const none = await dualCardImage({ sport: 'nhl', date: '2026-01-02', lane: 'donovan', db: fakeDb([row()]), now: Date.parse('2026-01-02T15:00:00Z') })
   check(!none.ok && none.status === 404, "dual route policy: no Donovan's Two-Man entered -> 404")
   check((await dualCardImage({ sport: 'nba', date: '2026-01-02', db: fakeDb([]) })).status === 404, 'dual: nba is 404')
