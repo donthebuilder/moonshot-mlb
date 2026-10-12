@@ -28,6 +28,7 @@ import { useLockedRecord } from '../../lib/useLockedRecord'
 import { useMlbStatusNight } from '../../lib/useMlbStatus'
 import { lockedPickLine } from '../../lib/record/lockedRecord'
 import RecordPage from '../record/RecordPage'
+import { LadderFromApi } from '../record/LadderBlock'
 import { mlbRecordModel } from '../../lib/record/page'
 
 // EVERY NAME OPENS HIS CARD (2026-09-27, CLICK-EVERYTHING-PLAN): the page's
@@ -1010,7 +1011,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
     return (
       <div>
         <PanelTitle title={RECORD_NAME} sub="Every night, graded." />
-        <RecordPage record={recordModel} Table={DenseTable} locked={lockedTiers} calls={callHistory} receiptsLabel="every night, every pick" receipts={(
+        <RecordPage record={recordModel} Table={DenseTable} top={<LadderFromApi sport="mlb" compact fold />} locked={lockedTiers} calls={callHistory} receiptsLabel="every night, every pick" receipts={(
           <>
             {receiptsHead}
             <Empty text={
@@ -1030,7 +1031,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
         title={RECORD_NAME}
         sub={`${gradedDays.length} graded nights in the archive`}
       />
-      <RecordPage record={recordModel} Table={DenseTable} locked={lockedTiers} calls={callHistory} receiptsLabel="every night, every pick, the season's audits" receipts={(<>
+      <RecordPage record={recordModel} Table={DenseTable} top={<LadderFromApi sport="mlb" compact fold />} locked={lockedTiers} calls={callHistory} receiptsLabel="every night, every pick, the season's audits" receipts={(<>
       {receiptsHead}
 
       {/* ── #34: THE MONEY ANSWER, ON THE PAGE THAT ASKS THE QUESTION ──────

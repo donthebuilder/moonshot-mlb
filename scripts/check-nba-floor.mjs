@@ -12,6 +12,7 @@ const F = await import('../lib/record/nbaFloor.js')
 const LAD = await import('../lib/record/ladder.js')
 const GEN = await import('../lib/calibration/generic.js')
 const CL = await import('../lib/record/callsLanded.js')
+const LD = await import('../lib/record/ladder.js')
 
 // TEST: a made-up calendar, `k` consecutive nights
 const day = (i) => `2027-${String(1 + Math.floor(i / 28)).padStart(2, '0')}-${String(1 + (i % 28)).padStart(2, '0')}`
@@ -48,6 +49,20 @@ ok('/called\'s "N of M landed": no pooled line from a block with a tracking mark
   assert.equal(tr.markets.length, 1); assert.deepEqual(tr.markets[0], { label: 'REB 10+', n: 6, nights: 3 })
   const allOk = { minN: 30, regular: { nights: 30, tiers: [t('pts', 'PTS 25+', 30)] } }
   assert.ok(CL.callsLandedFrom(allOk)); assert.equal(CL.callsTrackingFrom(allOk), null)
+})
+
+ok('the market ladder (Wave 8, BUCKETS): a tracking market prints n and "tracking, k of 30 nights" -- never "0 of n", a rate or a base; an open market prints as before', () => {
+  const t = (key, label, k) => GEN.blockFrom('nba', [{ key, label, kind: 'status', status: 'called', bar: key === 'pts' ? '25+' : '10+', graded: callRows(key, k).map((r) => ({ date: r.game_date, hit: r.hit })), void: 0, board: callRows(key, k).map((r) => ({ date: r.game_date, hit: r.hit })) }], { minNights: 30 }).tiers[0]
+  const cal = { sport: 'nba', minN: 30, regular: { nights: 30, unit: 'night', tiers: [t('pts', 'PTS 25+', 30), t('reb', 'REB 10+', 4)] }, post: { nights: 0, tiers: [] } }
+  const l = LD.marketLadderFrom(cal, { sport: 'nba' })
+  const pts = l.rows.find((r) => r.key === 'pts'); const reb = l.rows.find((r) => r.key === 'reb')
+  assert.equal(reb.floorTracking, true); assert.equal(reb.hits, null); assert.equal(reb.rate, null); assert.equal(reb.base, null); assert.equal(reb.n, 8); assert.equal(reb.nights, 4)
+  const c = LD.marketCells(reb, 30)
+  assert.equal(c.of, 'n=8'); assert.equal(c.rate, '\u2014'); assert.equal(c.tracking, true); assert.equal(c.vs, null)
+  assert.equal(pts.floorTracking, undefined); assert.equal(pts.hits, 30); assert.match(LD.marketCells(pts, 30).of, /^30 of 60$/)
+  const only = LD.marketLadderFrom({ ...cal, regular: { ...cal.regular, tiers: [t('reb', 'REB 10+', 4)] } }, { sport: 'nba' })
+  const words = [LD.marketOneLine(only), LD.marketSentence(only)].join(' | ')
+  assert.ok(!/ of 8|\d+(\.\d)?%|cleared/.test(words), words)
 })
 
 ok('Record tab (/api/buckets/record): a market under 30 regular-season nights sends n and "tracking" and no hit count, no called-that-hit rows, no missed 25-point scorers', () => {
