@@ -37,6 +37,7 @@ import LineupSlotMatchup from '../LineupSlotMatchup'
 import PairTray from '../PairTray'
 import MobileFold, { useIsPhone } from '../MobileFold'
 import GameSwitcher from '../GameSwitcher'
+import { panelPairs, panelSubs } from '../../lib/game/sections'
 import { ViewPills, GameFilterRail, BASE_GAME_FILTERS, StripFold, GamePanelPills, PrevNextGame } from '../slate/SlateParts'
 import { statLineFor, useSlateScale, toneFor, toneTitle } from '../../lib/statline'
 import { downloadGameCard } from '../shareCard'
@@ -1926,23 +1927,10 @@ const MLB_GAME_FILTERS = [
     title: 'either starter is trending worse — his trend is published as "worsening," or his last-3-starts HR/9 has climbed at least 0.4 above his season figure' },
 ]
 // ── THE OPEN GAME'S SEGMENTED CONTROL (2026-08-15) ──────────────────────────
-const GAME_PANELS = [
-  ['read',    'The read'],
-  ['lineups', 'Lineups'],
-  ['h2h',     'Head-to-head'],
-  ['out',     'Out'],
-  ['picks',   'Picks'],
-]
-const PANEL_SUB = {
-  read: 'tonight’s air, both starters written out, and this game’s storylines.',
-  // Caption updated 2026-08-17 with the default flip: the table leads now, the
-  // spot read is the pill. A caption promising the old order would send people
-  // hunting for a click that no longer exists.
-  lineups: 'both batting orders 1 through 9 as the full stat table — every column sortable, with the spot read (what this arm has done to each slot, in words) one pill over.',
-  h2h: 'what these hitters have done against tonight’s starter this season, both sides.',
-  out: 'who is out for both clubs, from the injury report.',
-  picks: 'MOONSHOT’s designated slots for this game as full cards — score bars, pills, add to slip.',
-}
+// The pills, their order and their words are the game-section registry's (lib/game/sections.js, 2026-10-12): moved
+// there byte for byte, so this list is the same array it was. The sections below still render in this file's own order.
+const GAME_PANELS = panelPairs('mlb')
+const PANEL_SUB = panelSubs('mlb')
 // ── THE LIVE STAMP (2026-09-01) ───────────────────────────────────────────────
 // "updated 12s ago" is the whole component. It is the difference between a
 // score that is not moving and a score that stopped updating.

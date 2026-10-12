@@ -1,4 +1,6 @@
 'use client'
+import { Fragment } from 'react'
+import { gameSections } from '../../../lib/game/sections'
 import GameLedgerLine from '../../ledger/GameLedgerLine'
 import { useTeamNav } from '../../../lib/teamNav'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
@@ -52,12 +54,11 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
   const stat = (k) => ts[k] || { away: null, home: null }
   const pct = (v) => (v == null || v === '' ? '—' : `${Math.round(Number(v) * 100)}%`)
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <BackBtn onBack={onBack} label={backLabel} />
-      <DelayedBanner error={error} what="this game" />
-
-      {/* ── header ── */}
+  // THE SECTIONS, in the registry's order (lib/game/sections.js 'nhl' page); each id's renderer is below, unchanged from when they were
+  // written in place. The rink leads the tables before the puck drops and follows the goals after (two ids, one drawn per state).
+  const SECTIONS = {
+    header: () => (
+      <>
       <header style={{ borderBottom: `1px solid ${C.border2}`, paddingBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
           <span style={{ color: C.ice, font: `900 8px/1 ${NUM_FONT}`, letterSpacing: '.14em' }}>LAMP · GAME</span>
@@ -84,10 +85,21 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
         </div>
         <GameTotalLine sport="nhl" row={gameTotals?.[String(g.id)]} style={{ marginTop: 8 }} />
       </header>
+      </>
+    ),
+    ledger: () => (
+      <>
       <GameLedgerLine sport="nhl" gameId={g.id} day={g.date} />
+      </>
+    ),
+    'stage-pre': () => (
+      <>
       {/* THE RINK (Wave 6): before the puck drops it leads (the tables below are empty); once there are goals and periods the tables lead and it follows the goals */}
-      {g.state === 'pre' && <GameRink game={g} />}
-
+      <GameRink game={g} />
+      </>
+    ),
+    period: () => (
+      <>
       {/* ── by period ── */}
       {(g.linescore?.length || g.shotsByPeriod?.length) ? (
         <section aria-label="By period">
@@ -112,7 +124,10 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
           })()}
         </section>
       ) : null}
-
+      </>
+    ),
+    goals: () => (
+      <>
       {/* ── goals ── */}
       <section aria-label="Goals">
         <Kicker>GOALS · {g.goals.length}</Kicker>
@@ -142,9 +157,15 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
               ]} />
           )}
       </section>
-
-      {g.state !== 'pre' && <GameRink game={g} />}
-
+      </>
+    ),
+    stage: () => (
+      <>
+      <GameRink game={g} />
+      </>
+    ),
+    compare: () => (
+      <>
       {/* ── team comparison ── */}
       {Object.keys(ts).length > 0 && (
         <section aria-label="Team comparison">
@@ -168,7 +189,10 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
             ]} />
         </section>
       )}
-
+      </>
+    ),
+    box: () => (
+      <>
       {/* ── the box (2026-10-04, audit 05 #10: goalie lines and the skater box
           were missing, though the route already read the boxscore) ── */}
       <GoalieQuality game={{ home: g.home.abbrev, away: g.away.abbrev, date: g.date, state: g.state }} onOpenPlayer={onOpenPlayer}
@@ -205,7 +229,10 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
             ]} />
         </section>
       ))}
-
+      </>
+    ),
+    penalties: () => (
+      <>
       {/* ── penalties ── */}
       {g.penalties.length > 0 && (
         <section aria-label="Penalties">
@@ -224,7 +251,10 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
             ]} />
         </section>
       )}
-
+      </>
+    ),
+    stars: () => (
+      <>
       {/* ── three stars ── */}
       {g.threeStars.length > 0 && (
         <section aria-label="Three stars">
@@ -244,7 +274,10 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
             ]} />
         </section>
       )}
-
+      </>
+    ),
+    series: () => (
+      <>
       {/* ── season series ── */}
       {g.seasonSeries?.length > 1 && (
         <section aria-label="Season series">
@@ -259,6 +292,16 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
             ]} />
         </section>
       )}
+      </>
+    ),
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <BackBtn onBack={onBack} label={backLabel} />
+      <DelayedBanner error={error} what="this game" />
+
+      {gameSections('nhl', 'page', g.state).map((sec) => <Fragment key={sec.id}>{SECTIONS[sec.id]?.()}</Fragment>)}
 
       <SourceLine>
         Source: NHL (api-web.nhle.com) gamecenter/{'{id}'}/landing and /right-rail, read server-side by /api/lamp/game, refreshed every 30 s while the game is live. Game id {g.id}.

@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
 import { heatOf as heatIn, heatTier, dialInk, leagueHeat } from '../../lib/nhl/slateHeat'
 import { useLampBoard } from '../../lib/nhl/useLamp'
@@ -8,6 +8,7 @@ import { useIsPhone } from '../MobileFold'
 import PageHeader from '../PageHeader'
 import Tap from '../Tap'
 import GameSwitcher from '../GameSwitcher'
+import { panelPairs, panelSubs, gameSections } from '../../lib/game/sections'
 import { ViewPills, GameFilterRail, SlateStrip, GamePanelPills, PanelAnchor, GameFrame, PrevNextGame } from '../slate/SlateParts'
 import { FactTiles } from '../matchup/MatchupParts'
 import { GameBoard, NavBtn, AllGamesTable, spotOf, pct1, restWord } from './tabs/Board'
@@ -41,13 +42,9 @@ import { downloadLampGameCard } from './shareCard'
 // the starting goalie is only named once the feed has him (after the game).
 // The open game rides the address (#…&game=<id>).
 
-const PANELS = [['read', 'The read'], ['board', 'Every player'], ['calls', 'The calls'], ['out', 'Out']]
-const SUBS = {
-  read: 'goals to expect, power play and penalty kill.',
-  board: 'every skater in this game. Scroll the table sideways for more.',
-  calls: 'one skater called per team.',
-  out: 'who is out for both clubs, from the injury report.',
-}
+// the pills, their order and their words: lib/game/sections.js (the 'nhl' slate list)
+const PANELS = panelPairs('nhl')
+const SUBS = panelSubs('nhl')
 // The words Donovan asked for. The number is the TEAM model's projected goals (lamp-team-v1, 2026-10-08;
 // lib/nhl/teamProj.js, on the board as game.proj): each club's shot volume x shot quality x the other side's
 // defence x its goalie, pulled toward the club's own goals a game. A measured projection of a COUNT, never a
@@ -214,35 +211,10 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
         const away = g.game.away.abbrev; const home = g.game.home.abbrev
         const called = g.rows.filter((r) => r.status === 'called').sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99))
         const gaOf = (team) => g.rows.find((r) => r.team === team)?.context?.oppGaPg ?? null   // what THIS team's opponent allows
-        return (
-          <div id="lamp-slate-game" style={{ scrollMarginTop: 'calc(var(--hdr-h, 0px) + var(--gsw-h, 0px) + 8px)', marginBottom: 20 }}>
-            <GameFrame accent={C.ice} past={st === 'final'}>
-              <div style={{ padding: '14px 14px 6px' }}>
-                {/* each club ONCE, big; the score sits between them once it has started */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  {teamLink(away)}
-                  {st === 'upcoming'
-                    ? <span style={{ fontSize: 20, color: C.text3, fontWeight: 600 }}>@</span>
-                    : <span style={{ fontFamily: NUM_FONT, fontSize: 30, fontWeight: 900, color: st === 'live' ? C.ice : C.text }}>{g.game.away.score ?? 0}–{g.game.home.score ?? 0}</span>}
-                  {teamLink(home)}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 44 }}>
-                  <span style={{ fontSize: 14, fontFamily: NUM_FONT, color: st === 'live' ? C.ice : C.text2, fontWeight: 800 }}>
-                    {st === 'live' ? (g.game.statusLine || 'LIVE') : st === 'final' ? 'FINAL' : timeOf(g)}
-                  </span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                    {st !== 'upcoming' && onOpenGame && <Tap onClick={() => onOpenGame(g.game.id)}><span style={{ fontSize: 14, fontFamily: NUM_FONT, color: C.ice, fontWeight: 800 }}>Box score ›</span></Tap>}
-                    {/* 📸 this game as a PNG (fix15): the two clubs, the team model's projected goals, the skaters on the board */}
-                    <CardButton sport="nhl" label="Download this game as an image" onDownload={() => downloadLampGameCard(g, { date: shown || '' })} />
-                  </span>
-                </div>
-                {/* THIS GAME'S TOTAL (2026-10-10): the Top Totals row the lock stored for it (the projected goals are the same number) */}
-                <GameTotalLine sport="nhl" row={gameTotals?.[String(g.game.id)]} style={{ marginTop: 2, paddingBottom: 6 }} />
-              </div>
-              <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px 14px', background: 'rgba(0,0,0,.15)' }}>
-                <GamePanelPills panels={PANELS} subs={SUBS} panel={panel} setPanel={setPanel} gamePk={g.game.id} isPhone={isPhone} accent={C.ice} stickyTop="var(--gsw-h, 0px)"
-                  badges={{ calls: called.length ? String(called.length) : '', out: (() => { const oc = outCounts([away, home]); return oc?.out ? String(oc.out) : '' })() }} />
-
+        // THE SECTIONS OF THE OPEN GAME, in the registry's order (lib/game/sections.js 'nhl' slate); each id's renderer is below,
+        // unchanged from when they were written in place. A section is added with one registry line and one entry here.
+        const SECTIONS = {
+          read: () => (
                 <PanelAnchor id="read" gamePk={g.game.id}>
                   {/* THE CALL (2026-10-05): the game's write-up, from this same board game */}
                   <NhlWriteupBlock game={g} onOpenPlayer={onOpenPlayer} />
@@ -272,18 +244,21 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
                     })}
                   </div>
                 </PanelAnchor>
-
+          ),
+          board: () => (
                 <PanelAnchor id="board" gamePk={g.game.id} style={{ marginTop: 14 }}>
                   <GameBoard g={g} market="GOAL" slate onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} onOpenTeam={onOpenTeam} />
                 </PanelAnchor>
-
+          ),
+          calls: () => (
                 <PanelAnchor id="calls" gamePk={g.game.id} style={{ marginTop: 14 }}>
                   <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.06em', color: C.text3, fontFamily: NUM_FONT, margin: '4px 0 10px' }}>{STATUS_WORD.called} IN THIS GAME · ONE PER TEAM</div>
                   {called.length
                     ? <LampCards market="GOAL" onOpen={onOpenPlayer} items={called.map((r) => ({ key: String(r.playerId), r, g, rank: r.rank, facts: { pp: pct1(spotOf(g, r.team, true)?.ppPct), pk: pct1(spotOf(g, r.team, false)?.pkPct), rest: restWord(spotOf(g, r.team, true)) } }))} />
                     : <p style={{ margin: 0, fontSize: 13, color: C.text3 }}>No skater in this game has played enough NHL games to be called.</p>}
                 </PanelAnchor>
-
+          ),
+          out: () => (
                 <PanelAnchor id="out" gamePk={g.game.id}>
                   {(() => {
                     const board = new Map(g.rows.map((r) => [`${r.team}|${nameKey(r.name)}`, r]))
@@ -296,6 +271,38 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
                     )
                   })()}
                 </PanelAnchor>
+          ),
+        }
+        return (
+          <div id="lamp-slate-game" style={{ scrollMarginTop: 'calc(var(--hdr-h, 0px) + var(--gsw-h, 0px) + 8px)', marginBottom: 20 }}>
+            <GameFrame accent={C.ice} past={st === 'final'}>
+              <div style={{ padding: '14px 14px 6px' }}>
+                {/* each club ONCE, big; the score sits between them once it has started */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  {teamLink(away)}
+                  {st === 'upcoming'
+                    ? <span style={{ fontSize: 20, color: C.text3, fontWeight: 600 }}>@</span>
+                    : <span style={{ fontFamily: NUM_FONT, fontSize: 30, fontWeight: 900, color: st === 'live' ? C.ice : C.text }}>{g.game.away.score ?? 0}–{g.game.home.score ?? 0}</span>}
+                  {teamLink(home)}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 44 }}>
+                  <span style={{ fontSize: 14, fontFamily: NUM_FONT, color: st === 'live' ? C.ice : C.text2, fontWeight: 800 }}>
+                    {st === 'live' ? (g.game.statusLine || 'LIVE') : st === 'final' ? 'FINAL' : timeOf(g)}
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    {st !== 'upcoming' && onOpenGame && <Tap onClick={() => onOpenGame(g.game.id)}><span style={{ fontSize: 14, fontFamily: NUM_FONT, color: C.ice, fontWeight: 800 }}>Box score ›</span></Tap>}
+                    {/* 📸 this game as a PNG (fix15): the two clubs, the team model's projected goals, the skaters on the board */}
+                    <CardButton sport="nhl" label="Download this game as an image" onDownload={() => downloadLampGameCard(g, { date: shown || '' })} />
+                  </span>
+                </div>
+                {/* THIS GAME'S TOTAL (2026-10-10): the Top Totals row the lock stored for it (the projected goals are the same number) */}
+                <GameTotalLine sport="nhl" row={gameTotals?.[String(g.game.id)]} style={{ marginTop: 2, paddingBottom: 6 }} />
+              </div>
+              <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px 14px', background: 'rgba(0,0,0,.15)' }}>
+                <GamePanelPills panels={PANELS} subs={SUBS} panel={panel} setPanel={setPanel} gamePk={g.game.id} isPhone={isPhone} accent={C.ice} stickyTop="var(--gsw-h, 0px)"
+                  badges={{ calls: called.length ? String(called.length) : '', out: (() => { const oc = outCounts([away, home]); return oc?.out ? String(oc.out) : '' })() }} />
+
+                {gameSections('nhl', 'slate').map((sec) => <Fragment key={sec.id}>{SECTIONS[sec.id]?.()}</Fragment>)}
               </div>
             </GameFrame>
           </div>

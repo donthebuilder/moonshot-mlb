@@ -1,11 +1,12 @@
 'use client'
 import TeamMark, { MatchLogos } from '../TeamMark'
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE, gradeFor } from '../../lib/nfl/theme'
 import { useHashFilter } from '../../lib/filterHash'
 import { useIsPhone } from '../MobileFold'
 import Tap from '../Tap'
 import GameSwitcher from '../GameSwitcher'
+import { panelPairs, panelSubs, gameSections } from '../../lib/game/sections'
 import { GameFilterRail, SlateStrip, GamePanelPills, PanelAnchor, GameFrame, PrevNextGame } from '../slate/SlateParts'
 import GameOffDef, { Kicker } from './GameOffDef'
 import { GameHeader, KeyPlayers, MatchupScoreboard, ImportantStats } from './GameSections'
@@ -51,14 +52,9 @@ import { depthRole } from '../../lib/nfl/roles'
 
 const HEADLINE_MARKETS = ['TD', 'REC_YDS', 'RUSH_YDS', 'REC', 'PASS_YDS', 'KICK_PTS']
 const MARKET_TAG = { TD: 'TD', REC_YDS: 'REC YDS', RUSH_YDS: 'RUSH YDS', REC: 'REC', PASS_YDS: 'PASS YDS', KICK_PTS: 'KICK' }
-const PANELS = [['calls', 'Our calls'], ['field', 'The field'], ['players', 'Players'], ['matchup', 'Matchup'], ['out', 'Out']]
-const SUBS = {
-  calls: "our calls in this game and the game's top touchdown scores.",
-  field: 'where this offense attacks, where the other defense is weak, and where they meet; who gets the ball.',
-  players: 'every scored player in the game, all the numbers.',
-  matchup: 'the numbers that decide a game, side by side.',
-  out: 'who is out this week for both clubs, from the injury report.',
-}
+// the pills, their order and their words: lib/game/sections.js (the 'nfl' slate list)
+const PANELS = panelPairs('nfl')
+const SUBS = panelSubs('nfl')
 
 const stateOf = (g) => (g.state === 'in' ? 'live' : g.completed ? 'final' : 'upcoming')
 const kickText = (g) => {
@@ -206,6 +202,64 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
           return { player_id: String(p.player_id), name: p.name, team: p.team, position: p.position, depth_role: depthRole(matchup, p.player_id, p.position), role: null, rank, of: pool.rows.length,
             status: tdCallStatus({ td_board: { rank, of: pool.rows.length } }), espn_id: p.espn_id, row: p, score: p.scores?.TD, reason: boardReason(p, pool.weights, pool.base, 'TD', pool.rows)?.text || null }
         })
+        // THE SECTIONS OF THE OPEN GAME, in the registry's order (lib/game/sections.js 'nfl' slate); each id's renderer is below,
+        // unchanged from when they were written in place. A section is added with one registry line and one entry here.
+        const SECTIONS = {
+          // 2. OUR CALLS: the headline. The called men as cards, this game's top touchdown scores after them
+          calls: () => (
+                <PanelAnchor id="calls" gamePk={g.game_id}>
+                  <WriteupBlock game={g} gameCalls={gameCalls} week={data} matchup={matchup} logs={logs} odds={odds} onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} extras={extras} />
+                  {story && (
+                    <p style={{ margin: '0 0 14px', fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
+                      <b style={{ color: C.green, fontFamily: NUM_FONT, fontSize: 12, letterSpacing: '.08em' }}>{story.kind === 'model' ? 'THE CALL' : 'MILESTONE'} </b>
+                      <Tap onClick={() => onPlayerClick?.(story.player, story.market)}>{story.text}</Tap>
+                    </p>
+                  )}
+                  <GameLedgerLine sport="nfl" gameId={g.game_id} day={g.kickoff ? easternDate(Date.parse(g.kickoff)) : null} />
+                </PanelAnchor>
+          ),
+          // 3. THE FIELD: offense vs defense, then who gets the ball against which corner
+          field: () => (
+                <PanelAnchor id="field" gamePk={g.game_id}>
+                  <GameOffDef key={g.game_id} matchup={matchup} players={players} game={g} onPlayerClick={onPlayerClick} />
+                  <KeyPlayers matchup={matchup} data={data} game={g} onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />
+                </PanelAnchor>
+          ),
+          // 4. THE PLAYERS: every scored player in the game, all the numbers
+          players: () => (
+                <PanelAnchor id="players" gamePk={g.game_id}>
+                  <Kicker>ALL PLAYERS IN THE GAME, BY TD SCORE</Kicker>
+                  <NflTable {...full} onRowClick={(r) => onPlayerClick?.(r?._raw ?? r)} maxRows={8} maxHeight={9999}
+                    caption={`${full.rows.length} players · sorted by TD score`} />
+                </PanelAnchor>
+          ),
+          // 5. THE MATCHUP, the important stats, then each defence's file
+          matchup: () => (
+                <PanelAnchor id="matchup" gamePk={g.game_id} style={{ marginTop: 14 }}>
+                  <MatchupScoreboard matchup={matchup} data={data} game={g} />
+                  <ImportantStats matchup={matchup} data={data} game={g} onOpenTeam={onOpenTeam} />
+                  {/* BOTH DEFENCES (2026-10-10): each club's defence tags and its key defenders, the defence the other offence faces */}
+                  <DefenseFile matchup={matchup} slateSeason={data?.season} def={g.home} off={g.away} />
+                  <DefenseFile matchup={matchup} slateSeason={data?.season} def={g.away} off={g.home} />
+                </PanelAnchor>
+          ),
+          // 6. WHO IS OUT (lib/injuries): collapsed, both clubs, our board men first
+          out: () => (
+                <PanelAnchor id="out" gamePk={g.game_id}>
+                  {(() => {
+                    const mine = new Set(callsIn(picks, g).map(({ call }) => nameKey(call.name)))
+                    const find = (e) => players.find((p) => p.team === e.team && nameKey(p.name) === nameKey(e.name)) || null
+                    return (
+                      <InjuryOut sport="nfl" clubs={[g.away, g.home]} theme={{ C, NUM_FONT, accent: C.green }} title="Out this week" openSignal={panel === 'out'}
+                        isOurs={(e) => mine.has(nameKey(e.name)) || Boolean(find(e) && Number.isFinite(find(e).scores?.TD))}
+                        openPlayer={(e) => { const p = find(e); return p ? () => onPlayerClick?.(p, 'TD') : null }}
+                        roleOf={(e) => { const p = find(e); return p ? depthRole(matchup, p.player_id, p.position) : null }}
+                        onOpenTeam={onOpenTeam} />
+                    )
+                  })()}
+                </PanelAnchor>
+          ),
+        }
         return (
           <div id="tuddy-slate-game" style={{ scrollMarginTop: 'calc(var(--hdr-h, 0px) + var(--gsw-h, 0px) + 8px)', marginBottom: 20 }}>
             <GameFrame accent={C.green} past={Boolean(g.completed)}>
@@ -224,54 +278,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
                 <GamePanelPills panels={PANELS} subs={SUBS} panel={panel} setPanel={setPanel} gamePk={g.game_id} isPhone={isPhone} accent={C.green} stickyTop="var(--gsw-h, 0px)"
                   badges={{ out: (() => { const oc = outCounts([g.away, g.home]); return oc?.out ? String(oc.out) : '' })() }} />
 
-                {/* 2. OUR CALLS: the headline. The called men as cards, this game's top touchdown scores after them */}
-                <PanelAnchor id="calls" gamePk={g.game_id}>
-                  <WriteupBlock game={g} gameCalls={gameCalls} week={data} matchup={matchup} logs={logs} odds={odds} onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} extras={extras} />
-                  {story && (
-                    <p style={{ margin: '0 0 14px', fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
-                      <b style={{ color: C.green, fontFamily: NUM_FONT, fontSize: 12, letterSpacing: '.08em' }}>{story.kind === 'model' ? 'THE CALL' : 'MILESTONE'} </b>
-                      <Tap onClick={() => onPlayerClick?.(story.player, story.market)}>{story.text}</Tap>
-                    </p>
-                  )}
-                  <GameLedgerLine sport="nfl" gameId={g.game_id} day={g.kickoff ? easternDate(Date.parse(g.kickoff)) : null} />
-                </PanelAnchor>
-
-                {/* 3. THE FIELD: offense vs defense, then who gets the ball against which corner */}
-                <PanelAnchor id="field" gamePk={g.game_id}>
-                  <GameOffDef key={g.game_id} matchup={matchup} players={players} game={g} onPlayerClick={onPlayerClick} />
-                  <KeyPlayers matchup={matchup} data={data} game={g} onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />
-                </PanelAnchor>
-
-                {/* 4. THE PLAYERS: every scored player in the game, all the numbers */}
-                <PanelAnchor id="players" gamePk={g.game_id}>
-                  <Kicker>ALL PLAYERS IN THE GAME, BY TD SCORE</Kicker>
-                  <NflTable {...full} onRowClick={(r) => onPlayerClick?.(r?._raw ?? r)} maxRows={8} maxHeight={9999}
-                    caption={`${full.rows.length} players · sorted by TD score`} />
-                </PanelAnchor>
-
-                {/* 5. THE MATCHUP, the important stats, then each defence's file */}
-                <PanelAnchor id="matchup" gamePk={g.game_id} style={{ marginTop: 14 }}>
-                  <MatchupScoreboard matchup={matchup} data={data} game={g} />
-                  <ImportantStats matchup={matchup} data={data} game={g} onOpenTeam={onOpenTeam} />
-                  {/* BOTH DEFENCES (2026-10-10): each club's defence tags and its key defenders, the defence the other offence faces */}
-                  <DefenseFile matchup={matchup} slateSeason={data?.season} def={g.home} off={g.away} />
-                  <DefenseFile matchup={matchup} slateSeason={data?.season} def={g.away} off={g.home} />
-                </PanelAnchor>
-
-                {/* 6. WHO IS OUT (lib/injuries): collapsed, both clubs, our board men first */}
-                <PanelAnchor id="out" gamePk={g.game_id}>
-                  {(() => {
-                    const mine = new Set(callsIn(picks, g).map(({ call }) => nameKey(call.name)))
-                    const find = (e) => players.find((p) => p.team === e.team && nameKey(p.name) === nameKey(e.name)) || null
-                    return (
-                      <InjuryOut sport="nfl" clubs={[g.away, g.home]} theme={{ C, NUM_FONT, accent: C.green }} title="Out this week" openSignal={panel === 'out'}
-                        isOurs={(e) => mine.has(nameKey(e.name)) || Boolean(find(e) && Number.isFinite(find(e).scores?.TD))}
-                        openPlayer={(e) => { const p = find(e); return p ? () => onPlayerClick?.(p, 'TD') : null }}
-                        roleOf={(e) => { const p = find(e); return p ? depthRole(matchup, p.player_id, p.position) : null }}
-                        onOpenTeam={onOpenTeam} />
-                    )
-                  })()}
-                </PanelAnchor>
+                {gameSections('nfl', 'slate').map((sec) => <Fragment key={sec.id}>{SECTIONS[sec.id]?.()}</Fragment>)}
               </div>
             </GameFrame>
           </div>

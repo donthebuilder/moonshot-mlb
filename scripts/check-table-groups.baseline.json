@@ -102,7 +102,7 @@
  "lib/mlb/boardReason.js": 1,
  "lib/nfl/boardColumns.js": 8,
  "lib/nhl/boardColumns.js": 6,
- "lib/parity.js": 60,
+ "lib/parity.js": 61,
  "lib/sports/nba/ledger.js": 5,
  "lib/team/mlb.js": 3,
  "lib/team/nfl.js": 2

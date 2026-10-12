@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 import PageHeader from '../../PageHeader'
 import TeamMark from '../../TeamMark'
@@ -7,6 +7,7 @@ import Tap from '../../Tap'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsGame, useBucketsBoard, useBucketsTeamModel } from '../../../lib/nba/useBuckets'
 import { NBA_MARKETS } from '../../../lib/nba/model'
+import { gameSections } from '../../../lib/game/sections'
 import { GAME_ID_RE } from '../../../lib/nba/ids'
 import GameLedgerLine from '../../ledger/GameLedgerLine'
 import GameTotalLine, { useGameTotals } from '../../GameTotalLine'
@@ -43,37 +44,48 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
   const qLabel = (i) => (i < 4 ? `Q${i + 1}` : `OT${i > 4 ? i - 3 : ''}`)
   const fb = data.firsts?.firstFieldGoal
   const fp = data.firsts?.firstPoints
+  // THE SECTIONS, in the registry's order (lib/game/sections.js 'nba' page); each id's renderer is below, unchanged from when they were
+  // written in place. A section is added with one registry line and one entry here.
+  const SECTIONS = {
+    header: () => (
+      <>
+        <PageHeader eyebrow={`BUCKETS · GAME · ${fmtDay(gameDay(data.date)).toUpperCase()}`} title={`${away.name} at ${home.name}`} theme={C} numFont={NUM_FONT} accent={C.purple} showToday={false}
+          note={<>{live ? <><RimDot />{data.detail}</> : done ? 'Final' : `Tip ${fmtTip(data.date)}`}{data.venue ? ` · ${data.venue}` : ''}</>}
+        />
+        <DelayedBanner error={error} what="game data" />
+        <GameTotalLine sport="nba" row={gameTotals?.[String(id)]} />
+      </>
+    ),
+    line: () => (periods > 0 ? <LineScore teams={[away, home]} periods={periods} qLabel={qLabel} done={done} onOpenTeam={onOpenTeam} /> : null),
+    firsts: () => ((fb || fp) ? (
+      <div style={{ fontSize: 12, color: C.text2, display: 'grid', gap: 4 }}>
+        {fb && <div><Kicker>FIRST FIELD GOAL</Kicker><PlayLine play={fb} name={names[fb.player_id]} onOpenPlayer={onOpenPlayer} /></div>}
+        {fp && fp.player_id !== fb?.player_id && <div><Kicker>FIRST POINTS</Kicker><PlayLine play={fp} name={names[fp.player_id]} onOpenPlayer={onOpenPlayer} /></div>}
+      </div>
+    ) : null),
+    expected: () => <GameExpected id={id} date={gameDay(data.date)} onOpenTeam={onOpenTeam} />,
+    ledger: () => <GameLedgerLine sport="nba" gameId={id} day={gameDay(data.date)} />,
+    writeup: () => <NbaWriteupBlock gameId={id} date={gameDay(data.date)} onOpenPlayer={onOpenPlayer} />,
+    calls: () => <GameCalls id={id} date={gameDay(data.date)} onOpenPlayer={onOpenPlayer} />,
+    // lib/injuries: who is out for both clubs (BUCKETS stays hidden: the API 404s until BUCKETS_PUBLIC is on)
+    out: () => (
+      <InjuryOut sport="nba" clubs={[away.abbrev, home.abbrev]} theme={{ C, NUM_FONT, accent: C.purple }} title="Out tonight"
+        openPlayer={(e) => (e.espnId && onOpenPlayer ? () => onOpenPlayer(e.espnId) : null)} onOpenTeam={onOpenTeam} />
+    ),
+    box: () => <>{[away, home].map((t) => <BoxTable key={t.id} team={t} box={(data.box || []).filter((p) => p.team === t.abbrev)} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />)}</>,
+    shots: () => ((data.shots || []).length > 0 ? (
+      <section>
+        <Kicker>EVERY SHOT · {data.shots.length} FIELD-GOAL ATTEMPTS</Kicker>
+        <ShotChart urlKey="shots" shots={data.shots} names={names} teams={teams} title={`Shot chart, ${away.abbrev} at ${home.abbrev}`} />
+        <div style={{ marginTop: 10 }}><NavBtn onClick={() => setThree((v) => !v)} strong={three}>{three ? 'Close the 3D court' : '🏀 3D court'}</NavBtn></div>
+        {three ? <div style={{ marginTop: 8 }}><CourtArena shots={data.shots} names={names} /></div> : null}
+      </section>
+    ) : <EmptyState title={done || live ? 'NO SHOT LOCATIONS' : 'NO SHOTS YET'} note={done || live ? 'The play-by-play for this game carries no shot spots.' : 'The shot chart fills from the play-by-play once the game tips.'} />),
+  }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <BackBtn onBack={onBack} label={backLabel} />
-      <PageHeader eyebrow={`BUCKETS · GAME · ${fmtDay(gameDay(data.date)).toUpperCase()}`} title={`${away.name} at ${home.name}`} theme={C} numFont={NUM_FONT} accent={C.purple} showToday={false}
-        note={<>{live ? <><RimDot />{data.detail}</> : done ? 'Final' : `Tip ${fmtTip(data.date)}`}{data.venue ? ` · ${data.venue}` : ''}</>}
-      />
-      <DelayedBanner error={error} what="game data" />
-      <GameTotalLine sport="nba" row={gameTotals?.[String(id)]} />
-      {periods > 0 && <LineScore teams={[away, home]} periods={periods} qLabel={qLabel} done={done} onOpenTeam={onOpenTeam} />}
-      {(fb || fp) && (
-        <div style={{ fontSize: 12, color: C.text2, display: 'grid', gap: 4 }}>
-          {fb && <div><Kicker>FIRST FIELD GOAL</Kicker><PlayLine play={fb} name={names[fb.player_id]} onOpenPlayer={onOpenPlayer} /></div>}
-          {fp && fp.player_id !== fb?.player_id && <div><Kicker>FIRST POINTS</Kicker><PlayLine play={fp} name={names[fp.player_id]} onOpenPlayer={onOpenPlayer} /></div>}
-        </div>
-      )}
-      <GameExpected id={id} date={gameDay(data.date)} onOpenTeam={onOpenTeam} />
-      <GameLedgerLine sport="nba" gameId={id} day={gameDay(data.date)} />
-      <NbaWriteupBlock gameId={id} date={gameDay(data.date)} onOpenPlayer={onOpenPlayer} />
-      <GameCalls id={id} date={gameDay(data.date)} onOpenPlayer={onOpenPlayer} />
-      {/* lib/injuries: who is out for both clubs (BUCKETS stays hidden: the API 404s until BUCKETS_PUBLIC is on) */}
-      <InjuryOut sport="nba" clubs={[away.abbrev, home.abbrev]} theme={{ C, NUM_FONT, accent: C.purple }} title="Out tonight"
-        openPlayer={(e) => (e.espnId && onOpenPlayer ? () => onOpenPlayer(e.espnId) : null)} onOpenTeam={onOpenTeam} />
-      {[away, home].map((t) => <BoxTable key={t.id} team={t} box={(data.box || []).filter((p) => p.team === t.abbrev)} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />)}
-      {(data.shots || []).length > 0 ? (
-        <section>
-          <Kicker>EVERY SHOT · {data.shots.length} FIELD-GOAL ATTEMPTS</Kicker>
-          <ShotChart urlKey="shots" shots={data.shots} names={names} teams={teams} title={`Shot chart, ${away.abbrev} at ${home.abbrev}`} />
-          <div style={{ marginTop: 10 }}><NavBtn onClick={() => setThree((v) => !v)} strong={three}>{three ? 'Close the 3D court' : '🏀 3D court'}</NavBtn></div>
-          {three ? <div style={{ marginTop: 8 }}><CourtArena shots={data.shots} names={names} /></div> : null}
-        </section>
-      ) : <EmptyState title={done || live ? 'NO SHOT LOCATIONS' : 'NO SHOTS YET'} note={done || live ? 'The play-by-play for this game carries no shot spots.' : 'The shot chart fills from the play-by-play once the game tips.'} />}
+      {gameSections('nba', 'page').map((sec) => <Fragment key={sec.id}>{SECTIONS[sec.id]?.()}</Fragment>)}
       <SourceLine>Source: ESPN’s game summary and play-by-play (/api/buckets/game). Free throws and end-of-quarter heaves are left off the chart, as in the box score.</SourceLine>
     </div>
   )
