@@ -4,7 +4,7 @@
 //   node --no-warnings --import ./scripts/proto-cards/_loader.mjs scripts/check-postseason-cards.mjs
 import * as P from '../lib/cards/postseason.js'
 import { normalizePlayer, seasonsToTry } from '../lib/cards/postseasonData.js'
-import { postseasonFront, postseasonBack, seriesDesign, renderPostseason } from '../lib/cards/postseasonCard.js'
+import { postseasonFront, postseasonBack, seriesDesign, renderPostseason, SCRIM, scrimAt } from '../lib/cards/postseasonCard.js'
 import { nightOf, xText, discordEmbed, buildPostseasonPost, BIG_NIGHT, X_LIMIT, WIRING, BANNED } from '../lib/posts/postseasonCard.js'
 import { lintType } from '../lib/cards/cardKit.js'
 import { loadShareModel, SHARE_KINDS } from '../lib/cards/shareData.js'
@@ -114,6 +114,19 @@ for (const [k, m, side] of [['front', r1.model, 'front'], ['back', r1.model, 'ba
 }
 const small = await renderPostseason(r1.model, { side: 'front', width: 540 })
 check(small.readUInt32BE(16) === 540 && small.readUInt32BE(20) === 675, 'a 540-wide render is 540 x 675 (4:5)')
+
+// ── the action-photo art: the scrim keeps white type readable on the WORST photo (pure white), and a card with a photo renders ──
+const lum = (v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4 }
+const contrastOn = (photoV, alpha, textV = 0xef) => { const bgV = photoV * (1 - alpha) + 0x0b * alpha; const a = lum(textV) + 0.05, b = lum(bgV) + 0.05; return Math.max(a, b) / Math.min(a, b) }
+check(SCRIM.every(([p, a], i) => p >= 0 && p <= 1 && a > 0 && a <= 1 && (i === 0 || p > SCRIM[i - 1][0])) && scrimAt(0) === SCRIM[0][1] && scrimAt(1) === SCRIM[SCRIM.length - 1][1], 'scrim: stops are ordered, alphas in range, ends match')
+check(contrastOn(255, scrimAt(0.02)) >= 3 && contrastOn(255, scrimAt(0.42)) >= 3 && contrastOn(255, scrimAt(0.6)) >= 4.5 && contrastOn(255, scrimAt(0.95)) >= 4.5, `scrim: even a pure WHITE photo gives >= 3:1 under the kicker and name and >= 4.5:1 under the tiles (${contrastOn(255, scrimAt(0.6)).toFixed(1)}:1)`)
+const sharpMod = (await import('sharp')).default
+const testArt = `data:image/jpeg;base64,${(await sharpMod({ create: { width: 90, height: 135, channels: 3, background: { r: 200, g: 205, b: 210 } } }).jpeg().toBuffer()).toString('base64')}`
+const withArt = { ...r1.model, art: testArt, faceArt: testArt }
+check(lintType(postseasonFront(withArt, null)).length === 0 && lintType(postseasonBack(withArt, null, { w: 1080, h: 1350 })).length === 0, 'a card with photo art keeps the 22px type floor (front and back)')
+const artPng = await renderPostseason(withArt, { side: 'front' })
+check(artPng.length > 20000 && artPng[1] === 0x50, `a front with a (TEST) photo renders a PNG (${artPng.length} bytes)`)
+check((await renderPostseason({ ...withArt, art: '', faceArt: '' }, { side: 'front' })).length > 20000, 'no photo (404 / slow): the silo-headshot front renders as before')
 
 // ── the routes' 404 / 400 behaviour (fetch stubbed: no network) ──
 const real = globalThis.fetch

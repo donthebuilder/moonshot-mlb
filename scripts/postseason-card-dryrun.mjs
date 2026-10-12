@@ -43,7 +43,8 @@ console.log(post.ok ? JSON.stringify(post.discord.embed, null, 2) : `(none: ${po
 console.log('\n--- DEDUPE KEY ---', post.ok ? post.dedupeKey : '-')
 
 const slug = `${String(m.name).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
-const write = async (name, buf) => { writeFileSync(`${OUT}/${name}`, buf); console.log('wrote', `${OUT}/${name}`) }
+const write = async (name, buf) => { writeFileSync(`${OUT}/${name}`, buf); console.log('wrote', `${OUT}/${name}`, `(${(buf.length / 1e6).toFixed(2)} MB)`) }
+console.log(m.art ? 'card art: MLB action photo (the post attaches this photo card; headshot fallback if the photo is missing)' : 'card art: none (silo headshot fallback)')
 await write(`postseason-${slug}-front.png`, await renderPostseason(m, { side: 'front' }))
 await write(`postseason-${slug}-back.png`, await renderPostseason(m, { side: 'back' }))
 // a pitcher too, so both back tables are seen
