@@ -4,7 +4,7 @@ import { C as MLB_C } from '../lib/theme'
 import WatchBox from './WatchBox'
 import MobileFold from './MobileFold'
 import { DrawerSection, drawerChip } from './FiltersDrawer'
-import { SECTION_TITLE, RESULT_WORD, sectionOrder, summaryLine, emptyNote, dayWord, CALLED_WORD } from '../lib/calledLast/core'
+import { SECTION_TITLE, RESULT_WORD, sectionOrder, summaryLine, summaryShort, emptyNote, dayWord, CALLED_WORD } from '../lib/calledLast/core'
 
 // CALLED LAST NIGHT, TWO SURFACES, ONE LENS (lib/calledLast/useCalledLast.js).
 //   <CalledLastNight>   the section: MOONSHOT's WatchBox, a sibling of the B2B / Goal / TD watch. Under the board
@@ -27,7 +27,7 @@ export function CalledLastFilter({ lens }) {
   const { mode, setMode, data, loading, failed } = lens
   const note = loading ? 'Reading last night’s calls…' : failed ? 'Could not read last night’s calls just now.'
     : data?.unavailable ? 'Last night’s calls are not available yet.'
-    : data?.rows?.length ? summaryLine(data.date, lens.summary) : emptyNote({ date: data?.date, state: data?.state })
+    : data?.rows?.length ? summaryLine(data.date, lens.summary, lens.tracking) : emptyNote({ date: data?.date, state: data?.state })
   const chip = (on) => ({ ...drawerChip(on), minHeight: 44, display: 'inline-flex', alignItems: 'center', padding: '0 14px' })
   return (
     <DrawerSection label={SECTION_TITLE} hint="Everyone we called at lock on the previous slate, and what each did. Information only.">
@@ -70,7 +70,7 @@ function Section({ lens, onOpen, accent, theme, numFont, logoSport }) {
   ]
   const s = lens.summary
   const status = lens.loading ? 'reading last night’s calls…' : lens.failed ? 'could not read last night’s calls'
-    : data?.unavailable ? 'not available yet' : rows.length ? summaryLine(data.date, s) : emptyNote({ date: data?.date, state: data?.state })
+    : data?.unavailable ? 'not available yet' : rows.length ? summaryLine(data.date, s, lens.tracking) : emptyNote({ date: data?.date, state: data?.state })
   return (
     <WatchBox logoSport={logoSport} icon="🕐" title={SECTION_TITLE.toUpperCase()} accent={accent} theme={theme} numFont={numFont} ariaLabel={SECTION_TITLE}
       status={status} note={`${CALLED_WORD} at lock · what happened`} rows={rowsOut}
@@ -92,7 +92,7 @@ export default function CalledLastNight({ lens, onOpen, accent = null, theme = n
   if (!lens?.enabled) return null
   const C = theme || MLB_C
   const s = lens.summary
-  const summary = lens.loading ? 'reading…' : lens.rows.length ? `${s.called} called · ${s.hit} hit · ${s.miss} missed` : 'no calls stored'
+  const summary = lens.loading ? 'reading…' : lens.rows.length ? summaryShort(s, lens.tracking) : 'no calls stored'
   return (
     <MobileFold title={`🕐 ${SECTION_TITLE}`} summary={summary} count={lens.rows.length || null} accent={accent || C.orange} rememberKey={rememberKey}>
       <Section lens={lens} onOpen={onOpen} accent={accent || C.orange} theme={theme} numFont={numFont} logoSport={logoSport} />
