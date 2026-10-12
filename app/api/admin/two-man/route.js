@@ -11,7 +11,7 @@
 import { hasSupabaseConfig } from '../../../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
 import { adminClient } from '../../../../lib/supabase/admin'
-import { isAdminEmail } from '../../../../lib/admin'
+import { isAdminUser } from '../../../../lib/admin'
 import { CARD_SPORTS, CARD_VERSION, DOUBLE_SPORT, lockAtOf, donovanRow, donovanDoubleRow, NOTE_MAX_LINES, NOTE_MAX_CHARS } from '../../../../lib/card/core'
 import { loadWindows, loadCandidates } from '../../../../lib/card/sources'
 import { saveDonovan, withdrawDonovan, donovanEntry } from '../../../../lib/card/store'
@@ -27,7 +27,7 @@ async function admin() {
   if (!hasSupabaseConfig()) return null
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
-  return user && isAdminEmail(user.email) ? user : null
+  return user && isAdminUser(user) ? user : null
 }
 
 const slimEntry = (r) => (r ? { card_date: r.card_date, locks_at: r.locks_at, start_at: r.start_at, note: r.note, legs: r.legs.map((l) => ({ player_id: l.player_id, name: l.name, team: l.team, opp: l.opp, game_id: l.game_id, start_at: l.start_at, sport: l.sport || null })), result: r.result } : null)

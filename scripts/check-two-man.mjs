@@ -524,10 +524,10 @@ await t('the migration: the table, the guard trigger (insert / update / delete),
 
 await t('the admin form: gated by ADMIN_EMAILS (404 otherwise), refuses a save once the lock has passed or a game started; the page is not indexed', () => {
   const api = fs.readFileSync(new URL('../app/api/admin/two-man/route.js', import.meta.url), 'utf8')
-  assert.ok(/isAdminEmail\(user\.email\)/.test(api) && /status: 404/.test(api))
+  assert.ok(/isAdminUser\(user\)/.test(api) && /status: 404/.test(api))
   assert.ok(/now >= lockAtMs \|\| now >= win\.first_start_ms/.test(api) && /donovanRow\(/.test(api))
   const page = fs.readFileSync(new URL('../app/admin/two-man/page.js', import.meta.url), 'utf8')
-  assert.ok(/notFound\(\)/.test(page) && /robots/.test(page) && /isAdminEmail/.test(page))
+  assert.ok(/notFound\(\)/.test(page) && /robots/.test(page) && /isAdminUser/.test(page))
   const pub = fs.readFileSync(new URL('../app/api/card/route.js', import.meta.url), 'utf8')
   assert.ok(/rate, \.\.\.leg/.test(pub), 'the public read does not send the stored model rate')
   assert.ok(!/created_by|email/.test(fs.readFileSync(new URL('../supabase/migrations/202610101000_card_calls.sql', import.meta.url), 'utf8').replace(/--.*$/gm, '')), 'no email is stored on a public row')

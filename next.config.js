@@ -30,18 +30,51 @@ const nextConfig = {
   // THE NHL'S PICTURES, SAME ORIGIN (fix15, 2026-10-08): the downloadable LAMP cards draw each skater's mug and each
   // club's mark on a canvas. assets.nhle.com sends no CORS header, so the browser refuses it for a canvas that
   // has to export a PNG. Only the two folders the cards read are passed through; nothing else on that host is.
-  // PLAIN RESPONSE HEADERS (F-07), on every route. No CSP here on purpose: it needs a report-only trial first.
-  // Nothing on the site is framed by another origin, uses the camera, microphone or location.
+  // RESPONSE HEADERS (F-07, security wave 2). Nothing on the site is framed by another origin or uses the
+  // camera, microphone or location. The CSP is REPORT-ONLY: it blocks nothing, the browser only logs what
+  // it would have blocked (DevTools console / a report endpoint later). Enforce it only after a clean trial.
+  // Derived from the code, not guessed, then checked in a real browser (the first trial caught the bot's
+  // data branch, raw.githubusercontent.com, which every board fetches client-side): the browser fetches MLB stats (statsapi.mlb.com), ESPN (site.web.api),
+  // NHL (api-web / api.nhle.com) from client components; images come from ESPN's CDN, mlbstatic and nhle
+  // (the NHL ones mostly through the /cdn/nhle rewrite below); Vercel Analytics loads from the site itself
+  // in production (/_vercel/insights). 'unsafe-inline' stays for scripts and styles because Next's own
+  // bootstrap, the front door's hash script and styled-jsx are inline and there is no per-request nonce.
+  // No 'unsafe-eval': production Next does not need it (dev does, and dev is not what this serves).
   async headers() {
-    return [{
-      source: '/:path*',
-      headers: [
-        { key: 'X-Content-Type-Options', value: 'nosniff' },
-        { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-        { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
-        { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
-      ],
-    }]
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://va.vercel-scripts.com https://vercel.live",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https://a.espncdn.com https://img.mlbstatic.com https://midfield.mlbstatic.com https://assets.nhle.com https://statsapi.mlb.com",
+      "font-src 'self' data:",
+      "connect-src 'self' https://raw.githubusercontent.com https://statsapi.mlb.com https://site.web.api.espn.com https://site.api.espn.com https://api-web.nhle.com https://api.nhle.com https://vitals.vercel-insights.com https://vercel.live",
+      "worker-src 'self' blob:",
+      "manifest-src 'self'",
+      "media-src 'self' data: blob:",
+      "frame-src https://vercel.live",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'self'",
+    ].join('; ')
+    // user-specific API answers: never stored by a shared cache (audit L3). Set here so every return path of
+    // the route is covered, errors included.
+    const noStore = [{ key: 'Cache-Control', value: 'private, no-store' }]
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+          { key: 'Content-Security-Policy-Report-Only', value: csp },
+        ],
+      },
+      { source: '/api/dash/state', headers: noStore },
+      { source: '/api/dash/push/:path*', headers: noStore },
+      { source: '/api/admin/:path*', headers: noStore },
+    ]
   },
   async rewrites() {
     return [

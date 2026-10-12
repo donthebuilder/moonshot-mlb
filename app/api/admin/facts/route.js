@@ -3,7 +3,7 @@
 import { hasSupabaseConfig } from '../../../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
 import { adminClient } from '../../../../lib/supabase/admin'
-import { isAdminEmail } from '../../../../lib/admin'
+import { isAdminUser } from '../../../../lib/admin'
 import { deleteFromX } from '../../../../lib/dash/xPost'
 
 export const dynamic = 'force-dynamic'
@@ -12,7 +12,7 @@ export async function POST(request) {
   if (!hasSupabaseConfig()) return Response.json({ error: 'not found' }, { status: 404 })
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !isAdminEmail(user.email)) return Response.json({ error: 'not found' }, { status: 404 })
+  if (!user || !isAdminUser(user)) return Response.json({ error: 'not found' }, { status: 404 })
   const db = adminClient()
   const body = await request.json().catch(() => ({}))
   // the switches in dash_flags this route may flip (the write-ups' joined 2026-10-04)
