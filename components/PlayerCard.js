@@ -80,7 +80,7 @@ function gamePickLabelFor(p) {
 
 // rank / status (2026-10-10, cards brought to speed): the Rankings board hands its own rank and its one call word (lib/callStatus) so
 // the card leads with them like every other sport's; every other mount passes neither and draws as before, minus the name clipping.
-export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, onClick, rank = null, status = null, rankMove = null, compact = false, wide = false, kicker = null, accentColor = null }) {
+export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, onClick, rank = null, status = null, rankMove = null, compact = false, wide = false, kicker = null, kickerPills = [], accentColor = null }) {
   // compact / wide / kicker / accentColor (2026-10-12): the game page's pick cards. A compact card is drawn for a narrow column
   // (RankCard compact), its pick label rides in `kicker`, and `accentColor` is the SLOT's colour so a row of picks wears one outline style.
   const [openStat, setOpenStat] = useState(null)
@@ -210,9 +210,9 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
   // so this is one spread. See lib/spotlight.js's note above chipWashOf.
   return (
       <RankCard accent={accentColor || color} status={status} rankMove={rankMove} pos={clean(p?.handedness || p?.bats, '')} rank={rank} sport="mlb" club={teamOf(p) || null} name={nameOf(p)} opp={oppOf(p) || null}
-        compact={compact} wide={wide} kicker={kicker}
+        compact={compact} wide={wide} kicker={kicker} kickerPills={kickerPills}
         role={`${compact ? 'Bats ' : ''}${clean(p?.lineup_spot, '—')}${p?.lineup_confirmed === false ? ' (proj.)' : ''}`}
-        face={<PlayerFace sport="mlb" id={mlbId(p)} team={teamOf(p)} name={nameOf(p)} variant="tile" size={compact ? 76 : 84} />}
+        face={<PlayerFace sport="mlb" id={mlbId(p)} team={teamOf(p)} name={nameOf(p)} variant="tile" size={compact ? 68 : 84} />}
         score={score.toFixed(0)} scoreWord="MOONSHOT" rankTags={grade ? [`GRADE ${grade}`] : []}
         explain={<>MOONSHOT&apos;s {type.toUpperCase()} score, 0–100 — its verdict, not a stat. The row below is where it comes from.</>}
         extraLine={<>

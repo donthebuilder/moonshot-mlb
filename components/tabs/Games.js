@@ -617,7 +617,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   // it. `barsOn` replaces every `mode === 'botview'` check below.
   const [barsOn, setBarsOn] = useState(false)
   // PHONE: the pick cards show TOP + HR and keep the rest one tap away ("+N more picks"); wider screens show them all
-  const [morePicks, setMorePicks] = useState({})
+  const [pickIdx, setPickIdx] = useState({})
   // Lineups mode focus (2026-08-06): clicking a bubble used to scroll the
   // page to a card buried under ten others — "flies all the way to the
   // bottom". Now it FOCUSES: the chosen game renders alone, full width, with
@@ -1739,7 +1739,13 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                             fit (five at 1280, three at 768, one on a phone), HR WATCH across a full row. On a phone only the first two cards
                             show until "+N more picks" is tapped (the .gp-fold rules; the CSS lives with the card, PICK_GRID_CSS). */}
                         <style>{PICK_GRID_CSS}</style>
-                        <div className="gp-pickgrid" data-open={morePicks[g.game_pk] ? '1' : '0'}>
+                        <div className="gp-pickgrid" onScroll={(e) => {
+                          // phone swipe row: which card is in view (the "1 of 5" count)
+                          const el = e.currentTarget
+                          const w = el.children[0]?.getBoundingClientRect().width || 1
+                          const i = Math.min(el.children.length - 1, Math.max(0, Math.round(el.scrollLeft / (w + 10))))
+                          setPickIdx((m) => (m[g.game_pk] === i ? m : { ...m, [g.game_pk]: i }))
+                        }}>
                           {sorted.map(({ cat: slotCat, cats: slotCats, p }, slotIdx) => {
                             // A dual-slotted player is ONE card (2026-08-14,
                             // see picksFor) — the badge wears both names in
@@ -1902,10 +1908,15 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                             // the SLOT's colour (one outline style for the row, no ring + notch badge on top of it).
                             const isWatchCard = slotCat === 'WATCH'
                             return (
-                              <div key={slotCat ? `${slotCat}-${playerId(p)}` : playerId(p)} className={`gp-pickcell${slotIdx >= 2 ? ' gp-fold' : ''}${isWatchCard ? ' gp-pickgrid-wide' : ''}`}>
+                              <div key={slotCat ? `${slotCat}-${playerId(p)}` : playerId(p)} className={`gp-pickcell${isWatchCard ? ' gp-pickgrid-wide' : ''}`}>
                                 <PlayerCard
                                   p={p} type="hr"
-                                  compact wide={isWatchCard} kicker={roleInfo?.label || null} accentColor={roleInfo?.color || null}
+                                  compact wide={isWatchCard}
+                                  // a card holding several slots: the FIRST slot is the kicker, the others ride as small pills in their own
+                                  // colours on the same line (never a two-line "HIT/HRR/CONTACT/WATCH PICK")
+                                  kicker={slotCat ? (ROLE_CONFIG[slotCat]?.label || null) : null}
+                                  kickerPills={slotCats && slotCats.length > 1 ? slotCats.slice(1).map((c) => ({ label: c, color: (ROLE_CONFIG[c] || {}).color || C.text3 })) : []}
+                                  accentColor={roleInfo?.color || null}
                                   onAdd={onAdd} onWatch={onWatch}
                                   watched={watchIds.has(playerId(p))}
                                   onClick={() => onPlayerClick?.(p)}
@@ -1913,19 +1924,17 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                               </div>
                             )
                           })}
-                          {sorted.length > 2 && (
-                            <button
-                              type="button" className="gp-morepicks"
-                              onClick={(e) => { e.stopPropagation(); setMorePicks((m) => ({ ...m, [g.game_pk]: !m[g.game_pk] })) }}
-                              aria-expanded={Boolean(morePicks[g.game_pk])}
-                              style={{
-                                gridColumn: '1 / -1', minHeight: 44, alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                                background: 'transparent', border: `1px solid ${C.border2}`, borderRadius: 10, color: C.text2,
-                                fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 800,
-                              }}
-                            >{morePicks[g.game_pk] ? 'Show fewer picks' : `+${sorted.length - 2} more picks`}</button>
-                          )}
                         </div>
+                        {/* PHONE ONLY: the picks are a swipe row (every card reachable, TOP first); this says where you are */}
+                        {sorted.length > 1 && !barsOn && (
+                          <div className="gp-count" style={{ alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 28, fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3 }}>
+                            <span style={{ fontWeight: 800, color: C.text2 }}>{Math.min(sorted.length, (pickIdx[g.game_pk] || 0) + 1)} of {sorted.length}</span>
+                            <span aria-hidden="true" style={{ display: 'inline-flex', gap: 5 }}>
+                              {sorted.map((_, i) => <span key={i} style={{ width: 6, height: 6, borderRadius: 3, background: i === (pickIdx[g.game_pk] || 0) ? C.text2 : C.border2 }} />)}
+                            </span>
+                            <span>swipe for the next pick</span>
+                          </div>
+                        )}
                         </>)}
                             </>
                           ),

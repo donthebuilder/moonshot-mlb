@@ -28,7 +28,7 @@ export default function RankCard({
   accent: accentProp = null, status = null, pos = '', rank = null, face = null, sport, club = null, name, opp = null, home = true, role = '',
   score = null, scoreWord = 'SCORE', explain = null, reason = null, chips = null, stats = [], statsNode = null, back = null, foot = null, onClick = null,
   dim = false, extraLine = null, rankTags = [], extraNotes = [], style = null, title = undefined, rankMove = null,
-  compact = false, wide = false, kicker = null, chipRows = 2,
+  compact = false, wide = false, kicker = null, kickerPills = [], chipRows = 2,
 }) {
   const { C, NUM_FONT, accent: themeAccent } = useSportTheme()
   const accent = accentProp || themeAccent
@@ -48,9 +48,16 @@ export default function RankCard({
   const strip = (
     <div style={{ display: 'flex', alignItems: 'center', gap: compact ? 8 : 10, padding: '6px 12px 0' }}>
       <span style={compact
-        ? { fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, letterSpacing: '.08em', lineHeight: 1.25, color: called || kicker ? accent : C.text2, textTransform: 'uppercase', minWidth: 0, overflowWrap: 'anywhere' }
+        ? { fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, letterSpacing: '.06em', lineHeight: 1.25, color: called || kicker ? accent : C.text2, textTransform: 'uppercase', whiteSpace: 'nowrap', flex: '0 0 auto' }
         : { fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, letterSpacing: '.28em', color: called ? accent : C.text2, whiteSpace: 'nowrap' }}>{stripWord}</span>
-      <span style={{ flex: 1, height: 1, minWidth: 8, background: alpha(accent, called ? 0.5 : 0.2) }} />
+      {/* a card that holds more than one slot: the others as small pills in their own colours, on the same line (two, then "+N") */}
+      {compact && kickerPills.length > 0 && (
+        <span title={kickerPills.map((k) => k.label).join(' · ')} style={{ display: 'inline-flex', gap: 3, minWidth: 0, overflow: 'hidden', flex: '0 1 auto' }}>
+          {kickerPills.slice(0, 2).map((k) => <span key={k.label} style={{ fontFamily: NUM_FONT, fontSize: 9, fontWeight: 800, letterSpacing: '.04em', lineHeight: 1.2, color: k.color, border: `1px solid ${alpha(k.color, 0.55)}`, borderRadius: 4, padding: '1px 4px', whiteSpace: 'nowrap' }}>{k.label}</span>)}
+          {kickerPills.length > 2 && <span style={{ fontFamily: NUM_FONT, fontSize: 9, fontWeight: 800, lineHeight: 1.2, color: C.text2, border: `1px solid ${C.border2}`, borderRadius: 4, padding: '1px 4px', whiteSpace: 'nowrap' }}>+{kickerPills.length - 2}</span>}
+        </span>
+      )}
+      <span style={{ flex: 1, height: 1, minWidth: 4, background: alpha(accent, called ? 0.5 : 0.2) }} />
       <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, letterSpacing: '.12em', color: C.text2 }}>{pos}</span>
     </div>
   )
@@ -67,7 +74,7 @@ export default function RankCard({
   // places moved since the last update (components/RankMove.js): one mount for every sport's card; information only
   const rankMoveTag = rankMove?.move && <span style={{ background: alpha(C.bg, 0.7), border: `1px solid ${alpha(C.text, 0.22)}`, padding: '1px 6px', lineHeight: 1 }}><RankMoveCell cell={rankMove} up={accent} down={C.text3} size={10} /></span>
   const band = compact ? (
-    <div style={{ ...bandBox, display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px' }}>
+    <div style={{ ...bandBox, display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px' }}>
       {mark}
       <div style={{ position: 'relative', flex: '0 0 auto' }}>{face}</div>
       <div style={{ position: 'relative', flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
@@ -129,7 +136,7 @@ export default function RankCard({
     </div>
   )
   const footRow = (
-    <div className="rc-foot" onClick={(e) => e.stopPropagation()} style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: compact ? 'nowrap' : 'wrap', padding: compact ? '8px 12px 10px' : '4px 12px 8px' }}>
+    <div className="rc-foot" onClick={(e) => e.stopPropagation()} style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: compact ? 'nowrap' : 'wrap', padding: compact ? '6px 12px 8px' : '4px 12px 8px' }}>
       <style>{'.rc-foot button{min-height:44px;min-width:44px}'}</style>
       {back && (
         <button type="button" onClick={stop(() => setFlip(true))} aria-label="Flip the card: the stat table" title="Flip the card: the stat table" style={{ background: 'transparent', border: `1px solid ${alpha(accent, 0.4)}`, borderRadius: 8, color: accent, font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.06em', padding: compact ? '0 10px' : '0 12px', cursor: 'pointer', whiteSpace: 'nowrap', flex: '0 0 auto' }}>{compact ? <><span style={{ fontSize: 17, lineHeight: 1 }}>⟲</span><span className="rc-fliptxt"> Flip</span></> :'⟲ Flip: stat table'}</button>
@@ -174,17 +181,18 @@ const RC_CSS = '.rc-c{container-type:inline-size;display:flex;flex-direction:col
   + '.rc-c .rc-b{display:flex;flex-direction:column;flex:1 1 auto;min-width:0}'
   + '.rc-fliptxt{display:none}'
   + '.rc-c .rc-stats,.rc-c .rc-foot{margin-top:auto}.rc-c .rc-stats+.rc-foot{margin-top:0}'
-  + '.rc-c .stat-strip-c{gap:6px}'
-  + '@container (min-width:300px){.rc-fliptxt{display:inline}.rc-c .stat-strip-c{grid-template-columns:repeat(4,minmax(0,1fr))!important}}'
+  + '.rc-c .stat-strip-c{gap:4px;grid-template-columns:repeat(4,minmax(0,1fr))!important}'
+  + '@container (min-width:300px){.rc-fliptxt{display:inline}}'
   + '@media (min-width:720px){.rc-wide{display:grid;grid-template-columns:minmax(230px,290px) minmax(0,1fr)}.rc-wide .rc-a{border-right:1px solid rgba(255,255,255,.1);padding-bottom:10px}}'
 
 // THE GAME PAGE'S PICK GRID (components/tabs/Games.js): equal-height cells, as many 216px+ tracks as fit; a phone is one track with the
-// cells after the second folded behind the "+N more picks" button (data-open="0").
+// cells become a horizontal scroll-snap row (one card about 85% wide so the next peeks) with a "1 of N" count under it.
 export const PICK_GRID_CSS = '.gp-pickgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(216px,1fr));gap:10px;align-items:stretch}'
   + '.gp-pickgrid>*{min-width:0}.gp-pickcell{display:flex;flex-direction:column}'
   + '.gp-pickgrid-wide{grid-column:1/-1}'
-  + '.gp-morepicks{display:none}'
-  + '@media (max-width:559px){.gp-pickgrid{grid-template-columns:minmax(0,1fr)}.gp-pickgrid[data-open="0"] .gp-fold{display:none}.gp-morepicks{display:flex}}'
+  + '.gp-count{display:none}'
+  + '@media (max-width:559px){.gp-pickgrid{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:85%;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;max-width:100%;padding-bottom:4px;scrollbar-width:none}'
+  + '.gp-pickgrid::-webkit-scrollbar{display:none}.gp-pickcell,.gp-pickgrid-wide{scroll-snap-align:start;grid-column:auto}.gp-count{display:flex}}'
 
 // TWO ROWS OF CHIPS, THEN "+N": every chip is rendered once to measure, the ones past the row limit are left out, and a "+N" says how many.
 // The whole block is the tap target (it is at least two rows tall when it overflows), and it opens them all.
