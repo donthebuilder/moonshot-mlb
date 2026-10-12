@@ -66,7 +66,7 @@ const slab = (outs, o = {}) => ({ sport: 'nhl', brandName: 'LAMP', kicker: 'THE 
 await save('slab-cashed', await renderSlab(slab(['cashed', 'cashed'], { result: 'cashed' })))
 await save('slab-missed', await renderSlab(slab(['missed', 'missed'])))
 await save('slab-receipt', await renderSlab(slab(Array.from({ length: 12 }, (_, i) => (i % 3 ? 'missed' : 'cashed')), { sport: null, brandName: 'DASH Network', kicker: 'THE RECEIPT', product: 'NIGHT RECEIPT', result: null })))
-// the homer-card family (1200 x 675 posters): TEST rows
+// the poster family (1200 x 675, redrawn 2026-10-12 as a landscape variant of the card look: lib/cards/posterKit.js): TEST rows (scripts/render-poster-compare.mjs renders the full set)
 const row = { name: 'Test Hitter', team: 'NYY', opp: 'BOS', role: 'TOP', _roles: 'TOP', hr_score: 91, board_rank: 1, odds_over: 320, odds_book: 'TestBook', hr_n: 1, stats: {}, hooks: ['TEST hook one', 'TEST hook two'], day: '2026-01-02', player_id: 'x', pitcher_name: 'Test Arm' }
 await save('homer', await H.homerCard(row, { site: 'test.local' }))
 await save('stat', await H.statCard('2026-01-02', { pill: 'TEST', label: 'TEST STAT', headline: 'Test headline', lines: ['Test line one', 'Test line two'] }, { site: 'test.local' }))

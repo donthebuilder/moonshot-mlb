@@ -22,7 +22,7 @@ import RangeDual from '../../RangeDual'
 import { bucketsAngles } from '../../../lib/nba/angles'
 import { BucketsCards } from '../BucketsCard'
 import CardButton from '../../CardButton'
-import { downloadBucketsBoardCard } from '../shareCard'
+import { downloadCard, shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager, Why, fmtDay, fmtTip, writeHashParam, readHashParam } from '../ui'
 import { STATUS_WORD } from '../../../lib/callStatus'
 import { useRankMove } from '../../../lib/useRankMove'
@@ -247,7 +247,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
   }, [data, D]) // eslint-disable-line react-hooks/exhaustive-deps
   // 📸 the top of this ranking as a PNG (fix15): in the Filters row beside Ledger and Watchlist on a desktop, beside How to read on a phone (that row has no room left; one market at a time; ALL MARKETS has no single ranking)
   const shareBtn = m !== ALL && scored.length ? <CardButton sport="nba" label="Download this ranking as an image"
-    onDownload={() => downloadBucketsBoardCard([...scored].sort((a, b) => b.score - a.score), { market: mk, date: shown || '', total: scored.length, finalGames: new Set(games.filter((x) => x.state === 'final').map((x) => x.id)) })} /> : null
+    onDownload={() => downloadCard(shareUrl({ kind: 'ranked', sport: 'nba', market: mk, date: shown || null }), `rankings-${slug(mk)}_${stamp(shown)}.png`)} /> : null
   const pick = (k) => { setM(k); setAngle(null); writeHashParam('m', k === 'pts' ? null : k) }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

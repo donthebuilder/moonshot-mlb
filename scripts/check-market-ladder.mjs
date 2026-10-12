@@ -12,7 +12,7 @@ import { wilson } from '../lib/interval.js'
 import { ALL_SPORT_KEYS } from '../lib/routes.js'
 import { nbaOutcome } from '../lib/posts/nba.js'
 import { nbaLanePlayers, nbaBoxResults } from '../lib/numerology/nbaNight.js'
-import { nflTdResult, nflRowOf } from '../components/nfl/shareCard.js'
+import { nflTdResult, nflItem } from '../lib/cards/nflRows.js'
 
 let fail = 0
 const ok = (name, fn) => { try { fn(); console.log(`ok   ${name}`) } catch (e) { fail += 1; console.log(`FAIL ${name}: ${e.message}`) } }
@@ -153,7 +153,7 @@ ok('nflTdResult: nothing before the game is final; a touchdown, a miss and a voi
   assert.deepEqual(nflTdResult({ player_id: 'b' }, g, results), { text: 'MISS', hot: false, miss: true })
   assert.deepEqual(nflTdResult({ player_id: 'c' }, g, results), { text: 'VOID', hot: false, miss: true })
   assert.equal(nflTdResult({ player_id: 'zz' }, g, results), null)
-  const row = nflRowOf({ p: { player_id: 'b', name: 'TEST B', team: 'AAA', opp: 'BBB', scores: { TD: 61.4 } }, status: 'called', rank: 2 }, [{ home: 'AAA', away: 'BBB', completed: true }], results)
+  const row = nflItem({ player_id: 'b', name: 'TEST B', team: 'AAA', opp: 'BBB', score: 61.4, status: 'called' }, 2, { week: { games: [{ home: 'AAA', away: 'BBB', completed: true }] }, results })
   assert.deepEqual([row.where, row.status, row.miss, row.result.text], ['vs BBB', 'called', true, 'MISS'])
 })
 

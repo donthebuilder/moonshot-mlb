@@ -8,6 +8,7 @@ import LampTable from '../lamp/LampTable'
 import BucketsTable from '../buckets/BucketsTable'
 import { SportTheme } from '../SportTheme'
 import CalibrationTable from './CalibrationTable'
+import CalledByTeam, { CalledWeekStrip } from './CalledByTeam'
 import StraightRecordLine from './StraightRecordLine'
 import CardSection from '../card/CardSection'
 import { C as NFL_C, NUM_FONT as NFL_NUM } from '../../lib/nfl/theme'
@@ -25,8 +26,10 @@ export default function CalibrationSection({ sport = 'mlb' }) {
   const p = PRODUCTS[sport] || PRODUCTS.mlb
   return (
     <SportTheme theme={p.theme} accent={p.accent} numFont={p.numFont}>
+      <CalledWeekStrip sport={sport} />
       <StraightRecordLine sport={sport} />
       <CardSection sport={sport} mode="record" />
+      <CalledByTeam sport={sport} Table={p.Table} />
       <CalibrationTable sport={sport} Table={p.Table} />
     </SportTheme>
   )

@@ -9,7 +9,7 @@ import { aggregate } from '../../../lib/nhl/splits'
 import FollowButton from '../../FollowButton'
 import CardButton from '../../CardButton'
 import CardFlip from '../../player/CardFlip'
-import { downloadLampPlayerCard } from '../shareCard'
+import { downloadCard, playerUrl, slug, stamp } from '../../../lib/cards/saveCard'
 import StarMemory from '../../watch/StarMemory'
 import PlayerNotes from '../../PlayerNotes'
 import MultiLine from '../../ledger/MultiLine'
@@ -298,10 +298,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
                   the line, not in the sticky header (no room beside Watch at 360 without wrapping his name); a goalie has no goal board, so no card. */}
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               {!goalie && row && <CardFlip sport="nhl" id={String(p.id)} name={p.name} />}
-              {!goalie && <CardButton sport="nhl" label="Download his card as an image" onDownload={() => downloadLampPlayerCard({
-                p, row, g: spot?.g || null, fr, l5: goalsIn(5)?.num ?? null, l10: goalsIn(10)?.num ?? null,
-                drought: /^\d+$/.test(droughtOf(p.log?.rows)) ? Number(droughtOf(p.log?.rows)) : null,
-                where: opp || '', board: Boolean(board), seasonLabel: f.seasonLabel || '', day: board?.date || '' })} />}
+              {!goalie && <CardButton sport="nhl" label="Download his card as an image" onDownload={() => downloadCard(playerUrl({ sport: 'nhl', id: p.id }), `${slug(p.name, 'player')}_${stamp(board?.date)}.png`)} />}
               </span>
             </div>
             {stale && <div style={{ marginBottom: 10 }}><StaleSeasonNote label={f.seasonLabel} opens={p.opens} what="line" /></div>}

@@ -1,5 +1,6 @@
 'use client'
 import CallHistory from '../../record/CallHistory'
+import CalledByTeam, { CalledWeekStrip } from '../../record/CalledByTeam'
 import CalibrationTable from '../../record/CalibrationTable'
 import { ModeBar as ModeBarPart, TabBtn } from '../../results/ResultsParts'
 import { SportTheme } from '../../SportTheme'
@@ -8,7 +9,7 @@ import { C, NUM_FONT, MARKETS, gradeFor, TYPE } from '../../../lib/nfl/theme'
 import NflTable from '../NflTable'
 import { useResultsArchive, seasonTotals, grandTotal, gradeBands, labelOf, weekKey } from '../../../lib/nfl/resultsArchive'
 import { regradeNote, regradeNotes } from '../../../lib/nfl/regrades'
-import { downloadNflPickCard } from '../shareCard'
+import { downloadCard, shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
 import PageHeader from '../../PageHeader'
 import { GameCallsRecord } from '../GameCalls'
 import { WhatThis } from '../../ui'
@@ -288,33 +289,7 @@ function cardRows(results) {
   return rows
 }
 
-// 📸 SHARE (2026-08-24) — the graded half of the NFL share-card pair. Every
-// field below already lives on the DenseTable row built by cardRows() above;
-// this only reshapes it to components/nfl/shareCard.js's `pick` shape. `opp`
-// here arrives pre-prefixed ("vs DAL") for the table's own column, so it's
-// stripped back to a bare team code — the card prepends its own "vs ". A
-// published '—' grade (no grade recorded) is dropped rather than printed
-// literally. No pregame `score` is carried in this row at all — the card
-// still reads correctly without one, it just leads with the result instead
-// of a score bar (see downloadNflPickCard's PREGAME vs GRADED branch).
-function pickFromResultRow(r) {
-  return {
-    name: r.name,
-    espnId: r._raw?.espn_id,
-    status: 'called',   // every row here is a rung of the published card, graded: a call locked pregame
-    team: r.team,
-    opp: String(r.opp || '').replace(/^vs\s+/i, ''),
-    position: r.position,
-    market: r.market,
-    marketLabel: r.marketLabel,
-    rank: r.rank,
-    bar: r.bar,
-    actual: r.actual,
-    hit: r.hit,
-    void: r.void,
-    grade: r.grade && r.grade !== '—' ? r.grade : undefined,
-  }
-}
+// 📸 SHARE: the graded pick as a baseball-card result, drawn on the server from the published week file (lib/cards/shareData.js nflPick).
 
 // ── section 2: is the score separating outcomes, live ──────────────────────
 
@@ -625,7 +600,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
   return (
     <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
     <div>
-      <RecordPage record={record} Table={NflTable} top={<LadderFromApi sport="nfl" compact fold />} calls={<><CalibrationTable sport="nfl" Table={NflTable} /><CallHistory sport="nfl" Table={NflTable} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) onPlayerClick?.(p) }} title="Every TD call, its price, its result" /></>} receiptsLabel="every week, every rung, the season's audits" receipts={(<>
+      <RecordPage record={record} Table={NflTable} top={<><CalledWeekStrip sport="nfl" /><LadderFromApi sport="nfl" compact fold /></>} calls={<><CalledByTeam sport="nfl" Table={NflTable} title="Called TD picks by club" /><CalibrationTable sport="nfl" Table={NflTable} /><CallHistory sport="nfl" Table={NflTable} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) onPlayerClick?.(p) }} title="Every TD call, its price, its result" /></>} receiptsLabel="every week, every rung, the season's audits" receipts={(<>
       <ModeBar mode={mode} setMode={pickMode} />
 
       {/* ONE ROW OF VIEWS, scoped to the question above it — the same row the
@@ -686,7 +661,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
               { key: 'share', label: '', heat: false, w: 24,
                 fmt: (v, r) => (
                   <button
-                    onClick={(e) => { e.stopPropagation(); downloadNflPickCard(pickFromResultRow(r)) }}
+                    onClick={(e) => { e.stopPropagation(); downloadCard(shareUrl({ kind: 'pick', sport: 'nfl', id: r.player_id, market: r.market, season: results.season, week: results.week, mode: results.mode === 'preseason' ? 'preseason' : 'week' }), `result-${slug(r.market, 'pick')}-${slug(r.name, 'pick')}_${stamp('')}.png`) }}
                     title="Download this result as a PNG for posting"
                     aria-label="Download result card as image"
                     style={{

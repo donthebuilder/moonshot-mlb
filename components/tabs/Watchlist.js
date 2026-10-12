@@ -15,7 +15,7 @@ import DenseTable from '../DenseTable'
 import { boardRow, boardRowContext, withBoardColumns } from '../../lib/boardColumns'
 import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import PlayerCard from '../PlayerCard'
-import { downloadShareCard } from '../shareCard'
+import { downloadCard, shareUrl, stamp } from '../../lib/cards/saveCard'
 import WatchlistAlignLedger from '../WatchlistAlignLedger'
 import WatchRecord from '../watch/WatchRecord'
 import { oddsHistoryPaths } from '../../lib/dataSource'
@@ -510,8 +510,8 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
               {copied === 'ok' ? (partCount > 1 ? `✓ Copied ${part === 0 ? partCount : part}/${partCount}` : '✓ Copied') : copied === 'fail' ? 'Copy failed' : partCount > 1 ? `📋 Copy ${part + 1}/${partCount}` : '📋 Copy List'}
             </button>
             <button
-              onClick={() => downloadShareCard(items)}
-              title="Render the list as a PNG image for posting — top 12 by HR score, with MOONSHOT pick tags"
+              onClick={() => downloadCard(shareUrl({ kind: 'ranked', sport: 'mlb', ids: items.map((p) => mlbId(p)).filter(Boolean).slice(0, 40).join(',') }), `watchlist_${stamp('')}.png`)}
+              title="Download the list as a baseball card for posting — the hitters on tonight's board, in board order"
               style={{
                 fontSize: 11, fontWeight: 700, padding: '7px 11px', borderRadius: 8,
                 border: `1px solid ${C.border2}`,

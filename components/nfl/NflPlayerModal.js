@@ -26,7 +26,7 @@ import { faceUrl } from '../PlayerFace'
 import NflExplain from './NflExplain'
 import { statLabel, statFmt } from '../../lib/nfl/statLabels'
 import { quoteFor, fmtOdds } from '../../lib/nfl/oddsMatch'
-import { downloadNflPickCard } from './shareCard'
+import { downloadCard, shareUrl, slug, stamp } from '../../lib/cards/saveCard'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
 import StarMemory from '../watch/StarMemory'
 import MultiLine from '../ledger/MultiLine'
@@ -266,22 +266,6 @@ function Head({ children }) {
 // a graded line, so the card it downloads always reads as a case, never a
 // result. The Accountability tab's own row (which DOES carry a graded line)
 // wires the same shareCard.js function with those fields filled in instead.
-function pickFromPlayer(player, market, spec) {
-  return {
-    name: player.name,
-    espnId: player.espn_id,
-    team: player.team,
-    opp: player.opp,
-    position: player.position,
-    market,
-    marketLabel: spec?.label || market,
-    bar: spec?.bar,
-    questionable: player.questionable,
-    low_sample: player.low_sample,
-    score: player.scores?.[market],
-    grade: Number.isFinite(player.scores?.[market]) ? gradeFor(player.scores[market]).label : undefined,
-  }
-}
 
 
 // ── THE CARD'S OWN CHROME (2026-09-20) ──────────────────────────────────────
@@ -387,7 +371,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
           }}>{watchlist.isPinned(player.player_id) ? '★' : '☆'}</button>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {Number.isFinite(s0) && player?.player_id != null && <CardFlip sport="nfl" id={String(player.player_id)} name={player.name} />}
-          <button onClick={() => downloadNflPickCard(pickFromPlayer(player, market, spec))}
+          <button onClick={() => downloadCard(shareUrl({ kind: 'pick', sport: 'nfl', id: player.player_id, market }), `pick-${slug(market, 'pick')}-${slug(player.name, 'pick')}_${stamp('')}.png`)}
             title="Download his pick card as a picture, ready to post"
             aria-label="Download pick card as image"
             style={{ background: 'transparent', border: `1px solid ${C.border2}`, color: C.text2, borderRadius: 7, fontSize: 13, lineHeight: 1, cursor: 'pointer', minHeight: 44, minWidth: 44 }}>📸</button>

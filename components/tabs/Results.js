@@ -1,5 +1,6 @@
 'use client'
 import CallHistory from '../record/CallHistory'
+import CalledByTeam, { CalledWeekStrip } from '../record/CalledByTeam'
 import CalibrationTable from '../record/CalibrationTable'
 import MoneyAnswer from '../MoneyAnswer'
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
@@ -701,7 +702,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
   // lock-enforced reader, so the page cannot print two rates for the same calls
   const lockedRecord = useLockedRecord()
   // every HR call this season, its lock price and result (2026-10-04, user review build 2)
-  const callHistory = <CallHistory sport="mlb" Table={DenseTable} onOpenPlayer={(id) => { const p = (players || []).find((x) => String(x.player_id) === String(id)); if (p) onPlayerClick?.(p) }} title="Every home-run call, its price, its result" />
+  const callHistory = <><CalledByTeam sport="mlb" Table={DenseTable} title="Called home-run picks by club" /><CallHistory sport="mlb" Table={DenseTable} onOpenPlayer={(id) => { const p = (players || []).find((x) => String(x.player_id) === String(id)); if (p) onPlayerClick?.(p) }} title="Every home-run call, its price, its result" /></>
   // each tier's calls, hits and rate with its lock time (2026-10-06, lib/calibration)
   // THE LOCKED TABLE LEADS (2026-10-06, ledger audit P0-2): it is passed as `locked` so RecordPage
   // draws it above the BY MARKET table, which reads the same locked calls; the call list stays below.
@@ -1011,7 +1012,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
     return (
       <div>
         <PanelTitle title={RECORD_NAME} sub="Every night, graded." />
-        <RecordPage record={recordModel} Table={DenseTable} top={<LadderFromApi sport="mlb" compact fold />} locked={lockedTiers} calls={callHistory} receiptsLabel="every night, every pick" receipts={(
+        <RecordPage record={recordModel} Table={DenseTable} top={<><CalledWeekStrip sport="mlb" /><LadderFromApi sport="mlb" compact fold /></>} locked={lockedTiers} calls={callHistory} receiptsLabel="every night, every pick" receipts={(
           <>
             {receiptsHead}
             <Empty text={
@@ -1031,7 +1032,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
         title={RECORD_NAME}
         sub={`${gradedDays.length} graded nights in the archive`}
       />
-      <RecordPage record={recordModel} Table={DenseTable} top={<LadderFromApi sport="mlb" compact fold />} locked={lockedTiers} calls={callHistory} receiptsLabel="every night, every pick, the season's audits" receipts={(<>
+      <RecordPage record={recordModel} Table={DenseTable} top={<><CalledWeekStrip sport="mlb" /><LadderFromApi sport="mlb" compact fold /></>} locked={lockedTiers} calls={callHistory} receiptsLabel="every night, every pick, the season's audits" receipts={(<>
       {receiptsHead}
 
       {/* ── #34: THE MONEY ANSWER, ON THE PAGE THAT ASKS THE QUESTION ──────

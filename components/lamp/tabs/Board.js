@@ -19,7 +19,7 @@ import GoalCompare from '../GoalCompare'
 import MobileFold, { useIsPhone } from '../../MobileFold'
 import LedgerChip from '../../LedgerChip'
 import CardButton from '../../CardButton'
-import { downloadLampBoardCard } from '../shareCard'
+import { downloadCard, shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
 import WatchChip from '../../WatchChip'
 import HowToRead from '../../HowToRead'
 import { LampCards, PctBars, countOf } from '../LampCard'
@@ -281,8 +281,8 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
     </DrawerSection>
   </>)
   // 📸 the top of this ranking as a PNG (fix15): in the Filters row beside Ledger and Watchlist on a desktop, beside How to read on a phone (that row has no room left): the rows the table shows, best score first
-  const shareBtn = kept.length ? <CardButton sport="nhl" label="Download this ranking as an image"
-    onDownload={() => downloadLampBoardCard([...kept].sort((a, b) => (b.r.score ?? 0) - (a.r.score ?? 0)).slice(0, 9), { market, date: shown || '', total: kept.length })} /> : null
+  const shareBtn = kept.length && (market === 'GOAL' || market === 'SOG') ? <CardButton sport="nhl" label="Download this ranking as an image"
+    onDownload={() => downloadCard(shareUrl({ kind: 'ranked', sport: 'nhl', market, date: shown || null }), `rankings-${slug(market)}_${stamp(shown)}.png`)} /> : null
   const nActive = chips.length + drawerChips.length
   const colSet = useColumnSet('nhl')   // Short list / What I read / All (lib/columnViews.js); the tables below read the same choice
   const drawerProps = {
