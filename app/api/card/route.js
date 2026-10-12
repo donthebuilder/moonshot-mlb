@@ -8,7 +8,7 @@ import { unstable_cache } from 'next/cache'
 import { adminClient } from '../../../lib/supabase/admin'
 import { easternToday } from '../../../lib/data'
 import { CARD_SPORTS, CARD_WORDS, CARD_RULE_TEXT, CARD_LOCK_LEAD_MIN, STAKE, DOUBLE_SPORT, MARKETS, recordWords } from '../../../lib/card/core'
-import { latestCardDate, cardRows, recordRows, recordsFor, currentPrices } from '../../../lib/card/store'
+import { latestCardDate, cardRows, recordRows, recordsFor, currentPrices, trackedFor } from '../../../lib/card/store'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
@@ -22,8 +22,10 @@ const buildRecords = (sport, today) => unstable_cache(async () => {
   const rec = await recordsFor(db, sport, rows)
   // the Double is cross-sport (rows of sport 'all'): its own record, the bot's and Donovan's, never mixed into a sport's
   const drec = await recordsFor(db, DOUBLE_SPORT, await recordRows(db, DOUBLE_SPORT))
+  // TRACKED, NOT ON THE CARD (10-11): the picks the floors kept off the Card, their own graded record (null until the card_tracked table exists)
+  const tr = await trackedFor(db, sport).catch(() => null)
   return {
-    records: { ...rec, double: drec.double, donovan_double: drec.donovan_double },
+    records: { ...rec, double: drec.double, donovan_double: drec.donovan_double, ...(tr ? { tracked: tr.records } : {}) },
     words: {
       straight: recordWords(rec.straight, { product: 'straight' }),
       volume: Object.fromEntries(Object.entries(rec.volume || {}).map(([k, v]) => [k, recordWords(v, { product: 'straight', label: `${MARKETS[sport]?.[k]?.label || k} straights` })])),
@@ -33,9 +35,10 @@ const buildRecords = (sport, today) => unstable_cache(async () => {
       long_shot: recordWords(rec.long_shot, { product: 'long_shot' }),
       double: recordWords(drec.double, { product: 'double' }),
       donovan_double: recordWords(drec.donovan_double, { product: 'double', who: "Donovan's: " }),
+      ...(tr ? { tracked_straight: tr.words.straight, tracked_two_man: tr.words.two_man } : {}),
     },
   }
-}, ['card-records-v2', sport, today], { revalidate: 600 })()
+}, ['card-records-v3', sport, today], { revalidate: 600 })()
 
 export async function GET(request) {
   const q = new URL(request.url).searchParams

@@ -24,15 +24,15 @@ const H = 3600e3
 const NOW = Date.parse('2026-10-10T20:00:00Z')
 Date.now = () => NOW   // pinned from the first line on (as check-two-man): lib/card/store.js reads Date.now() itself, so this passes on any real date
 // TEST candidates: id, game, start offset hours from NOW, score, team side
-const C = (id, game, startH, score, extra = {}) => ({ player_id: id, name: `Player ${id}`, team: `T${game}${extra.side || 'A'}`, opp: `T${game}${extra.side === 'B' ? 'A' : 'B'}`, game_id: game, game_date: '2026-10-10', start_ms: NOW + startH * H, score, rate: 0.3, why: `why ${id}`, ...extra })
-const V = (id, game, startH, score, market, line, med = -120, extra = {}) => ({ ...C(id, game, startH, score, extra), rate: null, market, line, price: line == null ? null : { median: med, best: med + 10, books: 6, taken_at: '2026-10-10T19:00:00Z' } })
+const C = (id, game, startH, score, extra = {}) => ({ player_id: id, name: `Player ${id}`, team: `T${game}${extra.side || 'A'}`, opp: `T${game}${extra.side === 'B' ? 'A' : 'B'}`, game_id: game, game_date: '2026-10-10', start_ms: NOW + startH * H, score, rate: 0.3, why: `why ${id}`, price: { median: 150, best: 170, books: 5, taken_at: '2026-10-10T19:00:00Z' }, ...extra })   // TEST price +150 (a Card pick needs a stored price: lib/card/rules.js)
+const V = (id, game, startH, score, market, line, med = 130, extra = {}) => ({ ...C(id, game, startH, score, extra), rate: null, market, line, price: line == null ? null : { median: med, best: med + 10, books: 6, taken_at: '2026-10-10T19:00:00Z' } })
 const PM = (id, game, startH, score, med, extra = {}) => ({ ...C(id, game, startH, score, extra), price: { median: med, best: med + 20, books: 5, taken_at: '2026-10-10T19:00:00Z' } })
 const LOCK_AT = lockAtOf(NOW + 1 * H)
 const board = (cands) => cands.map((c) => c.score)
 
 // A SIX-GAME NHL slate: anytime board, shots board (with stored lines), all with games g1..g6
 const ANY = [C('a1', 'g1', 2, 95), C('a2', 'g2', 2, 90), C('a3', 'g3', 3, 85), C('a4', 'g4', 3, 80), C('a5', 'g5', 4, 75), C('a6', 'g6', 4, 70), C('a1b', 'g1', 2, 94, { side: 'B' })]
-const SOG = [V('s1', 'g1', 2, 99, 'sog', 2.5), V('s2', 'g2', 2, 80, 'sog', 3.5, -105), V('s3', 'g3', 3, 70, 'sog', 2.5, +110), V('s4', 'g4', 3, 60, 'sog', null)]
+const SOG = [V('s1', 'g1', 2, 99, 'sog', 2.5), V('s2', 'g2', 2, 80, 'sog', 3.5, 125), V('s3', 'g3', 3, 70, 'sog', 2.5, +110), V('s4', 'g4', 3, 60, 'sog', null)]
 const BM = { anytime: { cands: ANY, board: [...board(ANY), 50, 40, 30] }, sog: { cands: SOG, board: [...board(SOG), 20, 30, 40, 50] } }
 
 // ── 1. PLAYS PER SLATE ──────────────────────────────────────────────────────────
@@ -65,7 +65,7 @@ await t('NHL slots: 1 anytime goal, 2 shots on goal over (a stored line + price)
   // slot 1: a1 (g1, 95). slot 2: shots: s1 (99) is in g1 (used) -> s2 (g2, 80) even though s1's raw score beats every anytime score. slot 3: anytime next free game: a2? g2 used by s2 -> a3 (g3)
   assert.deepEqual(p.picks.map((x) => [x.slot, x.market, x.cand.player_id]), [[1, 'anytime', 'a1'], [2, 'sog', 's2'], [3, 'anytime', 'a3']])
   const sog = p.picks[1].cand
-  assert.equal(sog.line, 3.5); assert.equal(sog.price.median, -105, 'the stored line and price are on the pick')
+  assert.equal(sog.line, 3.5); assert.equal(sog.price.median, 125, 'the stored line and price are on the pick')
   assert.deepEqual(SLOTS.nhl, [['anytime'], ['sog'], ['anytime', 'sog']])
   // slot 3 falls to a second shots pick when no anytime player is left in a free game
   const only = { anytime: { cands: [C('a1', 'g1', 2, 95), C('a2', 'g2', 2, 90)], board: [95, 90] }, sog: { cands: [V('s2', 'g2', 2, 80, 'sog', 3.5), V('s3', 'g3', 3, 70, 'sog', 2.5)], board: [80, 70, 10] } }
@@ -75,12 +75,12 @@ await t('NHL slots: 1 anytime goal, 2 shots on goal over (a stored line + price)
 
 await t('NFL slots: anytime TD | receiving yards over | rushing yards over; MLB: home run | hits (else hits + runs + RBI) | a 2nd home run', () => {
   assert.deepEqual(SLOTS.nfl, [['anytime'], ['rec_yds'], ['rush_yds']]); assert.deepEqual(SLOTS.mlb, [['anytime'], ['hit', 'hrr'], ['anytime']])
-  const nfl = { anytime: { cands: [C('t1', 'n1', 2, 90)], board: [90] }, rec_yds: { cands: [V('r1', 'n2', 2, 88, 'rec_yds', 59.5, -115)], board: [88, 50] }, rush_yds: { cands: [V('u1', 'n3', 2, 77, 'rush_yds', 64.5, -110)], board: [77, 40] } }
+  const nfl = { anytime: { cands: [C('t1', 'n1', 2, 90)], board: [90] }, rec_yds: { cands: [V('r1', 'n2', 2, 88, 'rec_yds', 99.5, 125)], board: [88, 50] }, rush_yds: { cands: [V('u1', 'n3', 2, 77, 'rush_yds', 99.5, 125)], board: [77, 40] } }
   const p = planStraights({ sport: 'nfl', n: 3, byMarket: nfl, now: NOW })
-  assert.deepEqual(p.picks.map((x) => [x.market, x.cand.line]), [['anytime', undefined], ['rec_yds', 59.5], ['rush_yds', 64.5]])
+  assert.deepEqual(p.picks.map((x) => [x.market, x.cand.line]), [['anytime', undefined], ['rec_yds', 99.5], ['rush_yds', 99.5]])
   // MLB slot 2: HIT first, HRR only when there is no usable HIT pick
-  const mlb = (hit) => ({ anytime: { cands: [C('m1', 'b1', 2, 90), C('m2', 'b2', 2, 85)], board: [90, 85] }, hit: { cands: hit, board: [70, 60] }, hrr: { cands: [V('h2', 'b3', 2, 66, 'hrr', 1.5, -105)], board: [66] } })
-  assert.equal(planStraights({ sport: 'mlb', n: 3, byMarket: mlb([V('h1', 'b3', 2, 70, 'hit', 0.5, -250)]), now: NOW }).picks[1].market, 'hit')
+  const mlb = (hit) => ({ anytime: { cands: [C('m1', 'b1', 2, 90), C('m2', 'b2', 2, 85)], board: [90, 85] }, hit: { cands: hit, board: [70, 60] }, hrr: { cands: [V('h2', 'b3', 2, 66, 'hrr', 1.5, 125)], board: [66] } })
+  assert.equal(planStraights({ sport: 'mlb', n: 3, byMarket: mlb([V('h1', 'b3', 2, 70, 'hit', 0.5, 125)]), now: NOW }).picks[1].market, 'hit')
   const fall = planStraights({ sport: 'mlb', n: 3, byMarket: mlb([V('h1', 'b3', 2, 70, 'hit', null)]), now: NOW })
   assert.equal(fall.picks[1].market, 'hrr', 'a HIT candidate with no stored line is not usable: the slot falls to hits + runs + RBI')
   assert.equal(fall.picks[2].market, 'anytime', 'slot 3 is a second home run')
@@ -176,7 +176,7 @@ await t('same-game Two-Man: only on a ONE-game window, never in baseball; the tw
   const nhl = lockPlan({ sport: 'nhl', slate_key: 'k', card_date: 'd', byMarket: { anytime: { cands: one, board: board(one) } }, games: 1, now: NOW, lockAtMs: LOCK_AT })
   assert.equal(nhl.rows.filter((r) => r.product === 'straight').length, 1)
   const two = nhl.rows.find((r) => r.product === 'two_man')
-  assert.equal(two.rule, 'two-man-same-game-v1'); assert.equal(CARD_RULE.two_man_same_game, 'two-man-same-game-v1'); assert.deepEqual(two.legs.map((l) => l.game_id), ['g1', 'g1'])
+  assert.equal(two.rule, 'two-man-same-game-v2'); assert.equal(CARD_RULE.two_man_same_game, 'two-man-same-game-v2'); assert.deepEqual(two.legs.map((l) => l.game_id), ['g1', 'g1'])
   // baseball: a one-game window never gets a same-game Two-Man (always different games)
   const mlb = lockPlan({ sport: 'mlb', slate_key: 'k', card_date: 'd', byMarket: { anytime: { cands: one, board: board(one) } }, games: 1, now: NOW, lockAtMs: LOCK_AT })
   assert.equal(mlb.rows.filter((r) => r.product === 'two_man').length, 0); assert.ok(mlb.skipped.some((s) => s.slot === 'two-man'))
@@ -397,7 +397,7 @@ const day = '2026-10-10'
 const nhlRows = lockPlan({ sport: 'nhl', slate_key: day, card_date: day, byMarket: BM, games: 7, now: NOW, lockAtMs: LOCK_AT }).rows.map((r, i) => ({ id: i + 1, ...r }))
 const lsPick = pickLongShot({ games: 7, cands: FULL, prices: PR(FULL), now: NOW }).pick
 const lsRow = { id: 50, ...longShotRow({ sport: 'nhl', slate_key: day, card_date: day, pick: lsPick, games: 7, lockAtMs: LOCK_AT }) }
-const nflCands = { anytime: { cands: [C('t1', 'n1', 6, 90), C('t2', 'n2', 6, 85), C('t3', 'n3', 7, 80)], board: [90, 85, 80] }, rec_yds: { cands: [V('r1', 'n4', 6, 88, 'rec_yds', 59.5)], board: [88] } }
+const nflCands = { anytime: { cands: [C('t1', 'n1', 6, 90), C('t2', 'n2', 6, 85), C('t3', 'n3', 7, 80)], board: [90, 85, 80] }, rec_yds: { cands: [V('r1', 'n4', 6, 88, 'rec_yds', 99.5)], board: [88] } }
 const nflRows = lockPlan({ sport: 'nfl', slate_key: '2026-w05', card_date: day, byMarket: nflCands, games: 4, now: NOW, lockAtMs: lockAtOf(NOW + 6 * H) }).rows.map((r, i) => ({ id: 20 + i, ...r }))
 const dblRow = { id: 60, ...doubleRow({ legs: pickDouble(POOLS, NOW).legs, lockAtMs: lockF, card_date: day }) }
 

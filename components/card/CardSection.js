@@ -16,7 +16,7 @@ import { useSportTheme } from '../SportTheme'
 import { useLiveFetch } from '../../lib/useLiveFetch'
 import { TeamTap, GameTap } from '../EntityTap'
 import { playerHref } from '../../lib/routes'
-import { CARD_WORDS, CARD_RULE, MARKETS, SAME_GAME_NOTE, rowPrice, legPriceOf, marketWords, fmtAmerican } from '../../lib/card/core'
+import { CARD_WORDS, isSameGameRule, MARKETS, SAME_GAME_NOTE, rowPrice, legPriceOf, marketWords, fmtAmerican } from '../../lib/card/core'
 import { TYPE } from '../../lib/theme'
 
 const RES = { hit: 'HIT', miss: 'MISS', void: 'VOID', push: 'PUSH' }
@@ -51,7 +51,7 @@ export default function CardSection({ sport, mode = 'slate', Table = DenseTable,
   const rows = useMemo(() => {
     const prices = data?.prices || {}
     const out = []
-    const sameGame = (r) => r.rule === CARD_RULE.two_man_same_game
+    const sameGame = (r) => isSameGameRule(r.rule)
     const label = { straight: (r) => `S${r.slot}`, two_man: (r) => (r.lane === 'donovan' ? 'D2' : sameGame(r) ? 'SG' : '2M'), long_shot: () => 'LS', double: (r) => (r.lane === 'donovan' ? 'DD' : 'DB') }
     const order = (r) => (r.lane === 'bot' ? 0 : 20) + ({ straight: r.slot, two_man: 5, long_shot: 7, double: 8 }[r.product] ?? 9)
     for (const r of data?.rows || []) {
@@ -94,7 +94,7 @@ export default function CardSection({ sport, mode = 'slate', Table = DenseTable,
 
   if (mode === 'record') {
     const volume = Object.entries(data?.words?.volume || {}).map(([k, ws]) => [(MARKETS[sport]?.[k]?.label || k).toUpperCase(), ws])
-    const lines = [['STRAIGHTS', data?.words?.straight], ...volume, ['TWO-MAN', data?.words?.two_man], ['SAME-GAME TWO-MAN', data?.words?.two_man_same_game], ["DONOVAN'S TWO-MAN", data?.words?.donovan], ['LONG SHOT OF THE DAY', data?.words?.long_shot], ['THE DOUBLE', data?.words?.double], ["DONOVAN'S DOUBLE", data?.words?.donovan_double]].filter(([, ws]) => ws?.length)
+    const lines = [['STRAIGHTS', data?.words?.straight], ...volume, ['TWO-MAN', data?.words?.two_man], ['SAME-GAME TWO-MAN', data?.words?.two_man_same_game], ["DONOVAN'S TWO-MAN", data?.words?.donovan], ['LONG SHOT OF THE DAY', data?.words?.long_shot], ['THE DOUBLE', data?.words?.double], ["DONOVAN'S DOUBLE", data?.words?.donovan_double], ['TRACKED, NOT ON THE CARD · STRAIGHTS', data?.words?.tracked_straight], ['TRACKED, NOT ON THE CARD · TWO-MAN', data?.words?.tracked_two_man]].filter(([, ws]) => ws?.length)
     if (!lines.length) return null
     return (
       <section aria-label="The card record" data-card-record={sport} style={{ margin: '4px 0 12px' }}>

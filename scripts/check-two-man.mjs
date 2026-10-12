@@ -27,11 +27,11 @@ const H = 3600e3
 const NOW = Date.parse('2026-10-10T20:00:00Z')
 Date.now = () => NOW   // pinned from the first line on: code under test (lib/card/store.js) reads Date.now() itself, so the check passes on any real date
 // TEST candidates: id, game, start offset hours from NOW, score, rate
-const C = (id, game, startH, score, rate = 0.3, extra = {}) => ({ player_id: id, name: `Player ${id}`, team: `T${game}A`, opp: `T${game}B`, game_id: game, game_date: '2026-10-10', start_ms: NOW + startH * H, score, rate, why: `why ${id}`, ...extra })
+const C = (id, game, startH, score, rate = 0.3, extra = {}) => ({ player_id: id, name: `Player ${id}`, team: `T${game}A`, opp: `T${game}B`, game_id: game, game_date: '2026-10-10', start_ms: NOW + startH * H, score, rate, why: `why ${id}`, price: { median: 150, best: 170, books: 5, taken_at: '2026-10-10T19:00:00Z' }, ...extra })   // TEST price +150: a Card pick needs a stored price (rules.js); two of them multiply to +525
 const FIELD = [C('p1', 'g1', 2, 90, 0.40), C('p2', 'g1', 2, 88, 0.35), C('p3', 'g2', 3, 85, 0.30), C('p4', 'g3', 4, 80, 0.25), C('p5', 'g3', 4, 70, 0.20), C('p6', 'g4', 1, 95, 0.10)]
 const LOCK_AT = lockAtOf(NOW + 1 * H)
 // a stored volume pick: a shots-on-goal candidate with its stored line and median price (TEST numbers)
-const SOGC = (id, game, startH, score, line = 2.5, med = -120) => ({ ...C(id, game, startH, score, null), market: 'sog', line, price: { median: med, best: med + 10, books: 6, taken_at: '2026-10-10T19:00:00Z' } })
+const SOGC = (id, game, startH, score, line = 2.5, med = 130) => ({ ...C(id, game, startH, score, null), market: 'sog', line, price: { median: med, best: med + 10, books: 6, taken_at: '2026-10-10T19:00:00Z' } })
 const SOG = [SOGC('s1', 'g1', 2, 77), SOGC('s2', 'g4', 1, 95), SOGC('s3', 'g2', 3, 60)]
 const BMAP = (field = FIELD, sog = SOG) => ({ anytime: { cands: field, board: field.map((c) => c.score) }, sog: { cands: sog, board: [...sog.map((c) => c.score), 10, 20, 30, 40] } })
 const INPUTS = (field = FIELD, games = 6) => ({ ok: true, byMarket: BMAP(field), games, all: field, prices: null })
@@ -362,16 +362,19 @@ await t('X naming rule: a name not confirmed yet HOLDS the post; a definite no l
   assert.ok(!started.text.includes('Player p6'), 'p6\'s game has started')
 })
 
+// rows locked BEFORE the 10-11 floors froze no anytime price: the members text falls back to the newest stored price for them (those rows are still read)
+const OLD_ROWS = CARD_ROWS.map((r) => ({ ...r, legs: r.legs.map((l) => (l.market && l.market !== 'anytime' ? l : (({ price, ...rest }) => rest)(l))) }))
 const PRICES = new Map([['p6', { best: 450, median: 380, books: 5 }], ['p1', { best: 300, median: 280, books: 6 }], ['p3', { best: 250, median: 230, books: 4 }]])
 await t('the #members card carries the whole Card, the bot\'s Two-Man, each price (or "no price on file yet") and the why', () => {
-  const m = membersCardText({ sport: 'nhl', day: '2026-10-10', rows: CARD_ROWS, prices: PRICES })
+  const m = membersCardText({ sport: 'nhl', day: '2026-10-10', rows: OLD_ROWS, prices: PRICES })
   for (const n of ['Player p6', 'Player s1', 'Player p3', 'Player p1']) assert.ok(m.text.includes(n), n)
   assert.match(m.text, /CALLED/)
   assert.match(m.text, /1\. Player p6 .*1 unit · \+450 best, \+380 median \(5 books\)/)
-  assert.match(m.text, /2\. Player s1 .*shots on goal over 2\.5 · 1 unit · -120 median across 6 books/, 'a volume pick shows its stored line and the price frozen at the lock')
+  assert.match(m.text, /2\. Player s1 .*shots on goal over 2\.5 · 1 unit · \+130 median across 6 books/, 'a volume pick shows its stored line and the price frozen at the lock')
   assert.match(m.text, /TWO-MAN: Player p6 \+ Player p1 · different games · 0\.5 unit · about \+2100 best/)   // the product of the two prices
   assert.ok(m.text.includes('why p6')); assert.ok(!m.text.includes("Donovan"), 'his lane is free: not in the members card')
-  const noPrice = membersCardText({ sport: 'nhl', day: 'd', rows: CARD_ROWS, prices: new Map() })
+  const noPrice = membersCardText({ sport: 'nhl', day: 'd', rows: OLD_ROWS, prices: new Map() })
+  assert.match(membersCardText({ sport: 'nhl', day: 'd', rows: CARD_ROWS, prices: new Map() }).text, /1\. Player p6 .*\+150 median across 5 books/, 'a Card locked under the floors freezes the price it was picked at')
   assert.match(noPrice.text, /no price on file yet/); assert.match(noPrice.text, /no price on file for both legs yet/)
   assert.ok([...m.text].length <= 1900)
   // the two-man price is the PRODUCT of the two prices: +450 and +300 -> 5.5 x 4 = 22 -> +2100 (best)
@@ -490,7 +493,7 @@ await t('the X post: the #1 straight carries its status word and ONE data line (
 })
 
 await t('status words: a football straight is CALLED or ON THE BOARD from its leg; the record shows the mix; NFL pool takes called + board only from the TD ladder / game calls', () => {
-  const rows = lockRows({ sport: 'nfl', slate_key: 'k', card_date: 'd', byMarket: { anytime: { cands: [C('a', 'g1', 2, 90, 0.3, { status: 'board' }), C('b', 'g2', 2, 80, 0.3, { status: 'called' }), C('c', 'g3', 2, 70, 0.3, { status: 'called' })], board: [90, 80, 70] }, rec_yds: { cands: [{ ...C('r', 'g4', 2, 99, null, { status: 'called' }), market: 'rec_yds', line: 59.5, price: { median: -115, best: -110 } }], board: [99] } }, games: 6, now: NOW, lockAtMs: LOCK_AT })
+  const rows = lockRows({ sport: 'nfl', slate_key: 'k', card_date: 'd', byMarket: { anytime: { cands: [C('a', 'g1', 2, 90, 0.3, { status: 'board' }), C('b', 'g2', 2, 80, 0.3, { status: 'called' }), C('c', 'g3', 2, 70, 0.3, { status: 'called' })], board: [90, 80, 70] }, rec_yds: { cands: [{ ...C('r', 'g4', 2, 99, null, { status: 'called' }), market: 'rec_yds', line: 99.5, price: { median: 125, best: 130 } }], board: [99] } }, games: 6, now: NOW, lockAtMs: LOCK_AT })
   assert.deepEqual(rows.filter((r) => r.product === 'straight').map((r) => r.legs[0].status), ['board', 'called'])
   assert.deepEqual(rows.filter((r) => r.product === 'straight').map((r) => r.legs[0].market), ['anytime', 'rec_yds'], 'slot 3 (rushing yards) had no board: skipped')
   const g = rows.map((r) => ({ ...r, result: 'hit' }))

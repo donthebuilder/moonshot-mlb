@@ -3,7 +3,8 @@
 // never rewritten, regraded or deleted; Donovan's row changes only before ITS lock), `clock.now` standing for the database's now().
 import assert from 'node:assert/strict'
 
-export function fakeDb(clock) {
+// card_calls and card_tracked (supabase/migrations/202610111200_card_tracked.sql: the same guard rules, no lane) are two tables with the same rules.
+function makeTable(clock) {
   const rows = []
   let id = 0
   const guard = (op, old, nw) => {
@@ -65,6 +66,12 @@ export function fakeDb(clock) {
   const table = {
     select: () => builder('select'), upsert: (p, o) => builder('upsert', p, o), update: (p) => builder('update', p), delete: () => builder('delete'),
   }
-  return { rows, from: (name) => { assert.equal(name, 'card_calls', 'only the card table is touched'); return table } }
+  return { rows, table }
+}
+
+export function fakeDb(clock) {
+  const main = makeTable(clock)
+  const tracked = makeTable(clock)
+  return { rows: main.rows, trackedRows: tracked.rows, from: (name) => { assert.ok(name === 'card_calls' || name === 'card_tracked', 'only the card tables are touched'); return name === 'card_tracked' ? tracked.table : main.table } }
 }
 
