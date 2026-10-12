@@ -11,7 +11,9 @@
 --   * INSERT of a 'donovan_late' row is allowed at any time (it is the point of the lane), ungraded; locked_at is the database clock = when it was really saved.
 --   * a late row can be changed or withdrawn for 15 minutes after it was saved (a typo window), and only while ungraded; after that it is frozen
 --     like every other row, and its result is written once, by the grader.
---   * lane 'bot' and lane 'donovan' behave EXACTLY as before: nothing pregame is written at or after the start for the verified record.
+--   * LOCK AT SAVE: a 'donovan' two_man insert after the card's lock but before the earliest leg's start is accepted and locks at that moment
+--     (locks_at := now()); it is then frozen (the update path refuses, as for any locked row). At or after the start the insert is still refused (those go LATE).
+--   * lane 'bot' and the rest of lane 'donovan' (his Double, every update, every delete) behave EXACTLY as before: nothing pregame is written at or after the start for the verified record.
 -- RUN BEFORE THE CODE THAT NEEDS IT. Until it is run the app refuses a late save with a clear message (the lane check constraint rejects the row).
 -- Idempotent: safe to run twice. No role switching.
 
@@ -59,7 +61,13 @@ begin
       raise exception 'card_calls: % % starts at % -- nothing is locked at or after the start', new.sport, new.card_date, new.start_at;
     end if;
     if new.lane = 'donovan' and now() >= new.locks_at then
-      raise exception 'card_calls: the lock for % % was at % -- Donovan''s entry is closed', new.sport, new.card_date, new.locks_at;
+      -- LOCK AT SAVE: his Two-Man saved after the card's lock but BEFORE the start (the check above already refused any start in the past) is
+      -- verified and locks at this very moment (locks_at = now(), never earlier, never after the start). His Double keeps the old refusal.
+      if new.product = 'two_man' then
+        new.locks_at := now();
+      else
+        raise exception 'card_calls: the lock for % % was at % -- Donovan''s entry is closed', new.sport, new.card_date, new.locks_at;
+      end if;
     end if;
     if new.result is not null or new.leg_results is not null or new.graded_at is not null then
       raise exception 'card_calls: a card row is inserted ungraded';
@@ -146,3 +154,4 @@ create policy card_calls_no_late on public.card_calls as restrictive for select 
 --   delete from public.card_calls where model_version = 'probe' and lane = 'donovan_late';                                           -- expect DELETE 1 (inside the 15-minute typo window)
 --   insert into public.card_calls (sport, card_date, slate_key, lane, product, slot, model_version, rule, stake, legs, leg_count, start_at, locks_at)
 --     values ('mlb', '1970-01-01', '1970-01-01', 'donovan', 'two_man', 1, 'probe', 'probe', 0.5, '[{"player_id":"x"},{"player_id":"y"}]', 2, '1970-01-01T00:00:00Z', '1970-01-01T00:00:00Z');   -- expect ERROR (the verified lane still refuses a past start)
+--   select position('LOCK AT SAVE' in pg_get_functiondef('public.card_calls_guard'::regproc)) > 0 as lock_at_save_installed;   -- expect true (the lock-at-save branch is installed; it is not probed with a row because a locked row can never be deleted)

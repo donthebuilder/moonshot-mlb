@@ -1,8 +1,8 @@
 'use client'
 // DONOVAN'S TWO-MAN, THE FORM (admin only; /admin/two-man). ALWAYS OPEN (2026-10-12, "i want to be able to submit mine whenever"): pick the sport and a slate
 // (tonight, the next two days, the football week), pick two players, write a one-to-three line note, save. Before the card's lock and before any leg's game
-// has started it is the verified entry exactly as always. After that the form is still open and the entry is saved as LATE: clearly marked, kept out of
-// the record, never posted, never public (the server decides; this form only tells him first and asks him to confirm).
+// has started it is the verified entry (before the card's lock as always; after the lock it is still verified and LOCKS AT SAVE). Once a game of his has
+// started it is saved as LATE: clearly marked, kept out of the record, never posted, never public (the server decides; this form tells him first and asks him to confirm).
 // SEE WHO YOU ARE LOOKING AT: every candidate shows his face, name, club, opponent and the game's start (ET, with the day), the market and the stored
 // price, whether the leg and the pair clear the Card's floors (information only; his lane is never blocked), OUR BOARD WORD and the model score; and the
 // two picked men are drawn as the dual card that would post (a preview that stores nothing).
@@ -65,12 +65,13 @@ export default function TwoManForm() {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
   const [askLate, setAskLate] = useState(false)
+  const [askLock, setAskLock] = useState(false)
   const [pv, setPv] = useState({ state: 'idle', url: null, late: false, err: null })
   const dateRef = useRef(null)
   dateRef.current = date
 
-  const loadWindows = useCallback(async (s, keep = null) => {
-    setBusy(true); setMsg(null); setBoard(null); setPick([]); setAskLate(false)
+  const loadWindows = useCallback(async (s, keep = null, keepMsg = false) => {
+    setBusy(true); if (!keepMsg) setMsg(null); setBoard(null); setPick([]); setAskLate(false); setAskLock(false)
     const r = await api(`/api/admin/two-man?sport=${s}`)
     setData(r); setBusy(false)
     if (r.ok && r.windows?.length) setDate(keep && r.windows.some((w) => w.card_date === keep) ? keep : (r.windows.find((w) => w.mode === 'on_time') || r.windows[0]).card_date)
@@ -81,13 +82,13 @@ export default function TwoManForm() {
   const win = useMemo(() => data?.windows?.find((w) => w.card_date === date) || null, [data, date])
   // his own entry for this slate: the verified one while it is on time, else his late one
   const own = win ? (win.mode === 'on_time' ? win.entry : win.late_entry) : null
-  const lockedOnTime = win && win.mode === 'late' && win.entry ? win.entry : null
+  const lockedOnTime = win && win.mode !== 'on_time' && win.entry ? win.entry : null
   const nowMs = data?.now ? Date.parse(data.now) : 0
   const frozenLate = Boolean(own?.late && own.edit_until && Date.parse(own.edit_until) <= nowMs)
 
   useEffect(() => {
     if (!date || !win) return
-    setPick(own?.legs?.map((l) => String(l.player_id)) || []); setNote(own?.note || ''); setAskLate(false); setMsg(null)
+    setPick(own?.legs?.map((l) => String(l.player_id)) || []); setNote(own?.note || ''); setAskLate(false); setAskLock(false)
     let live = true
     setBusy(true); setBoard(null)
     api(`/api/admin/two-man?sport=${sport}&date=${date}`).then((r) => { if (live) { setBoard(r); setBusy(false) } })
@@ -104,7 +105,8 @@ export default function TwoManForm() {
   }, [field, q])
   const toggle = (id) => setPick((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : cur.length >= 2 ? [cur[1], id] : [...cur, id]))
   const lines = note.split(/\r?\n/).filter((l) => l.trim()).length
-  const lateNow = Boolean(win && (win.mode === 'late' || chosen.some((p) => p.started)))
+  const lateNow = Boolean(win && chosen.some((p) => p.started))
+  const lockNow = Boolean(win && win.mode !== 'on_time' && !lateNow)
   const pair = chosen.length === 2 ? pairFloor(chosen[0], chosen[1]) : null
 
   // THE LIVE PREVIEW: the dual card that would post, drawn by the server from this selection (stores nothing)
@@ -127,13 +129,13 @@ export default function TwoManForm() {
 
   const save = async () => {
     setBusy(true); setMsg(null)
-    const r = await api('/api/admin/two-man', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sport, date, players: pick, note, confirm_late: lateNow || askLate }) })
+    const r = await api('/api/admin/two-man', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sport, date, players: pick, note, confirm_late: lateNow || askLate, confirm_lock: lockNow || askLock }) })
     setBusy(false)
     if (r.ok) {
-      setAskLate(false)
-      setMsg({ ok: true, text: r.late ? `Saved as LATE. It is not in the record and is never posted. You can change it for ${data?.late?.edit_min || 15} minutes.` : 'Saved. You can change it until the lock.' })
-      loadWindows(sport, date)
-    } else if (r.needs_confirm) { setAskLate(true); setMsg({ ok: false, text: r.error }) } else setMsg({ ok: false, text: r.error })
+      setAskLate(false); setAskLock(false)
+      setMsg({ ok: true, text: r.lock_now ? 'Saved. VERIFIED and locked now: it counts in your record and cannot be changed.' : r.late ? `Saved as LATE. It is not in the record and is never posted. You can change it for ${data?.late?.edit_min || 15} minutes.` : 'Saved. You can change it until the lock.' })
+      loadWindows(sport, date, true)
+    } else if (r.needs_confirm) { if (r.lock_now) setAskLock(true); else setAskLate(true); setMsg({ ok: false, text: r.error }) } else setMsg({ ok: false, text: r.error })
   }
   const withdraw = async (lane) => {
     setBusy(true); setMsg(null)
@@ -156,8 +158,8 @@ export default function TwoManForm() {
     <div style={{ color: C.text }}>
       {tabs}
       <p style={{ margin: '0 0 12px', fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
-        Your two players and a note of one to three lines. This is always open. Saved before the lock it is <b>Donovan&apos;s Two-Man</b>, posted at the lock, in its own record.
-        Saved later it is stored as <span style={LATE_TAG}>LATE</span>: kept out of the record, never posted.
+        Your two players and a note of one to three lines. This is always open. Saved before a game starts it is <b>Donovan&apos;s Two-Man</b> (verified, in its own record; after the card&apos;s lock it locks the moment you save).
+        Saved after a game has started it is <span style={LATE_TAG}>LATE</span>: kept out of the record, never posted.
       </p>
       <div role="tablist" aria-label="Sport" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
         {SPORTS.map(([k, label]) => <button key={k} type="button" role="tab" aria-selected={sport === k} onClick={() => setSport(k)} style={btn(sport === k)}>{label}</button>)}
@@ -167,16 +169,16 @@ export default function TwoManForm() {
       {data?.ok && data.windows?.length > 0 && (
         <div role="tablist" aria-label="Slate" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
           {data.windows.map((w) => (
-            <button key={w.card_date} type="button" role="tab" aria-selected={date === w.card_date} onClick={() => setDate(w.card_date)} style={{ ...btn(date === w.card_date), display: 'grid', justifyItems: 'start', alignContent: 'center', lineHeight: 1.15, padding: '4px 12px' }}>
+            <button key={w.card_date} type="button" role="tab" aria-selected={date === w.card_date} onClick={() => { setDate(w.card_date); setMsg(null) }} style={{ ...btn(date === w.card_date), display: 'grid', justifyItems: 'start', alignContent: 'center', lineHeight: 1.15, padding: '4px 12px' }}>
               <span>{w.label}</span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: w.mode === 'late' ? C.yellow : C.text3 }}>{w.mode === 'late' ? 'LATE only' : 'on time'}{w.entry ? ' · entered' : w.late_entry ? ' · late entry' : ''}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: w.mode === 'live' ? C.yellow : C.text3 }}>{w.mode === 'live' ? 'games under way' : w.mode === 'lock_now' ? 'locks when saved' : 'on time'}{w.entry ? ' · entered' : w.late_entry ? ' · late entry' : ''}</span>
             </button>
           ))}
         </div>
       )}
       {win && (
         <p style={{ margin: '0 0 10px', fontSize: 12, lineHeight: 1.45, color: C.text3 }}>
-          First game {win.first_when}. {win.mode === 'on_time' ? `On time until ${etStamp(win.locks_at)} (an hour before it); after that an entry is saved as LATE.` : <>The lock was {etStamp(win.locks_at)}. An entry now is saved as <span style={LATE_TAG}>LATE</span>.</>}
+          First game {win.first_when}. {win.mode === 'on_time' ? `Verified: the card locks ${etStamp(win.locks_at)}, an hour before it.` : win.mode === 'lock_now' ? `Verified: saved before the first game starts (locks now). The card's own lock was ${etStamp(win.locks_at)}.` : <>Games are under way. A pick whose game has not started is verified and locks when saved; a pick whose game has started is <span style={LATE_TAG}>LATE</span>.</>}
         </p>
       )}
       {lockedOnTime && (
@@ -253,7 +255,7 @@ export default function TwoManForm() {
               )}
               {chosen.length === 2 && (
                 <div style={{ display: 'grid', justifyItems: 'center', gap: 6 }}>
-                  <div style={{ fontSize: 12, color: C.text3 }}>The card that posts{pv.late || lateNow ? ' (this one is LATE and will not post)' : ' at the lock'}</div>
+                  <div style={{ fontSize: 12, color: C.text3 }}>The card that posts{pv.late || lateNow ? ' (this one is LATE and will not post)' : lockNow ? ' (verified, locks when saved)' : ' at the lock'}</div>
                   <div style={{ width: '100%', maxWidth: 360, aspectRatio: '4 / 5', borderRadius: 10, overflow: 'hidden', background: C.bg3, display: 'grid', placeItems: 'center' }}>
                     {pv.url && <img src={pv.url} alt={`The Two-Man card: ${chosen.map((p) => p.name).join(' and ')}`} style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: pv.state === 'loading' ? 0.5 : 1 }} />}
                     {!pv.url && pv.state !== 'err' && <span style={{ fontSize: 12, color: C.text3 }}>Drawing the card…</span>}
@@ -268,15 +270,20 @@ export default function TwoManForm() {
           <textarea id="tm-note" value={note} onChange={(e) => setNote(e.target.value)} rows={3} maxLength={data?.note?.chars || 420}
             style={{ width: '100%', boxSizing: 'border-box', padding: 10, borderRadius: 10, border: `1px solid ${C.border2}`, background: 'transparent', color: C.text, fontSize: 16, lineHeight: 1.4, resize: 'vertical' }} />
           <div style={{ fontSize: 12, color: lines > (data?.note?.lines || 3) ? C.red : C.text3, margin: '2px 0 10px' }}>{lines} of {data?.note?.lines || 3} lines</div>
+          {lockNow && !askLate && (
+            <p role="note" style={{ margin: '0 0 10px', fontSize: 12, lineHeight: 1.45, color: C.text2 }}>
+              Verified: saved before the first game starts (locks now). It counts in your record and cannot be changed after you save. The post goes out only if this card&apos;s post has not already gone.
+            </p>
+          )}
           {(lateNow || askLate) && (
             <p role="note" style={{ margin: '0 0 10px', fontSize: 12, lineHeight: 1.45, color: C.text2 }}>
-              <span style={LATE_TAG}>LATE</span> {pick.length === 2 && chosen.some((p) => p.started) ? 'A game on this entry has already started. ' : 'The lock has passed. '}
+              <span style={LATE_TAG}>LATE</span> A game on this entry has already started. 
               It will be saved apart from the record: not counted, not posted to X, the free Discord or #members, not shown to anyone but you. It can be changed for {data?.late?.edit_min || 15} minutes.
             </p>
           )}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <button type="button" disabled={!canSave} onClick={save} style={{ ...btn(true), opacity: canSave ? 1 : 0.5 }}>
-              {lateNow || askLate ? 'Save as LATE' : own && !own.late ? 'Replace my Two-Man' : 'Save my Two-Man'}
+              {lateNow || askLate ? 'Save as LATE' : lockNow || askLock ? 'Save and lock now' : own && !own.late ? 'Replace my Two-Man' : 'Save my Two-Man'}
             </button>
             {win.mode === 'on_time' && win.entry && <button type="button" disabled={busy} onClick={() => withdraw('on_time')} style={btn(false)}>Withdraw</button>}
             {own?.late && !frozenLate && <button type="button" disabled={busy} onClick={() => withdraw('late')} style={btn(false)}>Withdraw late entry</button>}

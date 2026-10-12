@@ -18,7 +18,8 @@ function makeTable(clock) {
         return { ...nw, locked_at: new Date(now).toISOString() }
       }
       if (now >= Date.parse(nw.start_at)) throw new Error('card_calls: nothing is locked at or after the start')
-      if (nw.lane === 'donovan' && now >= Date.parse(nw.locks_at)) throw new Error("card_calls: Donovan's entry is closed")
+      // 202610121100: his Two-Man saved after the lock but before the start LOCKS AT SAVE (locks_at = now); his Double keeps the old refusal
+      if (nw.lane === 'donovan' && now >= Date.parse(nw.locks_at)) { if (nw.product === 'two_man') nw = { ...nw, locks_at: new Date(now).toISOString() }; else throw new Error("card_calls: Donovan's entry is closed") }
       if (nw.result != null || nw.leg_results != null || nw.graded_at != null) throw new Error('card_calls: a card row is inserted ungraded')
       return { ...nw, locked_at: new Date(now).toISOString() }
     }

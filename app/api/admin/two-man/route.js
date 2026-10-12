@@ -3,8 +3,9 @@
 //                                           on-time entry and his LATE entry if he made them, and his late entries with their own tally
 //   GET  ?sport=&date=YYYY-MM-DD            + the picker: the window's scored board (real player ids), best score first, each row with face, club, game start
 //                                           (ET), market, stored price, floor status (information only), board word and score (lib/card/picker.js)
-//   POST { sport, date, players:[id,id], note }       save his two-man. ALWAYS OPEN (2026-10-12): before the lock and before any leg's game starts it is the verified
-//                                           entry exactly as always; otherwise it is stored in the LATE lane (never the record, never posted, never public) and needs
+//   POST { sport, date, players:[id,id], note }       save his two-man. ALWAYS OPEN (2026-10-12): before the lock it is the verified entry exactly as always;
+//                                           after the lock but before any leg's game starts it is VERIFIED too and locks at the moment of save (needs confirm_lock:true);
+//                                           once a leg's game has started it is stored in the LATE lane (never the record, never posted, never public) and needs
 //                                           confirm_late:true (else 409 with needs_confirm). A late entry never touches an on-time one.
 //   POST { sport, date, action:'withdraw', lane?:'late' }   withdraw his open entry (on-time: only before the lock; late: inside its 15-minute typo window)
 //   HIS DOUBLE (optional, daily; two players from two different sports, free to show after the lock with his note):
@@ -95,7 +96,9 @@ export async function GET(request) {
     card_date: win.card_date, label: win.label, games: win.games ?? null, first_start: new Date(win.first_start_ms).toISOString(), first_when: etWhen(new Date(win.first_start_ms).toISOString()),
     locks_at: new Date(lockAtOf(win.first_start_ms)).toISOString(),
     // ALWAYS OPEN: `open` is "on time" (the verified entry still possible); a form is offered either way, and a save after it is stored LATE
-    open: onTime(win, now), mode: onTime(win, now) ? 'on_time' : 'late',
+    // mode: on_time (before the lock) | lock_now (after the lock, before the first game: a save is verified and locks at that moment) | live (games under
+    // way: a pick whose game has started is LATE, a pick whose game has not is still verified and locks at save)
+    open: onTime(win, now), mode: onTime(win, now) ? 'on_time' : now < win.first_start_ms ? 'lock_now' : 'live',
     entry: slimEntry(await donovanEntry(db, sport, win.card_date)), late_entry: slimEntry(await donovanEntry(db, sport, win.card_date, 'two_man', CARD_VERSION, LATE_LANE)),
   })))
   const late = await lateEntries(db, { sport })
@@ -161,9 +164,11 @@ export async function POST(request) {
   if (!c.ok) return Response.json({ error: `The board could not be read: ${boardWhy(c.why, date)}` }, { status: 502 })
   const made = donovanRow({ sport, slate_key: win.slate_key, card_date: date, field: c.cands, playerIds: body.players, note: body.note, now, lockAtMs, version: CARD_VERSION, allowLate: true })
   if (!made.ok) return Response.json({ error: made.error }, { status: 400 })
+  // LOCKS AT SAVE is irreversible at once, so it is saved only when he has seen that (the form says so and sends confirm_lock)
+  if (made.lockAtSave && body.confirm_lock !== true) return Response.json({ error: 'The lock has passed. This entry is still before your first game, so it is VERIFIED and locks the moment you save: it cannot be changed.', lock_now: true, needs_confirm: true }, { status: 409 })
   // A LATE entry is saved only when he has seen that it is late (the form says so and sends confirm_late); it is never the verified entry
   if (made.late && body.confirm_late !== true) return Response.json({ error: `This would be saved as a LATE entry (${made.lateWhy}): it is kept apart from the record and never posted.`, late: true, needs_confirm: true }, { status: 409 })
-  const saved = await saveDonovan(db, made.row)
+  const saved = await saveDonovan(db, made.row, { lockAtSave: made.lockAtSave })
   if (!saved.ok) return Response.json({ error: saved.error, needs_sql: saved.needsSql || undefined }, { status: 409 })
-  return Response.json({ ok: true, late: made.late, entry: slimEntry(made.row) })
+  return Response.json({ ok: true, late: made.late, lock_now: made.lockAtSave, entry: slimEntry(made.row) })
 }

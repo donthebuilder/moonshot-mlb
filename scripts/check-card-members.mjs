@@ -254,8 +254,8 @@ await t('H6 the Long Shot row is in the public view before the reveal; the publi
 
 await t('H7 his LATE entry (saved after the lock / after a start) is on NO read: not the public view, not the members view, not the dual route, not the post; his on-time row is untouched', async () => {
   const { db, clock } = await donovanDb()
-  clock.now = NOW + 20 * 60e3
-  const late = donovanRow({ sport: 'nhl', slate_key: DAY, card_date: DAY, field: FIELD, playerIds: ['alpha', 'bravo'], note: 'Late only, for me.', now: clock.now, lockAtMs: lockAtOf(NOW + 1 * H), allowLate: true })
+  clock.now = NOW + 90 * 60e3      // foxtrot's game (one hour after NOW) has started
+  const late = donovanRow({ sport: 'nhl', slate_key: DAY, card_date: DAY, field: FIELD, playerIds: ['foxtrot', 'alpha'], note: 'Late only, for me.', now: clock.now, lockAtMs: lockAtOf(NOW + 1 * H), allowLate: true })
   assert.equal(late.ok, true); assert.equal(late.late, true); assert.equal(late.row.lane, 'donovan_late')
   assert.equal((await saveDonovan(db, late.row)).ok, true)
   assert.equal(db.rows.filter((r) => r.lane === 'donovan').length, 1, 'his on-time row is still the only verified one')

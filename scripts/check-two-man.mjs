@@ -559,22 +559,64 @@ await t('latestCardDate: the newest card whose row is public (Donovan\'s open en
 
 // ── 9. ALWAYS OPEN: THE LATE LANE, THE PICKER, THE PREVIEW (Donovan, 2026-10-12: "i want to be able to submit mine whenever") ──
 const LATE_OK = { ...DON, allowLate: true }
-await t('LATE 1: before the lock and before any game it is the verified entry EXACTLY as before; after the lock, or with a started game, it is the LATE lane (rule, lock <= start)', () => {
+await t('LATE 1: before the lock it is the verified entry EXACTLY as before; after the lock but before any of his games starts it is STILL verified and LOCKS AT SAVE; once a game of his has started it is the LATE lane', () => {
   const plain = donovanRow(DON); const open = donovanRow(LATE_OK)
   assert.deepEqual(open.row, plain.row, 'an on-time entry is byte-identical with allowLate on')
-  assert.equal(open.late, false); assert.equal(open.row.lane, 'donovan'); assert.equal(open.row.rule, CARD_RULE.donovan)
-  const afterLock = donovanRow({ ...LATE_OK, now: LOCK_AT + 60e3 })      // lock passed, p3 and p5 not started yet
-  assert.equal(afterLock.ok, true); assert.equal(afterLock.late, true); assert.equal(afterLock.row.lane, LATE_LANE); assert.equal(afterLock.row.rule, 'donovan-late-v1'); assert.match(afterLock.lateWhy, /lock/)
+  assert.equal(open.late, false); assert.equal(open.lockAtSave, false); assert.equal(open.row.lane, 'donovan'); assert.equal(open.row.rule, CARD_RULE.donovan)
+  assert.equal(open.row.locks_at, new Date(LOCK_AT).toISOString(), 'before the lock: locks at the card\'s lock, as always')
+  const saveAt = LOCK_AT + 60e3
+  const afterLock = donovanRow({ ...LATE_OK, now: saveAt })      // lock passed, p3 and p5 not started yet
+  assert.equal(afterLock.ok, true); assert.equal(afterLock.late, false); assert.equal(afterLock.lockAtSave, true); assert.equal(afterLock.row.lane, 'donovan'); assert.equal(afterLock.row.rule, CARD_RULE.donovan)
+  assert.equal(afterLock.row.locks_at, new Date(saveAt).toISOString(), 'locks_at = the save time')
+  assert.ok(Date.parse(afterLock.row.locks_at) >= saveAt && Date.parse(afterLock.row.locks_at) <= Date.parse(afterLock.row.start_at), 'never earlier than now, never after the start')
   const started = donovanRow({ ...LATE_OK, playerIds: ['p6', 'p3'], now: NOW + 90 * 60e3 })     // p6's game started half an hour ago
-  assert.equal(started.ok, true); assert.equal(started.late, true); assert.equal(started.row.lane, LATE_LANE); assert.match(started.lateWhy, /started/)
-  for (const r of [afterLock.row, started.row]) assert.ok(Date.parse(r.locks_at) <= Date.parse(r.start_at), 'locks_at <= start_at (the table\'s own check)')
+  assert.equal(started.ok, true); assert.equal(started.late, true); assert.equal(started.lockAtSave, false); assert.equal(started.row.lane, LATE_LANE); assert.match(started.lateWhy, /started/)
+  // a slate under way: a pick whose game has not started is still verified (lock at save), the one whose game has is LATE
+  const mixed = donovanRow({ ...LATE_OK, playerIds: ['p3', 'p4'], now: NOW + 30 * 60e3 })
+  assert.equal(mixed.late, false); assert.equal(mixed.lockAtSave, true)
+  assert.ok(Date.parse(started.row.locks_at) <= Date.parse(started.row.start_at), 'locks_at <= start_at (the table\'s own check)')
   // without allowLate nothing changed: it still refuses
   assert.match(donovanRow({ ...DON, now: LOCK_AT + 60e3 }).error, /lock has passed/); assert.match(donovanRow({ ...DON, playerIds: ['p6', 'p3'], now: NOW + 90 * 60e3 }).error, /game has started/)
-  assert.equal(isLateRow(started.row), true); assert.equal(isLateRow(open.row), false)
+  assert.equal(isLateRow(started.row), true); assert.equal(isLateRow(open.row), false); assert.equal(isLateRow(afterLock.row), false)
   // a note and two real players are still required of a late entry
   assert.equal(donovanRow({ ...LATE_OK, now: NOW + 90 * 60e3, note: '' }).ok, false); assert.equal(donovanRow({ ...LATE_OK, now: NOW + 90 * 60e3, playerIds: ['p6'] }).ok, false)
   // his lane is exempt from the floors: priceless men are fine
   assert.equal(donovanRow({ ...LATE_OK, field: FIELD.map((c) => ({ ...c, price: undefined })) }).ok, true)
+})
+
+await t('LOCK AT SAVE through the table: verified row after the lock with locks_at = now; public at once; frozen at once; never overwrites a locked entry; refused once a start has passed; clear message before the SQL is run; bot lane untouched', async () => {
+  const clock = { now: LOCK_AT + 60e3 }
+  const db = fakeDb(clock)
+  const mk = donovanRow({ ...LATE_OK, now: clock.now })
+  const r = await saveDonovan(db, mk.row, { lockAtSave: mk.lockAtSave })
+  assert.equal(r.ok, true); assert.equal(db.rows.length, 1); assert.equal(db.rows[0].lane, 'donovan'); assert.equal(db.rows[0].locks_at, new Date(clock.now).toISOString())
+  // already readable the way the tick reads it (lane donovan, now >= locks_at): the post path takes it with the rest of the Card
+  assert.equal((await cardRows(db, 'nhl', '2026-10-10', { now: clock.now })).filter((x) => x.lane === 'donovan').length, 1)
+  assert.equal(recordsOf(await recordRows(db, 'nhl', { now: clock.now })).donovan.n, 1, 'in his verified record')
+  // frozen at once: no replace (so a locked entry is never overwritten), no withdraw
+  clock.now += 5 * 60e3
+  const again = await saveDonovan(db, donovanRow({ ...LATE_OK, playerIds: ['p4', 'p5'], note: 'Swap.', now: clock.now }).row)
+  assert.equal(again.ok, false); assert.match(again.error, /never rewritten/); assert.equal(db.rows[0].note, NOTE)
+  assert.equal((await withdrawDonovan(db, { sport: 'nhl', card_date: '2026-10-10' })).ok, false)
+  // a LATE save beside it leaves it alone
+  clock.now = NOW + 90 * 60e3
+  assert.equal((await saveDonovan(db, donovanRow({ ...LATE_OK, playerIds: ['p6', 'p4'], now: clock.now }).row)).ok, true)
+  assert.equal(db.rows.find((x) => x.lane === 'donovan').note, NOTE); assert.equal(db.rows.length, 2)
+  // a verified-shaped row presented at or after its start is refused by the table
+  const db3 = fakeDb({ now: NOW + 3 * H + 1 })
+  const bad = await saveDonovan(db3, donovanRow({ ...LATE_OK, now: NOW - 30 * 60e3 }).row)
+  assert.equal(bad.ok, false); assert.match(bad.error, /nothing is locked at or after the start/)
+  // before the SQL is run the old trigger refuses it: the answer is the clear "run the update" message and nothing is stored
+  const old = { from: () => ({ upsert: () => ({ select: () => Promise.resolve({ data: null, error: { message: "card_calls: the lock for nhl 2026-10-10 was at x -- Donovan's entry is closed" } }) }) }) }
+  const o = await saveDonovan(old, mk.row, { lockAtSave: true })
+  assert.equal(o.ok, false); assert.equal(o.needsSql, true); assert.match(o.error, /run the update/); assert.match(o.error, /Nothing was saved/)
+  // the bot's rows are unchanged: a bot Two-Man is still refused at or after its start
+  const botRow = CARD_ROWS.find((x) => x.lane === 'bot' && x.product === 'two_man')
+  const dbB = fakeDb({ now: Date.parse(botRow.start_at) + 1 })
+  const { error } = await dbB.from('card_calls').upsert([{ ...botRow }])
+  assert.match(error.message, /nothing is locked at or after the start/)
+  const api = fs.readFileSync(new URL('../app/api/admin/two-man/route.js', import.meta.url), 'utf8')
+  assert.ok(/confirm_lock/.test(api) && /lockAtSave: made\.lockAtSave/.test(api))
 })
 
 await t('LATE 2: the legs keep the sport\'s own board word (a man who is not on the board is "off", not CALLED); an on-time call stays CALLED', () => {
@@ -734,6 +776,7 @@ await t('THE LATE MIGRATION: the lane, the trigger, the restrictive read policy 
   const code = sql.replace(/--.*$/gm, '')
   assert.ok(/check \(lane in \('bot','donovan','donovan_late'\)\)/.test(code) && /check \(note is null or lane in \('donovan','donovan_late'\)\)/.test(code))
   assert.ok(/new\.lane = 'donovan_late'/.test(code) && /old\.lane = 'donovan_late'/.test(code) && /interval '15 minutes'/.test(code))
+  assert.ok(/LOCK AT SAVE/.test(sql) && /new\.product = 'two_man'[\s\S]*?new\.locks_at := now\(\)/.test(code), 'the lock-at-save branch (his Two-Man only)')
   assert.ok(/as restrictive for select to anon, authenticated/.test(code) && /using \(lane <> 'donovan_late'\)/.test(code))
   assert.ok(/drop policy if exists card_calls_no_late/.test(code) && /create or replace function public\.card_calls_guard/.test(code) && /drop trigger if exists card_calls_guard/.test(code))
   // the verified lane's rules are unchanged inside the new guard
