@@ -46,7 +46,7 @@ export function ViewSwitch({ value, onChange }) {
  * and the accent underline. Replaces "showing 60 of 310 across 16 games" as a
  * grey sentence and a separate "VIEW" row.
  */
-export function BoardHead({ title, count, sub, view, setView }) {
+export function BoardHead({ title, count, sub, view, setView, action = null }) {
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', paddingBottom: 8, marginTop: 12 }}>
@@ -57,7 +57,7 @@ export function BoardHead({ title, count, sub, view, setView }) {
           </div>
           {sub && <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, marginTop: 3, lineHeight: 1.45 }}>{sub}</div>}
         </div>
-        <ViewSwitch value={view} onChange={setView} />
+        {action ? <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{action}<ViewSwitch value={view} onChange={setView} /></div> : <ViewSwitch value={view} onChange={setView} />}
       </div>
       <div style={{ height: 2, marginBottom: 10, borderRadius: 1, background: `linear-gradient(90deg, ${C.green}, ${alpha(C.green, 0.25)} 45%, transparent)` }} />
     </>
