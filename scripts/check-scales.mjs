@@ -84,6 +84,7 @@ const EXEMPT = new Set([
   'lib/nba/theme.js',      // 2026-10-02: the NBA (BUCKETS) token set, the same ground as LAMP's
   // components/shareCard.js left this list (fix14, 2026-10-08): the cards draw from lib/cards on the registry tokens, no hex of their own.
   'lib/dash/homerCard.js',   // the same poster, rendered server-side for @CalledItHR: same 32 colours, same dark field
+  'lib/cards/assets.js',     // 2026-10-12: the poster palette (INK / DIM / PANEL / RULE) moved here verbatim from homerCard.js: the same 4 literals, not new ones
   // 2026-09-13: the NFL twin of homerCard.js, on exactly the same ground — a
   // server-rendered PNG poster with its own printed palette (a paper-white
   // stock, an ink black, a warm accent), none of which is a data colour and
