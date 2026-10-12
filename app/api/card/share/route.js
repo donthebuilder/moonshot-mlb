@@ -1,9 +1,9 @@
-// GET /api/card/share?kind=ranked|game|pitcher|pick|record&sport=mlb|nfl|nhl|nba[&market=&type=&ids=&game=&id=&date=&season=&week=&mode=][&w=360|540|720|1080]
+// GET /api/card/share?kind=ranked|game|pitcher|pick|record|postseason|series&sport=mlb|nfl|nhl|nba[&market=&type=&ids=&game=&id=&date=&season=&week=&mode=][&w=360|540|720|1080]
 // The 📸 DOWNLOADS (MOONSHOT, TUDDY, LAMP, BUCKETS) as one PNG (4:5, 1080x1350 by default) in the baseball-card look, drawn by lib/cards/shareCards.js from
 // the same real boards the pages read (lib/cards/shareData.js): the ranking, one game with its team-model count, a starter, a TUDDY pick (pregame or graded),
 // MOONSHOT's season record. Read-only: nothing is written, no secret is in the response, no polling. Public data only (every number is already on a public
 // board). 404 with a JSON reason (never an empty or invented card) when the sport / market has no card, the day has no data or the source is down; 400 for a
-// malformed parameter; 502 when the render fails. BUCKETS (nba) answers like any missing page until it is public (lib/nba/gate.js).
+// malformed parameter (postseason: sport=mlb&id=<MLB id>&side=front|back[&group=hitting|pitching][&season=]; series: sport=mlb&team=NYY[&season=]: the postseason editions, MLB StatsAPI gameType=P, lib/cards/postseasonData.js); 502 when the render fails. BUCKETS (nba) answers like any missing page until it is public (lib/nba/gate.js).
 import { shareCardImage } from '../../../../lib/cards/cardImage'
 
 export const runtime = 'nodejs'

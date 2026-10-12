@@ -151,7 +151,7 @@ for (const f of files) {
     check(!/sport\s*===?\s*['"]|\?\s*['"](nhl|mlb|nfl)['"]/.test(code), `${rel}: no sport ternary`)
     // assets.js is the shared poster palette + font / mark / grain loaders (moved verbatim from homerCard.js): its hex literals and the font URL are its job, drawn on no card
     if (rel !== 'assets.js') check(!/#[0-9a-fA-F]{3,8}\b/.test(code), `${rel}: no hex literal`)
-    if (rel !== 'assets.js') check(!/https?:\/\//.test(code.replace(/statsapi\.mlb\.com/g, '')) || /adapters\/mlb|cardKit/.test(rel), `${rel}: no URL text drawn on a card`)
+    if (rel !== 'assets.js') check(!/https?:\/\//.test(code.replace(/statsapi\.mlb\.com/g, '')) || /adapters\/mlb|cardKit|postseasonData/.test(rel), `${rel}: no URL text drawn on a card`)
     check(!/goalGameProbability|probabilit/i.test(code), `${rel}: no model probability`)
   }
 }

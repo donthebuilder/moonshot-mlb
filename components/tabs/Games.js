@@ -43,6 +43,7 @@ import { statLineFor, useSlateScale, toneFor, toneTitle } from '../../lib/statli
 import { downloadCard, shareUrl, slug, stamp, gameDay } from '../../lib/cards/saveCard'
 import ProjectedOutput from '../ProjectedOutput'
 import TeamMark, { MatchLogos } from '../TeamMark'
+import PostseasonRow from '../slate/PostseasonRow'
 import { requestLiveRefresh, useLiveRefresh } from '../../lib/liveRefresh'
 import { localTime as sharedLocalTime } from '../../lib/localTime'
 
@@ -1649,6 +1650,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                         <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} results={results} odds={odds} onPlayerClick={onPlayerClick} section="read" />
                             </>
                           ),
+                          postseason: () => <PostseasonRow gamePk={g.game_pk} day={slateDate} />,
                           lineups: () => (
                             <>
                         {/* THE LINEUPS, WHERE HE ASKED FOR THEM. Same component
