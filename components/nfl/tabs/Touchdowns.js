@@ -286,7 +286,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   const openFromBoard = (p, market) => onPlayerClick?.(p, market, filtered)
   const hidden = filtered.length - capped.length
   // 📸 the top of this ranking as a PNG (Wave 8): the rows the table shows, best first, with the call word the table prints (lib/callStatus via statusOf)
-  const shareBtn = filtered.length ? <CardButton sport="nfl" label="Download this ranking as an image"
+  const shareBtn = filtered.length ? <CardButton sport="nfl" label="Download this ranking as an image" style={{ margin: '-8px 0' }}
     onDownload={() => downloadNflBoardCard(filtered.slice(0, 9).map((p, i) => ({ p, status: statusOf ? statusOf(p) : null, rank: i + 1 })), { games: data?.games, results, date: slateDay, total: filtered.length, week: data?.week ?? null })} /> : null
 
   if (!rows.length) {

@@ -76,7 +76,7 @@ export async function downloadNflBoardCard(items = [], { games = [], results = n
 export async function downloadNflGameCard(g, { rows = [], total = null, games = [], results = null, date = '' } = {}) {
   if (!g) return
   try {
-    const when = g.completed ? `FINAL ${g.away_score ?? 0}–${g.home_score ?? 0}` : g.state === 'in' ? (g.detail || 'LIVE') : (g.kickoff ? new Date(g.kickoff).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }) : '')
+    const when = g.completed ? `FINAL ${g.away_score ?? 0}–${g.home_score ?? 0}` : g.state === 'in' ? `${g.away_score ?? 0}–${g.home_score ?? 0} · ${g.detail || 'LIVE'}` : (g.kickoff ? new Date(g.kickoff).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }) : '')
     const proj = total && Number.isFinite(total.awayTd) && Number.isFinite(total.homeTd)
       ? { label: TD_WORD.toUpperCase() /* allow-probability: the team model's projected count of touchdowns (lib/nfl/teamTdModel.js), not a probability */, away: total.awayTd.toFixed(1), home: total.homeTd.toFixed(1), total: Number.isFinite(total.total) ? total.total.toFixed(1) : null } : null
     const on = rows.filter((x) => x?.p && x.status !== 'off' && fin(x.p.scores?.TD) != null)

@@ -234,6 +234,7 @@ function MarketTable({ ladder, accent, C, NUM_FONT, compact }) {
   const th = { padding: '0 0 4px', font: `800 11px/1.2 ${NUM_FONT}`, letterSpacing: '.06em', color: C.text3, textAlign: 'right', fontWeight: 800 }
   const td = { padding: compact ? '5px 0' : '7px 0', borderTop: `1px solid ${C.border2}`, textAlign: 'right', verticalAlign: 'middle', fontFamily: NUM_FONT }
   const sub = { display: 'block', fontSize: 11, color: C.text3, fontWeight: 400, letterSpacing: '.02em' }
+  const subText = { ...sub, fontSize: 12 }   // words, not numbers: the 12px body floor
   return (
     <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' }}>
       <caption style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
@@ -255,17 +256,17 @@ function MarketTable({ ladder, accent, C, NUM_FONT, compact }) {
             <tr key={r.key}>
               <th scope="row" style={{ ...td, textAlign: 'left', fontWeight: 400, fontFamily: 'inherit', paddingRight: 8 }}>
                 <span style={{ fontSize: 12.5, color: C.text, fontWeight: 800 }}>{r.label}</span>
-                <span style={sub}>{r.bar}</span>
+                <span style={subText}>{r.bar}</span>
               </th>
               <td style={{ ...td, fontSize: 12, color: C.text2, whiteSpace: 'nowrap' }}>{c.of}</td>
               <td style={{ ...td, paddingLeft: 8 }}>
                 <b style={{ fontSize: 15, color: lead ? accent : C.text, fontWeight: 900 }}>{c.rate}</b>
-                {c.range ? <span style={sub}>{c.range}</span> : c.tracking ? <span style={sub}>tracking</span> : null}
+                {c.range ? <span style={sub}>{c.range}</span> : c.tracking ? <span style={subText}>tracking</span> : null}
               </td>
               <td style={{ ...td, paddingLeft: 8 }}>
                 <span style={{ fontSize: 13, color: C.text2 }}>{c.base}</span>
                 <span style={sub}>{c.baseN}</span>
-                {c.vs ? <span style={sub}>{c.vs} · {c.overlap}</span> : null}
+                {c.vs ? <span style={subText}>{c.vs} · {c.overlap}</span> : null}
               </td>
             </tr>
           )
@@ -300,9 +301,8 @@ function MarketInner({ ladder, compact = false, fold = false, heading = 'THE LAD
           <span style={{ color: accent, fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, letterSpacing: '.08em', whiteSpace: 'nowrap' }}>THE LADDER ▾</span>
         </summary>
         <div style={{ paddingBottom: 10 }}>
-          {sentence ? <p style={{ margin: '2px 0 6px', fontSize: 13, lineHeight: 1.4, color: C.text }}>{sentence}</p> : null}
           {table}
-          <p style={{ margin: '6px 0 0', fontSize: 11.5, lineHeight: 1.45, color: C.text3 }}>{scope}</p>
+          <p style={{ margin: '6px 0 0', fontSize: 12, lineHeight: 1.45, color: C.text3 }}>{scope}</p>
           {children}
         </div>
       </details>
@@ -313,7 +313,7 @@ function MarketInner({ ladder, compact = false, fold = false, heading = 'THE LAD
       <div style={kicker(C, NUM_FONT, accent)}>{heading}</div>
       {sentence ? <p style={{ margin: '0 0 8px', fontSize: compact ? 13.5 : 15, lineHeight: 1.4, color: C.text, fontWeight: 700 }}>{sentence}</p> : null}
       {table}
-      <p style={{ margin: '6px 0 0', fontSize: 11.5, lineHeight: 1.45, color: C.text3 }}>{scope}</p>
+      <p style={{ margin: '6px 0 0', fontSize: 12, lineHeight: 1.45, color: C.text3 }}>{scope}</p>
       {children}
     </section>
   )
