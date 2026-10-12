@@ -5,6 +5,7 @@ import { adminClient } from '../../../../lib/supabase/admin'
 import { ok, bucketsRoute } from '../../../../lib/nba/respond'
 import { easternToday, shiftDay } from '../../../../lib/data'
 import { LIVE_VERSIONS } from '../../../../lib/nba/model'
+import { foldBucketsNights, NBA_MIN_NIGHTS } from '../../../../lib/record/nbaFloor'
 
 export const dynamic = 'force-dynamic'
 export const GET = bucketsRoute('record', async (q) => {
@@ -22,13 +23,9 @@ export const GET = bucketsRoute('record', async (q) => {
     rows.push(...data)
     if (data.length < 1000) break
   }
-  const by = new Map()
-  for (const r of rows) {
-    const n = by.get(r.game_date) || { date: r.game_date, markets: {}, called: [], away: [] }
-    const m = n.markets[r.market] ||= { n: 0, hit: 0 }
-    if (r.status === 'called' && r.hit != null) { m.n += 1; if (r.hit) m.hit += 1; if (r.hit) n.called.push(r) }
-    if (r.market === 'pts' && r.hit === true && r.status !== 'called') n.away.push(r)
-    by.set(r.game_date, n)
-  }
-  return ok({ dbReady: true, since, nights: [...by.values()].sort((a, b) => a.date.localeCompare(b.date)), fetchedAt: new Date().toISOString() }, 300)
+  // THE PUBLIC-NUMBER FLOOR (lib/record/nbaFloor.js foldBucketsNights): a market with fewer than NBA_MIN_NIGHTS graded REGULAR-SEASON nights is
+  // TRACKING -- its calls are counted (n) but its hits, its "called that hit" rows and (points) the 25-point scorers it missed are
+  // not sent, preseason included. This holds when BUCKETS is public: the number is simply not made.
+  const { nights, tracking } = foldBucketsNights(rows)
+  return ok({ dbReady: true, since, minNights: NBA_MIN_NIGHTS, tracking, nights, fetchedAt: new Date().toISOString() }, 300)
 })

@@ -20,6 +20,8 @@ import { pricedPicks } from '../../../../lib/odds/gradedPicks'
 import { lockedHrCalls } from '../../../../lib/record/mlbCalls'
 import { easternToday } from '../../../../lib/data'
 import { bucketsGuard, bucketsPublic } from '../../../../lib/nba/gate'
+import { floorCalls } from '../../../../lib/record/nbaFloor'
+import { NBA_MARKETS } from '../../../../lib/nba/model'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,8 +54,16 @@ async function build(sport, today) {
   }
   const { picks, error } = await (LOCKED_READ[sport] ? LOCKED_READ[sport](db, today) : pricedPicks(db, opts))
   if (error) throw new Error(error.message || String(error))
-  const keep = picks.filter((p) => LISTED[sport](p) && (p.result === 'hit' || p.result === 'miss' || p.result === 'void'))
-  return keep
+  let keep = picks.filter((p) => LISTED[sport](p) && (p.result === 'hit' || p.result === 'miss' || p.result === 'void'))
+  // BUCKETS: a market under NBA_MIN_NIGHTS graded nights is TRACKING (lib/record/nbaFloor.js): its calls and results are left out,
+  // and the response says "tracking" with n and the nights so far instead. Holds even with BUCKETS public.
+  let tracking = null
+  if (sport === 'nba') {
+    const f = floorCalls(keep, (m) => NBA_MARKETS[m === 'first_fg' ? 'first' : m]?.label || m)
+    keep = f.calls
+    tracking = f.tracking
+  }
+  const calls = keep
     .map((p) => ({
       date: p.game_date || p.graded_date || null, week: p.week ?? null,
       player_id: p.player_id, name: p.name, team: p.team || null, role: p.role || CALL_WORD[sport],
@@ -61,6 +71,7 @@ async function build(sport, today) {
       best: p.price?.best ?? null, book: p.price?.best_book ?? null, median: p.price?.median ?? null, books: p.price?.books ?? null,
     }))
     .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || String(a.name).localeCompare(String(b.name)))
+  return { calls, tracking }
 }
 
 export async function GET(request) {
@@ -71,8 +82,8 @@ export async function GET(request) {
   if (sport === 'nba') { const no = await bucketsGuard(); if (no) return no }
   const today = easternToday()
   try {
-    const calls = await unstable_cache(() => build(sport, today), ['record-calls-v4', sport, today], { revalidate: 1800 })()
-    return Response.json({ sport, calls, builtAt: new Date().toISOString() }, { headers: { 'Cache-Control': gated ? 'private, max-age=60' : 'public, s-maxage=600, stale-while-revalidate=1800' } })
+    const { calls, tracking } = await unstable_cache(() => build(sport, today), ['record-calls-v5', sport, today], { revalidate: 1800 })()
+    return Response.json({ sport, calls, ...(tracking ? { tracking } : {}), builtAt: new Date().toISOString() }, { headers: { 'Cache-Control': gated ? 'private, max-age=60' : 'public, s-maxage=600, stale-while-revalidate=1800' } })
   } catch (e) {
     console.error(`[record/calls] ${sport}: ${e?.message || e}`)
     return Response.json({ error: 'the call history is delayed' }, { status: 502 })

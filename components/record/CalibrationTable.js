@@ -21,6 +21,7 @@ import { useLiveFetch } from '../../lib/useLiveFetch'
 import { TYPE } from '../../lib/theme'
 import { playerHref, gameHref } from '../../lib/routes'
 import { localTime } from '../../lib/localTime'
+import { trackingWords } from '../../lib/record/nbaFloor'
 
 const DATA_FOLDER = 'https://github.com/donthebuilder/MLB-HR-DASHBOARD-STREAMLIT/tree/data/public/data/current'
 const SEASONS = [{ key: 'regular', label: 'Regular season' }, { key: 'post', label: 'Postseason' }]
@@ -67,10 +68,10 @@ export default function CalibrationTable({ sport = 'mlb', Table = DenseTable, ti
   const block = data?.[season]
   const rows = useMemo(() => (block?.tiers || []).map((t) => ({
     ...t, _key: t.key,
-    rateText: t.enough ? `${t.rate.toFixed(1)}%` : 'not enough calls yet',
+    rateText: t.tracking ? 'tracking' : t.enough ? `${t.rate.toFixed(1)}%` : 'not enough calls yet',
     liftText: t.lift == null ? '—' : `${t.lift > 0 ? '+' : ''}${t.lift.toFixed(1)} pts`,
     proofText: t.proof.state === 'proven' ? 'PROVEN' : t.proof.state === 'testing' ? 'TESTING' : '—',
-    boardText: t.board.n ? `${t.board.rate.toFixed(1)}%` : '—',
+    boardText: t.board.n && t.board.rate != null ? `${t.board.rate.toFixed(1)}%` : '—',
     leadMed: t.lead ? t.lead.median : null, leadMin: t.lead ? t.lead.min : null,
   })), [block])
 
@@ -111,9 +112,12 @@ export default function CalibrationTable({ sport = 'mlb', Table = DenseTable, ti
               </span>) },
             { key: 'bar', label: 'Bar', group: 'Tier', heat: false, numeric: false, w: 96 },
             { key: 'n', label: 'Calls', group: 'Result', heat: false, w: 54, dp: 0, fmt: (v) => nf(v) },
-            { key: 'hits', label: 'Cleared', group: 'Result', heat: false, w: 62, dp: 0, fmt: (v) => nf(v) },
-            { key: 'misses', label: 'Missed', group: 'Result', heat: false, w: 58, dp: 0, fmt: (v) => nf(v) },
-            { key: 'rateText', label: 'Rate', group: 'Result', heat: false, numeric: false, w: 132, fmt: (v, r) => <b style={{ color: r.enough ? C.text : C.text3, fontWeight: r.enough ? 900 : 600 }}>{v}</b> },
+            { key: 'hits', label: 'Cleared', group: 'Result', heat: false, w: 62, dp: 0, fmt: (v) => (v == null ? '—' : nf(v)) },
+            { key: 'misses', label: 'Missed', group: 'Result', heat: false, w: 58, dp: 0, fmt: (v) => (v == null ? '—' : nf(v)) },
+            { key: 'rateText', label: 'Rate', group: 'Result', heat: false, numeric: false, w: 132, fmt: (v, r) => (r.tracking
+              // UNDER THE PUBLIC-NUMBER FLOOR (lib/record/nbaFloor.js): the word, n and the nights so far -- no hit count, no rate
+              ? <span title={trackingWords({ n: r.n, nights: r.nights })} style={{ display: 'grid', lineHeight: 1.2 }}><b style={{ color: C.text3, fontWeight: 600 }}>tracking</b><span style={{ fontSize: TYPE.label, color: C.text3 }}>n={nf(r.n)} · {r.nights} of {r.minNights} nights</span></span>
+              : <b style={{ color: r.enough ? C.text : C.text3, fontWeight: r.enough ? 900 : 600 }}>{v}</b>) },
             { key: 'proofText', label: 'Proof', group: 'Result', heat: false, numeric: false, w: 78, fmt: (v) => <span style={{ fontFamily: NUM_FONT, fontWeight: 900, fontSize: TYPE.label, letterSpacing: '.06em', color: v === 'PROVEN' ? accent : C.text3 }}>{v}</span> },
             { key: 'boardText', label: 'Board', group: 'Versus', heat: false, numeric: false, w: 62 },
             { key: 'liftText', label: 'Lift', group: 'Versus', heat: false, numeric: false, w: 78, fmt: (v, r) => {

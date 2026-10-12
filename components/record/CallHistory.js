@@ -14,6 +14,7 @@ import { useSportTheme } from '../SportTheme'
 import { fmtOdds, profitOn } from '../../lib/odds'
 import { straightLine, straightWords, STRAIGHT_CALL_WORD } from '../../lib/record/callsLanded'
 import { TYPE } from '../../lib/theme'
+import TrackingLines from './TrackingLines'
 
 const RESULT = { hit: '✅ hit', miss: '❌ miss', void: '➖ void' }
 const money = (v) => (v == null ? '—' : `${v >= 0 ? '+' : '−'}$${Math.abs(v).toFixed(2).replace(/\.00$/, '')}`)
@@ -32,7 +33,7 @@ export default function CallHistory({ sport, Table, onOpenPlayer = null, title =
 
   if (error && !data) return <p style={{ fontSize: TYPE.body, color: C.text3 }}>The call history is delayed — try again in a minute.</p>
   if (!data) return null
-  if (!rows.length) return null
+  if (!rows.length) return data.tracking?.length ? <TrackingLines tracking={data.tracking} /> : null   // under the public-number floor (lib/record/nbaFloor.js)
   return (
     <section aria-label={title} style={{ marginTop: 18 }}>
       <div style={{ color: accent, font: `900 10px/1 ${NUM_FONT}`, letterSpacing: '.14em', margin: '4px 0 6px' }}>{title.toUpperCase()}</div>
@@ -41,6 +42,7 @@ export default function CallHistory({ sport, Table, onOpenPlayer = null, title =
           <b style={{ color: C.text }}>{words[0]}</b> {words.slice(1).join(' ')}
         </p>
       ) : null}
+      <TrackingLines tracking={data.tracking} title="STILL TRACKING" />
       <Table rows={rows} maxRows={12} maxHeight={9999} heatMode="sorted" initialSort={null}
         onRowClick={onOpenPlayer ? (r) => onOpenPlayer((r?._raw ?? r).player_id) : undefined}
         caption="One row per graded call, newest first. Price = the longest any book offered at lock; blank before prices were saved. $10 = what that price paid on a hit, or the $10 lost on a miss."

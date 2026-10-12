@@ -14,6 +14,7 @@
 //   RECEIPTS    the full grading tables, closed
 // No sport branches here: the theme comes from SportTheme, the table from the
 // product's own wrapper (Table), the words from the record model.
+import { trackingWords } from '../../lib/record/nbaFloor'
 import { useMemo, useState } from 'react'
 import { useSportTheme } from '../SportTheme'
 import CallStatusBadge from '../CallStatusBadge'
@@ -126,18 +127,21 @@ export default function RecordPage({ record, Table, Face = PlayerFace, receipts 
   const take = RECORD_WINDOWS.find((w) => w.key === win)?.take ?? Infinity
   const totals = useMemo(() => windowTotals(series, markets, take), [series, markets, take])
 
+  const track = r.tracking || {}
   const rows = markets.map((m, i) => {
     const t = totals[i]
-    return { _id: m.key, market: m.label, job: m.job || '', calls: t.n, hits: t.hit, pct: pctOf(t.hit, t.n), units: t.units, _key: m.key, lineN: t.lineN, lineHit: t.lineHit, vsline: t.lineN ? pctOf(t.lineHit, t.lineN) : null }
+    // a market under the public-number floor (record.tracking, lib/record/nbaFloor.js): n and the nights so far, no hits, no %
+    const tr = track[m.key] || null
+    return { _id: m.key, market: m.label, job: m.job || '', calls: t.n, hits: tr ? null : t.hit, pct: tr ? null : pctOf(t.hit, t.n), tr, units: t.units, _key: m.key, lineN: t.lineN, lineHit: t.lineHit, vsline: t.lineN ? pctOf(t.lineHit, t.lineN) : null }
   })
   const columns = [
     { key: 'market', label: 'Market', group: 'Market', sticky: true, heat: false, w: 84, fmt: (v, row) => (
       <span style={{ display: 'grid', lineHeight: 1.2 }}><b style={{ color: C.text }}>{v}</b>{row.job ? <span style={{ fontSize: 10, color: C.text3 }}>{row.job}</span> : null}</span>) },
     { key: 'calls', label: 'Calls', group: 'Record', w: 44, heat: false, numeric: true },
-    { key: 'hits', label: 'Hits', group: 'Record', w: 40, heat: false, numeric: true },
+    { key: 'hits', label: 'Hits', group: 'Record', w: 40, heat: false, numeric: true, fmt: (v) => (v == null ? '—' : v) },
     { key: 'pct', label: '%', group: 'Record', w: 52, primary: true, scale: 'seq', domain: [0, 100], numeric: true,
       title: building ? `Fewer than ${BUILDING_UNDER} graded ${unitWord}s: the % is shown as building, with its n.` : 'Hits ÷ calls in the window.',
-      fmt: (v, row) => (v == null ? '—' : building
+      fmt: (v, row) => (row.tr ? <span title={trackingWords({ n: row.tr.n, nights: row.tr.nights })} style={{ display: 'grid', lineHeight: 1.15, color: C.text3, fontSize: 10.5 }}><span>tracking</span><span>{row.tr.nights} of {row.tr.minNights}</span></span> : v == null ? '—' : building
         ? <span title={`${v}% so far`} style={{ display: 'grid', lineHeight: 1.15, color: C.text3, fontSize: 10.5 }}><span>building</span><span>(n={row.calls})</span></span>
         : `${v}%`) },
     // BEAT THE LINE (M3, 2026-10-03): only when the record carries book lines
@@ -146,7 +150,7 @@ export default function RecordPage({ record, Table, Face = PlayerFace, receipts 
       title: "Of the graded calls with the book's line on file at lock, the share whose result beat that line -- a harder test than clearing our own bar.",
       fmt: (v, row) => (row.lineN ? <span style={{ display: 'grid', lineHeight: 1.15 }}><span>{v}%</span><span style={{ fontSize: 10, color: C.text3 }}>{row.lineHit}/{row.lineN}</span></span> : '—') }] : []),
     { key: 'dots', label: 'Last 10', group: 'Form', w: 84, heat: false, sortable: false,
-      fmt: (v, row) => <Dots units={series} mk={row._key} C={C} accent={accent} unitWord={unitWord} /> },
+      fmt: (v, row) => (row.tr ? '—' : <Dots units={series} mk={row._key} C={C} accent={accent} unitWord={unitWord} />) },
   ]
 
   const last = r.last
@@ -170,6 +174,7 @@ export default function RecordPage({ record, Table, Face = PlayerFace, receipts 
           <div style={{ display: 'flex', gap: '4px 14px', flexWrap: 'wrap', fontFamily: NUM_FONT, fontSize: 13, color: C.text2 }}>
             {markets.filter((m) => last.markets?.[m.key]?.n > 0).map((m) => {
               const x = last.markets[m.key]
+              if (track[m.key] || x.tracking) return <span key={m.key}><b style={{ color: C.text3, fontSize: 11, letterSpacing: '.06em' }}>{m.label.toUpperCase()}</b> <b style={{ color: C.text3 }}>tracking</b> · {x.n} graded</span>
               return <span key={m.key}><b style={{ color: C.text3, fontSize: 11, letterSpacing: '.06em' }}>{m.label.toUpperCase()}</b> <b style={{ color: x.hit > 0 ? accent : C.text }}>{x.hit}</b> of {x.n}</span>
             })}
           </div>

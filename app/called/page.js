@@ -46,7 +46,8 @@ import { shiftDay } from '../../lib/data'
 import { adminClient } from '../../lib/supabase/admin'
 import { CALL_RULES } from '../../lib/record/callRules'
 import { readCalibrationAny } from '../../lib/calibration/readAny'
-import { callsLandedFrom, landedWords } from '../../lib/record/callsLanded'
+import { callsLandedFrom, callsTrackingFrom, landedWords } from '../../lib/record/callsLanded'
+import { NBA_MIN_NIGHTS, trackingWords } from '../../lib/record/nbaFloor'
 import { ladderFrom } from '../../lib/record/ladder'
 import LadderBlock, { LadderOddsNote } from '../../components/record/LadderBlock'
 import { easternToday } from '../../lib/data'
@@ -512,12 +513,18 @@ export default async function CalledPage({ searchParams }) {
   const members = membersUrl()
   const params = (await searchParams) || {}
   const key = calledKey(params.sport)
-  const { sport, today, rows, outRows = [], picks, picksDay = null, calledIds, history, byDay, configured } = await load(key)
+  const { sport, today, rows, outRows = [], picks, picksDay = null, calledIds, history: historyRaw, byDay, configured } = await load(key)
   // CALLS LANDED LEADS (2026-10-10, one MLB record): of the calls we made, how many did what they were called to
   // do -- the lock-enforced calibration reader (the same body /api/calibration serves, one cache entry). The
   // event capture below it is a different measure and is labelled so.
   const cal = await readCalibrationAny(sport.key, easternToday()).catch((e) => { console.error(`[called] calls landed: ${e?.message}`); return null })
   const landed = callsLandedFrom(cal)
+  // BUCKETS PUBLIC-NUMBER FLOOR (lib/record/nbaFloor.js): until the points market has NBA_MIN_NIGHTS graded regular-season nights, the page
+  // prints "tracking" with n and the nights, not a capture rate or a night-by-night strip. Holds with BUCKETS public; an unreadable record is tracking too.
+  const ptsTier = cal?.regular?.tiers?.find((t) => t.key === 'pts')
+  const trackNba = sport.key === 'nba' && (!ptsTier || Boolean(ptsTier.tracking))
+  const trackLine = trackNba ? ((callsTrackingFrom(cal)?.markets || []).map((m) => `${m.label}: ${trackingWords(m)}`).join(' · ') || 'tracking') : null
+  const history = trackNba ? historyRaw.map((h) => ({ day: h.day, pre: h.pre, total: 0, called: 0, rated: 0, off: 0, onBoard: 0, pct: null, boardPct: null })) : historyRaw
   // THE LADDER (LAMP's reader returns one; the others have none yet and draw nothing): the same body, the same cache entry
   const ladder = ladderFrom(cal)
   const landedLine = landedWords(landed, { callWord: sport.callWord })
@@ -530,7 +537,7 @@ export default async function CalledPage({ searchParams }) {
   // the app. Both CTAs open the board now; /start is the small "What is
   // this?" link under the main button.
   const START = `/start?sport=${sport.key}`
-  const tonight = sport.capture(rows)
+  const tonight = trackNba ? { total: 0, called: 0, rated: 0, off: 0, onBoard: 0, pct: null, boardPct: null } : sport.capture(rows)
   // Preseason nights are on the strip, labelled, but not in the span: camp
   // lineups are not the season (LAMP's own record route keeps them out too).
   // Postseason nights (MLB, `post`) likewise: their own line, not the span.
@@ -574,7 +581,12 @@ export default async function CalledPage({ searchParams }) {
             {ladder ? <LadderBlock ladder={ladder} sport={sport.key} compact fold><LadderOddsNote sport={sport.key} /></LadderBlock> : null}
           </>
         ) : null}
-        {tonight.total ? (
+        {trackNba ? (
+          <>
+            <h1 className={styles.headline}><span className={styles.big}>Tracking</span></h1>
+            <p className={styles.sub}>{trackLine}. No capture rate and no night-by-night strip until a market has {NBA_MIN_NIGHTS} graded regular-season nights.</p>
+          </>
+        ) : tonight.total ? (
           <>
             {/* ── WHY FOOTBALL'S CAPTURE LINE IS BOARD COVERAGE ───────────
                 MOONSHOT publishes ~30 calls a night against ~30 home runs, so

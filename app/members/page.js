@@ -8,6 +8,7 @@ import AuthPageHeader from '../../components/AuthPageHeader'
 import styles from '../(front)/dash.module.css'
 import { membersUrl } from '../../lib/members'
 import { MLB_MEMBERS_N, NFL_MEMBERS_N } from '../../lib/dash/membersPost'
+import { isSportOpen } from '../../lib/openSwitch'
 
 export const metadata = {
   title: 'Founding members · DASH Network',
@@ -39,7 +40,7 @@ export default function MembersPage() {
         <div className={styles.card} style={{ margin: '0 0 14px' }}>
           <h2 style={h2}>Founding members</h2>
           <ul style={ul}>
-            <li>Every game&apos;s write-up for all four sports (MLB, NFL, NHL, NBA), in a private Discord channel. Free Discord gets the featured game only.</li>
+            <li>Every game&apos;s write-up for {isSportOpen('nba') ? 'all four sports (MLB, NFL, NHL, NBA)' : 'every sport we cover (MLB, NFL, NHL)'}, in a private Discord channel. Free Discord gets the featured game only.</li>
             <li>The board at lock, in the same channel: MOONSHOT&apos;s top {MLB_MEMBERS_N} before first pitch, TUDDY&apos;s top {NFL_MEMBERS_N} before kickoff.</li>
             <li>That board graded after the games, in the same channel.</li>
             <li>Nothing on the site is locked. What you pay for is delivery to one place at lock, not access.</li>

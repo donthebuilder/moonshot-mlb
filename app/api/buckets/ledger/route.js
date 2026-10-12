@@ -15,6 +15,8 @@ import { ptsBefore, roundCrossed, PTS_MARK } from '../../../../lib/nba/seasonPts
 import { seasonStats } from '../../../../lib/nba/stats'
 import { nbaSeason } from '../../../../lib/nba/season'
 import { slateNight } from '../../../../lib/slateNight'
+import { readNbaFloor, trackingOf } from '../../../../lib/record/nbaFloorRead'
+import { NBA_MIN_NIGHTS } from '../../../../lib/record/nbaFloor'
 
 export const dynamic = 'force-dynamic'
 const MK = ['pts', 'reb', 'ast', '3pm', 'pra', 'dd', 'td']
@@ -79,6 +81,9 @@ export const GET = bucketsRoute('ledger', async (q) => {
       }
     }
   } catch { nearWhy = 'failed' }
-  const capture = Object.fromEntries(MK.map((k) => { const r = rows.filter((x) => x.market === k && x.status); return [k, { total: r.length, called: r.filter((x) => x.status === 'called').length, board: r.filter((x) => x.status === 'board').length, off: r.filter((x) => x.status === 'off').length }] }))
+  // THE PUBLIC-NUMBER FLOOR (lib/record/nbaFloor.js): the per-night capture (called / board / off) is a record line; a market under
+  // NBA_MIN_NIGHTS graded nights sends the word "tracking" with its n and nights, not the counts. The night's rows and tags stay.
+  const floor = await readNbaFloor(db)
+  const capture = Object.fromEntries(MK.map((k) => { const r = rows.filter((x) => x.market === k && x.status); if (trackingOf(floor, k)) return [k, { tracking: true, n: floor?.[k]?.n || 0, nights: floor?.[k]?.nights || 0, minNights: NBA_MIN_NIGHTS }]; return [k, { total: r.length, called: r.filter((x) => x.status === 'called').length, board: r.filter((x) => x.status === 'board').length, off: r.filter((x) => x.status === 'off').length }] }))
   return ok({ date, games, live: games.filter((g) => g.state === 'live').length, lockedGames: [...locked], callsMade, rows, round, nearMark, nearWhy, mark: PTS_MARK, capture, fetchedAt: new Date().toISOString() }, games.some((g) => g.state === 'live') ? 30 : 300)
 })

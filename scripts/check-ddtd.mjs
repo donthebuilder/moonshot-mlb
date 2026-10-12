@@ -6,6 +6,7 @@
 import assert from 'node:assert/strict'
 
 process.env.NEXT_PUBLIC_SITE_URL = 'https://test.example'
+process.env.BUCKETS_PUBLIC = 'on'   // the posting below is BUCKETS open; the closed case is its own test (and scripts/check-buckets-no-leak.mjs)
 Object.assign(process.env, { X_API_KEY: 'TEST', X_API_SECRET: 'TEST', X_ACCESS_TOKEN: 'TEST', X_ACCESS_SECRET: 'TEST', DISCORD_MLB_WEBHOOKS: 'https://discord.test/mlb-hook', DISCORD_NBA_WEBHOOKS: 'https://discord.test/nba-hook', DISCORD_MEMBERS_WEBHOOK: 'https://discord.com/api/webhooks/123456789/TESTTOKEN' })
 for (const k of ['X_WRITEUPS_PAUSE', 'WRITEUPS_AUTOPOST', 'X_POSTS_PAUSE', 'X_GUARDS_OFF', 'X_SCHEDULE_OFF', 'X_DAILY_CAP', 'X_TEXT_LIMIT', 'DISCORD_HOMER_WEBHOOK']) delete process.env[k]
 
@@ -310,6 +311,15 @@ await ok('post: X_WRITEUPS_PAUSE=on writes dry rows and sends nothing', async ()
   const out = await P.runNbaWriteups(db, { date: DATE, games: [game], now: TIP - 70 * MIN, readBoard: boardFor([game]) })
   assert.match(out.G1, /^dry/); assert.equal(db.tables.homer_feed_posts[0].x_post_id, 'dry'); assert.equal(tweets.length + discords.length, 0)
   delete process.env.X_WRITEUPS_PAUSE
+})
+await ok('post: BUCKETS closed (BUCKETS_PUBLIC off, lib/openSwitch.js): the write-up is stored for the site as a dry row and NOTHING is sent: no X, no #members, no free channel', async () => {
+  fresh(); delete process.env.BUCKETS_PUBLIC
+  try {
+    const db = newDb()
+    const out = await P.runNbaWriteups(db, { date: DATE, games: [game], now: TIP - 70 * MIN, readBoard: boardFor([game]) })
+    assert.match(out.G1, /^dry/); assert.equal(db.tables.homer_feed_posts[0].x_post_id, 'dry'); assert.match(db.tables.homer_feed_posts[0].payload.why, /BUCKETS is not public/)
+    assert.equal(tweets.length + discords.length, 0)
+  } finally { process.env.BUCKETS_PUBLIC = 'on' }
 })
 await ok('post: at most one featured NBA game on X a day, even across two ticks; the second is still on the site and Discord', async () => {
   fresh()

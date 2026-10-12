@@ -13,6 +13,7 @@ import { pollsPaused, postPollOnce, postRevealsOnce } from '../../../../../lib/d
 import { createMlbPollAdapter } from '../../../../../lib/dash/polls/adapters/mlb'
 import { createNflPollAdapter } from '../../../../../lib/dash/polls/adapters/nfl'
 import { createNhlPollAdapter } from '../../../../../lib/dash/polls/adapters/nhl'
+import { isSportOpen } from '../../../../../lib/openSwitch'
 import { createNbaPollAdapter } from '../../../../../lib/dash/polls/adapters/nba'
 
 export const dynamic = 'force-dynamic'
@@ -30,6 +31,7 @@ export async function GET(request) {
   const out = {}
   // one sport at a time: a sport's failure never costs another's poll
   for (const sport of POLL_SPORTS) {
+    if (!isSportOpen(sport)) { out[sport] = { poll: 'hidden (BUCKETS is not public)' }; continue }   // lib/openSwitch.js: not even the adapter is built
     try {
       const adapter = ADAPTERS[sport]({ day, now: Date.now(), db })
       out[sport] = { poll: await postPollOnce(db, { sport, day, adapter }) }

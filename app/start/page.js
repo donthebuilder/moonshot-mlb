@@ -84,6 +84,7 @@ import { appHref, playerHref, teamHref, SPORT_KEYS, BRAND, isHiddenSport } from 
 import PublicHeader from '../../components/header/PublicHeader'
 import { readNbaBoard } from '../../lib/nba/boardRead'
 import { nbaCaptureFrom, readNbaRecords } from '../../lib/record/nba'
+import { readNbaFloor, trackingOf } from '../../lib/record/nbaFloorRead'
 import styles from './start.module.css'
 import { membersUrl, MEMBERS_LINE } from '../../lib/members'
 import { adminClient } from '../../lib/supabase/admin'
@@ -438,6 +439,8 @@ Object.assign(SPORTS.nba, {
 
 /** BUCKETS' receipts: 25-point games (regular season), CALLED in any market at lock. */
 async function computeBucketsRecord(db, since, today, gameDays = 10) {
+  // the public-number floor (lib/record/nbaFloor.js): under NBA_MIN_NIGHTS graded regular-season nights the page says its record is filling in
+  if (trackingOf(await readNbaFloor(db), 'pts')) return null
   const { rows, error } = await readNbaRecords(db, { since, until: today, includePre: false, graded: true, hitOnly: true })
   if (error || !rows.length) return null
   const keep = new Set(lastGameDays(rows.map((r) => r.game_date), gameDays))

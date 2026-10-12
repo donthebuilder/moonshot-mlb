@@ -26,16 +26,17 @@ export default function Results({ onOpenPlayer, onOpenTeam }) {
   const nights = data?.nights || []
   const tot = useMemo(() => {
     const t = {}
-    for (const n of nights) for (const [k, v] of Object.entries(n.markets)) { t[k] ||= { n: 0, hit: 0 }; t[k].n += v.n; t[k].hit += v.hit }
+    for (const n of nights) for (const [k, v] of Object.entries(n.markets)) { t[k] ||= { n: 0, hit: 0 }; t[k].n += v.n; t[k].hit += v.hit || 0 }
     return t
   }, [nights])
   const keys = [...new Set([...MK.map((k) => (k === 'first' ? 'first_fg' : k)), ...Object.keys(tot)])].filter((k) => tot[k]?.n)
-  const sumRows = keys.map((k) => ({ _id: k, market: LABEL(k), calls: tot[k].n, hit: tot[k].hit, rate: tot[k].n ? tot[k].hit / tot[k].n : null }))
+  // a market under the public-number floor (data.tracking, lib/record/nbaFloor.js): n and "tracking", no hits, no rate
+  const sumRows = keys.map((k) => { const tr = data?.tracking?.[k]; return { _id: k, market: LABEL(k), calls: tot[k].n, hit: tr ? null : tot[k].hit, rate: !tr && tot[k].n ? tot[k].hit / tot[k].n : null, tr } })
   const sumCols = [
     { key: 'market', label: 'Market', group: 'Market', w: 120, heat: false, sticky: true, bold: true },
     { key: 'calls', label: 'Calls', group: 'Record', w: 52, heat: false, mono: true },
-    { key: 'hit', label: 'Hit', group: 'Record', w: 52, heat: false, mono: true },
-    { key: 'rate', label: 'Hit %', group: 'Record', w: 60, heat: false, mono: true, fmt: (v) => (v == null ? '—' : `${(v * 100).toFixed(1)}%`) },
+    { key: 'hit', label: 'Hit', group: 'Record', w: 52, heat: false, mono: true, fmt: (v) => (v == null ? '—' : v) },
+    { key: 'rate', label: 'Hit %', group: 'Record', w: 70, heat: false, mono: true, fmt: (v, r) => (r.tr ? <span title={`tracking · ${r.tr.nights} of ${r.tr.minNights} graded nights`} style={{ display: 'grid', lineHeight: 1.15, color: C.text3 }}><span>tracking</span><span>{r.tr.nights} of {r.tr.minNights}</span></span> : v == null ? '—' : `${(v * 100).toFixed(1)}%`) },
   ]
   const record = useMemo(() => nbaRecordModel({ rec: data, onOpen: (r) => onOpenPlayer?.(r.player_id) }), [data]) // eslint-disable-line react-hooks/exhaustive-deps
   const hits = nights.slice().reverse().flatMap((n) => n.called.map((r) => ({ ...r, _id: `${r.game_date}-${r.player_id}-${r.market}`, playerId: r.player_id, marketLabel: LABEL(r.market) })))

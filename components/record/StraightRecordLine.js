@@ -10,12 +10,13 @@ import { useLiveFetch } from '../../lib/useLiveFetch'
 import { useSportTheme } from '../SportTheme'
 import { straightLine, straightWords, STRAIGHT_CALL_WORD } from '../../lib/record/callsLanded'
 import { TYPE } from '../../lib/theme'
+import TrackingLines from './TrackingLines'
 
 export default function StraightRecordLine({ sport }) {
   const { C, NUM_FONT, accent } = useSportTheme()
   const { data } = useLiveFetch(`/api/record/calls?sport=${sport}`)
   const line = useMemo(() => straightLine(data?.calls || []), [data])
-  if (!line) return null
+  if (!line) return data?.tracking?.length ? <TrackingLines tracking={data.tracking} /> : null   // under the public-number floor: the tracking lines, no rate
   const words = straightWords(line, { callWord: STRAIGHT_CALL_WORD[sport] || 'calls' })
   return (
     <section aria-label="The straight record" style={{ margin: '4px 0 12px' }}>
@@ -23,6 +24,7 @@ export default function StraightRecordLine({ sport }) {
       <p style={{ margin: 0, fontSize: TYPE.body, color: C.text2, lineHeight: 1.5 }}>
         <b style={{ color: C.text }}>{words[0]}</b> {words.slice(1).join(' ')}
       </p>
+      <TrackingLines tracking={data?.tracking} title="STILL TRACKING" />
     </section>
   )
 }
