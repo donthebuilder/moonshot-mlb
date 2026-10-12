@@ -18,7 +18,7 @@ import Rail from '../../Rail'
 import { BucketsCards } from '../BucketsCard'
 import CardButton from '../../CardButton'
 import GameTotalLine, { GameTotalMark, totalRowFor, useGameTotals } from '../../GameTotalLine'
-import { downloadBucketsGameCard } from '../shareCard'
+import { downloadCard, shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager, RimDot, fmtDay, fmtTip, readHashParam, writeHashParam } from '../ui'
 
 // 📋 THE SLATE -- tonight one game at a time (LAMP's Slate): pick a game, see
@@ -117,7 +117,7 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
             <div>{g.venue}</div>
           </div>
           <NavBtn onClick={() => onOpenGame?.(g.id)}>Open game →</NavBtn>
-          <CardButton sport="nba" label="Download this game as an image" onDownload={() => downloadBucketsGameCard({ g, rows, tm: tmBy.get(String(g.id)) || null, market: m, date: shown || '' })} />
+          <CardButton sport="nba" label="Download this game as an image" onDownload={() => downloadCard(shareUrl({ kind: 'game', sport: 'nba', game: g.id, market: m, date: shown || null }), `game-${slug(g.away.abbrev)}-${slug(g.home.abbrev)}_${stamp(shown)}.png`)} />
         </div>
         {/* THIS GAME'S TOTAL (2026-10-10): the Top Totals row the lock stored for it */}
         <GameTotalLine sport="nba" row={gameTotals?.[String(g.id)]} />

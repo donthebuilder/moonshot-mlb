@@ -16,7 +16,7 @@ import { Card as UiCard } from '../../ui'
 import StatStrip from '../../StatStrip'
 import { SportTheme } from '../../SportTheme'
 import CardButton from '../../CardButton'
-import { downloadNflBoardCard } from '../shareCard'
+import { downloadCard, shareUrl, stamp } from '../../../lib/cards/saveCard'
 import RankCard from '../../card/RankCard'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { ActiveFilters, FilterBar, FilterPill, PositionNote, PositionEmpty } from '../../Filters'
@@ -287,7 +287,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   const hidden = filtered.length - capped.length
   // 📸 the top of this ranking as a PNG (Wave 8): the rows the table shows, best first, with the call word the table prints (lib/callStatus via statusOf)
   const shareBtn = filtered.length ? <CardButton sport="nfl" label="Download this ranking as an image" style={{ margin: '-8px 0' }}
-    onDownload={() => downloadNflBoardCard(filtered.slice(0, 9).map((p, i) => ({ p, status: statusOf ? statusOf(p) : null, rank: i + 1 })), { games: data?.games, results, date: slateDay, total: filtered.length, week: data?.week ?? null })} /> : null
+    onDownload={() => downloadCard(shareUrl({ kind: 'ranked', sport: 'nfl' }), `rankings-anytime-td_${stamp(slateDay)}.png`)} /> : null
 
   if (!rows.length) {
     return <div style={{ color: C.text3, fontSize: TYPE.body, padding: 18 }}>

@@ -25,7 +25,7 @@ import { EmptyState, DelayedBanner, Loading, StaleSeasonNote, fmtPuckDrop, zoneA
 import TeamMark from '../TeamMark'
 import CardButton from '../CardButton'
 import GameTotalLine, { GameTotalMark, totalRowFor, useGameTotals } from '../GameTotalLine'
-import { downloadLampGameCard } from './shareCard'
+import { downloadCard, shareUrl, slug, stamp } from '../../lib/cards/saveCard'
 
 // LAMP'S SLATE (2026-09-28). MOONSHOT's Slate (components/tabs/Games.js,
 // Games view) built from its own pieces -- components/slate/* -- with the
@@ -292,7 +292,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                     {st !== 'upcoming' && onOpenGame && <Tap onClick={() => onOpenGame(g.game.id)}><span style={{ fontSize: 14, fontFamily: NUM_FONT, color: C.ice, fontWeight: 800 }}>Box score ›</span></Tap>}
                     {/* 📸 this game as a PNG (fix15): the two clubs, the team model's projected goals, the skaters on the board */}
-                    <CardButton sport="nhl" label="Download this game as an image" onDownload={() => downloadLampGameCard(g, { date: shown || '' })} />
+                    <CardButton sport="nhl" label="Download this game as an image" onDownload={() => downloadCard(shareUrl({ kind: 'game', sport: 'nhl', game: g.game.id, date: shown || g.game.date }), `game-${slug(g.game.away.abbrev)}-${slug(g.game.home.abbrev)}_${stamp(shown || g.game.date)}.png`)} />
                   </span>
                 </div>
                 {/* THIS GAME'S TOTAL (2026-10-10): the Top Totals row the lock stored for it (the projected goals are the same number) */}

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import useScrollLock from '../lib/useScrollLock'
 import { useDialog } from '../lib/useDialog'
 import { C, NUM_FONT } from '../lib/theme'
-import { hr9Tone, hr9Title } from '../lib/hr9'
+import { pitcherTiles } from '../lib/pitcherTiles'
 import { n, clean, nameOf } from '../lib/player'
 import { runningGame, runningGameLine } from '../lib/running'
 import { divTone, sampleDim, verdictInk } from '../lib/scales'
@@ -13,7 +13,7 @@ import VerdictHero from './VerdictHero'
 import PitcherTags from './PitcherTags'
 import DenseTable from './DenseTable'
 import MatchupPitcher from './MatchupPitcher'
-import { downloadPitcherCard } from './shareCard'
+import { downloadCard, shareUrl, slug, stamp } from '../lib/cards/saveCard'
 import PitcherSpots from './PitcherSpots'
 import PitcherProfile from './PitcherProfile'
 import SituationalSplits from './SituationalSplits'
@@ -340,8 +340,6 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
   const brlAllowed = n(src('pitcher_barrel_allowed'), null)
   const l3hr9 = n(src('pitcher_l3_hr9'), null)
   const l3n = n(src('pitcher_l3_starts_found'), 0)
-  const fmt2 = (v) => (v == null ? '—' : v.toFixed(2))
-  const fmtPct = (v) => (v == null ? '—' : `${(v * 100).toFixed(1)}%`)
 
   // ── the hero's numbers and its sentence ───────────────────────────────────
   // "the words for the pitcher ... i wanted to be shown" — this is the line
@@ -367,26 +365,8 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
       : ''
     return `${lead}${bits.join(' · ')}.`
   })()
-  const tiles = [
-    { label: 'ERA', value: fmt2(era), tone: era == null ? null : era >= 5 ? 'hot' : era <= 3.2 ? 'cold' : null,
-      tip: 'Season earned-run average.' },
-    { label: 'WHIP', value: fmt2(whip), tone: whip == null ? null : whip >= 1.4 ? 'hot' : whip <= 1.1 ? 'cold' : null,
-      tip: 'Walks + hits per inning — traffic. High traffic means more RBI chances for the bats.' },
-    // The tip used to name 1.30 and 0.85 while the tone used the same pair;
-    // both now come from lib/hr9.js, so the sentence cannot drift from the
-    // colour the way it did on four other surfaces.
-    { label: 'HR/9', value: fmt2(hr9), tone: hr9Tone(hr9), tip: hr9Title(hr9) },
-    { label: 'K/9', value: k9 == null ? '—' : k9.toFixed(1), tone: k9 == null ? null : k9 <= 7 ? 'hot' : k9 >= 9.5 ? 'cold' : null,
-      tip: 'Strikeouts per nine. LOW is good for the bats — more balls in play. High is his strength.' },
-    { label: 'FB%', value: fmtPct(fbAllowed), tone: fbAllowed == null ? null : fbAllowed >= 0.42 ? 'hot' : fbAllowed <= 0.32 ? 'cold' : null,
-      tip: 'Fly-ball rate allowed, season — the only batted ball that leaves the yard. Slate mean ~38%.' },
-    { label: 'HH%', value: fmtPct(hhAllowed), tone: hhAllowed == null ? null : hhAllowed >= 0.42 ? 'hot' : hhAllowed <= 0.33 ? 'cold' : null,
-      tip: 'Hard-hit rate allowed (95+ mph). Slate mean ~38%.' },
-    { label: 'BRL%', value: fmtPct(brlAllowed), tone: brlAllowed == null ? null : brlAllowed >= 0.09 ? 'hot' : brlAllowed <= 0.05 ? 'cold' : null,
-      tip: 'Barrel rate allowed — the single best contact-quality signal for homers. Slate mean ~7%.' },
-    ...(l3n > 0 ? [{ label: `L3 HR/9`, value: fmt2(l3hr9), tone: l3hr9 == null ? null : hr9Tone(l3hr9) === 'hot' ? 'hot' : l3hr9 <= 0.85 ? 'cold' : null,
-      tip: `Last ${l3n} start${l3n === 1 ? '' : 's'} — a direction, not a rate. Three outings is a handful of innings.` }] : []),
-  ]
+  // the tiles are lib/pitcherTiles.js (shared with the server's pitcher share card)
+  const tiles = pitcherTiles({ era, whip, hr9, k9, fbAllowed, hhAllowed, brlAllowed, l3hr9, l3n })
 
   return (
     <div
@@ -425,7 +405,7 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'flex-end', marginBottom: 8 }}>
             {/* 📸 SHARE (2026-08-23) — his card as a PNG, zero backend, the
                 same tiles this modal already drew above. */}
-            <button onClick={() => downloadPitcherCard({ id: pitcher?.pitcher_id, name, team, opp, throws, weakSide, tiles, topBat: anchor })}
+            <button onClick={() => downloadCard(shareUrl({ kind: 'pitcher', sport: 'mlb', id: pitcher?.pitcher_id }), `pitcher-${slug(name, 'pitcher')}_${stamp('')}.png`)}
               title="Download his card as a PNG for posting — the at-a-glance tiles and his toughest lineup matchup"
               aria-label="Download pitcher card as image"
               style={{

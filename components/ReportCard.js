@@ -2,7 +2,8 @@
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { wilson, ciText } from '../lib/interval'
-import { downloadTrackRecordCard } from './shareCard'
+import { reportModel, headline, LOCK_DATE } from '../lib/reportModel'
+import { downloadCard, shareUrl, stamp } from '../lib/cards/saveCard'
 
 // 🧾 REPORT CARD — the accountability page (2026-08-06).
 //
@@ -22,41 +23,17 @@ import { downloadTrackRecordCard } from './shareCard'
 //      When the curves shift at that line, that's honesty arriving, not the
 //      bot changing.
 
-const LOCK_DATE = '2026-08-06'   // the pick-lock commit went live this slate
-
-const CATS = [
-  { tier: 'TOP_PICKS', label: 'LEGACY TOP', color: C.amber, bar: 'HR', barLabel: 'homered' },
-  { tier: 'HR_PICKS', label: 'HR', color: '#FB923C', bar: 'HR', barLabel: 'homered' },
-  { tier: 'HIT_PICKS', label: 'HIT', color: C.blue, bar: '1+ Hit', barLabel: 'got a hit' },
-  { tier: 'HRR_PICKS', label: 'HRR', color: C.cyan, bar: '2+ HRR', barLabel: '2+ H+R+RBI' },
-  { tier: 'CONTACT_PICKS', label: 'CONTACT', color: C.purple, bar: '2+ TB', barLabel: '2+ total bases' },
-]
+// the model (cats, the per-category season record, the lock split, the form windows) is lib/reportModel.js, shared with the server's
+// track-record share card (lib/cards/shareData.js); only the colours live here
+const COLOR = { TOP_PICKS: C.amber, HR_PICKS: '#FB923C', HIT_PICKS: C.blue, HRR_PICKS: C.cyan, CONTACT_PICKS: C.purple }
 
 // Wilson 95% interval (audit #13, 2026-08-08) MOVED TO lib/interval.js on
 // 2026-08-16, when the blank board needed the same maths to rank on. Identical
 // implementation, one home — two copies of a calculation are two answers
 // waiting to diverge. Numbers here are unchanged.
 
-// Rolling form (audit #14): pooled own-bar rate over the trailing 7 and 30
-// graded days, held against the season base. Pooled counts, not an average of
-// nightly rates — a 3-pick night shouldn't weigh like a 40-pick night.
-const poolRate = (days) => {
-  let ok = 0, n = 0
-  days.forEach((d) => {
-    if (d.ok != null) { ok += d.ok; n += d.n } else { ok += Math.round((d.rate / 100) * d.size); n += d.size }
-  })
-  return n ? { rate: (100 * ok) / n, ok, n } : null
-}
-
-const gradeOf = (rate, base) => {
-  if (rate == null || !base) return { g: '—', col: C.text3 }
-  const r = rate / base
-  if (r >= 1.3) return { g: 'A', col: C.green }
-  if (r >= 1.05) return { g: 'B', col: '#a3e635' }
-  if (r >= 0.8) return { g: 'C', col: C.amber }
-  if (r >= 0.5) return { g: 'D', col: C.orange }
-  return { g: 'F', col: C.red }
-}
+const GRADE_COL = { A: C.green, B: '#a3e635', C: C.amber, D: C.orange, F: C.red }
+const gradeOf = (letter) => ({ g: letter, col: GRADE_COL[letter] || C.text3 })
 
 function Spark({ days, cat, lockX }) {
   // nightly own-bar rate dots + 5-day rolling line, 0–100 scale
@@ -96,58 +73,13 @@ function Spark({ days, cat, lockX }) {
 
 export default function ReportCard({ backtest }) {
   const model = useMemo(() => {
-    const per = backtest?.per_day
-    if (!per) return null
-    const dates = Object.keys(per).sort()
-    const today = new Date().toLocaleDateString('en-CA')
-    // last COMPLETE night: strictly before today, with a real pool
-    const lastDate = [...dates].reverse().find((d) => d < today
-      && Object.values(per[d]?.tiers || {}).some((t) => (t?.pool_size || 0) >= 6)) || null
-
-    const rows = CATS.map((cat) => {
-      const days = dates.map((d) => {
-        const t = per[d]?.tiers?.[cat.tier]
-        const rate = t?.metrics?.[cat.bar]
-        const counts = t?.metric_counts?.[cat.bar]
-        return {
-          date: d,
-          rate: rate == null ? null : Number(rate),
-          n: counts ? counts[1] : (t?.pool_size ?? null),
-          ok: counts ? counts[0] : null,
-          size: t?.pool_size ?? 0,
-        }
-      }).filter((d) => d.rate != null && d.size > 0)
-      // season record, own bar: exact counts where published, reconstructed
-      // from (rate × pool) where the older file format only carried rates
-      let ok = 0, n = 0, approx = false
-      days.forEach((d) => {
-        if (d.ok != null) { ok += d.ok; n += d.n } else { ok += Math.round((d.rate / 100) * d.size); n += d.size; approx = true }
-      })
-      const base = n ? (100 * ok) / n : null
-      const last = lastDate ? days.find((d) => d.date === lastDate) : null
-      // since the pick lock — the record that can't have been flattered
-      let lockOk = 0, lockN = 0
-      days.filter((d) => d.date >= LOCK_DATE).forEach((d) => {
-        if (d.ok != null) { lockOk += d.ok; lockN += d.n } else { lockOk += Math.round((d.rate / 100) * d.size); lockN += d.size }
-      })
-      // trailing form windows by graded-day count (calendar gaps don't matter
-      // — an off-day slate teaches nothing)
-      const form7 = poolRate(days.slice(-7))
-      const form30 = poolRate(days.slice(-30))
-      return { cat, days, ok, n, approx, base, last, lockOk, lockN, form7, form30, grade: gradeOf(last?.rate, base) }
-    })
-    return { rows, lastDate, dates }
+    const m = reportModel(backtest, new Date().toLocaleDateString('en-CA'))
+    return m && { ...m, rows: m.rows.map((r) => ({ ...r, cat: { ...r.cat, color: COLOR[r.cat.tier] }, grade: gradeOf(r.letter) })) }
   }, [backtest])
 
   if (!model) return null
   const anyApprox = model.rows.some((r) => r.approx)
-  const seasonOk = model.rows.reduce((a, r) => a + r.ok, 0)
-  const seasonN = model.rows.reduce((a, r) => a + r.n, 0)
-  const lockOk = model.rows.reduce((a, r) => a + r.lockOk, 0)
-  const lockN = model.rows.reduce((a, r) => a + r.lockN, 0)
-  const seasonPct = seasonN ? (100 * seasonOk) / seasonN : null
-  const lockPct = lockN ? (100 * lockOk) / lockN : null
-  const lockNights = model.dates.filter((d) => d >= LOCK_DATE).length
+  const { seasonOk, seasonN, lockOk, lockN, seasonPct, lockPct, lockNights } = headline(model)
 
   // TURNED UP 2026-08-09 (owner likes this block — "make the two headline
   // records more prominent"). Same two numbers, same CIs, same honesty; they
@@ -248,10 +180,7 @@ export default function ReportCard({ backtest }) {
             Passes the exact numbers already computed above it, nothing
             recomputed from `backtest` a second time. */}
         <button
-          onClick={() => downloadTrackRecordCard({
-            rows: model.rows, seasonOk, seasonN, seasonPct, lockOk, lockN, lockPct, lockNights,
-            days: model.dates.length,
-          })}
+          onClick={() => downloadCard(shareUrl({ kind: 'record', sport: 'mlb' }), `track-record_${stamp(model.lastDate)}.png`)}
           title="Download the track record as a PNG for posting"
           aria-label="Download track record as image"
           style={{

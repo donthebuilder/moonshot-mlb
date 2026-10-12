@@ -1,6 +1,6 @@
 'use client'
 // THE 📸 BUTTON for the cards LAMP and BUCKETS download (fix15, 2026-10-08). One 44 x 44 icon button in the
-// product's own theme: it draws the card (the wrapper in components/<sport>/shareCard.js hands it a function
+// product's own theme: it draws the card (the page hands it a function (lib/cards/saveCard.js downloadCard)
 // that builds the PNG), shows it is working while it does, and never blocks the page. A hidden product
 // (BUCKETS until it opens, lib/routes.js isHiddenSport) has no button at all.
 import { useState } from 'react'

@@ -40,7 +40,7 @@ import GameSwitcher from '../GameSwitcher'
 import { panelPairs, panelSubs } from '../../lib/game/sections'
 import { ViewPills, GameFilterRail, BASE_GAME_FILTERS, StripFold, GamePanelPills, PrevNextGame } from '../slate/SlateParts'
 import { statLineFor, useSlateScale, toneFor, toneTitle } from '../../lib/statline'
-import { downloadGameCard } from '../shareCard'
+import { downloadCard, shareUrl, slug, stamp } from '../../lib/cards/saveCard'
 import ProjectedOutput from '../ProjectedOutput'
 import TeamMark, { MatchLogos } from '../TeamMark'
 import { requestLiveRefresh, useLiveRefresh } from '../../lib/liveRefresh'
@@ -1452,8 +1452,8 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                           {/* 📸 SHARE (2026-08-23) — this matchup's picks as a
                               PNG, zero backend. stopPropagation so it doesn't
                               also toggle the card open/closed. */}
-                          <button onClick={(e) => { e.stopPropagation(); downloadGameCard(g) }}
-                            title="Download this game's picks as a PNG for posting"
+                          <button onClick={(e) => { e.stopPropagation(); downloadCard(shareUrl({ kind: 'game', sport: 'mlb', game: g.game_pk }), `game-${slug(g.away)}-${slug(g.home)}_${stamp(g.game_time)}.png`) }}
+                            title="Download this game's picks as a baseball card for posting"
                             aria-label="Download game card as image"
                             style={{
                               background: 'transparent', border: `1px solid ${C.border}`, color: C.text2,

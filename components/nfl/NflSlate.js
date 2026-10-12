@@ -11,7 +11,7 @@ import { GameFilterRail, SlateStrip, GamePanelPills, PanelAnchor, GameFrame, Pre
 import GameOffDef, { Kicker } from './GameOffDef'
 import { GameHeader, KeyPlayers, MatchupScoreboard, ImportantStats } from './GameSections'
 import CardButton from '../CardButton'
-import { downloadNflGameCard } from './shareCard'
+import { downloadCard, shareUrl, slug, stamp } from '../../lib/cards/saveCard'
 import { tdStatusFor } from '../../lib/nfl/tdStatus'
 import { DefenseFile } from './DefenseSections'
 import { tdPool } from './tabs/Touchdowns'
@@ -266,11 +266,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
               {/* 1. THE GAME, ONCE: the matchup, the kickoff, the dial, and this game's own total */}
               <div style={{ padding: '12px 14px 12px' }}>
                 <GameHeader game={g} when={kickWhen(g)} air={airText(g)} xtd={x} heat={heatOf(g)} past={Boolean(g.completed)} onOpenTeam={onOpenTeam}
-                  action={<CardButton sport="nfl" label="Download this game as an image" style={{ margin: '-12px 0' }} onDownload={() => {
-                    // 📸 this game as a PNG (Wave 8): the two clubs, the team model's expected touchdowns, the men on the board (the call word is lib/nfl/tdStatus's, the board's own)
-                    const st = tdStatusFor({ picksCard: picks?.card, gameCalls, games: allGames, board: pool.rows })
-                    return downloadNflGameCard(g, { rows: pool.rows.filter(inGame).map((p) => ({ p, status: st.statusOf(p), rank: pool.rows.indexOf(p) + 1 })), total: totals[g.game_id] || null, games: allGames, results, date: g.kickoff ? easternDate(Date.parse(g.kickoff)) : '' })
-                  }} />}
+                  action={<CardButton sport="nfl" label="Download this game as an image" style={{ margin: '-12px 0' }} onDownload={() => downloadCard(shareUrl({ kind: 'game', sport: 'nfl', game: g.game_id }), `game-${slug(g.away)}-${slug(g.home)}_${stamp(g.kickoff)}.png`)} />}
                   outLine={(() => { const oc = outCounts([g.away, g.home]); return oc?.out ? `${oc.out} out` : null })()} />
                 <GameTotalLine sport="nfl" row={gameTotals?.[String(g.game_id)]} style={{ marginTop: 8 }} />
               </div>

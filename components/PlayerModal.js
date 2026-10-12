@@ -54,7 +54,7 @@ import ThresholdGrid from './ThresholdGrid'
 import ColdCase from './ColdCase'
 import PlayerRead from './PlayerRead'
 import HomerShape from './HomerShape'
-import { downloadPlayerCard } from './shareCard'
+import { downloadCard, playerUrl, slug, stamp } from '../lib/cards/saveCard'
 import CardFlip from './player/CardFlip'
 import BvP from './BvP'
 import FirstPitchSplit from './FirstPitchSplit'
@@ -631,8 +631,8 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                   API-only player has no card to print. */}
               {!apiOnly && p?.player_id != null && <CardFlip sport="mlb" id={String(p.player_id)} name={nameOf(p)} />}
               {!apiOnly && (
-                <button onClick={() => downloadPlayerCard(p, { jersey })}
-                  title="Download his card as a PNG for posting — MOONSHOT's call, his scores, the bat vs the arm, and his homer signature"
+                <button onClick={() => downloadCard(playerUrl({ sport: 'mlb', id: p.player_id }), `${slug(nameOf(p), 'player')}_${stamp(p?.game_date || p?.day)}.png`)}
+                  title="Download his card as a PNG for posting — the same baseball card MOONSHOT's alerts use: his call, his stat tiles and his place on the board"
                   aria-label="Download player card as image"
                   style={{
                     background: 'transparent', border: `1px solid ${C.border2}`, color: C.text2,
