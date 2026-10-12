@@ -3,6 +3,7 @@ import { STATUS_WORD } from '../../lib/callStatus'
 import { useMemo } from 'react'
 import PropCards from '../props/PropCards'
 import TeamMark from '../TeamMark'
+import LineMoveChip from '../LineMoveChip'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
 import { useLampBoard } from '../../lib/nhl/useLamp'
 import { nhlMug, fmtSec } from '../../lib/nhl/format'
@@ -77,7 +78,8 @@ function lampAdapter(season, odds) {
           <TeamMark sport="nhl" abbr={r.opp} variant="logo" px={16} />
           <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>· {r.pos}</span>
         </span>,
-        metaRight: (() => { const q = quoteOf(odds, r, k); return q ? fmtOdds(q.best_over ?? q.over) : null })(),
+        // the price, and where it opened when it has moved (lib/odds/lineMove.js: the feed's opening price against our newest read; no opening price, no chip)
+        metaRight: (() => { const q = quoteOf(odds, r, k); return q ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{fmtOdds(q.best_over ?? q.over)}<LineMoveChip quote={q} theme={C} numFont={NUM_FONT} compact /></span> : null })(),
         line: x.why || null,
         facts: null,
         chips: chips.slice(0, 2),

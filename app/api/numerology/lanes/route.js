@@ -10,13 +10,16 @@
 import { adminClient } from '../../../../lib/supabase/admin'
 import { laneTable, allLanesBase, MIN_NIGHTS, MIN_MATCHED } from '../../../../lib/numerology/laneTable'
 import { LANES } from '../../../../lib/numerology/lanes'
-import { SPORT_KEYS } from '../../../../lib/routes'
+import { ALL_SPORT_KEYS, isHiddenSport } from '../../../../lib/routes'
+import { bucketsGuard } from '../../../../lib/nba/gate'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request) {
   const sport = String(new URL(request.url).searchParams.get('sport') || '').toLowerCase()
-  if (!SPORT_KEYS.includes(sport)) return Response.json({ error: `sport must be one of ${SPORT_KEYS.join(', ')}` }, { status: 400 })
+  if (!ALL_SPORT_KEYS.includes(sport)) return Response.json({ error: `sport must be one of ${ALL_SPORT_KEYS.filter((k) => !isHiddenSport(k)).join(', ')}` }, { status: 400 })
+  // a hidden product (BUCKETS) answers like every /api/buckets route until it is public: 404 to everyone but the gate's own viewers (lib/nba/gate.js)
+  if (isHiddenSport(sport)) { const g = await bucketsGuard(); if (g) return g }
   const db = adminClient()
   if (!db) return Response.json({ sport, lanes: [], nights: 0, minNights: MIN_NIGHTS, minMatched: MIN_MATCHED, laneCount: LANES.length, configured: false })
   const rows = []
@@ -31,5 +34,5 @@ export async function GET(request) {
   // RECORDED vs GRADED (2026-10-06, ledger audit P0-3): `nights` counts completed (every logged player graded)
   // nights; `recorded` also counts nights still in progress, so the page can say what is true.
   const recorded = new Set(rows.map((r) => r.day)).size
-  return Response.json({ sport, nights, recorded, minNights: MIN_NIGHTS, minMatched: MIN_MATCHED, laneCount: LANES.length, allBase: allLanesBase(rows), lanes: laneTable(rows), configured: true }, { headers: { 'Cache-Control': 's-maxage=600, stale-while-revalidate=3600' } })
+  return Response.json({ sport, nights, recorded, minNights: MIN_NIGHTS, minMatched: MIN_MATCHED, laneCount: LANES.length, allBase: allLanesBase(rows), lanes: laneTable(rows), configured: true }, { headers: { 'Cache-Control': isHiddenSport(sport) ? 'private, no-store' : 's-maxage=600, stale-while-revalidate=3600' } })
 }

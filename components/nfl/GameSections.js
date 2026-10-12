@@ -25,7 +25,7 @@ import NflTable from './NflTable'
 // here is one the page already had; only the words and the sizes changed.
 
 // ── 1. THE GAME, ONCE ───────────────────────────────────────────────────────
-export function GameHeader({ game: g, when, air, xtd, heat, past, onOpenTeam, outLine = null }) {
+export function GameHeader({ game: g, when, air, xtd, heat, past, onOpenTeam, outLine = null, action = null }) {
   const live = g.state === 'in'
   const Team = ({ t }) => (
     <Tap onClick={onOpenTeam && (() => onOpenTeam(t))} title={`Open ${t}`} style={{ minHeight: 48, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
@@ -52,6 +52,7 @@ export function GameHeader({ game: g, when, air, xtd, heat, past, onOpenTeam, ou
         {g.venue && <span style={{ color: C.text2, fontWeight: 600 }}>· {g.venue}</span>}
         {air && <span style={{ color: C.text2, fontWeight: 600 }}>· {air}</span>}
         {outLine && <span style={{ color: C.text2, fontWeight: 600 }}>· {outLine}</span>}
+        {action ? <span style={{ marginLeft: 'auto', alignSelf: 'center' }}>{action}</span> : null}
       </div>
       {live && (g.down_distance || g.possession) && (
         <div style={{ marginTop: 4, color: C.green, fontSize: 12, fontWeight: 800, fontFamily: NUM_FONT }}>

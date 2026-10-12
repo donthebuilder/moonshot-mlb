@@ -47,8 +47,8 @@ import { adminClient } from '../../lib/supabase/admin'
 import { CALL_RULES } from '../../lib/record/callRules'
 import { readCalibrationAny } from '../../lib/calibration/readAny'
 import { callsLandedFrom, landedWords } from '../../lib/record/callsLanded'
-import { ladderFrom } from '../../lib/record/ladder'
-import LadderBlock, { LadderOddsNote } from '../../components/record/LadderBlock'
+import { ladderFrom, marketLadderFrom } from '../../lib/record/ladder'
+import LadderBlock, { LadderOddsNote, MarketLadderBlock } from '../../components/record/LadderBlock'
 import { easternToday } from '../../lib/data'
 
 // 2026-09-20 — FOOTBALL MOVED IN, IT DIDN'T GET ITS OWN HOUSE. Donovan:
@@ -520,6 +520,7 @@ export default async function CalledPage({ searchParams }) {
   const landed = callsLandedFrom(cal)
   // THE LADDER (LAMP's reader returns one; the others have none yet and draw nothing): the same body, the same cache entry
   const ladder = ladderFrom(cal)
+  const marketLadder = marketLadderFrom(cal, { sport: sport.key })   // MLB / TUDDY / BUCKETS: CALLED by market against the base (lib/record/ladderSports.js)
   const landedLine = landedWords(landed, { callWord: sport.callWord })
   const card = sport.cardRecord ? await cardPlain(sport.key).catch((e) => { console.error(`[called] card record: ${e?.message}`); return null }) : null
   const BOARD = sport.board
@@ -572,6 +573,7 @@ export default async function CalledPage({ searchParams }) {
             </h1>
             <p className={styles.sub}>{landedLine[1]}</p>
             {ladder ? <LadderBlock ladder={ladder} sport={sport.key} compact fold><LadderOddsNote sport={sport.key} /></LadderBlock> : null}
+            {marketLadder ? <MarketLadderBlock ladder={marketLadder} sport={sport.key} compact fold /> : null}
           </>
         ) : null}
         {tonight.total ? (

@@ -15,6 +15,8 @@ import { baselineFor, topStatChips } from '../ScoreAnatomy'
 import { Card as UiCard } from '../../ui'
 import StatStrip from '../../StatStrip'
 import { SportTheme } from '../../SportTheme'
+import CardButton from '../../CardButton'
+import { downloadNflBoardCard } from '../shareCard'
 import RankCard from '../../card/RankCard'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { ActiveFilters, FilterBar, FilterPill, PositionNote, PositionEmpty } from '../../Filters'
@@ -283,6 +285,9 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   // openPlayer third argument, 2026-09-29), like MOONSHOT's.
   const openFromBoard = (p, market) => onPlayerClick?.(p, market, filtered)
   const hidden = filtered.length - capped.length
+  // 📸 the top of this ranking as a PNG (Wave 8): the rows the table shows, best first, with the call word the table prints (lib/callStatus via statusOf)
+  const shareBtn = filtered.length ? <CardButton sport="nfl" label="Download this ranking as an image"
+    onDownload={() => downloadNflBoardCard(filtered.slice(0, 9).map((p, i) => ({ p, status: statusOf ? statusOf(p) : null, rank: i + 1 })), { games: data?.games, results, date: slateDay, total: filtered.length, week: data?.week ?? null })} /> : null
 
   if (!rows.length) {
     return <div style={{ color: C.text3, fontSize: TYPE.body, padding: 18 }}>
@@ -333,7 +338,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
         <div style={{ marginTop: 8 }}><OddsStatus status={oddsStatus} /></div>
       )}
 
-      {phone && <div style={{ marginTop: 8 }}><ViewSwitch value={view} onChange={setView} /></div>}
+      {phone && <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}><ViewSwitch value={view} onChange={setView} />{shareBtn}</div>}
       </>)}
       {!phone && (<>
       {/* (on a phone it sits under the table) TD WATCH (board filters plan, TUDDY 5): MOONSHOT's B2B Watch slot. */}
@@ -342,7 +347,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
       </div>
 
       </>)}
-      {!phone && (<BoardHead title="Anytime TD" count={capped.length} view={view} setView={setView}
+      {!phone && (<BoardHead title="Anytime TD" count={capped.length} view={view} setView={setView} action={shareBtn}
         sub={null} />)}
 
       {pf.active && filtered.length > 0 && <div style={{ marginTop: 8 }}><PositionNote control={pf.control} shown={filtered.length} total={rows.length} /></div>}

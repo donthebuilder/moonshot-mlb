@@ -8,6 +8,7 @@
 //
 //   <LadderBlock ladder sport="nhl" />            the ladder table + sentence + scope
 //     children                                    secondary lines under it (CAPTURE, labelled)
+//   <MarketLadderBlock ladder sport="mlb" />    the MARKET ladder (MLB, TUDDY, BUCKETS): lib/record/ladderSports.js picks it
 //   <LadderVersions ladder sport="nhl" />         the same CALLED rate, one row per model version
 //   <LadderOddsNote sport="nhl" />                the price line, only when stored lock prices compute it
 import { useMemo } from 'react'
@@ -16,13 +17,17 @@ import { SportTheme, useSportTheme } from '../SportTheme'
 import { useLiveFetch } from '../../lib/useLiveFetch'
 import { C as NHL_C, NUM_FONT as NHL_NUM } from '../../lib/nhl/theme'
 import { C as NFL_C, NUM_FONT as NFL_NUM } from '../../lib/nfl/theme'
+import { C as NBA_C, NUM_FONT as NBA_NUM } from '../../lib/nba/theme'
 import { straightLine } from '../../lib/record/callsLanded'
 import { appHref } from '../../lib/routes'
+import { ladderKind, LADDER_SPORTS } from '../../lib/record/ladderSports'
+import { marketLadderFrom, marketSentence, marketOneLine, marketScope, marketCells } from '../../lib/record/ladder'
 import { ladderFrom, ladderRows, ladderCells, ladderSentence, ladderOneLine, ladderScope, ladderScopeShort, versionRows, POOLED_LABEL, BASE_LABEL, priceNote } from '../../lib/record/ladder'
 
 const THEMES = {
   nhl: { theme: NHL_C, accent: NHL_C.ice, numFont: NHL_NUM },
   nfl: { theme: NFL_C, accent: NFL_C.green, numFont: NFL_NUM },
+  nba: { theme: NBA_C, accent: NBA_C.purple, numFont: NBA_NUM },
   mlb: { theme: null },
 }
 
@@ -219,13 +224,116 @@ export function LadderOddsNote({ sport = 'nhl' }) {
   return <Themed sport={sport}><OddsInner sport={sport} /></Themed>
 }
 
+// ── THE MARKET LADDER (Wave 8, 2026-10-11) ────────────────────────────────────────────────────────────────
+// One row per CALLED market, each on its own bar: cleared of calls, the rate and its 95% range, and the base rate on
+// the same bar beside it. The words are lib/record/ladderSports.js's (per sport, as data); the figures are the
+// calibration reader's tiers. A flat result wears the same ink, size and sentence as a wide one: the gap is signed
+// and neutral, and "ranges overlap" is printed as the fact it is.
+function MarketTable({ ladder, accent, C, NUM_FONT, compact }) {
+  const reg = LADDER_SPORTS[ladder.sport]
+  const th = { padding: '0 0 4px', font: `800 11px/1.2 ${NUM_FONT}`, letterSpacing: '.06em', color: C.text3, textAlign: 'right', fontWeight: 800 }
+  const td = { padding: compact ? '5px 0' : '7px 0', borderTop: `1px solid ${C.border2}`, textAlign: 'right', verticalAlign: 'middle', fontFamily: NUM_FONT }
+  const sub = { display: 'block', fontSize: 11, color: C.text3, fontWeight: 400, letterSpacing: '.02em' }
+  return (
+    <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' }}>
+      <caption style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
+        CALLED calls by market, each graded on its own bar. Each row gives the calls cleared of the calls graded, the rate with its 95% range, and the base rate on the same bar.
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col" style={{ ...th, textAlign: 'left' }}>Call</th>
+          <th scope="col" style={th}>Cleared</th>
+          <th scope="col" style={th}>Rate</th>
+          <th scope="col" style={th}>{reg.baseHead}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {ladder.rows.map((r) => {
+          const c = marketCells(r, ladder.minN)
+          const lead = r.key === ladder.lead
+          return (
+            <tr key={r.key}>
+              <th scope="row" style={{ ...td, textAlign: 'left', fontWeight: 400, fontFamily: 'inherit', paddingRight: 8 }}>
+                <span style={{ fontSize: 12.5, color: C.text, fontWeight: 800 }}>{r.label}</span>
+                <span style={sub}>{r.bar}</span>
+              </th>
+              <td style={{ ...td, fontSize: 12, color: C.text2, whiteSpace: 'nowrap' }}>{c.of}</td>
+              <td style={{ ...td, paddingLeft: 8 }}>
+                <b style={{ fontSize: 15, color: lead ? accent : C.text, fontWeight: 900 }}>{c.rate}</b>
+                {c.range ? <span style={sub}>{c.range}</span> : c.tracking ? <span style={sub}>tracking</span> : null}
+              </td>
+              <td style={{ ...td, paddingLeft: 8 }}>
+                <span style={{ fontSize: 13, color: C.text2 }}>{c.base}</span>
+                <span style={sub}>{c.baseN}</span>
+                {c.vs ? <span style={sub}>{c.vs} · {c.overlap}</span> : null}
+              </td>
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
+  )
+}
+
+function MarketInner({ ladder, compact = false, fold = false, heading = 'THE LADDER', children = null }) {
+  const { C, NUM_FONT, accent } = useSportTheme()
+  const reg = LADDER_SPORTS[ladder.sport]
+  const sentence = useMemo(() => marketSentence(ladder), [ladder])
+  if (ladder.empty) {
+    // honest empty state: the ladder exists for this sport, nothing is graded yet; no number is printed
+    return (
+      <section aria-label="The ladder" style={{ margin: compact ? '8px 0' : '4px 0 14px' }}>
+        <div style={kicker(C, NUM_FONT, accent)}>{heading}</div>
+        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.45, color: C.text3 }}>
+          No CALLED {reg.leadWord}s are graded yet this season. The ladder fills as games go final: each row will show the calls cleared, the rate with its 95% range and the base on the same bar.
+        </p>
+      </section>
+    )
+  }
+  const scope = `${marketScope(ladder)} ${reg.foot}`
+  const table = <MarketTable ladder={ladder} accent={accent} C={C} NUM_FONT={NUM_FONT} compact={compact || fold} />
+  if (fold) {
+    return (
+      <details aria-label="The ladder" style={{ margin: '8px 0', border: `1px solid ${C.border2}`, borderRadius: 10, padding: '0 12px' }}>
+        <summary style={{ minHeight: 44, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', listStyle: 'none', fontSize: 13, lineHeight: 1.3, color: C.text, fontWeight: 700 }}>
+          <span style={{ flex: 1 }}>{marketOneLine(ladder)}</span>
+          <span style={{ color: accent, fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, letterSpacing: '.08em', whiteSpace: 'nowrap' }}>THE LADDER ▾</span>
+        </summary>
+        <div style={{ paddingBottom: 10 }}>
+          {sentence ? <p style={{ margin: '2px 0 6px', fontSize: 13, lineHeight: 1.4, color: C.text }}>{sentence}</p> : null}
+          {table}
+          <p style={{ margin: '6px 0 0', fontSize: 11.5, lineHeight: 1.45, color: C.text3 }}>{scope}</p>
+          {children}
+        </div>
+      </details>
+    )
+  }
+  return (
+    <section aria-label="The ladder" style={{ margin: compact ? '8px 0' : '4px 0 14px' }}>
+      <div style={kicker(C, NUM_FONT, accent)}>{heading}</div>
+      {sentence ? <p style={{ margin: '0 0 8px', fontSize: compact ? 13.5 : 15, lineHeight: 1.4, color: C.text, fontWeight: 700 }}>{sentence}</p> : null}
+      {table}
+      <p style={{ margin: '6px 0 0', fontSize: 11.5, lineHeight: 1.45, color: C.text3 }}>{scope}</p>
+      {children}
+    </section>
+  )
+}
+
+/** The market ladder, drawn from a ladder object (lib/record/ladder.js marketLadderFrom) -- for a server page that already read the body. */
+export function MarketLadderBlock({ ladder, sport = ladder?.sport, ...rest }) {
+  if (!ladder) return null
+  return <Themed sport={sport}><MarketInner ladder={ladder} {...rest} /></Themed>
+}
+
 /**
  * The ladder for the in-app Record tab: reads /api/calibration (the one lock-enforced reader), draws the ladder,
  * the version split and the price line. `aside` is a labelled secondary line (CAPTURE) under the ladder.
  */
-export function LadderFromApi({ sport = 'nhl', versions = false, odds = false, compact = false, aside = null }) {
+export function LadderFromApi({ sport = 'nhl', versions = false, odds = false, compact = false, fold = false, aside = null }) {
   const { data } = useLiveFetch(`/api/calibration?sport=${sport}`)
   const ladder = useMemo(() => ladderFrom(data), [data])
+  const market = useMemo(() => (ladderKind(sport) === 'market' ? marketLadderFrom(data, { sport }) : null), [data, sport])
+  if (market) return <Themed sport={sport}><MarketInner ladder={market} compact={compact} fold={fold}>{aside}</MarketInner></Themed>
   if (!ladder) return null
   return (
     <Themed sport={sport}>
