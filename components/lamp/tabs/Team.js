@@ -1,8 +1,10 @@
 'use client'
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import TeamPage from '../../team/TeamPage'
 import LampTable from '../LampTable'
 import GoalieWeakSpots from '../GoalieWeakSpots'
+import TeamGoalies from '../TeamGoalies'
+import InjuryOut from '../../injuries/InjuryOut'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampTeam, useLampTeamDeep, useLampBoardOnce, useLampHotSticks } from '../../../lib/nhl/useLamp'
 import { nhlTeam } from '../../../lib/nhl/teams'
@@ -12,9 +14,8 @@ import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker } from '../ui'
 
 // 🏒 TEAM — one club, a real destination (spec §11), never a modal. 2026-10-10: it is the SHARED team page now
 // (components/team/TeamPage.js): the header (record, standing, splits, next game, last five), a one-row chips bar,
-// and seven sections from the registry in lib/team/registry.js -- roster with tonight's board status, schedule,
-// stats with the rank of 32, OUR calls on the club's skaters, the next game's matchup, trends, goalies & special
-// teams. The view is built by lib/team/nhl.js from four reads that already exist or were added for it:
+// and eight sections from the registry in lib/team/registry.js -- roster with tonight's board status, schedule,
+// stats with the rank of 32, OUR calls on the club's skaters, the next game's matchup, trends, goalies (starter, season line, weak zones, rest, injuries), special teams. The view is built by lib/team/nhl.js from four reads that already exist or were added for it:
 // /api/lamp/team (schedule, roster, season lines), /api/lamp/teamdeep (ranks, xG, calls, next game),
 // /api/lamp/board (tonight's status words) and /api/lamp/hotsticks (last 5 / last 10). The section rides the address
 // as sec=. A feed that is down leaves its sections empty with the data named, never a made-up number.
@@ -28,6 +29,14 @@ export default function Team({ abbrev, onOpenPlayer, onOpenGame, onOpenTeam = nu
   const nav = useTeamNav()
   const openTeam = onOpenTeam || nav
   const view = useMemo(() => (club ? buildNhlTeam({ team: club.abbrev, payload: t, deep, board, form }) : null), [club, t, deep, board, form])
+  // the slot components are stable (a new function each render would remount them); they read the latest handlers from a ref
+  const live = useRef({})
+  live.current = { openPlayer: onOpenPlayer, openTeam }
+  const Slots = useMemo(() => ({
+    goalieReads: (p) => <TeamGoalies {...p} onOpenPlayer={live.current.openPlayer ? (id) => live.current.openPlayer(id) : null} />,
+    injuries: ({ clubs }) => <InjuryOut sport="nhl" clubs={clubs} theme={{ C, NUM_FONT, accent: C.ice }} title="Out" onOpenTeam={(a) => live.current.openTeam?.(a)}
+      openPlayer={(e) => (e.player_id && live.current.openPlayer ? () => live.current.openPlayer(e.player_id) : null)} />,
+  }), [])
   if (!goodCode) return <EmptyState title="NO CLUB PICKED" note="Open a club from Teams, the Board, a roster, or a player’s file."><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   if (!club) return <EmptyState title="NO SUCH CLUB" note="That is not one of the 32 NHL clubs." tone={C.text3}><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   if (loading && !t) return <Loading what="the club" />
@@ -35,7 +44,7 @@ export default function Team({ abbrev, onOpenPlayer, onOpenGame, onOpenTeam = nu
   return (
     <TeamPage
       view={view} theme={{ C, NUM_FONT, accent: C.ice }}
-      ui={{ Table: LampTable, EmptyState, Kicker, Weak: GoalieWeakSpots }}
+      ui={{ Table: LampTable, EmptyState, Kicker, Weak: GoalieWeakSpots, Slots }}
       nav={{ onOpenPlayer, onOpenGame, onOpenTeam: openTeam }}
       back={<BackBtn onBack={onBack} label={backLabel} />}
       banner={<><DelayedBanner error={t ? null : error} what="this club" /><DelayedBanner error={deep ? null : deepError} what="the club’s league numbers" /></>}

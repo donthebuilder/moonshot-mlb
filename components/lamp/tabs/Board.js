@@ -33,6 +33,7 @@ import { useWhySheet, whyColumn } from '../../WhySheet'
 import { MatchLogos } from '../../TeamMark'
 import LAMP_BT from '../../../lib/nhl/angleBacktest.json'
 import { localTime } from '../../../lib/localTime'
+import { useColumnSet } from '../../../lib/useColumnSet'
 
 // 🏒 THE LAMP GOAL BOARD (lamp-goal-v1) — the product's first signal page.
 // Per game: every scored skater ranked, the top skater on each TEAM CALLED, the rest ON
@@ -71,6 +72,7 @@ const BAND_DEFS = {
   SOG: [{ key: 'shotsPg', label: 'Shots / GP' }, { key: 'toi', label: 'Ice time' }, { key: 'oppSaPg', label: 'Opp shots allowed' }],
   PTS: [{ key: 'ptsPg', label: 'Points / GP' }, { key: 'toi', label: 'Ice time' }, { key: 'oppGaPg', label: 'Opp goals allowed' }],
   AST: [{ key: 'astPg', label: 'Assists / GP' }, { key: 'toi', label: 'Ice time' }, { key: 'oppGaPg', label: 'Opp goals allowed' }],
+  G2: [{ key: 'shotsPg', label: 'Shots / GP' }, { key: 'shPct', label: 'Shooting %' }, { key: 'toi', label: 'Ice time' }, { key: 'goalsPg', label: 'Goals / GP' }],
 }
 
 export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = null, setDate = () => {}, market: marketTab = null, onMarket = null }) {
@@ -86,12 +88,14 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   const M = marketOf(market)
   // ONE READ PER MARKET (2026-10-08): each chip carries its count (skaters with a score for that market), as TUDDY's do
   const bGoal = useLampBoard(date, 'GOAL'), bSog = useLampBoard(date, 'SOG'), bPts = useLampBoard(date, 'PTS'), bAst = useLampBoard(date, 'AST')
-  const boardsBy = { GOAL: bGoal, SOG: bSog, PTS: bPts, AST: bAst }
+  // 2+ GOALS (goal2_site_v1, a new model): read only once its pill is opened (one more night build is not paid for every visit)
+  const bG2 = useLampBoard(date, 'G2', market === 'G2')
+  const boardsBy = { GOAL: bGoal, SOG: bSog, PTS: bPts, AST: bAst, G2: bG2 }
   const { data, error, loading } = boardsBy[market] || bGoal
   const marketCounts = useMemo(() => Object.fromEntries(MARKETS.map((m) => {
     const d = boardsBy[m.key]?.data
     return [m.key, d ? (d.games || []).filter((g) => !g.noMarketLock).reduce((n, g) => n + g.rows.filter((r) => r.status !== 'off' && r.score != null && Number.isFinite(Number(r.score))).length, 0) : null]
-  })), [bGoal.data, bSog.data, bPts.data, bAst.data]) // eslint-disable-line react-hooks/exhaustive-deps
+  })), [bGoal.data, bSog.data, bPts.data, bAst.data, bG2.data]) // eslint-disable-line react-hooks/exhaustive-deps
   // TEST is a small tag inside the chip, not a longer label: the record rule (no record until 30 graded nights) stays printed
   const marketOptions = MARKETS.map((m) => ({ key: m.key, count: marketCounts[m.key] ?? undefined, title: m.label.replace(' \u00b7 TEST', '') + (m.test ? ' (a test: no record until 30 graded nights)' : ''),
     label: <>{m.short}{m.test ? <span style={{ marginLeft: 6, padding: '1px 4px', borderRadius: 4, border: `1px solid ${C.border2}`, color: C.text3, font: `800 9px/1.2 ${NUM_FONT}`, letterSpacing: '.06em' }}>TEST</span> : null}</>, }))
@@ -280,8 +284,9 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   const shareBtn = kept.length ? <CardButton sport="nhl" label="Download this ranking as an image"
     onDownload={() => downloadLampBoardCard([...kept].sort((a, b) => (b.r.score ?? 0) - (a.r.score ?? 0)).slice(0, 9), { market, date: shown || '', total: kept.length })} /> : null
   const nActive = chips.length + drawerChips.length
+  const colSet = useColumnSet('nhl')   // Short list / What I read / All (lib/columnViews.js); the tables below read the same choice
   const drawerProps = {
-    active: nActive > 0, activeCount: nActive,
+    active: nActive > 0, activeCount: nActive, columnSet: { set: colSet.set, onChange: colSet.setSet },
     activeFilters: [...chips, ...drawerChips].map((c) => ({ key: c.key, label: c.label, onRemove: c.onClear })),
     reset: clearAll, shown: kept.length, total: flat.length, accent: C.ice, accentInk: C.bg, positions: pf.control,
     poolTitle: "Skaters on tonight's board that clear the filters. Stacks with the team and game above.", emptyNote: 'Nothing clears every filter at once. Loosen one.',
@@ -419,6 +424,8 @@ const MARKETS = [
   // 10-01 (lamp-pts / lamp-ast), shown as a TEST until each has 30 graded nights (the record rule)
   { key: 'PTS', label: 'POINTS 1+ · TEST', short: 'POINTS 1+', test: true, eyebrow: 'LAMP · RANKINGS · POINTS · TEST', note: 'Who we rank tonight, and why. A TEST: three called per game for 1+ point, locked before puck drop, graded after; no record is printed until 30 graded nights. Score = mean of three percentile ranks tonight: points per game over his last 82, ice time, and how many goals his opponent allows.', result: 'PTS', log: 'lamp_prop_log' },
   { key: 'AST', label: 'ASSISTS 1+ · TEST', short: 'ASSISTS 1+', test: true, eyebrow: 'LAMP · RANKINGS · ASSISTS · TEST', note: 'Who we rank tonight, and why. A TEST: three called per game for 1+ assist, locked before puck drop, graded after; no record is printed until 30 graded nights. Score = mean of three percentile ranks tonight: assists per game over his last 82, ice time, and how many goals his opponent allows.', result: 'AST', log: 'lamp_prop_log' },
+  // 2+ GOALS (TWO-SCORE batch, 2026-10-11, Donovan): a NEW MODEL, tracked, never CALLED (goals are exempt from the Card price floor; no 2+ goals price is stored)
+  { key: 'G2', label: '2+ GOALS · NEW MODEL', short: '2+ GOALS', test: true, eyebrow: 'LAMP · RANKINGS · 2+ GOALS · NEW MODEL', note: 'Who could score two. Two-goal ranking: a new model, not part of the goal score. Ranked tonight by shots per game, shooting %, ice time and goals per game over his last 82 games; ON THE BOARD is the top third. Recorded before puck drop and graded on the real result, 2 or more goals; no record is printed until 30 graded nights. Information only.', result: 'GOALS', log: 'lamp_prop_log' },
 ]
 // The SCORE header's ⓘ, per market (it had none, so no explanation and no
 // picture). The legs are the models' own: lib/nhl/goalModel.js and
@@ -428,6 +435,7 @@ const SCORE_TITLE = {
   SOG: 'Tonight\u2019s shots score: shots and ice time per game, and how many shots his opponent allows, each ranked against tonight\u2019s skaters. Higher ranks better.',
   PTS: 'Tonight\u2019s points score (a TEST): points and ice time per game, and how many goals his opponent allows, each ranked against tonight\u2019s skaters. Higher ranks better.',
   AST: 'Tonight\u2019s assists score (a TEST): assists and ice time per game, and how many goals his opponent allows, each ranked against tonight\u2019s skaters. Higher ranks better.',
+  G2: 'Tonight\u2019s two-goal ranking (a new model, not part of the goal score): shots, shooting %, ice time and goals per game over his last 82 games, each ranked against tonight\u2019s skaters, then weighted. A ranking, not a probability. Higher ranks better.',
 }
 const SCORE_ART = { GOAL: 'nhl-goal' }   // components/ScoreArt.js
 const marketOf = (k) => MARKETS.find((m) => m.key === k) || MARKETS[0]
@@ -437,6 +445,7 @@ const RATE_COLS = {
   SOG: [{ key: 'spg', label: 'S/GP', leg: 'shotsPg', dp: 2, w: 44 }, { key: 'osa', label: 'OPP SA/60', leg: 'oppSaPg', dp: 1, w: 62 }],
   PTS: [{ key: 'ptspg', label: 'P/GP', leg: 'ptsPg', dp: 2, w: 44 }, { key: 'oga', label: 'OPP GA/GP', leg: 'oppGaPg', dp: 2, w: 66 }],
   AST: [{ key: 'apg', label: 'A/GP', leg: 'astPg', dp: 2, w: 44 }, { key: 'oga', label: 'OPP GA/GP', leg: 'oppGaPg', dp: 2, w: 66 }],
+  G2: [{ key: 'spg', label: 'S/GP', leg: 'shotsPg', dp: 2, w: 44 }, { key: 'shp', label: 'SH%', leg: 'shPct', dp: 3, w: 48 }],
 }
 const rateCols = (market) => (RATE_COLS[market] || RATE_COLS.GOAL).map(({ key, label, dp, w }) => ({ key, label, primary: true, dp, w }))
 const rateVals = (r, market) => Object.fromEntries((RATE_COLS[market] || RATE_COLS.GOAL).map((c) => [c.key, r.legs ? r.legs[c.leg] ?? null : null]))
@@ -444,27 +453,28 @@ const rateVals = (r, market) => Object.fromEntries((RATE_COLS[market] || RATE_CO
 function columnsFor(g, onOpenTeam, market = 'GOAL') {
   const graded = g.graded
   const sog = market === 'SOG'
+  const G = { call: { key: 'call', label: 'Call', order: 1 }, rate: { key: 'rate', label: 'Per game', order: 2 }, st: { key: 'st', label: 'PP', order: 3 } }   // the same three groups as lampSlateColumns
   return [
-    { key: 'rank', label: '#', heat: false, mono: true, w: 28,
+    { key: 'rank', group: G.call, label: '#', heat: false, mono: true, w: 28,
       fmt: (v, r) => (r.status === 'called'
         ? <span title={STATUS.called} style={{ display: 'inline-block', minWidth: 16, textAlign: 'center', background: C.ice, color: C.bg, font: `900 10px/16px ${NUM_FONT}`, borderRadius: 4 }}>{v}</span>
         : v) },
-    { key: 'name', label: 'PLAYER', heat: false, sticky: true, bold: true, w: 170,
+    { key: 'name', group: G.call, label: 'PLAYER', heat: false, sticky: true, bold: true, w: 170,
       fmt: (v, r) => <>{v}<span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, marginLeft: 6 }}>{r.pos}</span></> },
-    { key: 'team', label: 'TM', heat: false, mono: true, w: 40,
+    { key: 'team', group: G.call, label: 'TM', heat: false, mono: true, w: 40,
       fmt: (v) => <button type="button" onClick={(e) => { e.stopPropagation(); onOpenTeam?.(v) }} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text2, font: `800 10.5px/1 ${NUM_FONT}` }}>{v}</button> },
-    { key: 'score', label: 'SCORE', primary: true, scale: 'seq', domain: [0, 100], w: 50, explain: SCORE_TITLE[market], art: SCORE_ART[market] || null, answers: market === 'GOAL' ? 'nhl-goal' : null },
-    ...rateCols(market),
-    { key: 'toi', label: 'TOI', primary: true, w: 48, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
-    { key: 'pctl', label: 'LEGS', heat: false, w: 118, fmt: (v, r) => (r.status === 'called' ? <PctBars r={r._row} market={market} /> : null) },
+    { key: 'score', group: G.call, label: 'SCORE', cset: 'lean', primary: true, scale: 'seq', domain: [0, 100], w: 50, explain: SCORE_TITLE[market], art: SCORE_ART[market] || null, answers: market === 'GOAL' ? 'nhl-goal' : null },
+    ...rateCols(market).map((c, i) => ({ ...c, group: G.rate, cset: i === 0 ? 'lean' : 'read' })),
+    { key: 'toi', group: G.rate, label: 'TOI', cset: 'read', primary: true, w: 48, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
+    { key: 'pctl', group: G.rate, label: 'LEGS', cset: 'read', heat: false, w: 118, fmt: (v, r) => (r.status === 'called' ? <PctBars r={r._row} market={market} /> : null) },
     // Context columns (lamp research step 2): shown beside the score, never
     // in it. PP G is his season's power-play goals; PP v PK is his club's
     // power play against tonight's opponent's penalty kill; REST is full days
     // off before tonight (B2B = played yesterday).
-    { key: 'ppg', label: 'PP G', primary: true, w: 44 },
-    { key: 'ppvpk', label: 'PP v PK', heat: false, mono: true, w: 84, fmt: (v) => v || '—' },
-    { key: 'rest', label: 'REST', heat: false, mono: true, w: 48, fmt: (v) => v || '—' },
-    { answers: 'called', key: 'result', label: graded ? marketOf(market).result : 'STATUS', heat: false, w: 96, fmt: (v, r) => {
+    { key: 'ppg', group: G.st, label: 'PP G', cset: 'read', primary: true, w: 44 },
+    { key: 'ppvpk', group: G.st, label: 'PP v PK', heat: false, mono: true, w: 84, fmt: (v) => v || '—' },
+    { key: 'rest', group: G.st, label: 'REST', heat: false, mono: true, w: 48, fmt: (v) => v || '—' },
+    { answers: 'called', key: 'result', group: G.call, cset: 'lean', label: graded ? marketOf(market).result : 'STATUS', heat: false, w: 96, fmt: (v, r) => {
       const row = r._row
       if (graded) {
         if (row.dressed === false) return <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>VOID</span>
@@ -515,13 +525,13 @@ function lampSlateColumns(g, market = 'GOAL', onOpenTeam) {
   const graded = g.graded
   const G = { call: { key: 'call', label: 'Call', order: 1 }, rate: { key: 'rate', label: 'Per game', order: 2 }, st: { key: 'st', label: 'PP', order: 3 } }
   const result = graded
-    ? [{ answers: 'called', key: 'result', label: marketOf(market).result, heat: false, w: 78, group: G.call, fmt: (v, r) => {
+    ? [{ answers: 'called', key: 'result', label: marketOf(market).result, cset: 'lean', heat: false, w: 78, group: G.call, fmt: (v, r) => {
         const row = r._row
         if (row.dressed === false) return <span style={{ color: C.text3, font: `800 11px/1 ${NUM_FONT}` }}>VOID</span>
         const n = countOf(row, market)
         return <>{row.status === 'called' ? <CalledChip /> : null}<span style={{ color: row.hit ? C.ice : C.text3, font: `900 13px/1 ${NUM_FONT}` }}>{n == null ? '\u2014' : <>{row.hit && <LampDot />}{n}</>}</span></>
       } }]
-    : [{ answers: 'called', key: 'result', label: 'STATUS', heat: false, w: 104, group: G.call, fmt: (v, r) => (r._row.status === 'called' ? <CalledChip /> : <span style={{ color: C.text3, font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>{STATUS[r._row.status]}</span>) }]
+    : [{ answers: 'called', key: 'result', label: 'STATUS', cset: 'lean', heat: false, w: 104, group: G.call, fmt: (v, r) => (r._row.status === 'called' ? <CalledChip /> : <span style={{ color: C.text3, font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>{STATUS[r._row.status]}</span>) }]
   return [
     { key: 'rank', label: '#', heat: false, mono: true, w: 30, group: G.call,
       fmt: (v, r) => (r.status === 'called'
@@ -530,11 +540,11 @@ function lampSlateColumns(g, market = 'GOAL', onOpenTeam) {
     { key: 'name', label: 'PLAYER', heat: false, sticky: true, bold: true, w: 170, group: G.call },
     { key: 'pos', label: 'POS', heat: false, mono: true, w: 44, group: G.call },
     { key: 'team', label: 'TEAM', heat: false, mono: true, w: 52, fold: false, group: G.call, fmt: (v) => v },
-    { key: 'score', label: 'SCORE', primary: true, scale: 'seq', domain: [0, 100], w: 56, group: G.call, explain: SCORE_TITLE[market], art: SCORE_ART[market] || null, answers: market === 'GOAL' ? 'nhl-goal' : null },
+    { key: 'score', label: 'SCORE', cset: 'lean', primary: true, scale: 'seq', domain: [0, 100], w: 56, group: G.call, explain: SCORE_TITLE[market], art: SCORE_ART[market] || null, answers: market === 'GOAL' ? 'nhl-goal' : null },
     ...(graded ? result : []),
-    ...(RATE_COLS[market] || RATE_COLS.GOAL).map(({ key, label, dp, w }) => ({ key, label, primary: true, dp, w: Math.max(w, 56), group: G.rate })),
-    { key: 'toi', label: 'TOI', primary: true, w: 56, group: G.rate, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
-    { key: 'ppg', label: 'PP G', primary: true, w: 52, group: G.st, explain: 'Power-play goals this season.' },
+    ...(RATE_COLS[market] || RATE_COLS.GOAL).map(({ key, label, dp, w }, i) => ({ key, label, cset: i === 0 ? 'lean' : 'read', primary: true, dp, w: Math.max(w, 56), group: G.rate })),
+    { key: 'toi', label: 'TOI', cset: 'read', primary: true, w: 56, group: G.rate, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
+    { key: 'ppg', label: 'PP G', cset: 'read', primary: true, w: 52, group: G.st, explain: 'Power-play goals this season.' },
     ...(graded ? [] : result),
   ]
 }
@@ -593,7 +603,7 @@ export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'G
       {scored.length === 0 ? <EmptyState title="NOBODY SCORED YET" note="No skater on either roster has ten NHL games on file." /> : layout === 'cards' ? (
         <LampCards market={market} onOpen={onOpenPlayer} items={rows.map((x) => ({ key: x.id, r: x._row, g, rank: x.rank, rankMove: x.rankMove, facts: { pp: pct1(spotOf(g, x.team, true)?.ppPct), pk: pct1(spotOf(g, x.team, false)?.pkPct), rest: x.rest } }))} />
       ) : (
-        <LampTable {...withNhlFullSet(rows, withLastNight(withWeakZone(slate ? lampSlateColumns(g, market, onOpenTeam) : columnsFor(g, onOpenTeam, market), wk, () => game.id), cln))} heatMode="primary"
+        <LampTable sets={!slate} {...withNhlFullSet(rows, withLastNight(withWeakZone(slate ? lampSlateColumns(g, market, onOpenTeam) : columnsFor(g, onOpenTeam, market), wk, () => game.id), cln))} heatMode="primary"
           rowEdge={(r) => (r.status === 'called' ? C.ice : null)}
           faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(game.season, r._row?.team, r._row?.playerId), name: r._row?.name })}
           dimRow={(r) => g.graded && r._row.dressed === false}
@@ -714,7 +724,7 @@ function withWeakZone(columns, wk, gameOf) {
 }
 function withLastNight(columns, cln) {
   if (!cln?.on) return columns
-  const col = lastNightColumn({ label: 'LAST NIGHT', group: LAST_NIGHT_GROUP })
+  const col = { ...lastNightColumn({ label: 'LAST NIGHT', group: LAST_NIGHT_GROUP }), cset: 'lean' }
   const at = columns.findIndex((c) => c.key === 'team')
   return at < 0 ? [...columns, col] : [...columns.slice(0, at + 1), col, ...columns.slice(at + 1)]
 }
@@ -746,14 +756,14 @@ export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam, onOpenGa
         </span>
       )
     } },
-    { key: 'score', label: 'SCORE', primary: true, scale: 'seq', domain: [0, 100], w: 50, group: GROUPS.signal, explain: SCORE_TITLE[market], art: SCORE_ART[market] || null, answers: market === 'GOAL' ? 'nhl-goal' : null },
-    whyColumn({ textOf: (r) => plainWhy(r._row, market).short, itemOf: (r) => whyItemFor(r._row, market, r.rank), open, theme: C, numFont: NUM_FONT, group: GROUPS.signal, w: 165 }),
-    { key: 'gameRank', label: 'GAME #', heat: false, mono: true, w: 52, group: GROUPS.signal, title: 'His rank in his own game. CALLED is the top-scored skater on each team (three in a game on the shots, points and assists boards).' },
-    ...rateCols(market).map((c) => ({ ...c, group: GROUPS.shooter })),
-    { key: 'toi', label: 'TOI', primary: true, w: 48, group: GROUPS.shooter, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
+    { key: 'score', label: 'SCORE', cset: 'lean', primary: true, scale: 'seq', domain: [0, 100], w: 50, group: GROUPS.signal, explain: SCORE_TITLE[market], art: SCORE_ART[market] || null, answers: market === 'GOAL' ? 'nhl-goal' : null },
+    { ...whyColumn({ textOf: (r) => plainWhy(r._row, market).short, itemOf: (r) => whyItemFor(r._row, market, r.rank), open, theme: C, numFont: NUM_FONT, group: GROUPS.signal, w: 165 }), cset: 'lean' },
+    { key: 'gameRank', label: 'GAME #', cset: 'read', heat: false, mono: true, w: 52, group: GROUPS.signal, title: 'His rank in his own game. CALLED is the top-scored skater on each team (three in a game on the shots, points and assists boards).' },
+    ...rateCols(market).map((c, i) => ({ ...c, cset: i === 0 ? 'lean' : 'read', group: GROUPS.shooter })),
+    { key: 'toi', label: 'TOI', cset: 'read', primary: true, w: 48, group: GROUPS.shooter, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
   ]
   return (<>
-    <LampTable {...withNhlFullSet(rows, withLastNight(withWeakZone(columns, wk, (r) => r._g?.game?.id), cln))} heatMode="primary" statusOf={(r) => r.status}
+    <LampTable sets {...withNhlFullSet(rows, withLastNight(withWeakZone(columns, wk, (r) => r._g?.game?.id), cln))} heatMode="primary" statusOf={(r) => r.status}
       rowEdge={(r) => (r.status === 'called' ? C.ice : null)}
       faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(r._g.game.season, r._row?.team, r._row?.playerId), name: r._row?.name })}
       dimRow={(r) => r._g?.graded && r._row?.dressed === false}

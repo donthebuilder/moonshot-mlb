@@ -98,9 +98,11 @@ const SCORE_ART = { TD: 'nfl-td' }
 // MERGED WITH RANKINGS (2026-10-06): this list is also the old Rankings table. It now carries
 // that page's marks (A+, Q, Thin, the matchup read), the watchlist star, and a WHY on every row:
 // the board's own sentence, tapped for the numbers behind it and where to look next.
+const PLAYER_GROUP = { key: 'player', label: 'Player', order: 0 }
+const CALL_GROUP = { key: 'call', label: 'The call', order: 1 }
 const MARK_GROUP = { key: 'marks', label: 'Marks', order: 2 }
 const TAGS_GROUP = { key: 'matchup', label: 'The matchup', order: 2.6 }
-export function NflBoardList({ players, market, weights, odds, phone, onPlayerClick, statusOf = null, rankOf = null, base = null, pool = null, watchlist = null, lastNight = null, tags = null, rankMv = null }) {
+export function NflBoardList({ players, market, weights, odds, phone, onPlayerClick, statusOf = null, rankOf = null, base = null, pool = null, watchlist = null, lastNight = null, tags = null, rankMv = null, twoOf = null }) {
   const { open: openWhy, sheet: whySheet } = useWhySheet({ theme: C, accent: C.green, numFont: NUM_FONT })
   // our line beside the book's (TEST, BATCH-DASH-LINE): only where one exists for this market
   const dash = useDashLines()
@@ -123,6 +125,7 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
       ...Object.fromEntries(top.map((k) => [k, Number.isFinite(p.components?.[market]?.[k]) ? Math.round(p.components[market][k]) : null])),
       hiConf: p.high_confidence_td_flag ? 1 : 0, quest: injuryTag(p) ? 1 : 0, lowS: p.low_sample ? 1 : 0, matchup: p.coverage_mismatch_tag || '',
       watched: watchlist?.isPinned?.(p.player_id) ? 1 : 0,
+      canTwo: twoOf?.get(String(p.player_id))?.can_two ? 1 : 0,   // 'Can score two' (lib/nfl/twoScore.js): top third of our 2+ TD board
       cln: lastNight?.on ? lastNight.cell(p.player_id) : '',
       // TAGS (lib/nfl/tags.js): only built while the Tags column is on; a count so the column sorts
       ...(tags?.show ? (() => { const all = tags.book.row(p).all; return { tags: all.map((t) => chipText(t, { onPlayerRow: true })).join(' \u00b7 '), _tags: all } })() : null),
@@ -156,9 +159,9 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
     }
   }
   const columns = [
-    ...(watchlist ? [{ key: 'watched', label: '☆', action: true, w: 28, mark: '★', markOff: '☆', titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist', onAction: (row) => watchlist.toggle(row._p ?? row) }] : []),
-    { key: 'rank', label: '#', w: 30, heat: false },
-    { key: 'name', label: 'Player', w: phone ? 158 : 170, heat: false, sticky: true, fmt: (v, r) => (
+    ...(watchlist ? [{ key: 'watched', group: PLAYER_GROUP, label: '☆', action: true, w: 28, mark: '★', markOff: '☆', titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist', onAction: (row) => watchlist.toggle(row._p ?? row) }] : []),
+    { key: 'rank', group: PLAYER_GROUP, label: '#', w: 30, heat: false },
+    { key: 'name', group: PLAYER_GROUP, label: 'Player', w: phone ? 158 : 170, heat: false, sticky: true, fmt: (v, r) => (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <PlayerFace sport="nfl" espnId={r._p?.espn_id} team={r._p?.team} name={r._p?.name} size={22} />
         {/* Wraps to a second line rather than "Amon-Ra St. B…" on a phone. */}
@@ -166,31 +169,32 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
       </span>) },
     // On a phone these fold into the sub-line under his name (v2 `fold`), not
     // vanish: the phone board showed no team or opponent at all (audit X12).
-    { key: 'pos', label: 'Pos', w: 40, heat: false, fold: true },
+    { key: 'pos', group: PLAYER_GROUP, label: 'Pos', w: 40, heat: false, fold: true },
     // logos, his club then the opponent (audit 04 NFL2: 'Game' was text)
-    { key: 'team', label: 'Tm', w: 34, heat: false, teamMark: 'nfl', fold: true }, { key: 'opp', label: 'Opp', w: 34, heat: false, teamMark: 'nfl', fold: true, subOnly: true },
+    { key: 'team', group: PLAYER_GROUP, label: 'Tm', w: 34, heat: false, teamMark: 'nfl', fold: true }, { key: 'opp', group: PLAYER_GROUP, label: 'Opp', w: 34, heat: false, teamMark: 'nfl', fold: true, subOnly: true },
     // CALLED LAST NIGHT (2026-10-10): last week's call and result, labelled as that week's; only while the filter is on
-    ...(lastNight?.on ? [lastNightColumn({ w: phone ? 190 : 240, group: { key: 'lastNight', label: 'Last night', order: 0.4 } })] : []),
-    { key: 'score', label: 'Score', w: 52, primary: true, scale: 'seq', domain: [0, 100], art: SCORE_ART[market] || null, answers: market === 'TD' ? 'nfl-td' : null },
-    ...(phone ? [] : [{ key: 'grade', label: 'Grade', w: 56, heat: false }]),
-    whyColumn({ textOf: (r) => whyOf(r._p)?.text || '', itemOf: whyItem, open: openWhy, theme: C, numFont: NUM_FONT, w: phone ? 124 : 260 }),
+    ...(lastNight?.on ? [{ ...lastNightColumn({ w: phone ? 190 : 240, group: { key: 'lastNight', label: 'Last night', order: 0.4 } }), cset: 'lean' }] : []),
+    { key: 'score', group: CALL_GROUP, label: 'Score', cset: 'lean', w: 52, primary: true, scale: 'seq', domain: [0, 100], art: SCORE_ART[market] || null, answers: market === 'TD' ? 'nfl-td' : null },
+    ...(phone ? [] : [{ key: 'grade', group: CALL_GROUP, label: 'Grade', cset: 'read', w: 56, heat: false }]),
+    { ...whyColumn({ textOf: (r) => whyOf(r._p)?.text || '', itemOf: whyItem, open: openWhy, theme: C, numFont: NUM_FONT, w: phone ? 124 : 260 }), group: CALL_GROUP, cset: 'lean' },
     // Status right after Why (2026-10-06): short on a phone, so Why shows without a swipe
-    ...(statusOf ? [{ key: 'status', label: 'Status', heat: false, statusCol: true, w: phone ? 64 : 118, fmt: (v, r) => <CallStatusBadge status={statusOf(r._p)} accent={C.green} short={phone} /> }] : []),
-    ...top.map((k) => ({ key: k, label: LABELS[k] || k, w: phone ? 74 : 86, scale: 'seq', domain: [0, 100] })),
+    ...(statusOf ? [{ key: 'status', group: CALL_GROUP, label: 'Status', heat: false, statusCol: true, w: phone ? 64 : 118, fmt: (v, r) => <CallStatusBadge status={statusOf(r._p)} accent={C.green} short={phone} /> }] : []),
+    ...top.map((k, i) => ({ group: CALL_GROUP, key: k, label: LABELS[k] || k, cset: i < 2 ? 'lean' : 'read', w: phone ? 74 : 86, scale: 'seq', domain: [0, 100] })),
     // TAGS: ball-security tags on him and the tags of the defence he faces; OFF until the Filters sheet turns it on (Tags > Show tags column)
-    ...(tags?.show ? [{ key: 'tags', label: 'Tags', w: phone ? 190 : 300, heat: false, numeric: false, group: TAGS_GROUP,
+    ...(tags?.show ? [{ key: 'tags', label: 'Tags', cset: 'read', w: phone ? 190 : 300, heat: false, numeric: false, group: TAGS_GROUP,
       title: 'Fumble-prone and Interception-prone describe him; the club-named tags (ATL weak corners) describe the defence he faces. Tap a tag for the number and the season behind it. Labels, not forecasts: they change no score.',
       fmt: (v, r) => (r._tags?.length ? <TagChips tags={r._tags} onPlayerRow max={phone ? 2 : 3} /> : <span style={{ color: C.text3 }}>—</span>) }] : []),
-    ...(phone || !odds ? [] : [{ key: 'price', label: 'Price', w: 60, heat: false, fmt: (v) => (v == null ? '—' : v > 0 ? `+${v}` : String(v)) }]),
-    ...(phone || !odds || !rows.some((r) => r.moveNum != null) ? [] : [{ key: 'moveNum', label: 'Line moved', w: 112, dp: 1,
+    ...(phone || !odds ? [] : [{ key: 'price', group: CALL_GROUP, label: 'Price', cset: 'read', w: 60, heat: false, fmt: (v) => (v == null ? '—' : v > 0 ? `+${v}` : String(v)) }]),
+    ...(phone || !odds || !rows.some((r) => r.moveNum != null) ? [] : [{ key: 'moveNum', group: CALL_GROUP, label: 'Line moved', cset: 'read', w: 112, dp: 1,
       title: 'Where the price opened against our latest read, in break-even points (▲ shortened, ▼ drifted). The chip shows opening → now. Blank when no opening price was recorded: nothing is guessed.',
       fmt: (v, r) => (r._q ? <LineMoveChip quote={r._q} theme={C} numFont={NUM_FONT} compact /> : '—') }]),
     // DASH: our median for the stat, coloured by its lean against the book's line (a TEST)
-    { key: 'hiConf', label: 'A+', flag: true, mark: '\u2605', w: 30, group: MARK_GROUP, title: 'High-confidence TD flag: a TD score of 78 or better, the A+ band.' },
-    { key: 'quest', label: 'Q', flag: true, mark: 'Q', w: 28, group: MARK_GROUP, title: 'Listed on the injury report.' },
-    { key: 'lowS', label: 'Thin', flag: true, mark: '\u25CB', w: 34, group: MARK_GROUP, title: 'Few games behind this score. Dimmed rows are these.' },
-    { key: 'matchup', label: 'Matchup', heat: false, w: 64, dim: true, group: MARK_GROUP, title: 'The coverage read: TARGET when the defense he faces leaks to his role, AVOID when it does not.' },
-    ...(dmk && dash && !dash.off ? [{ key: 'dash', label: 'OUR LINE', w: phone ? 108 : 118, heat: false, numeric: true,
+    { key: 'hiConf', label: 'A+', cset: 'lean', flag: true, mark: '\u2605', w: 30, group: MARK_GROUP, title: 'High-confidence TD flag: a TD score of 78 or better, the A+ band.' },
+    ...(twoOf ? [{ key: 'canTwo', label: '2+', cset: 'read', flag: true, mark: '2+', w: 34, group: MARK_GROUP, title: 'Can score two: in the top third of our 2+ TD ranking (a new model, not part of the TD score). A ranking, not a forecast. Open the 2+ TD board for the inputs.' }] : []),
+    { key: 'quest', label: 'Q', cset: 'lean', flag: true, mark: 'Q', w: 28, group: MARK_GROUP, title: 'Listed on the injury report.' },
+    { key: 'lowS', label: 'Thin', cset: 'read', flag: true, mark: '\u25CB', w: 34, group: MARK_GROUP, title: 'Few games behind this score. Dimmed rows are these.' },
+    { key: 'matchup', label: 'Matchup', cset: 'read', heat: false, w: 64, dim: true, group: MARK_GROUP, title: 'The coverage read: TARGET when the defense he faces leaks to his role, AVOID when it does not.' },
+    ...(dmk && dash && !dash.off ? [{ key: 'dash', group: CALL_GROUP, label: 'OUR LINE', cset: 'read', w: phone ? 108 : 118, heat: false, numeric: true,
       title: 'Our median for this stat, beside the book\u2019s line. Bright = above it (OVER), dim = below (UNDER), grey = within half a unit. A preview until the game locks, then frozen. Nothing is called from it.',
       fmt: (v, r) => (r._dash ? <DashChip row={r._dash} compact /> : '—') }] : []),
   ]
@@ -201,7 +205,7 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
     <div className="nfl-board-list">
     <style>{`@media (max-width: 860px){.nfl-board-list .dense-sticky{max-width:150px!important;min-width:132px!important}}`}</style>
     {whySheet}
-    <NflTable rows={rows} columns={allColumns} heatMode="primary" maxRows={rows.length} maxHeight={9999}
+    <NflTable sets rows={rows} columns={allColumns} heatMode="primary" maxRows={rows.length} maxHeight={9999}
       dimRow={(r) => r._p?.low_sample} onRowClick={(r) => (r._p?.position === 'DEF' ? null : onPlayerClick?.(r._p, market))}
       // the TD board's Status column: CALLED / ON THE BOARD / NOT ON THE BOARD (lib/nfl/tdStatus)
       statusOf={statusOf ? (r) => statusOf(r._p) : null}

@@ -4,6 +4,7 @@ import DenseTable from '../DenseTable'
 import { C, rampAt } from '../../lib/nfl/theme'
 import { NFL_GLOSSARY, NFL_SCORE_TERMS, NFL_RANK_NOT_PERCENT } from '../../lib/nfl/glossary'
 import { tagIdentity } from '../../lib/tableTags'
+import { useSetColumns } from '../../lib/useColumnSet'
 
 // 📊 TUDDY'S TABLE — DenseTable with the football dictionary in it.
 //
@@ -24,11 +25,13 @@ import { tagIdentity } from '../../lib/tableTags'
 // does not define them -- obvious words do not need a definition, and a dot on
 // every header is noise on a phone. Adding a term is how a column earns one.
 export default function NflTable(props) {
-  const columns = useMemo(() => tagIdentity(props.columns, 'nfl', props.rows), [props.columns, props.rows])
+  // `sets`: the board opted into the column-set switch (lib/columnViews.js); a table without it draws every column, as before
+  const shown = useSetColumns(props.columns, props.sets, 'nfl')
+  const columns = useMemo(() => tagIdentity(shown, 'nfl', props.rows), [shown, props.rows])
   return (
     <DenseTable
       {...props}
-      // v2-only identity tags (logos, the phone fold); classic ignores them
+      // identity tags (logos, the phone fold)
       columns={columns}
       // DenseTable's default caption is sport-neutral now (2026-10-04).
       caption={props.caption}

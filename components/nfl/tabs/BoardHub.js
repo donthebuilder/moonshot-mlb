@@ -4,12 +4,15 @@ import LedgerChip from '../../LedgerChip'
 import WatchChip from '../../WatchChip'
 import { useHashFilter } from '../../../lib/filterHash'
 import { useEffect, useMemo, useState } from 'react'
-import { C, NUM_FONT, TYPE, MARKETS } from '../../../lib/nfl/theme'
+import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { PillRow } from '../../Filters'
 import { alpha } from '../../../lib/scales'
 import BoardTopBar from '../../BoardTopBar'
 import { nflGameOptions } from '../NflBoardExtras'
 import Touchdowns, { tdPool } from './Touchdowns'
+import TwoTouchdowns from './TwoTouchdowns'
+import { HUB_MARKETS, OWN_MODEL_MARKETS } from '../../../lib/nfl/boardMarkets'
+import { twoBoard } from '../../../lib/nfl/twoScore'
 import HowToRead from '../../HowToRead'
 import { STATUS_WORD } from '../../../lib/callStatus'
 import Boards from './Boards'
@@ -17,6 +20,8 @@ import Picks from './Picks'
 import { tdStatusFor } from '../../../lib/nfl/tdStatus'
 import { useGameCalls } from '../GameCalls'
 import { useIsPhone } from '../../MobileFold'
+
+const MARKETS = HUB_MARKETS   // lib/nfl/boardMarkets.js: the seven scored markets + 2+ TD (our own new model)
 
 // 🃏 THE BOARD, ONE PAGE (2026-09-26, Donovan picked option (b) in
 // .claude-notes/TUDDY-FOUR-PAGES.md). Board (the TD list) and Boards (the
@@ -107,10 +112,11 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
     const label = (MARKETS.find(([k]) => k === market) || [])[1] || market
     // Ordinary words lowercase, abbreviations kept: "anytime TD", "defense/ST TD".
     const words = label.split(/(\s+|\/)/).map((w) => (/^[A-Z]{2,}$/.test(w) ? w : w.toLowerCase())).join('')
-    onTitle?.(view === 'board' && market === 'TD' ? null : `NFL ${words} ${view === 'called' ? 'calls, graded' : 'board'} \u00b7 TUDDY`)
+    onTitle?.(view === 'board' && market === 'TD' ? null : `NFL ${words} ${view === 'called' && !OWN_MODEL_MARKETS.has(market) ? 'calls, graded' : 'board'} \u00b7 TUDDY`)
   }, [market, view]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => onTitle?.(null), []) // eslint-disable-line react-hooks/exhaustive-deps
-  const counts = Object.fromEntries(MARKETS.map(([k]) => [k, (k === 'TD' ? (slate?.players || []) : (data?.players || [])).filter((p) => Number.isFinite(p.scores?.[k]) && (k === 'TD' || !p.low_sample)).length]))
+  const twoCount = useMemo(() => twoBoard(slate, matchup).rows.length, [slate, matchup])
+  const counts = Object.fromEntries(MARKETS.map(([k]) => [k, OWN_MODEL_MARKETS.has(k) ? twoCount : (k === 'TD' ? (slate?.players || []) : (data?.players || [])).filter((p) => Number.isFinite(p.scores?.[k]) && (k === 'TD' || !p.low_sample)).length]))
   const marketOptions = MARKETS.map(([key, label]) => ({ key, label, count: counts[key] }))
   const teams = useMemo(() => [...new Set((slate?.players || data?.players || []).map((p) => p.team).filter(Boolean))].sort(), [slate, data])
   const games = useMemo(() => nflGameOptions(slate?.games || data?.games), [slate, data])
@@ -192,9 +198,11 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
       </div>
       <PillRow label="Market" value={market} options={marketOptions} onChange={setMarket} />
       </>)}
-      {view === 'called'
+      {view === 'called' && !OWN_MODEL_MARKETS.has(market)
         ? <Picks picks={picks} results={results} data={data} matchup={matchup} onPlayerClick={onPlayerClick} odds={odds} oddsStatus={oddsStatus} logs={logs} market={market} hideMarketPicker top={top} />
-        : market === 'TD'
+        : OWN_MODEL_MARKETS.has(market)
+          ? <TwoTouchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} oddsStatus={oddsStatus} top={top} showOpts={!phone || opts} />
+          : market === 'TD'
           ? <Touchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} oddsStatus={oddsStatus} logs={logs} top={top} results={results} liveSnap={liveSnap} statusOf={tdStatus.statusOf} showOpts={!phone || opts} />
           : <Boards data={data} logs={logs} matchup={matchup} onPlayerClick={onPlayerClick} odds={odds} oddsStatus={oddsStatus} market={market} hideMarketPicker top={top} showOpts={!phone || opts} />}
     </div>

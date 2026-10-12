@@ -21,7 +21,7 @@ const KEY_BY_POS = {
 }
 
 /** The props for <VerdictBlock sport="nfl" />. `statusWord` is tdStatus.statusOf(player) (TD market only). */
-export function nflVerdict({ player, market, spec, score, statusWord, whyLines, watch, whyExplain }) {
+export function nflVerdict({ player, market, spec, score, statusWord, whyLines, watch, whyExplain, two = null }) {
   if (!Number.isFinite(score)) {
     return {
       offSlate: 'Not rated this week.',
@@ -35,6 +35,8 @@ export function nflVerdict({ player, market, spec, score, statusWord, whyLines, 
     // the TD market's chip carries the TD word when he is not on the market on screen (the word is the TD board's, from lib/callStatus)
     .map(([k, label]) => ({ t: `${MARKET_SHORT[k] || label} ${Math.round(player.scores[k])}${k === 'TD' && statusWord ? ` · ${STATUS_WORD[statusWord]}` : ''}` }))
   const chips = [...others]
+  // CAN SCORE TWO (lib/nfl/twoScore.js, td2_site_v1): a tag on our own ranking; the inputs behind it on a tap
+  if (two?.can_two) chips.push({ t: '2+ TD · can score two', explain: `In the top third of our 2+ TD ranking (#${two.two_rank} of ${two.two_of}): ${(two.two?.parts || []).map((x) => `${x.label} ${Math.round(x.pct)}`).join(' · ')}. Two-score ranking: a new model, not part of the TD score. A ranking, not a forecast.` })
   if (player?.low_sample) chips.push({ t: 'Low sample', warn: true })
   return {
     status: market === 'TD' ? statusWord : null,

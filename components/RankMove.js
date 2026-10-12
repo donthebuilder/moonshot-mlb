@@ -11,6 +11,8 @@ import { explain } from '../lib/explain'
 import { moveText, MOVE_CAPTION } from '../lib/rankMove'
 import { NUM_FONT } from '../lib/design/tokens'
 
+const HIT_Y = 11
+const HIT_X = 5
 const clock = (ms) => { try { return new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) } catch { return '' } }
 
 export function moveWords(move, prevAt, source) {
@@ -39,6 +41,10 @@ export default function RankMove({ move, prevAt = null, source = 'device', up = 
         display: block ? 'block' : 'inline-block', fontFamily: NUM_FONT, fontSize: size, fontWeight: 800, lineHeight: 1,
         letterSpacing: move.kind === 'new' ? '.04em' : 0, whiteSpace: 'nowrap', cursor: 'pointer',
         color: isUp ? up : down, ...style,
+        // A BIGGER TAP BOX, THE SAME LOOK (Wave 4): 11px / 5px of invisible padding, handed back as negative margin, so the glyph sits
+        // exactly where it did and nothing around it moves. The box is ~33x32, over the 32px floor of scripts/check-mobile.mjs.
+        position: 'relative', padding: `${HIT_Y}px ${HIT_X}px`,
+        margin: `${(style?.marginTop ?? 0) - HIT_Y}px ${-HIT_X}px ${-HIT_Y}px`,
       }}>{glyph}</span>
   )
 }

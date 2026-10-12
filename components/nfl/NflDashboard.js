@@ -21,6 +21,7 @@ import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { AccentProvider } from '../Filters'
 import useBlendedMatchup from '../../lib/nfl/useBlendedMatchup'
 import { withRoles } from '../../lib/nfl/roles'
+import { withUsageShares } from '../../lib/nfl/usageShares'
 import { fetchNfl, nflSlatePaths, nflMetaPaths, nflMatchupPaths, nflLogPaths, nflPicksPaths, nflResultsPaths, nflOddsPaths, nflOddsStatusPaths, nflSlateLooksReal, nflMatchupLooksReal, nflPicksLooksReal, nflOddsLooksReal } from '../../lib/nfl/dataSource'
 import { initialHashParams, setSport } from '../../lib/sport'
 import { tabSwitchHash } from '../../lib/useShellRoute'
@@ -149,7 +150,8 @@ export default function NflDashboard({ palettePass = 0 }) {
   // ONE SEASON PER DEFENSE (lib/nfl/seasonRule.js): a defense under 3 games this season takes last season's whole table, labelled; else this season's
   const matchup = useBlendedMatchup(matchupRaw, dataRaw?.season)
   // EVERY PLAYER CARRIES HIS DEPTH ROLE (lib/nfl/roles.js): RB1 / WR2 / TE1 off the bot's depth chart, put on each row once so no table works it out itself
-  const data = useMemo(() => withRoles(dataRaw, matchup), [dataRaw, matchup])
+  // + HIS SHARE OF HIS CLUB (lib/nfl/usageShares.js): snap share, last-3 and trend, put on each row once for every table's Role & usage columns
+  const data = useMemo(() => withUsageShares(withRoles(dataRaw, matchup), matchup), [dataRaw, matchup])
   const [logs, setLogs] = useState(null)
   const [picks, setPicks] = useState(null)
   const [nflResults, setNflResults] = useState(null)

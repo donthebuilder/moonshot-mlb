@@ -49,11 +49,11 @@ export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onO
     { key: 'pos', label: 'Pos', group: 'Player', w: 36, heat: false, mono: true, dim: true },
     { key: 'team', label: 'Tm', group: 'Player', w: 52, heat: false, mono: true, teamMark: 'nba', link: (r) => (onOpenTeam ? () => onOpenTeam(r.team) : null) },
     { key: 'oppTxt', label: 'Opp', group: 'Player', w: 52, heat: false, mono: true, dim: true, subOnly: true, link: (r) => (onOpenTeam ? () => onOpenTeam(r.opp) : null) },
-    ...KEYS.map((k, i) => ({ key: `s_${k}`, label: NBA_MARKETS[k].label.replace(' BASKET', ''), group: 'Markets (score · status)', w: 74, dp: 0, primary: i === 0, scale: 'seq', domain: [0, 100],
+    ...KEYS.map((k, i) => ({ key: `s_${k}`, label: NBA_MARKETS[k].label.replace(' BASKET', ''), cset: i < 3 ? 'lean' : 'read', group: 'Markets (score · status)', w: 74, dp: 0, primary: i === 0, scale: 'seq', domain: [0, 100],
       title: `${NBA_MARKETS[k].label}: the 0-100 score and its status word`,
       fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span style={{ display: 'inline-grid', lineHeight: 1.15 }}><b>{v}</b>{r[`st_${k}`] && r[`st_${k}`] !== 'off' ? <CallStatusBadge status={r[`st_${k}`]} accent={C.purple} short size={8} /> : null}</span>) })),
-    { key: 'xpts', label: 'xPTS', group: 'Projected', w: 58, dp: 1, mono: true, title: XPTS_TITLE, fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span title={r.xptsLine || XPTS_TITLE}>{Number(v).toFixed(1)}</span>) },
-    { key: 'tip', label: 'Game', group: 'Game', w: 84, heat: false, mono: true, dim: true, link: (r) => (onOpenGame ? () => onOpenGame(r.gameId) : null),
+    { key: 'xpts', label: 'xPTS', cset: 'read', group: 'Projected', w: 58, dp: 1, mono: true, title: XPTS_TITLE, fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span title={r.xptsLine || XPTS_TITLE}>{Number(v).toFixed(1)}</span>) },
+    { key: 'tip', label: 'Game', cset: 'read', group: 'Game', w: 84, heat: false, mono: true, dim: true, link: (r) => (onOpenGame ? () => onOpenGame(r.gameId) : null),
       fmt: (v, r) => (r.gameState === 'live' ? 'LIVE' : r.gameState === 'final' ? 'FINAL' : v ? fmtTip(v) : '—') },
   ]
   const loading = KEYS.some((k) => boards[k].loading) && !data
@@ -68,7 +68,7 @@ export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onO
       {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Nothing to rank. Try another day." />}
       {rows.length === 0 && !loading && games.length > 0 && empty}
       {rows.length > 0 && (
-        <BucketsTable rows={rows} columns={columns} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={faceOf}
+        <BucketsTable sets rows={rows} columns={columns} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={faceOf}
           initialSort={{ key: 's_pts', dir: 'desc' }} heatMode="sorted" maxHeight={620} maxRows={Math.max(rows.length, 1)}
           caption="Every rated player, every market. Column headers sort; each row opens that player; the team and opponent open the club." />
       )}
