@@ -15,11 +15,11 @@
 import './_no-injury-net.mjs'
 import fs from 'node:fs'
 import assert from 'node:assert/strict'
-import { lockCard, gradeCardRows, readCard, cardRows } from '../lib/card/store.js'
+import { lockCard, gradeCardRows, readCard, cardRows, saveDonovan } from '../lib/card/store.js'
 import { cardRevealed, publicCardRows, HELD_LINE } from '../lib/card/reveal.js'
-import { leadStraight, lockAtOf } from '../lib/card/core.js'
+import { leadStraight, lockAtOf, donovanRow } from '../lib/card/core.js'
 import { membersCardText } from '../lib/card/text.js'
-import { xCardBuild } from '../lib/card/post.js'
+import { xCardBuild, attachDonovanDual } from '../lib/card/post.js'
 import { loadDualModel } from '../lib/cards/dualData.js'
 import { fakeDb } from './_card-fakedb.mjs'
 
@@ -193,6 +193,63 @@ await t('F2 the members-post rows stay off the public feed read (homer_feed_post
   const sql = src('supabase/migrations/202610091200_homer_feed_members_rls.sql')
   assert.match(sql, /kind not like '%\\_members\\_%'/)
   for (const k of ['card_members_nhl', 'card_members_day', 'card_members_day_2']) assert.ok(/_members_/.test(k), k)
+})
+
+// ── H. DONOVAN'S LANE AND THE LONG SHOT STAY PUBLIC FROM THEIR LOCK (Donovan, 10-12: "when I set them they push to everywhere") ──
+async function donovanDb() {
+  const clock = { now: NOW - 60e3 }
+  const db = fakeDb(clock)
+  const set = donovanRow({ sport: 'nhl', slate_key: DAY, card_date: DAY, field: FIELD, playerIds: ['delta', 'echo'], note: 'Test note: soft matchup.', now: clock.now, lockAtMs: lockAtOf(NOW + 1 * H) })
+  assert.equal(set.ok, true); assert.equal((await saveDonovan(db, set.row)).ok, true)
+  assert.equal((await readCard(db, 'nhl', DAY, { now: clock.now })).rows.length, 0, 'his open entry is not public before ITS lock (the Card\'s own rule, unchanged)')
+  clock.now = NOW
+  assert.match(await lockCard(db, 'nhl', WIN, INPUTS, { now: NOW }), /^locked 3 straight/)
+  return { db, clock }
+}
+await t('H1 his Two-Man is on the PUBLIC read from its lock, before any grade; the bot\'s Two-Man is held in the same read', async () => {
+  const { db } = await donovanDb()
+  const pub = await readCard(db, 'nhl', DAY, { now: NOW })
+  assert.equal(pub.revealed, false)
+  const don = pub.rows.find((r) => r.lane === 'donovan' && r.product === 'two_man')
+  assert.ok(don && don.legs.length === 2, 'Donovan\'s Two-Man is public')
+  assert.equal(bot(pub.rows, 'two_man').length, 0, 'the bot\'s Two-Man is held')
+  assert.equal(pub.held.two_man, 1)
+})
+await t('H2 the free post (X + the free channels: one build) names his two men and his note, same text with or without the narrowing; no held name', async () => {
+  const { db } = await donovanDb()
+  const all = (await readCard(db, 'nhl', DAY, { now: NOW, audience: 'members' })).rows
+  const problems = new Map(all.flatMap((r) => r.legs).map((l) => [String(l.player_id), null]))
+  const b = xCardBuild({ sport: 'nhl', day: DAY, rows: publicCardRows(all).rows, problems, now: NOW })     // what postCardX builds after its narrowing
+  const whole = xCardBuild({ sport: 'nhl', day: DAY, rows: all, problems, now: NOW })
+  assert.equal(b.text, whole.text, 'the narrowing changes nothing in the post')
+  assert.ok(b.text.includes('Test delta') && b.text.includes('Test echo') && b.text.includes('soft matchup'))
+  const keep = new Set(['delta', 'echo', leadStraight(all).legs[0].player_id])
+  for (const l of bot(all, 'two_man')[0].legs) if (!keep.has(l.player_id)) assert.ok(!b.text.includes(l.name))
+})
+await t('H3 his dual card rides the post (png attached) once the lock has passed, before any reveal', async () => {
+  const { db } = await donovanDb()
+  const rows = publicCardRows((await readCard(db, 'nhl', DAY, { now: NOW, audience: 'members' })).rows).rows
+  const problems = new Map(rows.flatMap((r) => r.legs).map((l) => [String(l.player_id), null]))
+  const b = xCardBuild({ sport: 'nhl', day: DAY, rows, problems, now: NOW })
+  const out = await attachDonovanDual(b, { sport: 'nhl', day: DAY, rows, db, now: NOW, dual: async () => Buffer.from('TEST-DUAL') })
+  assert.equal(out.extraPngs?.length, 1)
+})
+await t('H4 the dual route\'s data gate: the bot lane is 404 before the reveal, HIS lane passes the gate (its row is in the public read; the gate is on the bot lane only)', async () => {
+  const { db } = await donovanDb()
+  const botRes = await loadDualModel({ sport: 'nhl', date: DAY, lane: 'bot', db, now: NOW, publicOnly: true })
+  assert.equal(botRes.ok, false); assert.equal(botRes.status, 404)
+  const donRes = await loadDualModel({ sport: 'nhl', date: DAY, lane: 'donovan', db, now: NOW, publicOnly: true }).catch(() => ({ ok: null }))
+  assert.ok(donRes.ok !== false || donRes.status !== 404, 'his lane is not 404ed by the reveal gate')
+  assert.match(src('lib/cards/dualData.js'), /publicOnly && row\.lane === 'bot' && !card\.revealed/)
+})
+await t('H5 the tick still posts the pregame X card and the Long Shot together, from the members-audience rows', () => {
+  const tick = src('lib/card/tick.js')
+  assert.match(tick, /post\.longShot = await postLongShot\(db, \{ sport, day, row: ls, now \}\)/)
+  assert.match(tick, /post\.x = await postCardX\(db, \{ sport, day, rows: rows\.filter/)
+})
+await t('H6 the Long Shot row is in the public view before the reveal; the public view never names it', () => {
+  const rows = [{ sport: 'nhl', lane: 'bot', product: 'long_shot', slot: 1, legs: [{ player_id: 'ls' }], result: null }, { sport: 'nhl', lane: 'bot', product: 'two_man', slot: 1, legs: [{}, {}], result: null }]
+  assert.deepEqual(publicCardRows(rows).rows.map((r) => r.product), ['long_shot'])
 })
 
 // ── G. THE SITE'S LINE ───────────────────────────────────────────────────────
