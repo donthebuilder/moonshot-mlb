@@ -1,0 +1,664 @@
+{
+ "sports": {
+  "nhl": {
+   "asOf": "2026-10-11",
+   "generatedAt": "2026-10-12T16:13:33.606Z",
+   "markets": [
+    {
+     "market": "GOAL",
+     "label": "Goal (1+ goal)",
+     "window": {
+      "from": "2026-10-05",
+      "to": "2026-10-11",
+      "units": 7,
+      "unit": "night"
+     },
+     "gotAway": {
+      "n": 209,
+      "onBoard": 94,
+      "notOnBoard": 115
+     },
+     "season": {
+      "from": "2026-09-29",
+      "units": 13,
+      "called": {
+       "n": 179,
+       "hits": 59,
+       "rate": 33,
+       "range": [
+        26.5,
+        40.1
+       ]
+      },
+      "boardNoCall": {
+       "n": 954,
+       "hits": 177,
+       "rate": 18.6,
+       "range": [
+        16.2,
+        21.1
+       ]
+      },
+      "notOnBoard": {
+       "n": 1955,
+       "hits": 219,
+       "rate": 11.2,
+       "range": [
+        9.9,
+        12.7
+       ]
+      }
+     },
+     "boardNoCallReadout": "called set higher",
+     "floor": 30,
+     "lines": [
+      {
+       "text": "At the same model score, players who got away had a higher median for goals a game than other players who were not called (season so far, n=362 vs 2304).",
+       "nA": 362,
+       "nB": 2304,
+       "feature": "legs.goalsPg"
+      },
+      {
+       "text": "At the same model score, players who got away had a lower median for ice time than other players who were not called (season so far, n=362 vs 2304).",
+       "nA": 362,
+       "nB": 2304,
+       "feature": "legs.toi"
+      },
+      {
+       "text": "At the same model score, players who got away had a higher median for shots a game than other players who were not called (season so far, n=362 vs 2304).",
+       "nA": 362,
+       "nB": 2304,
+       "feature": "legs.shotsPg"
+      }
+     ]
+    },
+    {
+     "market": "SOG",
+     "label": "Shots (3+ shots)",
+     "window": {
+      "from": "2026-10-05",
+      "to": "2026-10-11",
+      "units": 7,
+      "unit": "night"
+     },
+     "gotAway": {
+      "n": 277,
+      "onBoard": 275,
+      "notOnBoard": 2
+     },
+     "season": {
+      "from": "2026-09-29",
+      "units": 13,
+      "called": {
+       "n": 257,
+       "hits": 123,
+       "rate": 47.9,
+       "range": [
+        41.8,
+        54
+       ]
+      },
+      "boardNoCall": {
+       "n": 2588,
+       "hits": 490,
+       "rate": 18.9,
+       "range": [
+        17.5,
+        20.5
+       ]
+      },
+      "notOnBoard": {
+       "n": 243,
+       "hits": 33,
+       "rate": 13.6,
+       "range": [
+        9.8,
+        18.5
+       ]
+      }
+     },
+     "boardNoCallReadout": "called set higher",
+     "floor": 30,
+     "lines": [
+      {
+       "text": "At the same model score, players who got away had a higher median for shots a game than other players who were not called (season so far, n=490 vs 2098).",
+       "nA": 490,
+       "nB": 2098,
+       "feature": "legs.shotsPg"
+      },
+      {
+       "text": "At the same model score, players who got away had a lower median for opponent shots against a game than other players who were not called (season so far, n=490 vs 2098).",
+       "nA": 490,
+       "nB": 2098,
+       "feature": "legs.oppSaPg"
+      },
+      {
+       "text": "At the same model score, players who got away had a lower median for ice time than other players who were not called (season so far, n=490 vs 2098).",
+       "nA": 490,
+       "nB": 2098,
+       "feature": "legs.toi"
+      }
+     ]
+    }
+   ]
+  },
+  "mlb": {
+   "asOf": "2026-09-27",
+   "generatedAt": "2026-10-12T16:15:41.637Z",
+   "markets": [
+    {
+     "market": "HR",
+     "label": "Home run (1+ HR)",
+     "window": {
+      "from": "2026-09-21",
+      "to": "2026-09-27",
+      "units": 7,
+      "unit": "night"
+     },
+     "gotAway": {
+      "n": 135,
+      "onBoard": 47,
+      "notOnBoard": 88
+     },
+     "season": {
+      "from": "2026-09-12",
+      "units": 15,
+      "called": {
+       "n": 356,
+       "hits": 47,
+       "rate": 13.2,
+       "range": [
+        10.1,
+        17.1
+       ]
+      },
+      "boardNoCall": {
+       "n": 749,
+       "hits": 106,
+       "rate": 14.2,
+       "range": [
+        11.8,
+        16.8
+       ]
+      },
+      "notOnBoard": {
+       "n": 2035,
+       "hits": 194,
+       "rate": 9.5,
+       "range": [
+        8.3,
+        10.9
+       ]
+      }
+     },
+     "boardNoCallReadout": "not clearly different",
+     "floor": 30,
+     "lines": [
+      {
+       "text": "At the same model score, players who got away had a higher median for damage conversion than other players who were not called (season so far, n=300 vs 2484).",
+       "nA": 300,
+       "nB": 2484,
+       "feature": "components.damage_conversion"
+      },
+      {
+       "text": "At the same model score, players who got away had a higher median for top exit velocity than other players who were not called (season so far, n=300 vs 2484).",
+       "nA": 300,
+       "nB": 2484,
+       "feature": "components.shape_max_ev"
+      },
+      {
+       "text": "At the same model score, players who got away had a higher median for home runs per plate appearance than other players who were not called (season so far, n=300 vs 2484).",
+       "nA": 300,
+       "nB": 2484,
+       "feature": "components.hr_per_pa"
+      }
+     ]
+    },
+    {
+     "market": "HIT",
+     "label": "Hit (1+ hit)",
+     "window": {
+      "from": "2026-09-21",
+      "to": "2026-09-27",
+      "units": 7,
+      "unit": "night"
+     },
+     "gotAway": {
+      "n": 813,
+      "onBoard": 320,
+      "notOnBoard": 493
+     },
+     "season": {
+      "from": "2026-09-12",
+      "units": 15,
+      "called": {
+       "n": 176,
+       "hits": 110,
+       "rate": 62.5,
+       "range": [
+        55.2,
+        69.3
+       ]
+      },
+      "boardNoCall": {
+       "n": 1122,
+       "hits": 709,
+       "rate": 63.2,
+       "range": [
+        60.3,
+        66
+       ]
+      },
+      "notOnBoard": {
+       "n": 1842,
+       "hits": 1071,
+       "rate": 58.1,
+       "range": [
+        55.9,
+        60.4
+       ]
+      }
+     },
+     "boardNoCallReadout": "not clearly different",
+     "floor": 30,
+     "lines": [
+      {
+       "text": "Players who got away had a higher median for plate appearances per home run than the called set (season so far, n=1780 vs 176).",
+       "nA": 1780,
+       "nB": 176,
+       "feature": "components.pa_per_hr"
+      },
+      {
+       "text": "Players who got away had a higher median for home runs per plate appearance than the called set (season so far, n=1780 vs 176).",
+       "nA": 1780,
+       "nB": 176,
+       "feature": "components.hr_per_pa"
+      }
+     ]
+    },
+    {
+     "market": "HRR",
+     "label": "H+R+RBI (2+ H+R+RBI)",
+     "window": {
+      "from": "2026-09-21",
+      "to": "2026-09-27",
+      "units": 7,
+      "unit": "night"
+     },
+     "gotAway": {
+      "n": 610,
+      "onBoard": 255,
+      "notOnBoard": 355
+     },
+     "season": {
+      "from": "2026-09-12",
+      "units": 15,
+      "called": {
+       "n": 177,
+       "hits": 95,
+       "rate": 53.7,
+       "range": [
+        46.3,
+        60.9
+       ]
+      },
+      "boardNoCall": {
+       "n": 1116,
+       "hits": 550,
+       "rate": 49.3,
+       "range": [
+        46.4,
+        52.2
+       ]
+      },
+      "notOnBoard": {
+       "n": 1847,
+       "hits": 782,
+       "rate": 42.3,
+       "range": [
+        40.1,
+        44.6
+       ]
+      }
+     },
+     "boardNoCallReadout": "not clearly different",
+     "floor": 30,
+     "lines": []
+    },
+    {
+     "market": "CONTACT",
+     "label": "Contact (2+ total bases)",
+     "window": {
+      "from": "2026-09-21",
+      "to": "2026-09-27",
+      "units": 7,
+      "unit": "night"
+     },
+     "gotAway": {
+      "n": 467,
+      "onBoard": 186,
+      "notOnBoard": 281
+     },
+     "season": {
+      "from": "2026-09-12",
+      "units": 15,
+      "called": {
+       "n": 176,
+       "hits": 54,
+       "rate": 30.7,
+       "range": [
+        24.3,
+        37.8
+       ]
+      },
+      "boardNoCall": {
+       "n": 1048,
+       "hits": 417,
+       "rate": 39.8,
+       "range": [
+        36.9,
+        42.8
+       ]
+      },
+      "notOnBoard": {
+       "n": 1916,
+       "hits": 609,
+       "rate": 31.8,
+       "range": [
+        29.7,
+        33.9
+       ]
+      }
+     },
+     "boardNoCallReadout": "not clearly different",
+     "floor": 30,
+     "lines": []
+    }
+   ]
+  },
+  "nfl": {
+   "asOf": "2026-10-08",
+   "generatedAt": "2026-10-12T16:15:50.694Z",
+   "markets": [
+    {
+     "market": "TD",
+     "label": "Touchdown (1+ TD)",
+     "window": {
+      "from": "2026-10-08",
+      "to": "2026-10-08",
+      "units": 1,
+      "unit": "week"
+     },
+     "gotAway": {
+      "n": 44,
+      "onBoard": 29,
+      "notOnBoard": 15
+     },
+     "season": {
+      "from": "2026-09-09",
+      "units": 5,
+      "called": {
+       "n": 23,
+       "hits": 20,
+       "rate": 87,
+       "range": [
+        67.9,
+        95.5
+       ]
+      },
+      "boardNoCall": {
+       "n": 438,
+       "hits": 139,
+       "rate": 31.7,
+       "range": [
+        27.6,
+        36.2
+       ]
+      },
+      "notOnBoard": {
+       "n": 787,
+       "hits": 107,
+       "rate": 13.6,
+       "range": [
+        11.4,
+        16.2
+       ]
+      }
+     },
+     "boardNoCallReadout": "tracking",
+     "floor": 30,
+     "lines": []
+    },
+    {
+     "market": "REC_YDS",
+     "label": "Receiving yards (40+)",
+     "window": {
+      "from": "2026-10-08",
+      "to": "2026-10-08",
+      "units": 1,
+      "unit": "week"
+     },
+     "gotAway": {
+      "n": 53,
+      "onBoard": 42,
+      "notOnBoard": 11
+     },
+     "season": {
+      "from": "2026-09-09",
+      "units": 5,
+      "called": {
+       "n": 20,
+       "hits": 15,
+       "rate": 75,
+       "range": [
+        53.1,
+        88.8
+       ]
+      },
+      "boardNoCall": {
+       "n": 438,
+       "hits": 223,
+       "rate": 50.9,
+       "range": [
+        46.2,
+        55.6
+       ]
+      },
+      "notOnBoard": {
+       "n": 790,
+       "hits": 75,
+       "rate": 9.5,
+       "range": [
+        7.6,
+        11.7
+       ]
+      }
+     },
+     "boardNoCallReadout": "tracking",
+     "floor": 30,
+     "lines": [
+      {
+       "text": "At the same model score, players who got away had a higher median for weighted opportunity rating than other players who were not called (season so far, n=298 vs 930).",
+       "nA": 298,
+       "nB": 930,
+       "feature": "components.f_wopr"
+      }
+     ]
+    },
+    {
+     "market": "REC",
+     "label": "Receptions (4+)",
+     "window": {
+      "from": "2026-10-08",
+      "to": "2026-10-08",
+      "units": 1,
+      "unit": "week"
+     },
+     "gotAway": {
+      "n": 52,
+      "onBoard": 42,
+      "notOnBoard": 10
+     },
+     "season": {
+      "from": "2026-09-09",
+      "units": 5,
+      "called": {
+       "n": 21,
+       "hits": 19,
+       "rate": 90.5,
+       "range": [
+        71.1,
+        97.3
+       ]
+      },
+      "boardNoCall": {
+       "n": 443,
+       "hits": 199,
+       "rate": 44.9,
+       "range": [
+        40.4,
+        49.6
+       ]
+      },
+      "notOnBoard": {
+       "n": 784,
+       "hits": 88,
+       "rate": 11.2,
+       "range": [
+        9.2,
+        13.6
+       ]
+      }
+     },
+     "boardNoCallReadout": "tracking",
+     "floor": 30,
+     "lines": [
+      {
+       "text": "At the same model score, players who got away had a higher median for target share than other players who were not called (season so far, n=287 vs 940).",
+       "nA": 287,
+       "nB": 940,
+       "feature": "components.f_target_share"
+      },
+      {
+       "text": "At the same model score, players who got away had a higher median for receptions than other players who were not called (season so far, n=287 vs 940).",
+       "nA": 287,
+       "nB": 940,
+       "feature": "components.f_receptions"
+      }
+     ]
+    },
+    {
+     "market": "RUSH_YDS",
+     "label": "Rushing yards (50+)",
+     "window": {
+      "from": "2026-10-08",
+      "to": "2026-10-08",
+      "units": 1,
+      "unit": "week"
+     },
+     "gotAway": {
+      "n": 22,
+      "onBoard": 15,
+      "notOnBoard": 7
+     },
+     "season": {
+      "from": "2026-09-09",
+      "units": 5,
+      "called": {
+       "n": 24,
+       "hits": 20,
+       "rate": 83.3,
+       "range": [
+        64.1,
+        93.3
+       ]
+      },
+      "boardNoCall": {
+       "n": 187,
+       "hits": 82,
+       "rate": 43.9,
+       "range": [
+        36.9,
+        51
+       ]
+      },
+      "notOnBoard": {
+       "n": 305,
+       "hits": 17,
+       "rate": 5.6,
+       "range": [
+        3.5,
+        8.7
+       ]
+      }
+     },
+     "boardNoCallReadout": "tracking",
+     "floor": 30,
+     "lines": [
+      {
+       "text": "At the same model score, players who got away had a higher median for rushing yards than other players who were not called (season so far, n=99 vs 393).",
+       "nA": 99,
+       "nB": 393,
+       "feature": "components.f_rushing_yards"
+      },
+      {
+       "text": "At the same model score, players who got away had a higher median for carries than other players who were not called (season so far, n=99 vs 393).",
+       "nA": 99,
+       "nB": 393,
+       "feature": "components.f_carries"
+      }
+     ]
+    },
+    {
+     "market": "PASS_YDS",
+     "label": "Passing yards (225+)",
+     "window": {
+      "from": "2026-10-08",
+      "to": "2026-10-08",
+      "units": 1,
+      "unit": "week"
+     },
+     "gotAway": {
+      "n": 8,
+      "onBoard": 5,
+      "notOnBoard": 3
+     },
+     "season": {
+      "from": "2026-09-09",
+      "units": 5,
+      "called": {
+       "n": 23,
+       "hits": 17,
+       "rate": 73.9,
+       "range": [
+        53.5,
+        87.5
+       ]
+      },
+      "boardNoCall": {
+       "n": 52,
+       "hits": 26,
+       "rate": 50,
+       "range": [
+        36.9,
+        63.1
+       ]
+      },
+      "notOnBoard": {
+       "n": 80,
+       "hits": 25,
+       "rate": 31.3,
+       "range": [
+        22.2,
+        42.1
+       ]
+      }
+     },
+     "boardNoCallReadout": "tracking",
+     "floor": 30,
+     "lines": []
+    }
+   ]
+  }
+ }
+}

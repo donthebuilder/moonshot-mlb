@@ -9,7 +9,8 @@
 //               THE BOARD -- lib/callStatus STATUS_WORD via CallStatusBadge)
 //   BY MARKET   calls · hits · % · the last 10 as dots, LAST 10 / LAST 30 /
 //               SEASON; under 30 graded nights the % says "building (n=…)"
-//   CALLED IT   three moments, then "show all";  WHAT GOT AWAY  three, then all
+//   CALLED IT   three moments, then "show all";  WHAT GOT AWAY  three, then all, under the window's counts and
+//               what separated them (components/record/LearnNote.js, lib/learn: the accuracy loop)
 //   LATER       CHALK vs VALUE, the DASH line split: drawn only once they exist
 //   RECEIPTS    the full grading tables, closed
 // No sport branches here: the theme comes from SportTheme, the table from the
@@ -21,6 +22,8 @@ import CallStatusBadge from '../CallStatusBadge'
 import { alpha } from '../../lib/scales'
 import PlayerFace from '../PlayerFace'
 import RecordNote from './RecordNote'
+import LearnNote from './LearnNote'
+import { learnFor } from '../../lib/learn/published'
 
 export const RECORD_WINDOWS = [
   { key: 'l10', label: 'Last 10', take: 10 },
@@ -243,11 +246,13 @@ export default function RecordPage({ record, Table, Face = PlayerFace, receipts 
           <ShowAll n={called.length - 3} open={allCalled} setOpen={setAllCalled} C={C} accent={accent} />
         </Section>
       ) : null}
-      {away.length ? (
+      {away.length || learnFor(r.noteSport) ? (
         <Section C={C} NUM_FONT={NUM_FONT} title="WHAT GOT AWAY">
-          <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+          {/* the window's counts, the board-no-call rate and what separated them (2026-10-12, lib/learn): nothing when no sport entry is published */}
+          <LearnNote sport={r.noteSport} />
+          {away.length ? <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
             {(allAway ? away : away.slice(0, 3)).map((m) => <Moment key={m.key} m={m} C={C} NUM_FONT={NUM_FONT} accent={C.text3} Face={Face} />)}
-          </div>
+          </div> : null}
           <ShowAll n={away.length - 3} open={allAway} setOpen={setAllAway} C={C} accent={accent} />
         </Section>
       ) : null}
