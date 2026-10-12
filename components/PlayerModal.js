@@ -55,7 +55,7 @@ import ColdCase from './ColdCase'
 import PlayerRead from './PlayerRead'
 import HomerShape from './HomerShape'
 import { downloadCard, playerUrl, slug, stamp } from '../lib/cards/saveCard'
-import CardFlip from './player/CardFlip'
+import CardFlip, { PostseasonChip } from './player/CardFlip'
 import BvP from './BvP'
 import FirstPitchSplit from './FirstPitchSplit'
 import { venueRecord } from '../lib/venueHr'
@@ -630,6 +630,8 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                   watchlist share card (2026-08-15). Bot fields only, so an
                   API-only player has no card to print. */}
               {!apiOnly && p?.player_id != null && <CardFlip sport="mlb" id={String(p.player_id)} name={nameOf(p)} />}
+              {/* a player off the slate has no season card; if he played in the postseason his postseason card is one tap (draws nothing otherwise) */}
+              {apiOnly && p?.player_id != null && <PostseasonChip sport="mlb" id={String(p.player_id)} name={nameOf(p)} />}
               {!apiOnly && (
                 <button onClick={() => downloadCard(playerUrl({ sport: 'mlb', id: p.player_id }), `${slug(nameOf(p), 'player')}_${stamp(p?.game_date || p?.day)}.png`)}
                   title="Download his card as a PNG for posting — the same baseball card MOONSHOT's alerts use: his call, his stat tiles and his place on the board"

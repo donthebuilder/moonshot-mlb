@@ -12,19 +12,28 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useSportTheme } from '../SportTheme'
 import { isHiddenSport } from '../../lib/routes'
-import { CARD_SPORTS } from '../../lib/card/core'
+import { CARD_SPORTS, POSTSEASON_SPORTS } from '../../lib/card/core'
+import { shareUrl, downloadCard, slug } from '../../lib/cards/saveCard'
 
 const SIDES = ['front', 'back']
 export const cardImageUrl = (sport, id, side, { date = null, w = 720 } = {}) => `/api/card/image?sport=${encodeURIComponent(sport)}&id=${encodeURIComponent(String(id))}&side=${side}&w=${w}${date ? `&date=${encodeURIComponent(date)}` : ''}`
 
-function CardSheet({ sport, id, name, date, onClose }) {
+/** The POSTSEASON edition's two sides (MLB only: the server's /api/card/share kind 'postseason', MLB StatsAPI gameType=P). */
+export const postseasonImageUrl = (id, side, { w = 720 } = {}) => shareUrl({ kind: 'postseason', sport: 'mlb', id, side, w })
+
+export function CardSheet({ sport, id, name, date, onClose, initialEdition = 'season' }) {
   const { C, accent } = useSportTheme()
+  // THE POSTSEASON EDITION (2026-10-12): an MLB player who has postseason games gets a second edition of this same card (a POSTSEASON banner, this
+  // postseason's line, and a back with the table by round). Asked once when the sheet opens; a player with none sees the sheet exactly as before.
+  const [post, setPost] = useState(null)
+  const [edition, setEdition] = useState(initialEdition === 'post' && POSTSEASON_SPORTS.includes(sport) ? 'post' : 'season')
   const [side, setSide] = useState('front')
   const [backSeen, setBackSeen] = useState(false)
-  const [bad, setBad] = useState({})          // side -> true when its image could not load
+  const [bad, setBad] = useState({})          // 'edition:side' -> true when its image could not load
   const [loaded, setLoaded] = useState({})
   const closeRef = useRef(null)
   const flipRef = useRef(null)
+  const dialogRef = useRef(null)
   const still = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
   useEffect(() => {
@@ -34,7 +43,8 @@ function CardSheet({ sport, id, name, date, onClose }) {
     const onKey = (e) => {
       if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); onClose(); return }
       if (e.key !== 'Tab') return
-      const els = [flipRef.current, closeRef.current].filter(Boolean)
+      // every button in the sheet (close, the card, and the postseason edition's buttons when they are there), in page order
+      const els = Array.from(dialogRef.current?.querySelectorAll('button') || [])
       if (!els.length) return
       e.stopImmediatePropagation()
       const i = els.indexOf(document.activeElement)
@@ -45,13 +55,25 @@ function CardSheet({ sport, id, name, date, onClose }) {
     return () => { clearTimeout(t); window.removeEventListener('keydown', onKey, true); try { if (prior && document.contains(prior)) prior.focus({ preventScroll: true }) } catch { /* ignore */ } }
   }, [onClose])
 
+  useEffect(() => {
+    if (!POSTSEASON_SPORTS.includes(sport)) return undefined
+    let live = true
+    fetch(`/api/postseason/player?id=${encodeURIComponent(String(id))}`).then((r) => (r.ok ? r.json() : null)).then((j) => { if (live && j?.ok) setPost(j) }).catch(() => {})
+    return () => { live = false }
+  }, [sport, id])
+  // a man who is not on a season card today but has postseason games opens on his postseason card instead of an apology
+  useEffect(() => { if (post && edition === 'season' && bad['season:front']) { setEdition('post'); setSide('front') } }, [post, edition, bad])
+  const pick = (e) => { if (e !== edition) { setEdition(e); setSide('front'); setBackSeen(false) } }
   const flip = () => { setBackSeen(true); setSide((s) => (s === 'front' ? 'back' : 'front')) }
+  const saveCardPng = () => downloadCard(shareUrl({ kind: 'postseason', sport: 'mlb', id, side, w: 1080 }), `${slug(name, 'player')}-postseason-${side}.png`)
+  const saveRunPng = () => downloadCard(shareUrl({ kind: 'series', sport: 'mlb', team: post.team, w: 1080 }), `${slug(post.team, 'club')}-postseason-run.png`)
+  const seg = (on) => ({ minHeight: 44, flex: 1, borderRadius: 8, border: `1px solid ${on ? accent : C.border2}`, background: on ? 'rgba(255,255,255,.08)' : 'transparent', color: on ? accent : C.text2, fontSize: 13, fontWeight: 800, cursor: 'pointer' })
   const face = (s) => ({ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: s === 'back' ? 'rotateY(180deg)' : 'none', borderRadius: 14, overflow: 'hidden', background: C.bg3 })
   const word = side === 'front' ? 'front' : 'back'
   return createPortal(
     <div onClick={(e) => { e.stopPropagation(); onClose() }} role="presentation"
       style={{ position: 'fixed', inset: 0, zIndex: 420, background: 'rgba(0,0,0,.82)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'safe center', justifyContent: 'center', overflowY: 'auto', overscrollBehavior: 'contain', padding: 'max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left))' }}>
-      <div role="dialog" aria-modal="true" aria-label={`${name || 'Player'} card`} onClick={(e) => e.stopPropagation()}
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={`${name || 'Player'} card`} onClick={(e) => e.stopPropagation()}
         style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, margin: 'auto', width: 'min(100%, 440px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 8 }}>
           <span aria-live="polite" style={{ color: C.text2, fontSize: 13, fontWeight: 700 }}>{`${name || 'Card'} · ${word} · tap the card to flip`}</span>
@@ -59,25 +81,38 @@ function CardSheet({ sport, id, name, date, onClose }) {
             style={{ minWidth: 44, minHeight: 44, borderRadius: 8, border: `1px solid ${C.border2}`, background: 'transparent', color: C.text, fontSize: 20, lineHeight: 1, cursor: 'pointer' }}>{'✕'}</button>
         </div>
         <button ref={flipRef} type="button" onClick={flip} aria-label={`Flip the card. Showing the ${word}.`}
-          style={{ display: 'block', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', perspective: 1400, width: 'min(100%, calc((100dvh - 150px) * 0.8))', minWidth: 220, aspectRatio: '4 / 5' }}>
+          style={{ display: 'block', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', perspective: 1400, width: `min(100%, calc((100dvh - ${150 + (post ? (edition === 'post' ? 112 : 56) : 0)}px) * 0.8))`, minWidth: 220, aspectRatio: '4 / 5' }}>
           <div style={{ position: 'relative', width: '100%', height: '100%', transformStyle: 'preserve-3d', transition: still ? 'none' : 'transform .55s ease', transform: side === 'back' ? 'rotateY(180deg)' : 'none' }}>
             {SIDES.map((s) => (
               <div key={s} style={face(s)}>
-                {(s === 'front' || backSeen) && !bad[s] ? (
-                  <img src={cardImageUrl(sport, id, s, { date })} alt={s === 'front' ? `${name || 'Player'}: the front of the card` : `${name || 'Player'}: the back of the card, the season stats`}
-                    onLoad={() => setLoaded((l) => ({ ...l, [s]: true }))} onError={() => setBad((b) => ({ ...b, [s]: true }))}
-                    style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain', opacity: loaded[s] ? 1 : 0, transition: 'opacity .2s' }} />
+                {(s === 'front' || backSeen) && !bad[`${edition}:${s}`] ? (
+                  <img key={`${edition}:${s}`} src={edition === 'post' ? postseasonImageUrl(id, s) : cardImageUrl(sport, id, s, { date })}
+                    alt={edition === 'post' ? (s === 'front' ? `${name || 'Player'}: the front of the postseason card` : `${name || 'Player'}: the back of the postseason card, the stat table by round`) : (s === 'front' ? `${name || 'Player'}: the front of the card` : `${name || 'Player'}: the back of the card, the season stats`)}
+                    onLoad={() => setLoaded((l) => ({ ...l, [`${edition}:${s}`]: true }))} onError={() => setBad((b) => ({ ...b, [`${edition}:${s}`]: true }))}
+                    style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain', opacity: loaded[`${edition}:${s}`] ? 1 : 0, transition: 'opacity .2s' }} />
                 ) : null}
-                {!loaded[s] ? (
+                {!loaded[`${edition}:${s}`] ? (
                   <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, textAlign: 'center', color: C.text2, fontSize: 14, lineHeight: 1.4 }}>
-                    {bad[s] ? 'This card is not available for him today. Cards are drawn only from a real board and real stats.' : 'Drawing the card…'}
+                    {bad[`${edition}:${s}`] ? (edition === 'post' ? 'No postseason card for him right now.' : 'This card is not available for him today. Cards are drawn only from a real board and real stats.') : 'Drawing the card…'}
                   </div>
                 ) : null}
               </div>
             ))}
           </div>
         </button>
-        <span style={{ color: accent, fontSize: 12, fontWeight: 800, letterSpacing: '.08em' }}>{side === 'front' ? 'FRONT' : 'BACK'}</span>
+        <span style={{ color: accent, fontSize: 12, fontWeight: 800, letterSpacing: '.08em' }}>{`${edition === 'post' ? 'POSTSEASON ' : ''}${side === 'front' ? 'FRONT' : 'BACK'}`}</span>
+        {post ? (
+          <div role="group" aria-label="Which edition of the card" style={{ display: 'flex', gap: 8, width: '100%' }}>
+            <button type="button" aria-pressed={edition === 'season'} onClick={() => pick('season')} style={seg(edition === 'season')}>Season card</button>
+            <button type="button" aria-pressed={edition === 'post'} onClick={() => pick('post')} style={seg(edition === 'post')}>{`Postseason ${post.season || ''}`.trim()}</button>
+          </div>
+        ) : null}
+        {post && edition === 'post' ? (
+          <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+            <button type="button" onClick={saveCardPng} aria-label={`Save the ${side} of the postseason card as a picture`} style={seg(false)}>{'\u{1F4F8} Save this side'}</button>
+            {post.team ? <button type="button" onClick={saveRunPng} aria-label={`Save ${post.team}'s postseason run as a picture`} style={seg(false)}>{`\u{1F4F8} ${post.team} run`}</button> : null}
+          </div>
+        ) : null}
       </div>
     </div>,
     document.body,
@@ -97,6 +132,35 @@ export default function CardFlip({ sport, id, name, date = null, style = null, l
         <span aria-hidden="true">{'\u{1F3B4}'}</span><span>{label}</span>
       </button>
       {open ? <CardSheet sport={sport} id={id} name={name} date={date} onClose={() => setOpen(false)} /> : null}
+    </>
+  )
+}
+
+/**
+ * THE POSTSEASON CHIP, for a player who has no season card today (an off-slate player whose page is "live data only"): a chip that opens his
+ * POSTSEASON card, drawn only when MLB shows he played in the postseason (asked once, only September through November by the viewer's clock;
+ * a quiet page costs nothing and draws nothing). Same sheet as CardFlip, opened on the postseason edition.
+ */
+export function PostseasonChip({ sport = 'mlb', id, name, style = null }) {
+  const { C, accent } = useSportTheme()
+  const [has, setHas] = useState(false)
+  const [open, setOpen] = useState(false)
+  const inSeason = (() => { try { const m = new Date().getMonth(); return m >= 8 && m <= 10 } catch { return false } })()
+  useEffect(() => {
+    if (!POSTSEASON_SPORTS.includes(sport) || id == null || id === '' || !inSeason) return undefined
+    let live = true
+    fetch(`/api/postseason/player?id=${encodeURIComponent(String(id))}`).then((r) => (r.ok ? r.json() : null)).then((j) => { if (live && j?.ok) setHas(true) }).catch(() => {})
+    return () => { live = false }
+  }, [sport, id, inSeason])
+  if (!has) return null
+  return (
+    <>
+      <button type="button" onClick={(e) => { e.stopPropagation(); setOpen(true) }} aria-haspopup="dialog" aria-expanded={open}
+        title="Open his postseason card: this postseason's line, and the back by round" aria-label={`Open ${name || 'his'} postseason card`}
+        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, flex: '0 0 auto', boxSizing: 'border-box', minWidth: 44, minHeight: 44, padding: '0 10px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 800, lineHeight: 1, border: `1px solid ${C.border2}`, background: 'transparent', color: accent, ...(style || {}) }}>
+        <span aria-hidden="true">{'\u{1F3B4}'}</span><span>Postseason</span>
+      </button>
+      {open ? <CardSheet sport={sport} id={String(id)} name={name} initialEdition="post" onClose={() => setOpen(false)} /> : null}
     </>
   )
 }
