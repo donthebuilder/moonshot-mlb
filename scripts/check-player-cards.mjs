@@ -149,10 +149,17 @@ for (const f of files) {
   const rel = f.slice(dir.length)
   if (!/^(kit|cards)\.js$/.test(rel)) {
     check(!/sport\s*===?\s*['"]|\?\s*['"](nhl|mlb|nfl)['"]/.test(code), `${rel}: no sport ternary`)
-    check(!/#[0-9a-fA-F]{3,8}\b/.test(code), `${rel}: no hex literal`)
-    check(!/https?:\/\//.test(code.replace(/statsapi\.mlb\.com/g, '')) || /adapters\/mlb|cardKit/.test(rel), `${rel}: no URL text drawn on a card`)
+    // assets.js is the shared poster palette + font / mark / grain loaders (moved verbatim from homerCard.js): its hex literals and the font URL are its job, drawn on no card
+    if (rel !== 'assets.js') check(!/#[0-9a-fA-F]{3,8}\b/.test(code), `${rel}: no hex literal`)
+    if (rel !== 'assets.js') check(!/https?:\/\//.test(code.replace(/statsapi\.mlb\.com/g, '')) || /adapters\/mlb|cardKit/.test(rel), `${rel}: no URL text drawn on a card`)
     check(!/goalGameProbability|probabilit/i.test(code), `${rel}: no model probability`)
   }
+}
+// the surviving server kit stands on its own: it draws from lib/cards/assets.js + color.js, never from the old poster module or the browser canvas kit
+// (so lib/dash/homerCard.js and lib/cards/kit.js + cards.js can be retired caller by caller without touching these cards)
+for (const rel of ['cardKit.js', 'playerCard.js', 'playerBack.js', 'dayCard.js', 'dualCard.js', 'slabCard.js']) {
+  const imports = readFileSync(`${dir}${rel}`, 'utf8').split('\n').filter((l) => /^\s*(import|export)\b.*\bfrom\b/.test(l)).join('\n')
+  check(!/dash\/homerCard|\.\/kit['"]|\.\/cards['"]|\.\/kit\.js|\.\/cards\.js/.test(imports), `${rel}: imports nothing from lib/dash/homerCard.js or the canvas kit (lib/cards/kit.js, cards.js)`)
 }
 const allText = Object.values(variants).map((m) => texts(frontDesign(m, null))).join(' ')
 check(!/https?:|www\.|\.com|#\w+tag|QR/i.test(allText), 'no link, no QR, no hashtag drawn on a front')
