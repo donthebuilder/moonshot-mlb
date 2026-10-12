@@ -33,10 +33,10 @@ const buildRecords = (sport, today) => unstable_cache(async () => {
       volume: Object.fromEntries(Object.entries(rec.volume || {}).map(([k, v]) => [k, recordWords(v, { product: 'straight', label: `${MARKETS[sport]?.[k]?.label || k} straights` })])),
       two_man: recordWords(rec.two_man, { product: 'two_man' }),
       two_man_same_game: recordWords(rec.two_man_same_game, { product: 'two_man', label: 'same-game two-mans', sameGame: true }),
-      donovan: recordWords(rec.donovan, { product: 'two_man', who: "Donovan's: " }),
+      donovan: recordWords(rec.donovan, { product: 'two_man', who: "Admin's Two-Man: " }),
       long_shot: recordWords(rec.long_shot, { product: 'long_shot' }),
       double: recordWords(drec.double, { product: 'double' }),
-      donovan_double: recordWords(drec.donovan_double, { product: 'double', who: "Donovan's: " }),
+      donovan_double: recordWords(drec.donovan_double, { product: 'double', who: "Admin's Double: " }),
       ...(tr ? { tracked_straight: tr.words.straight, tracked_two_man: tr.words.two_man } : {}),
     },
   }
