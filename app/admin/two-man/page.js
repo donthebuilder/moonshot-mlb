@@ -7,7 +7,7 @@
 import { notFound } from 'next/navigation'
 import { hasSupabaseConfig } from '../../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../../lib/supabase/server'
-import { isAdminEmail } from '../../../lib/admin'
+import { isAdminUser } from '../../../lib/admin'
 import start from '../../start/start.module.css'
 import TwoManForm from '../../../components/admin/TwoManForm'
 
@@ -18,7 +18,7 @@ export async function generateMetadata() {
     if (!hasSupabaseConfig()) return { title: 'Not found · DASH Network', robots }
     const supabase = await createSupabaseServerClient()
     const { data: { user } } = await supabase.auth.getUser()
-    return { title: user && isAdminEmail(user.email) ? 'Two-Man · admin · DASH Network' : 'Not found · DASH Network', robots }
+    return { title: user && isAdminUser(user) ? 'Two-Man · admin · DASH Network' : 'Not found · DASH Network', robots }
   } catch { return { title: 'Not found · DASH Network', robots } }
 }
 
@@ -26,7 +26,7 @@ export default async function TwoManAdminPage() {
   if (!hasSupabaseConfig()) notFound()
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !isAdminEmail(user.email)) notFound()
+  if (!user || !isAdminUser(user)) notFound()
   return (
     <main className={start.page}>
       <header className={start.bar}>

@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import { appQueryRedirect } from './lib/appQuery'
+import { hardenCookie } from './lib/supabase/cookieOptions'
 
 export async function proxy(request) {
   // /app?sport=nfl&tab=... is the /called shape; the board reads the hash (lib/appQuery.js). A redirect keeps
@@ -29,7 +30,7 @@ export async function proxy(request) {
           )
           response = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
+            response.cookies.set(name, value, hardenCookie(options))
           )
         },
       },

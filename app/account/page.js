@@ -29,7 +29,7 @@ import SubmitButton from '../../components/SubmitButton'
 import DeviceData from '../../components/DeviceData'
 import { hasSupabaseConfig } from '../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../lib/supabase/server'
-import { isAdminEmail } from '../../lib/admin'
+import { isAdminUser } from '../../lib/admin'
 import { signOutEverywhere, updateDisplayName, updateEmail, updatePassword } from './actions'
 import { dashSignOut } from '../(front)/actions'
 import styles from '../(front)/dash.module.css'
@@ -164,7 +164,7 @@ export default async function AccountPage({ searchParams }) {
         {SPORT_KEYS.map((k) => <Link key={k} href={appHref(k)}>{BRAND[k].name} · {BRAND[k].league}</Link>)}
         <Link href="/fantasy">FRANCHISE · FANTASY</Link>
         {/* Only an admin (ADMIN_EMAILS) ever sees this link; /admin 404s for anyone else. */}
-        {isAdminEmail(user.email) ? <Link href="/admin">Admin</Link> : null}
+        {isAdminUser(user) ? <Link href="/admin">Admin</Link> : null}
       </footer>
     </main>
   )

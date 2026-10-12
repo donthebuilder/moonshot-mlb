@@ -14,7 +14,7 @@ import { hasSupabaseConfig } from '../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../lib/supabase/server'
 import { logXBudget } from '../../lib/dash/xBudget'
 import { easternToday } from '../../lib/data'
-import { isAdminEmail } from '../../lib/admin'
+import { isAdminUser } from '../../lib/admin'
 import start from '../start/start.module.css'
 import { adminClient } from '../../lib/supabase/admin'
 import { MEMBERS_KINDS } from '../../lib/dash/membersPost'
@@ -40,7 +40,7 @@ export async function generateMetadata() {
     if (!hasSupabaseConfig()) return { title: 'Not found · DASH Network', robots }
     const supabase = await createSupabaseServerClient()
     const { data: { user } } = await supabase.auth.getUser()
-    return { title: user && isAdminEmail(user.email) ? 'Admin · DASH Network' : 'Not found · DASH Network', robots }
+    return { title: user && isAdminUser(user) ? 'Admin · DASH Network' : 'Not found · DASH Network', robots }
   } catch { return { title: 'Not found · DASH Network', robots } }
 }
 
@@ -154,7 +154,7 @@ export default async function AdminPage() {
   if (!hasSupabaseConfig()) notFound()
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !isAdminEmail(user.email)) notFound()
+  if (!user || !isAdminUser(user)) notFound()
 
   const c = await cachedCounts()
   const a = c.accounts || {}
