@@ -1,4 +1,4 @@
-// A FAKE card_calls TABLE THAT HOLDS THE MIGRATIONS' RULES (supabase/migrations/202610101000_card_calls.sql + 202610101100_card_map.sql). TEST harness
+// A FAKE card_calls TABLE THAT HOLDS THE MIGRATIONS' RULES (supabase/migrations/202610101000_card_calls.sql + 202610101100_card_map.sql + 202610121100_card_calls_late.sql). TEST harness
 // for scripts/check-two-man.mjs and scripts/check-card-map.mjs: an in-memory table with the guard trigger's rules (insert only before the start; a locked row is
 // never rewritten, regraded or deleted; Donovan's row changes only before ITS lock), `clock.now` standing for the database's now().
 import assert from 'node:assert/strict'
@@ -9,15 +9,27 @@ function makeTable(clock) {
   let id = 0
   const guard = (op, old, nw) => {
     const now = clock.now
+    const LATE_WINDOW = 15 * 60e3     // 202610121100_card_calls_late.sql: a late entry can be changed or withdrawn for 15 minutes after it was saved
+    const lane = (op === 'insert' ? nw : (nw || old)).lane      // card_tracked rows have no lane
+    if (lane !== undefined && !['bot', 'donovan', 'donovan_late'].includes(lane)) throw new Error('card_calls: violates check constraint "card_calls_lane_name_ck"')
     if (op === 'insert') {
+      if (nw.lane === 'donovan_late') {
+        if (nw.result != null || nw.leg_results != null || nw.graded_at != null) throw new Error('card_calls: a card row is inserted ungraded')
+        return { ...nw, locked_at: new Date(now).toISOString() }
+      }
       if (now >= Date.parse(nw.start_at)) throw new Error('card_calls: nothing is locked at or after the start')
       if (nw.lane === 'donovan' && now >= Date.parse(nw.locks_at)) throw new Error("card_calls: Donovan's entry is closed")
       if (nw.result != null || nw.leg_results != null || nw.graded_at != null) throw new Error('card_calls: a card row is inserted ungraded')
       return { ...nw, locked_at: new Date(now).toISOString() }
     }
     if (op === 'delete') {
+      if (old.lane === 'donovan_late' && old.result == null && now < Date.parse(old.locked_at) + LATE_WINDOW) return old
       if (old.lane === 'donovan' && old.result == null && now < Date.parse(old.locks_at) && now < Date.parse(old.start_at)) return old
       throw new Error('card_calls: a locked card row is never deleted')
+    }
+    if (old.lane === 'donovan_late' && old.result == null && now < Date.parse(old.locked_at) + LATE_WINDOW && nw.result == null && nw.leg_results == null && nw.graded_at == null) {
+      for (const k of ['sport', 'card_date', 'lane', 'product', 'slot', 'model_version', 'stake']) if (String(nw[k]) !== String(old[k])) throw new Error('card_calls: the key of a card row is never rewritten')
+      return { ...nw, locked_at: old.locked_at }
     }
     const open = old.lane === 'donovan' && old.result == null && now < Date.parse(old.locks_at) && now < Date.parse(old.start_at)
     if (open) {

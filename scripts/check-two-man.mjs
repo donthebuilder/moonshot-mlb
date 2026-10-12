@@ -10,10 +10,13 @@ import fs from 'node:fs'
 import assert from 'node:assert/strict'
 import {
   CARD_VERSION, CARD_RULE, STRAIGHTS, STAKE, MIN_PRICED, CARD_LOCK_LEAD_MIN, cmpCandidate, fieldOf, pickStraights, pickTwoMan, lockRows, mayLockRow, lockWindowOpen, lockAtOf,
-  donovanRow, cleanNote, legWord, productResult, rowPrice, rowExpected, recordOf, recordsOf, recordWords, nflWindowsOf, decimalOf, americanOfDecimal,
+  donovanRow, LATE_LANE, isLateRow, LATE_EDIT_MIN, cleanNote, legWord, productResult, rowPrice, rowExpected, recordOf, recordsOf, recordWords, nflWindowsOf, decimalOf, americanOfDecimal,
 } from '../lib/card/core.js'
 import { membersCardText, resultText, cleanPublic } from '../lib/card/text.js'
-import { lockCard, gradeCardRows, cardRows, saveDonovan, withdrawDonovan, latestCardDate } from '../lib/card/store.js'
+import { lockCard, gradeCardRows, cardRows, saveDonovan, withdrawDonovan, latestCardDate, lateEntries, recordRows, dayRows, readCard, donovanEntry } from '../lib/card/store.js'
+import { pickerRow, pairFloor, nhlSeasonOf, etWhen } from '../lib/card/picker.js'
+import { sameOriginJson, adminDenyReason, isAdminUser } from '../lib/admin.js'
+import { STATUS_WORD } from '../lib/callStatus.js'
 import { xCardBuild, CARD_KIND, postCardMembers, postCardX } from '../lib/card/post.js'
 import { wilson } from '../lib/interval.js'
 import { tagOf, untagged, kindInfo, mayPostNow } from '../lib/dash/xSchedule.js'
@@ -525,7 +528,7 @@ await t('the migration: the table, the guard trigger (insert / update / delete),
 await t('the admin form: gated by ADMIN_EMAILS (404 otherwise), refuses a save once the lock has passed or a game started; the page is not indexed', () => {
   const api = fs.readFileSync(new URL('../app/api/admin/two-man/route.js', import.meta.url), 'utf8')
   assert.ok(/isAdminUser\(user\)/.test(api) && /status: 404/.test(api))
-  assert.ok(/now >= lockAtMs \|\| now >= win\.first_start_ms/.test(api) && /donovanRow\(/.test(api))
+  assert.ok(/onTime\(win, now\)/.test(api) && /now < lockAtOf\(win\.first_start_ms\) && now < win\.first_start_ms/.test(api) && /donovanRow\(/.test(api) && /allowLate: true/.test(api), 'always open: the route classifies on time vs LATE with the same lock rule')
   const page = fs.readFileSync(new URL('../app/admin/two-man/page.js', import.meta.url), 'utf8')
   assert.ok(/notFound\(\)/.test(page) && /robots/.test(page) && /isAdminUser/.test(page))
   const pub = fs.readFileSync(new URL('../app/api/card/route.js', import.meta.url), 'utf8')
@@ -552,6 +555,192 @@ await t('latestCardDate: the newest card whose row is public (Donovan\'s open en
   db.from = (n) => { const tb = orig(n); return { ...tb, select: () => { const q = tb.select(); q.order = () => q; return q } } }
   assert.equal(await latestCardDate(db, 'nhl', clock.now), null)
   assert.equal(await latestCardDate(db, 'nhl', LOCK_AT + 1), '2026-10-10')
+})
+
+// ── 9. ALWAYS OPEN: THE LATE LANE, THE PICKER, THE PREVIEW (Donovan, 2026-10-12: "i want to be able to submit mine whenever") ──
+const LATE_OK = { ...DON, allowLate: true }
+await t('LATE 1: before the lock and before any game it is the verified entry EXACTLY as before; after the lock, or with a started game, it is the LATE lane (rule, lock <= start)', () => {
+  const plain = donovanRow(DON); const open = donovanRow(LATE_OK)
+  assert.deepEqual(open.row, plain.row, 'an on-time entry is byte-identical with allowLate on')
+  assert.equal(open.late, false); assert.equal(open.row.lane, 'donovan'); assert.equal(open.row.rule, CARD_RULE.donovan)
+  const afterLock = donovanRow({ ...LATE_OK, now: LOCK_AT + 60e3 })      // lock passed, p3 and p5 not started yet
+  assert.equal(afterLock.ok, true); assert.equal(afterLock.late, true); assert.equal(afterLock.row.lane, LATE_LANE); assert.equal(afterLock.row.rule, 'donovan-late-v1'); assert.match(afterLock.lateWhy, /lock/)
+  const started = donovanRow({ ...LATE_OK, playerIds: ['p6', 'p3'], now: NOW + 90 * 60e3 })     // p6's game started half an hour ago
+  assert.equal(started.ok, true); assert.equal(started.late, true); assert.equal(started.row.lane, LATE_LANE); assert.match(started.lateWhy, /started/)
+  for (const r of [afterLock.row, started.row]) assert.ok(Date.parse(r.locks_at) <= Date.parse(r.start_at), 'locks_at <= start_at (the table\'s own check)')
+  // without allowLate nothing changed: it still refuses
+  assert.match(donovanRow({ ...DON, now: LOCK_AT + 60e3 }).error, /lock has passed/); assert.match(donovanRow({ ...DON, playerIds: ['p6', 'p3'], now: NOW + 90 * 60e3 }).error, /game has started/)
+  assert.equal(isLateRow(started.row), true); assert.equal(isLateRow(open.row), false)
+  // a note and two real players are still required of a late entry
+  assert.equal(donovanRow({ ...LATE_OK, now: NOW + 90 * 60e3, note: '' }).ok, false); assert.equal(donovanRow({ ...LATE_OK, now: NOW + 90 * 60e3, playerIds: ['p6'] }).ok, false)
+  // his lane is exempt from the floors: priceless men are fine
+  assert.equal(donovanRow({ ...LATE_OK, field: FIELD.map((c) => ({ ...c, price: undefined })) }).ok, true)
+})
+
+await t('LATE 2: the legs keep the sport\'s own board word (a man who is not on the board is "off", not CALLED); an on-time call stays CALLED', () => {
+  const f = [C('a', 'g1', 2, 90, 0.3, { status: 'called' }), C('b', 'g2', 2, 80, 0.3, { status: 'board' }), C('c', 'g3', 2, 20, 0.3, { status: 'off' })]
+  const r = donovanRow({ ...DON, field: f, playerIds: ['a', 'c'] })
+  assert.deepEqual(r.row.legs.map((l) => l.status), ['called', 'off'])
+  assert.deepEqual(donovanRow({ ...DON, field: f, playerIds: ['b', 'a'] }).row.legs.map((l) => l.status), ['board', 'called'])
+})
+
+await t('LATE 3: saved after the start, a late row is marked LATE, never overwrites his locked on-time entry, and is in NO count, read, day, post or ledger', async () => {
+  const clock = { now: NOW - 30 * 60e3 }
+  const db = fakeDb(clock)
+  const ontime = donovanRow(DON).row
+  assert.equal((await saveDonovan(db, ontime)).ok, true)
+  clock.now = NOW + 90 * 60e3                                              // p6's game has started; the on-time entry is locked
+  const mk = donovanRow({ ...LATE_OK, playerIds: ['p6', 'p4'], note: 'Late look: hindsight, for me.', now: clock.now })
+  assert.equal(mk.late, true)
+  const saved = await saveDonovan(db, mk.row)
+  assert.equal(saved.ok, true, 'the table takes a late row after the start')
+  assert.equal(db.rows.length, 2, 'two rows: the on-time entry and the late one')
+  const onRow = db.rows.find((r) => r.lane === 'donovan'); const lateRow = db.rows.find((r) => r.lane === LATE_LANE)
+  assert.equal(onRow.note, NOTE, 'the locked on-time entry is untouched'); assert.deepEqual(onRow.legs.map((l) => l.player_id), ['p3', 'p5'])
+  assert.equal(lateRow.note, 'Late look: hindsight, for me.'); assert.equal(lateRow.locked_at, new Date(clock.now).toISOString(), 'locked_at is the real save time')
+  // every verified reader leaves it out, whatever the clock
+  for (const audience of ['public', 'members']) assert.ok((await readCard(db, 'nhl', '2026-10-10', { now: clock.now, audience })).rows.every((r) => r.lane !== LATE_LANE), `readCard ${audience}`)
+  assert.ok((await recordRows(db, 'nhl', { now: clock.now })).every((r) => r.lane !== LATE_LANE), 'recordRows')
+  assert.ok((await dayRows(db, '2026-10-10', { now: clock.now })).every((r) => r.lane !== LATE_LANE), 'dayRows')
+  assert.equal((await recordRows(db, 'nhl', { now: clock.now })).length, 1)
+  // a date that has ONLY a late entry is not a card
+  const dbL = fakeDb({ now: NOW + 90 * 60e3 }); await saveDonovan(dbL, mk.row)
+  assert.equal(await latestCardDate(dbL, 'nhl', NOW + 9 * H), null); assert.deepEqual(await cardRows(dbL, 'nhl', '2026-10-10', { now: NOW + 9 * H }), [])
+  // the records: his verified lane counts only his on-time row
+  const rows = await recordRows(db, 'nhl', { now: clock.now }); assert.equal(recordsOf(rows).donovan.n, 1)
+  // it is readable for him alone
+  const mine = await lateEntries(db, { sport: 'nhl' })
+  assert.equal(mine.rows.length, 1); assert.equal(mine.rows[0].lane, LATE_LANE)
+  assert.equal((await donovanEntry(db, 'nhl', '2026-10-10', 'two_man', undefined, LATE_LANE))?.note, 'Late look: hindsight, for me.')
+  assert.equal((await donovanEntry(db, 'nhl', '2026-10-10'))?.note, NOTE)
+  // replacing the LATE row leaves the on-time row alone, a second late save with the same key is the same row
+  const again = donovanRow({ ...LATE_OK, playerIds: ['p6', 'p2'], note: 'Changed it.', now: clock.now })
+  assert.equal((await saveDonovan(db, again.row)).ok, true); assert.equal(db.rows.length, 2); assert.equal(db.rows.find((r) => r.lane === 'donovan').note, NOTE)
+})
+
+await t('LATE 4: a late row is graded for his reference only (the record, the Card and the posts never count it); frozen after 15 minutes', async () => {
+  const clock = { now: NOW + 90 * 60e3 }
+  const db = fakeDb(clock)
+  const mk = donovanRow({ ...LATE_OK, playerIds: ['p6', 'p4'], now: clock.now })
+  await saveDonovan(db, mk.row)
+  // typo window: change and withdraw inside LATE_EDIT_MIN
+  clock.now += (LATE_EDIT_MIN - 1) * 60e3
+  assert.equal((await saveDonovan(db, donovanRow({ ...LATE_OK, playerIds: ['p6', 'p5'], note: 'Typo fixed.', now: clock.now }).row)).ok, true)
+  assert.equal(db.rows[0].note, 'Typo fixed.')
+  // after the window it is frozen: no rewrite, no withdraw
+  clock.now += 2 * 60e3
+  const frozen = await saveDonovan(db, donovanRow({ ...LATE_OK, playerIds: ['p6', 'p4'], note: 'Too late to change.', now: clock.now }).row)
+  assert.equal(frozen.ok, false); assert.match(frozen.error, /never rewritten/); assert.equal(db.rows[0].note, 'Typo fixed.')
+  assert.equal((await withdrawDonovan(db, { sport: 'nhl', card_date: '2026-10-10', lane: LATE_LANE })).ok, false)
+  // graded by the same grader once its games are final; the result is for the late list only
+  clock.now = NOW + 9 * H
+  const results = new Map(db.rows[0].legs.map((l) => [`${l.game_id}|${l.player_id}`, { played: true, landed: true }]))
+  assert.equal(await gradeCardRows(db, db.rows, results, clock.now), 1); assert.equal(db.rows[0].result, 'hit')
+  const mine = await lateEntries(db, { sport: 'nhl' })
+  assert.equal(mine.record.graded, 1); assert.equal(mine.record.hits, 1)
+  assert.equal(recordsOf(await recordRows(db, 'nhl', { now: clock.now })).donovan.n, 0, 'not in his verified record')
+  // withdraw inside the window works
+  const db2 = fakeDb({ now: NOW + 90 * 60e3 }); await saveDonovan(db2, mk.row)
+  assert.equal((await withdrawDonovan(db2, { sport: 'nhl', card_date: '2026-10-10', lane: LATE_LANE })).ok, true); assert.equal(db2.rows.length, 0)
+})
+
+await t('LATE 5: before the migration is run a late save is refused with a clear message and NOTHING is stored (never a late entry in the verified lane)', async () => {
+  const stored = []
+  const db = { from: () => ({ upsert: (rows) => { stored.push(...rows); return { select: () => Promise.resolve({ data: null, error: { message: 'new row for relation "card_calls" violates check constraint "card_calls_lane_check"' } }) } } }) }
+  const mk = donovanRow({ ...LATE_OK, playerIds: ['p6', 'p4'], now: NOW + 90 * 60e3 })
+  const r = await saveDonovan(db, mk.row)
+  assert.equal(r.ok, false); assert.equal(r.needsSql, true); assert.match(r.error, /202610121100_card_calls_late\.sql/); assert.match(r.error, /Nothing was saved/)
+  assert.ok(stored.every((x) => x.lane === LATE_LANE), 'the row it tried to write was the late lane, never donovan')
+})
+
+await t('LATE 6: a late row can never reach a post, an image or a public route (posts read lane "donovan" by name; the image routes read the public view)', async () => {
+  const mk = donovanRow({ ...LATE_OK, playerIds: ['p6', 'p4'], note: 'Late only.', now: NOW + 90 * 60e3 })
+  const rows = [mk.row, ...CARD_ROWS.filter((r) => r.lane === 'bot')]
+  const b = xCardBuild({ sport: 'nhl', day: '2026-10-10', rows, problems: new Map(), now: NOW - 3600e3 })
+  assert.ok(!/Late only|Donovan/.test(b.text), 'the X post builder ignores a late row')
+  const m = membersCardText({ sport: 'nhl', day: '2026-10-10', rows, prices: new Map() })
+  assert.ok(!(m.text || '').includes('Late only'))
+  for (const f of ['lib/card/post.js', 'lib/card/text.js', 'lib/card/tick.js']) {
+    const code = fs.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8').replace(/\/\/.*$/gm, '')
+    assert.ok(!/donovan_late|LATE_LANE|lateEntries/.test(code), `${f} never names the late lane`)
+  }
+  for (const f of ['app/api/card/route.js', 'app/api/card/day/route.js', 'app/api/card/dual/route.js', 'app/api/card/slab/route.js']) {
+    const code = fs.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8')
+    assert.ok(!/donovan_late|lateEntries/.test(code), `${f} cannot read the late lane`)
+  }
+})
+
+await t('PICKER: each row carries face, name, club, opponent, the game start in ET with the day, market, stored price, floor status (information only), board word and score', () => {
+  const base = (id, extra = {}) => ({ player_id: id, name: `Player ${id}`, team: 'AAA', opp: 'BBB', pos: 'C', game_id: 'g1', start_ms: Date.parse('2026-10-10T23:00:00Z'), score: 77.4, status: 'called', espn_id: '4242', ...extra })
+  const priced = (m) => ({ median: m, best: m + 10, books: 6, taken_at: '2026-10-10T19:00:00Z' })
+  const nhl = pickerRow(base('8478402'), { sport: 'nhl', price: priced(150), now: NOW, season: nhlSeasonOf('2026-10-10') })
+  assert.equal(nhlSeasonOf('2026-10-10'), '20262027'); assert.equal(nhlSeasonOf('2027-02-01'), '20262027')
+  assert.deepEqual(Object.keys(nhl).sort(), ['board_word', 'face', 'floor', 'game_id', 'market', 'name', 'opp', 'player_id', 'pos', 'price', 'score', 'start_at', 'started', 'status', 'team', 'when'].sort())
+  assert.equal(nhl.name, 'Player 8478402'); assert.equal(nhl.team, 'AAA'); assert.equal(nhl.opp, 'BBB'); assert.equal(nhl.board_word, STATUS_WORD.called)
+  assert.equal(nhl.when, 'Sat 7:00 PM ET'); assert.equal(etWhen('2026-10-10T23:00:00Z'), 'Sat 7:00 PM ET'); assert.equal(nhl.started, false)
+  assert.equal(nhl.market, 'anytime goal'); assert.deepEqual(nhl.price, { median: 150, best: 160, books: 6 })
+  assert.match(nhl.face.photo, /^https:\/\/assets\.nhle\.com\/mugs\/nhl\/20262027\/AAA\/8478402\.png$/)
+  assert.equal(nhl.floor.code, 'ok')
+  // floors: informational. +150 clears, +100 is under for a baseball / football anytime, goals are exempt, no price says so; a priceless man is still a row
+  assert.equal(pickerRow(base('1'), { sport: 'mlb', price: priced(150), now: NOW }).floor.code, 'ok')
+  assert.equal(pickerRow(base('1'), { sport: 'mlb', price: priced(100), now: NOW }).floor.code, 'price')
+  assert.equal(pickerRow(base('1'), { sport: 'nhl', price: priced(-200), now: NOW, season: '20262027' }).floor.code, 'ok', 'goals are exempt from the straight floor')
+  const none = pickerRow(base('1'), { sport: 'nfl', price: null, now: NOW })
+  assert.equal(none.price, null); assert.equal(none.floor.code, 'no_price'); assert.equal(none.market, 'anytime touchdown'); assert.deepEqual(none.face, { sport: 'nfl', espnId: '4242' })
+  assert.deepEqual(pickerRow(base('660271'), { sport: 'mlb', price: null, now: NOW }).face, { sport: 'mlb', id: '660271' })
+  assert.equal(pickerRow(base('1', { status: 'off' }), { sport: 'mlb', now: NOW }).board_word, STATUS_WORD.off)
+  assert.equal(pickerRow(base('1', { status: 'board' }), { sport: 'mlb', now: NOW }).board_word, STATUS_WORD.board)
+  assert.equal(pickerRow(base('1', { start_ms: NOW - 1 }), { sport: 'mlb', now: NOW }).started, true)
+  // the pair
+  const a = pickerRow(base('1'), { sport: 'mlb', price: priced(150), now: NOW }); const b = pickerRow(base('2'), { sport: 'mlb', price: priced(150), now: NOW }); const c = pickerRow(base('3'), { sport: 'mlb', price: priced(100), now: NOW })
+  assert.deepEqual([pairFloor(a, b).code, pairFloor(a, b).combined], ['ok', 525]); assert.equal(pairFloor(c, c).code, 'price'); assert.equal(pairFloor(a, none).code, 'no_price')
+  // the component draws what the row carries, through the site's face, team mark and status badge (no hex, no sport ternary)
+  const form = fs.readFileSync(new URL('../components/admin/TwoManForm.js', import.meta.url), 'utf8')
+  assert.ok(/PlayerFace/.test(form) && /TeamMark/.test(form) && /CallStatusBadge/.test(form) && /\/api\/admin\/two-man\/preview/.test(form))
+  assert.ok(!/#[0-9a-fA-F]{3,8}\b/.test(form.replace(/\/\/.*$/gm, '')), 'no hex literal in the form')
+  assert.ok(!/sport === '(nfl|nhl|mlb)' \?/.test(form), 'no sport ternary')
+})
+
+await t('ADMIN ONLY: the preview route stores nothing, is admin-gated (404), and refuses a cross-site or non-JSON write; the page and both APIs share the gate', () => {
+  const prev = fs.readFileSync(new URL('../app/api/admin/two-man/preview/route.js', import.meta.url), 'utf8')
+  const code = prev.replace(/\/\/.*$/gm, '')
+  assert.ok(/isAdminUser\(user\)/.test(code) && /404\)/.test(code) && /sameOriginJson\(request\)/.test(code))
+  assert.ok(!/saveDonovan|\.upsert\(|\.insert\(|\.update\(|\.delete\(|withdrawDonovan|lockCard|postCard/.test(code), 'the preview writes nothing and posts nothing')
+  assert.ok(/no-store/.test(code) && !/public/.test(code), 'never cached')
+  const api = fs.readFileSync(new URL('../app/api/admin/two-man/route.js', import.meta.url), 'utf8')
+  assert.ok(/sameOriginJson\(request\)/.test(api) && /confirm_late/.test(api) && /needs_confirm/.test(api))
+  // gates: a confirmed, allow-listed email only; the reason is a code for the server log
+  process.env.ADMIN_EMAILS = 'boss@test.invalid'
+  assert.equal(isAdminUser({ email: 'boss@test.invalid', email_confirmed_at: '2026-01-01' }), true)
+  assert.equal(isAdminUser({ email: 'boss@test.invalid' }), false, 'an unconfirmed email is not an admin')
+  assert.equal(isAdminUser({ email: 'other@test.invalid', email_confirmed_at: 'x' }), false); assert.equal(isAdminUser(null), false)
+  assert.equal(adminDenyReason(null), 'signed-out'); assert.equal(adminDenyReason({ email: 'boss@test.invalid' }), 'email-unconfirmed'); assert.equal(adminDenyReason({ email: 'x@test.invalid', email_confirmed_at: 'x' }), 'email-not-listed')
+  assert.equal(adminDenyReason({ email: 'boss@test.invalid', email_confirmed_at: 'x' }), null)
+  process.env.ADMIN_EMAILS = ''
+  assert.equal(adminDenyReason({ email: 'boss@test.invalid', email_confirmed_at: 'x' }), 'allow-list-env-missing'); assert.equal(isAdminUser({ email: 'boss@test.invalid', email_confirmed_at: 'x' }), false, 'fails closed with no env')
+  const req = (h) => ({ headers: { get: (k) => h[k.toLowerCase()] ?? null } })
+  assert.equal(sameOriginJson(req({ 'content-type': 'application/json', origin: 'https://dashnetwork.vercel.app', host: 'dashnetwork.vercel.app' })), true)
+  assert.equal(sameOriginJson(req({ 'content-type': 'application/json', origin: 'https://evil.example', host: 'dashnetwork.vercel.app' })), false, 'cross-site refused')
+  assert.equal(sameOriginJson(req({ 'content-type': 'text/plain', host: 'dashnetwork.vercel.app' })), false, 'a form post (not JSON) refused')
+  assert.equal(sameOriginJson(req({ 'content-type': 'application/json' })), true, 'no Origin = not a browser form post; the session still gates it')
+  const page = fs.readFileSync(new URL('../app/admin/two-man/page.js', import.meta.url), 'utf8')
+  assert.ok(/!isAdminUser\(user\)\) \{[\s\S]*?notFound\(\)/.test(page))
+  // nothing sensitive in a response: no env, no email, no service key
+  for (const f of ['app/api/admin/two-man/route.js', 'app/api/admin/two-man/preview/route.js']) assert.ok(!/process\.env|SERVICE_ROLE|user\.email/.test(fs.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8').replace(/\/\/.*$/gm, '')), `${f} sends no secret`)
+})
+
+await t('THE LATE MIGRATION: the lane, the trigger, the restrictive read policy (late is never readable by anon), idempotent, no role switching; the plain .txt IS the SQL', () => {
+  const sql = fs.readFileSync(new URL('../supabase/migrations/202610121100_card_calls_late.sql', import.meta.url), 'utf8')
+  const code = sql.replace(/--.*$/gm, '')
+  assert.ok(/check \(lane in \('bot','donovan','donovan_late'\)\)/.test(code) && /check \(note is null or lane in \('donovan','donovan_late'\)\)/.test(code))
+  assert.ok(/new\.lane = 'donovan_late'/.test(code) && /old\.lane = 'donovan_late'/.test(code) && /interval '15 minutes'/.test(code))
+  assert.ok(/as restrictive for select to anon, authenticated/.test(code) && /using \(lane <> 'donovan_late'\)/.test(code))
+  assert.ok(/drop policy if exists card_calls_no_late/.test(code) && /create or replace function public\.card_calls_guard/.test(code) && /drop trigger if exists card_calls_guard/.test(code))
+  // the verified lane's rules are unchanged inside the new guard
+  assert.ok(/now\(\) >= new\.start_at/.test(code) && /now\(\) >= new\.locks_at/.test(code) && /a locked card is never rewritten/.test(code) && /a graded card row is never regraded/.test(code) && /nothing is graded before the start/.test(code))
+  assert.ok(!/set\s+role/i.test(sql) && !/drop table|truncate|delete from/i.test(code) && !/alter table public\.card_calls drop column/i.test(code))
+  const txt = '/Volumes/DONX/USERS/Kingdondondon/Desktop/AUDITS-TO-READ/TWO-MAN-LATE/card_late_SQL.txt'
+  if (fs.existsSync(txt)) assert.equal(fs.readFileSync(txt, 'utf8').trim(), sql.trim(), 'the .txt is the migration, byte for byte')
 })
 
 console.log(failed ? `\n${failed} FAILED` : '\nall ok')

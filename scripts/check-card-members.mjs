@@ -252,6 +252,27 @@ await t('H6 the Long Shot row is in the public view before the reveal; the publi
   assert.deepEqual(publicCardRows(rows).rows.map((r) => r.product), ['long_shot'])
 })
 
+await t('H7 his LATE entry (saved after the lock / after a start) is on NO read: not the public view, not the members view, not the dual route, not the post; his on-time row is untouched', async () => {
+  const { db, clock } = await donovanDb()
+  clock.now = NOW + 20 * 60e3
+  const late = donovanRow({ sport: 'nhl', slate_key: DAY, card_date: DAY, field: FIELD, playerIds: ['alpha', 'bravo'], note: 'Late only, for me.', now: clock.now, lockAtMs: lockAtOf(NOW + 1 * H), allowLate: true })
+  assert.equal(late.ok, true); assert.equal(late.late, true); assert.equal(late.row.lane, 'donovan_late')
+  assert.equal((await saveDonovan(db, late.row)).ok, true)
+  assert.equal(db.rows.filter((r) => r.lane === 'donovan').length, 1, 'his on-time row is still the only verified one')
+  for (const audience of ['public', 'members']) {
+    const rows = (await readCard(db, 'nhl', DAY, { now: clock.now, audience })).rows
+    assert.ok(rows.every((r) => r.lane !== 'donovan_late'), `${audience} view`)
+    assert.ok(!JSON.stringify(rows).includes('Late only'), `${audience} view carries no late note`)
+  }
+  const lateDual = await loadDualModel({ sport: 'nhl', date: DAY, lane: 'donovan_late', db, now: clock.now, publicOnly: true })
+  assert.equal(lateDual.ok, false, 'the dual route has no late lane')
+  const rows = (await readCard(db, 'nhl', DAY, { now: clock.now, audience: 'members' })).rows
+  const b = xCardBuild({ sport: 'nhl', day: DAY, rows, problems: new Map(rows.flatMap((r) => r.legs).map((l) => [String(l.player_id), null])), now: NOW - 1 })
+  assert.ok(!b.text.includes('Late only'))
+  assert.match(src('app/api/card/dual/route.js'), /lane'\) === 'donovan' \? 'donovan' : 'bot'/, 'the public dual route accepts only the bot lane or the verified donovan lane')
+  assert.match(src('supabase/migrations/202610121100_card_calls_late.sql'), /as restrictive for select to anon, authenticated\s+using \(lane <> 'donovan_late'\)/)
+})
+
 // ── G. THE SITE'S LINE ───────────────────────────────────────────────────────
 await t('G1 the quiet line is neutral (no "lock", no "locked", no "premium"), and the section shows it from the route\'s `held`', () => {
   assert.equal(HELD_LINE, 'The Two-Man and calls #2-#3 are for members until a leg is graded.')

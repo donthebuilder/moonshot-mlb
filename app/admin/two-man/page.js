@@ -1,13 +1,15 @@
 // /admin/two-man: DONOVAN'S TWO-MAN (2026-10-10). The form where he enters his two players and a one-to-three line note BEFORE the lock.
 //
-// ACCESS: the same gate as /admin (signed in AND the account's email in ADMIN_EMAILS); anyone else gets a 404, not "forbidden".
-// The entry is saved by /api/admin/two-man, which refuses once any game has started or the lock has passed; the database trigger
-// (supabase/migrations/202610101000_card_calls.sql) refuses it too. After the lock his Two-Man is free to display, with his note, as
-// "Donovan's Two-Man", in its own record (never mixed into the bot's).
+// ACCESS: the same gate as /admin (signed in AND a CONFIRMED email that is in ADMIN_EMAILS: lib/admin.js isAdminUser); anyone else gets a 404, not
+// "forbidden". The 404 says why in the SERVER LOG only (adminDenyReason: signed-out / allow-list-env-missing / email-not-listed / email-unconfirmed).
+// ALWAYS OPEN (2026-10-12): the form takes an entry at any time. /api/admin/two-man stores it as the verified entry when it is on time (before the lock
+// and before any leg's game starts; the database trigger 202610101000_card_calls.sql holds that), and as LATE otherwise (lane 'donovan_late',
+// 202610121100_card_calls_late.sql): never in the record, never posted, never public. After the lock an on-time entry is free to display, with his note,
+// as "Donovan's Two-Man", in its own record (never mixed into the bot's).
 import { notFound } from 'next/navigation'
 import { hasSupabaseConfig } from '../../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../../lib/supabase/server'
-import { isAdminUser } from '../../../lib/admin'
+import { isAdminUser, adminDenyReason } from '../../../lib/admin'
 import start from '../../start/start.module.css'
 import TwoManForm from '../../../components/admin/TwoManForm'
 
@@ -26,7 +28,7 @@ export default async function TwoManAdminPage() {
   if (!hasSupabaseConfig()) notFound()
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !isAdminUser(user)) notFound()
+  if (!user || !isAdminUser(user)) { console.warn(`[admin/two-man] 404: ${adminDenyReason(user)}`); notFound() }
   return (
     <main className={start.page}>
       <header className={start.bar}>
