@@ -12,6 +12,7 @@ import { boardOrder } from '../../lib/boardOrder'
 import { hr9Color, hr9Fill, hr9Pct, hr9Title } from '../../lib/hr9'
 import { PanelTitle, Empty, btnStyle } from '../ui'
 import PlayerCard from '../PlayerCard'
+import { PICK_GRID_CSS } from '../card/RankCard'
 import GameStrip from '../GameStrip'
 import GameLineup from '../GameLineup'
 import Heatmap from '../Heatmap'
@@ -615,6 +616,8 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   // button at the top that reloads the entire grid to change one section of
   // it. `barsOn` replaces every `mode === 'botview'` check below.
   const [barsOn, setBarsOn] = useState(false)
+  // PHONE: the pick cards show TOP + HR and keep the rest one tap away ("+N more picks"); wider screens show them all
+  const [morePicks, setMorePicks] = useState({})
   // Lineups mode focus (2026-08-06): clicking a bubble used to scroll the
   // page to a card buried under ten others — "flies all the way to the
   // bottom". Now it FOCUSES: the chosen game renders alone, full width, with
@@ -1732,8 +1735,12 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                         {/* FLEX, NOT GRID, on purpose — the last row stretches to
                             fill, no orphan card beside empty cells. Each card wears
                             its category as a ring + tag: one object, labelled. */}
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'stretch' }}>
-                          {sorted.map(({ cat: slotCat, cats: slotCats, p }) => {
+                        {/* THE PICK GRID (2026-10-12, Donovan: "this looks ass"): a grid of equal-height cards, as many 216px+ tracks as
+                            fit (five at 1280, three at 768, one on a phone), HR WATCH across a full row. On a phone only the first two cards
+                            show until "+N more picks" is tapped (the .gp-fold rules; the CSS lives with the card, PICK_GRID_CSS). */}
+                        <style>{PICK_GRID_CSS}</style>
+                        <div className="gp-pickgrid" data-open={morePicks[g.game_pk] ? '1' : '0'}>
+                          {sorted.map(({ cat: slotCat, cats: slotCats, p }, slotIdx) => {
                             // A dual-slotted player is ONE card (2026-08-14,
                             // see picksFor) — the badge wears both names in
                             // the primary slot's colour.
@@ -1743,7 +1750,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                                 : ROLE_CONFIG[slotCat])
                               : null
                             const wrap = (inner) => (
-                              <div key={slotCat ? `${slotCat}-${playerId(p)}` : playerId(p)} style={{
+                              <div key={slotCat ? `${slotCat}-${playerId(p)}` : playerId(p)} className={slotIdx >= 2 ? 'gp-fold' : undefined} style={{
                                 flex: '1 1 240px', minWidth: 0, position: 'relative',
                                 display: 'flex', flexDirection: 'column',
                                 marginTop: roleInfo ? 9 : 0,
@@ -1891,15 +1898,33 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                     </div>
                   )
                 }
-                            return wrap(
-                              <PlayerCard
-                                p={p} type="hr"
-                                onAdd={onAdd} onWatch={onWatch}
-                                watched={watchIds.has(playerId(p))}
-                                onClick={() => onPlayerClick?.(p)}
-                              />
+                            // THE SHARED BASEBALL CARD (components/card/RankCard.js, compact): the pick label is the card's kicker line in
+                            // the SLOT's colour (one outline style for the row, no ring + notch badge on top of it).
+                            const isWatchCard = slotCat === 'WATCH'
+                            return (
+                              <div key={slotCat ? `${slotCat}-${playerId(p)}` : playerId(p)} className={`gp-pickcell${slotIdx >= 2 ? ' gp-fold' : ''}${isWatchCard ? ' gp-pickgrid-wide' : ''}`}>
+                                <PlayerCard
+                                  p={p} type="hr"
+                                  compact wide={isWatchCard} kicker={roleInfo?.label || null} accentColor={roleInfo?.color || null}
+                                  onAdd={onAdd} onWatch={onWatch}
+                                  watched={watchIds.has(playerId(p))}
+                                  onClick={() => onPlayerClick?.(p)}
+                                />
+                              </div>
                             )
                           })}
+                          {sorted.length > 2 && (
+                            <button
+                              type="button" className="gp-morepicks"
+                              onClick={(e) => { e.stopPropagation(); setMorePicks((m) => ({ ...m, [g.game_pk]: !m[g.game_pk] })) }}
+                              aria-expanded={Boolean(morePicks[g.game_pk])}
+                              style={{
+                                gridColumn: '1 / -1', minHeight: 44, alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                                background: 'transparent', border: `1px solid ${C.border2}`, borderRadius: 10, color: C.text2,
+                                fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 800,
+                              }}
+                            >{morePicks[g.game_pk] ? 'Show fewer picks' : `+${sorted.length - 2} more picks`}</button>
+                          )}
                         </div>
                         </>)}
                             </>
