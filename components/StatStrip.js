@@ -22,7 +22,7 @@ import { statLineFor, hrRateBoxes, useSlateScale, toneFor, toneTitle, marketKey 
 // MOONSHOT path below is unchanged.
 // wrap: labels may take two lines instead of an ellipsis (other sports' longer
 // component names -- "Implied team total"); MOONSHOT never sets it.
-export default function StatStrip({ p, type = 'hr', count = 4, size = 'md', style, stats: given, wrap = false }) {
+export default function StatStrip({ p, type = 'hr', count = 4, size = 'md', style, stats: given, wrap = false, cols = null, tall = false, onPick = null }) {
   const { C, NUM_FONT, accent } = useSportTheme()
   // ONE ACCENT (2026-10-07 sweep): helps tonight = the product's accent, hurts tonight = grey (never red/green).
   const toneInk = { good: accent, mid: C.text2, poor: C.text3 }
@@ -33,10 +33,10 @@ export default function StatStrip({ p, type = 'hr', count = 4, size = 'md', styl
   const sm = size === 'sm'
   return (
     <div
-      className="stat-strip"
+      className={cols ? 'stat-strip-c' : 'stat-strip'}
       style={{
         display: 'grid',
-        gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))`,
+        gridTemplateColumns: `repeat(${cols || stats.length}, minmax(0, 1fr))`,
         gap: sm ? 4 : 6,
         ...style,
       }}
@@ -50,8 +50,11 @@ export default function StatStrip({ p, type = 'hr', count = 4, size = 'md', styl
           <div
             key={s.id}
             title={given ? s.title : toneTitle(tone, scale, s)}
+            // TAP TO EXPLAIN (game page pick cards): onPick gets the box's full name + definition; the box is a 44px-tall target.
+            {...(onPick ? { role: 'button', tabIndex: 0, onClick: (e) => { e.stopPropagation(); onPick(given ? s.title : toneTitle(tone, scale, s), s) }, onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onPick(given ? s.title : toneTitle(tone, scale, s), s) } } } : null)}
             style={{
-              minWidth: 0, textAlign: 'center', cursor: 'default',
+              minWidth: 0, textAlign: 'center', cursor: onPick ? 'pointer' : 'default',
+              ...(tall ? { minHeight: 44, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center' } : null),
               background: tone === 'mid' || !tone ? 'rgba(255,255,255,.03)' : `${col}12`,
               border: `1px solid ${tone === 'mid' || !tone ? C.border : `${col}44`}`,
               borderRadius: 7, padding: sm ? '3px 2px 4px' : '4px 3px 5px',
