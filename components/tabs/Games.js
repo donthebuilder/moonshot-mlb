@@ -12,6 +12,7 @@ import { boardOrder } from '../../lib/boardOrder'
 import { hr9Color, hr9Fill, hr9Pct, hr9Title } from '../../lib/hr9'
 import { PanelTitle, Empty, btnStyle } from '../ui'
 import PlayerCard from '../PlayerCard'
+import { PICK_GRID_CSS } from '../card/RankCard'
 import GameStrip from '../GameStrip'
 import GameLineup from '../GameLineup'
 import Heatmap from '../Heatmap'
@@ -616,6 +617,8 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   // button at the top that reloads the entire grid to change one section of
   // it. `barsOn` replaces every `mode === 'botview'` check below.
   const [barsOn, setBarsOn] = useState(false)
+  // PHONE: the pick cards show TOP + HR and keep the rest one tap away ("+N more picks"); wider screens show them all
+  const [pickIdx, setPickIdx] = useState({})
   // Lineups mode focus (2026-08-06): clicking a bubble used to scroll the
   // page to a card buried under ten others — "flies all the way to the
   // bottom". Now it FOCUSES: the chosen game renders alone, full width, with
@@ -1734,8 +1737,18 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                         {/* FLEX, NOT GRID, on purpose — the last row stretches to
                             fill, no orphan card beside empty cells. Each card wears
                             its category as a ring + tag: one object, labelled. */}
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'stretch' }}>
-                          {sorted.map(({ cat: slotCat, cats: slotCats, p }) => {
+                        {/* THE PICK GRID (2026-10-12, Donovan: "this looks ass"): a grid of equal-height cards, as many 216px+ tracks as
+                            fit (five at 1280, three at 768, one on a phone), HR WATCH across a full row. On a phone only the first two cards
+                            show until "+N more picks" is tapped (the .gp-fold rules; the CSS lives with the card, PICK_GRID_CSS). */}
+                        <style>{PICK_GRID_CSS}</style>
+                        <div className="gp-pickgrid" onScroll={(e) => {
+                          // phone swipe row: which card is in view (the "1 of 5" count)
+                          const el = e.currentTarget
+                          const w = el.children[0]?.getBoundingClientRect().width || 1
+                          const i = Math.min(el.children.length - 1, Math.max(0, Math.round(el.scrollLeft / (w + 10))))
+                          setPickIdx((m) => (m[g.game_pk] === i ? m : { ...m, [g.game_pk]: i }))
+                        }}>
+                          {sorted.map(({ cat: slotCat, cats: slotCats, p }, slotIdx) => {
                             // A dual-slotted player is ONE card (2026-08-14,
                             // see picksFor) — the badge wears both names in
                             // the primary slot's colour.
@@ -1745,7 +1758,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                                 : ROLE_CONFIG[slotCat])
                               : null
                             const wrap = (inner) => (
-                              <div key={slotCat ? `${slotCat}-${playerId(p)}` : playerId(p)} style={{
+                              <div key={slotCat ? `${slotCat}-${playerId(p)}` : playerId(p)} className={slotIdx >= 2 ? 'gp-fold' : undefined} style={{
                                 flex: '1 1 240px', minWidth: 0, position: 'relative',
                                 display: 'flex', flexDirection: 'column',
                                 marginTop: roleInfo ? 9 : 0,
@@ -1893,16 +1906,37 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                     </div>
                   )
                 }
-                            return wrap(
-                              <PlayerCard
-                                p={p} type="hr"
-                                onAdd={onAdd} onWatch={onWatch}
-                                watched={watchIds.has(playerId(p))}
-                                onClick={() => onPlayerClick?.(p)}
-                              />
+                            // THE SHARED BASEBALL CARD (components/card/RankCard.js, compact): the pick label is the card's kicker line in
+                            // the SLOT's colour (one outline style for the row, no ring + notch badge on top of it).
+                            const isWatchCard = slotCat === 'WATCH'
+                            return (
+                              <div key={slotCat ? `${slotCat}-${playerId(p)}` : playerId(p)} className={`gp-pickcell${isWatchCard ? ' gp-pickgrid-wide' : ''}`}>
+                                <PlayerCard
+                                  p={p} type="hr"
+                                  compact wide={isWatchCard}
+                                  // a card holding several slots: the FIRST slot is the kicker, the others ride as small pills in their own
+                                  // colours on the same line (never a two-line "HIT/HRR/CONTACT/WATCH PICK")
+                                  kicker={slotCat ? (ROLE_CONFIG[slotCat]?.label || null) : null}
+                                  kickerPills={slotCats && slotCats.length > 1 ? slotCats.slice(1).map((c) => ({ label: c, color: (ROLE_CONFIG[c] || {}).color || C.text3 })) : []}
+                                  accentColor={roleInfo?.color || null}
+                                  onAdd={onAdd} onWatch={onWatch}
+                                  watched={watchIds.has(playerId(p))}
+                                  onClick={() => onPlayerClick?.(p)}
+                                />
+                              </div>
                             )
                           })}
                         </div>
+                        {/* PHONE ONLY: the picks are a swipe row (every card reachable, TOP first); this says where you are */}
+                        {sorted.length > 1 && !barsOn && (
+                          <div className="gp-count" style={{ alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 28, fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3 }}>
+                            <span style={{ fontWeight: 800, color: C.text2 }}>{Math.min(sorted.length, (pickIdx[g.game_pk] || 0) + 1)} of {sorted.length}</span>
+                            <span aria-hidden="true" style={{ display: 'inline-flex', gap: 5 }}>
+                              {sorted.map((_, i) => <span key={i} style={{ width: 6, height: 6, borderRadius: 3, background: i === (pickIdx[g.game_pk] || 0) ? C.text2 : C.border2 }} />)}
+                            </span>
+                            <span>swipe for the next pick</span>
+                          </div>
+                        )}
                         </>)}
                             </>
                           ),

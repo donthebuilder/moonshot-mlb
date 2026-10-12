@@ -80,7 +80,10 @@ function gamePickLabelFor(p) {
 
 // rank / status (2026-10-10, cards brought to speed): the Rankings board hands its own rank and its one call word (lib/callStatus) so
 // the card leads with them like every other sport's; every other mount passes neither and draws as before, minus the name clipping.
-export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, onClick, rank = null, status = null, rankMove = null }) {
+export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, onClick, rank = null, status = null, rankMove = null, compact = false, wide = false, kicker = null, kickerPills = [], accentColor = null }) {
+  // compact / wide / kicker / accentColor (2026-10-12): the game page's pick cards. A compact card is drawn for a narrow column
+  // (RankCard compact), its pick label rides in `kicker`, and `accentColor` is the SLOT's colour so a row of picks wears one outline style.
+  const [openStat, setOpenStat] = useState(null)
   // TAP TARGETS (2026-08-12): the emoji stack, weak-spot star and score badge
   // used to carry their explanations in a bare title= — a hover tooltip,
   // invisible on phones (see Explain.js's header comment; PlayerCard is the
@@ -165,6 +168,40 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
     ? (p?.weak_spot_reason || 'Weak lineup spot vs this pitcher.')
     : null
 
+  // THE CHIPS, AS ONE LIST (2026-10-12): the same chips in the same order as before, as an array, so a compact card can hold two rows
+  // and say "+N" (RankCard ChipRows) while every other mount renders them exactly as it did. On a compact pick card the
+  // "MOONSHOT's X Pick" chip is not drawn: the pick label is the card's own kicker line, in the slot's colour.
+  const chipList = []
+  if (showHrOverlay) {
+    chipList.push(<span key="ov" title={hrOverlay.title}><Chip color={hrOverlay.color}>{hrOverlay.validated ? '✓ ' : ''}{hrOverlay.label}</Chip></span>)
+  }
+  if (gamePickLabel) {
+    if (!(compact && kicker)) chipList.push(<Chip key="pick" color={C.yellow}>★ MOONSHOT&apos;s {gamePickLabel}</Chip>)
+    if (aligned) chipList.push(<Chip key="al" color={C.purple}>🧩 Aligned</Chip>)
+    if (recency) chipList.push(<Chip key="rec" color={recency.color}>{recency.label}</Chip>)
+    pills.slice(0, 2).forEach((x, i) => chipList.push(<Chip key={`pl${i}`} color={x.color}>{x.label}</Chip>))
+  } else {
+    if (altLook) chipList.push(<Chip key="alt" color={altLook.color}>{altLook.label}</Chip>)
+    // GLYPH HERE, TEXT IN TABLES (chosen 2026-08-14). A card has room and a
+    // personality; a 25-column table has neither, and a pictograph's
+    // unpredictable width is exactly what breaks a numeric column's
+    // alignment. One glyph per tier, never stacked — which is the real
+    // fix to the old problem, where a single card could carry a role
+    // emoji, an HRW-zone emoji, a lock AND a target.
+    const rt = roleTag(p)
+    if (rt) chipList.push(<RoleTag key="rt" label={rt.label} color={rt.color} glyph={rt.glyph} title={`Conviction tier: ${rt.label}`} />)
+    if (showRoleChip) chipList.push(<Chip key="role" color={color}>{role}</Chip>)
+    if (showBetChip && bet !== role) chipList.push(<Chip key="bet" color={C.text2}>{bet}</Chip>)
+    if (risk) chipList.push(<Chip key="risk" color={risk.color}>{risk.label}</Chip>)
+    if (aligned) chipList.push(<Chip key="al" color={C.purple}>🧩 Aligned</Chip>)
+    if (recency) chipList.push(<Chip key="rec" color={recency.color}>{recency.label}</Chip>)
+    if (clean(p?.alt_look_tag, '')) chipList.push(<Chip key="altl" color={C.purple}>🔄 {clean(p.alt_look_tag)}</Chip>)
+    if (isAvoid && !altLook) {
+      chipList.push(<span key="avoid" title={gate ? gate.title : undefined}><Chip color={gate ? C.text3 : AVOID_COLOR}>{avoidLabel}</Chip></span>)
+    }
+    pills.slice(0, 2).forEach((x, i) => chipList.push(<Chip key={`pl${i}`} color={x.color}>{x.label}</Chip>))
+  }
+
   // A HIGHLIGHT REACHES PLAYER CARDS NOW (2026-08-17). PlayerCard is the most
   // rendered hitter surface on the site — the boards, the Four, the top-tens,
   // Pitchers, the watchlist all draw it — and the highlight wash used to stop
@@ -172,9 +209,10 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
   // non-matching one everywhere except a table. Card already forwards `style`,
   // so this is one spread. See lib/spotlight.js's note above chipWashOf.
   return (
-      <RankCard accent={color} status={status} rankMove={rankMove} pos={clean(p?.handedness || p?.bats, '')} rank={rank} sport="mlb" club={teamOf(p) || null} name={nameOf(p)} opp={oppOf(p) || null}
-        role={`${clean(p?.lineup_spot, '—')}${p?.lineup_confirmed === false ? ' (proj.)' : ''}`}
-        face={<PlayerFace sport="mlb" id={mlbId(p)} team={teamOf(p)} name={nameOf(p)} variant="tile" size={84} />}
+      <RankCard accent={accentColor || color} status={status} rankMove={rankMove} pos={clean(p?.handedness || p?.bats, '')} rank={rank} sport="mlb" club={teamOf(p) || null} name={nameOf(p)} opp={oppOf(p) || null}
+        compact={compact} wide={wide} kicker={kicker} kickerPills={kickerPills}
+        role={`${compact ? 'Bats ' : ''}${clean(p?.lineup_spot, '—')}${p?.lineup_confirmed === false ? ' (proj.)' : ''}`}
+        face={<PlayerFace sport="mlb" id={mlbId(p)} team={teamOf(p)} name={nameOf(p)} variant="tile" size={compact ? 68 : 84} />}
         score={score.toFixed(0)} scoreWord="MOONSHOT" rankTags={grade ? [`GRADE ${grade}`] : []}
         explain={<>MOONSHOT&apos;s {type.toUpperCase()} score, 0–100 — its verdict, not a stat. The row below is where it comes from.</>}
         extraLine={<>
@@ -206,50 +244,11 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
             </span>
           )}
         </>}
-        chips={<>
-
-        {showHrOverlay && (
-          <span title={hrOverlay.title}>
-            <Chip color={hrOverlay.color}>{hrOverlay.validated ? '✓ ' : ''}{hrOverlay.label}</Chip>
-          </span>
-        )}
-        {gamePickLabel ? (
-          <>
-            <Chip color={C.yellow}>★ MOONSHOT&apos;s {gamePickLabel}</Chip>
-            {aligned && <Chip color={C.purple}>🧩 Aligned</Chip>}
-            {recency && <Chip color={recency.color}>{recency.label}</Chip>}
-            {pills.slice(0, 2).map((x, i) => <Chip key={i} color={x.color}>{x.label}</Chip>)}
-          </>
-        ) : (
-          <>
-            {altLook && <Chip color={altLook.color}>{altLook.label}</Chip>}
-            {(() => {
-              const rt = roleTag(p)
-              // GLYPH HERE, TEXT IN TABLES (chosen 2026-08-14). A card has room and a
-              // personality; a 25-column table has neither, and a pictograph's
-              // unpredictable width is exactly what breaks a numeric column's
-              // alignment. One glyph per tier, never stacked — which is the real
-              // fix to the old problem, where a single card could carry a role
-              // emoji, an HRW-zone emoji, a lock AND a target.
-              return rt ? <RoleTag label={rt.label} color={rt.color} glyph={rt.glyph} title={`Conviction tier: ${rt.label}`} /> : null
-            })()}
-            {showRoleChip && <Chip color={color}>{role}</Chip>}
-            {showBetChip && !gamePickLabel && bet !== role && <Chip color={C.text2}>{bet}</Chip>}
-            {risk && <Chip color={risk.color}>{risk.label}</Chip>}
-            {aligned && <Chip color={C.purple}>🧩 Aligned</Chip>}
-            {recency && <Chip color={recency.color}>{recency.label}</Chip>}
-            {clean(p?.alt_look_tag, '') && <Chip color={C.purple}>🔄 {clean(p.alt_look_tag)}</Chip>}
-            {isAvoid && !altLook && (
-              <span title={gate ? gate.title : undefined}>
-                <Chip color={gate ? C.text3 : AVOID_COLOR}>{avoidLabel}</Chip>
-              </span>
-            )}
-            {pills.slice(0, 2).map((x, i) => <Chip key={i} color={x.color}>{x.label}</Chip>)}
-          </>
-        )}
-              </>}
-        extraNotes={[openEmoji && emojiTitle, openWeak && <>⭐ {weakSpotReason}</>]}
-        statsNode={<StatStrip p={p} type={type} count={4} />}
+        chips={chipList}
+        extraNotes={[openEmoji && emojiTitle, openWeak && <>⭐ {weakSpotReason}</>, openStat]}
+        statsNode={compact
+          ? <StatStrip p={p} type={type} count={4} cols={wide ? 4 : 2} tall wrap onPick={(t) => setOpenStat((cur) => (cur === t ? null : t))} />
+          : <StatStrip p={p} type={type} count={4} />}
         back={{ rows: [], node: <SlashLine p={p} type={type} /> }}
         onClick={onClick} style={spotStyle} title={spotWhy || undefined}
         foot={<>
@@ -266,6 +265,7 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
             fontSize: 11,
             fontWeight: 800,
             cursor: 'pointer',
+            ...(compact ? { minWidth: 0, whiteSpace: 'nowrap', padding: '6px 6px' } : null),
           }}
         >
           + Add to Slip
