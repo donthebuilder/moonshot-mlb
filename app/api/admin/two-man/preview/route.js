@@ -45,13 +45,13 @@ export async function POST(request) {
   if (!win) return json({ error: `No ${sport} games on ${date}.` }, 404)
   const c = await loadCandidates(sport, win, now, { all: true })
   if (!c.ok) return json({ error: `The board could not be read: ${c.why}` }, 502)
-  const made = donovanRow({ sport, slate_key: win.slate_key, card_date: date, field: c.cands, playerIds: ids, note: PREVIEW_NOTE, now, lockAtMs: lockAtOf(win.first_start_ms), version: CARD_VERSION, allowLate: true })
+  const made = donovanRow({ sport, slate_key: win.slate_key, card_date: date, field: c.cands, playerIds: ids, note: PREVIEW_NOTE, cardName: body.card_name, now, lockAtMs: lockAtOf(win.first_start_ms), version: CARD_VERSION, allowLate: true })
   if (!made.ok) return json({ error: made.error }, 400)
   try {
     const { dualOfRow, previewSerial } = await import('../../../../../lib/cards/dualData')
     const { renderDual } = await import('../../../../../lib/cards/dualCard')
     const serial = made.late ? null : await previewSerial(db, { sport, cardDate: date, locksAt: made.row.locks_at })
-    const dual = await dualOfRow({ sport, row: made.row, db, serial, label: made.late ? "LATE · DONOVAN'S TWO-MAN" : null })
+    const dual = await dualOfRow({ sport, row: made.row, db, serial, label: made.late ? 'late' : null })
     const png = await renderDual(dual, { width: 540 })
     return new Response(png, { status: 200, headers: { 'Content-Type': 'image/png', 'Cache-Control': 'no-store', 'X-Entry': made.late ? 'late' : 'on-time' } })
   } catch (e) {

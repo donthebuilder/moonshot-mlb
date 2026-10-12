@@ -326,7 +326,7 @@ await t('the X post names ONLY the lead straight and Donovan\'s Two-Man with his
   const b = xCardBuild({ sport: 'nhl', day: '2026-10-10', rows: CARD_ROWS, problems: OK_PROBLEMS, now: NOW - 30 * 60e3 })
   assert.ok(b.text.length > 0)
   assert.match(b.text, /Straight: Player p6 · Tg4A vs Tg4B \(anytime goal\)/)
-  assert.match(b.text, /Donovan's Two-Man: Player p3 \+ Player p5/); assert.ok(b.text.includes('Shots, shots, shots.'))
+  assert.match(b.text, /Admin's Two-Man: Player p3 \+ Player p5/); assert.ok(b.text.includes('Shots, shots, shots.'))
   // the other straights and the bot's two-man legs (p6 is #1; p1 / p2 are #2, #3 and the Two-Man's second leg) are nowhere in the text or the payload
   for (const n of ['Player p1', 'Player p2', 'Player s1']) assert.ok(!b.text.includes(n), `${n} must not be on X`)
   assert.deepEqual(b.payload.picks.map((p) => p.player_id).sort(), ['p3', 'p5', 'p6'])
@@ -344,7 +344,7 @@ await t('X rules: a long note loses lines before names; a repeat-guard exclusion
   assert.ok([...b.text].length + 4 <= 280); assert.ok(b.text.includes('Player p3') && b.text.includes('Player p6'))
   const ex = xCardBuild({ sport: 'nhl', day: '2026-10-10', rows: CARD_ROWS, problems: OK_PROBLEMS, exclude: new Set(['p6']), now: NOW - 30 * 60e3 })
   assert.ok(!ex.text.includes('Straight:'), 'the lead straight is left out when he was named too recently'); assert.ok(!ex.text.includes('Player p1') && !ex.text.includes('Player p2') && !ex.text.includes('Player s1'))
-  assert.ok(ex.text.includes('Donovan'))
+  assert.ok(ex.text.includes('Admin'))
   assert.equal(xCardBuild({ sport: 'nhl', day: 'd', rows: [], problems: OK_PROBLEMS, now: NOW }).text, '')
   const none = xCardBuild({ sport: 'nhl', day: 'd', rows: CARD_ROWS.filter((r) => r.lane === 'bot' && r.product !== 'straight'), problems: OK_PROBLEMS, now: NOW })
   assert.equal(none.text, '', 'the bot\'s Two-Man alone never makes an X post')
@@ -356,7 +356,7 @@ await t('X naming rule: a name not confirmed yet HOLDS the post; a definite no l
   assert.equal(held.text, ''); assert.ok(held.pending?.length === 1); assert.equal(held.startMs, NOW + 1 * H)
   const out = new Map(OK_PROBLEMS); out.set('p3', { id: 'p3', reason: 'listed out', pending: false })
   const left = xCardBuild({ sport: 'nhl', day: 'd', rows: CARD_ROWS, problems: out, now: NOW - 30 * 60e3 })
-  assert.ok(left.text.includes('Straight:') && !left.text.includes('Donovan') && !left.text.includes('Player p3') && !left.text.includes('Player p5'))
+  assert.ok(left.text.includes('Straight:') && !left.text.includes('Admin') && !left.text.includes('Player p3') && !left.text.includes('Player p5'))
   assert.ok(!left.text.includes('Shots, shots, shots.'), 'his note does not go out about two men whose names cannot be shown')
   assert.deepEqual(left.payload.picks.map((p) => p.player_id), ['p6'])
   const unseen = xCardBuild({ sport: 'nhl', day: 'd', rows: CARD_ROWS, problems: new Map(), now: NOW - 30 * 60e3 })
@@ -375,7 +375,7 @@ await t('the #members card carries the whole Card, the bot\'s Two-Man, each pric
   assert.match(m.text, /1\. Player p6 .*1 unit · \+450 best, \+380 median \(5 books\)/)
   assert.match(m.text, /2\. Player s1 .*shots on goal over 2\.5 · 1 unit · \+130 median across 6 books/, 'a volume pick shows its stored line and the price frozen at the lock')
   assert.match(m.text, /TWO-MAN: Player p6 \+ Player p1 · different games · 0\.5 unit · about \+2100 best/)   // the product of the two prices
-  assert.ok(m.text.includes('why p6')); assert.ok(!m.text.includes("Donovan"), 'his lane is free: not in the members card')
+  assert.ok(m.text.includes('why p6')); assert.ok(!m.text.includes("Admin"), 'his lane is free: not in the members card')
   const noPrice = membersCardText({ sport: 'nhl', day: 'd', rows: OLD_ROWS, prices: new Map() })
   assert.match(membersCardText({ sport: 'nhl', day: 'd', rows: CARD_ROWS, prices: new Map() }).text, /1\. Player p6 .*\+150 median across 5 books/, 'a Card locked under the floors freezes the price it was picked at')
   assert.match(noPrice.text, /no price on file yet/); assert.match(noPrice.text, /no price on file for both legs yet/)
@@ -387,7 +387,7 @@ await t('the #members card carries the whole Card, the bot\'s Two-Man, each pric
 await t('the free result: every row\'s outcome, hits AND misses, no price, fits 280, clean', () => {
   const graded = CARD_ROWS.map((r) => ({ ...r, result: r.lane === 'donovan' ? 'miss' : r.product === 'two_man' ? 'void' : r.slot === 1 ? 'hit' : r.slot === 2 ? 'miss' : 'void' }))
   const r = resultText({ sport: 'nhl', day: '2026-10-10', rows: graded })
-  assert.match(r.text, /Straights: 1 of 2 hit \(1 void\)/); assert.match(r.text, /Two-Man: .*void \(did not play\)/); assert.match(r.text, /Donovan's Two-Man: .*missed/)
+  assert.match(r.text, /Straights: 1 of 2 hit \(1 void\)/); assert.match(r.text, /Two-Man: .*void \(did not play\)/); assert.match(r.text, /Admin's Two-Man: .*missed/)
   assert.ok(r.text.includes('✗') || r.text.includes('missed'), 'a miss is shown')
   assert.ok(cleanPublic(r.text) && [...r.text].length + 4 <= 280)
   assert.equal(resultText({ sport: 'nhl', day: 'd', rows: CARD_ROWS }).text, '', 'nothing until every row is graded')
@@ -453,7 +453,7 @@ await t('LEAK CHECK: the code paths: the members text is built only on the membe
   assert.ok(!/membersCardText|currentPrices/.test(resFn), 'the free result carries no price')
   const tx = fs.readFileSync(new URL('../lib/card/text.js', import.meta.url), 'utf8').replace(/\/\/.*$/gm, '')
   const xt = tx.slice(tx.indexOf('export function xCardText'), tx.indexOf('/** The price of a leg in words'))
-  assert.ok(!/two_man|price|fmtAmerican/.test(xt.replace(/Donovan's Two-Man/g, '')), 'the X text builder has no price and no bot two-man')
+  assert.ok(!/two_man|price|fmtAmerican/.test(xt.replace(/Admin's Two-Man/g, '')), 'the X text builder has no price and no bot two-man')
   assert.ok(!/\.rate\b/.test(tx), 'no model rate is read by any text')
   // the X post is posted by postOnce with the free feed; its kind is not a members kind
   assert.ok(!/_members_/.test(CARD_KIND.x('nhl')) && /_members_/.test(CARD_KIND.members('nhl')))
@@ -699,7 +699,7 @@ await t('LATE 6: a late row can never reach a post, an image or a public route (
   const mk = donovanRow({ ...LATE_OK, playerIds: ['p6', 'p4'], note: 'Late only.', now: NOW + 90 * 60e3 })
   const rows = [mk.row, ...CARD_ROWS.filter((r) => r.lane === 'bot')]
   const b = xCardBuild({ sport: 'nhl', day: '2026-10-10', rows, problems: new Map(), now: NOW - 3600e3 })
-  assert.ok(!/Late only|Donovan/.test(b.text), 'the X post builder ignores a late row')
+  assert.ok(!/Late only|Admin/.test(b.text), 'the X post builder ignores a late row')
   const m = membersCardText({ sport: 'nhl', day: '2026-10-10', rows, prices: new Map() })
   assert.ok(!(m.text || '').includes('Late only'))
   for (const f of ['lib/card/post.js', 'lib/card/text.js', 'lib/card/tick.js']) {
@@ -785,6 +785,53 @@ await t('THE LATE MIGRATION: the lane, the trigger, the restrictive read policy 
   const txt = '/Volumes/DONX/USERS/Kingdondondon/Desktop/AUDITS-TO-READ/TWO-MAN-LATE/card_late_SQL.txt'
   if (fs.existsSync(txt)) assert.equal(fs.readFileSync(txt, 'utf8').trim(), sql.trim(), 'the .txt is the migration, byte for byte')
 })
+
+// ── 10. THE CARD'S NAME: "ADMIN'S TWO-MAN" by default, or the name he gives it (2026-10-12) ──
+{
+  const CORE = await import('../lib/card/core.js')
+  const TXT = await import('../lib/card/text.js')
+  const { dualOfRow } = await import('../lib/cards/dualData.js').catch(() => ({}))
+  await t('CARD NAME: optional, 28 characters, letters/numbers/spaces/basic punctuation; @ and # stripped; links and banned words refused; blank = the default', () => {
+    const c = CORE.cleanCardName
+    assert.deepEqual(c(''), { ok: true, name: null }); assert.deepEqual(c('   '), { ok: true, name: null }); assert.deepEqual(c(null), { ok: true, name: null })
+    assert.deepEqual(c('  Friday   Night Heaters '), { ok: true, name: 'Friday Night Heaters' })
+    assert.deepEqual(c('@Big #Two'), { ok: true, name: 'Big Two' }, '@ and # are stripped')
+    assert.equal(c('x'.repeat(28)).ok, true); assert.equal(c('x'.repeat(29)).ok, false)
+    for (const bad of ['see dash.com', 'https://x.co', 'www.thing', 'The Lock', 'Guaranteed hits', 'Two winners', 'free money', 'emoji \u{1F3AF}', 'a<b', 'semi;colon', 'slash/it']) assert.equal(c(bad).ok, false, bad)
+    for (const good of ["Admin's Pair", 'Hot Hands (2)', 'Goals & More!', 'Sunday Special: 2-0']) assert.equal(c(good).ok, true, good)
+    assert.equal(CORE.ADMIN_TWO_MAN, "Admin's Two-Man")
+  })
+  await t('CARD NAME: stored frozen in the first leg (no new column), shown on the X text opener, the result line, the members section, the dual card title; the LATE lane can carry one', async () => {
+    const named = donovanRow({ ...DON, cardName: 'Friday Night Heaters' })
+    assert.equal(named.ok, true); assert.equal(named.row.legs[0].card_name, 'Friday Night Heaters'); assert.equal(named.row.legs[1].card_name, undefined)
+    assert.equal(CORE.cardNameOf(named.row), 'Friday Night Heaters'); assert.equal(CORE.twoManTitle(named.row), 'Friday Night Heaters')
+    const plain = donovanRow(DON)
+    assert.equal(plain.row.legs[0].card_name, undefined, 'no name -> nothing stored, the byte-identical row'); assert.equal(CORE.twoManTitle(plain.row), "Admin's Two-Man")
+    assert.equal(donovanRow({ ...DON, cardName: 'see dash.com' }).ok, false)
+    const x1 = TXT.xCardText({ sport: 'nhl', day: '2026-10-10', donovan: { legs: named.row.legs, note: 'Hot lines.' } })
+    assert.ok(x1.text.includes('Friday Night Heaters: Player p3 + Player p5') && !/Donovan/i.test(x1.text), 'the X opener wears his name')
+    const x2 = TXT.xCardText({ sport: 'nhl', day: '2026-10-10', donovan: { legs: plain.row.legs, note: 'Hot lines.' } })
+    assert.ok(x2.text.includes("Admin's Two-Man: Player p3 + Player p5") && !/Donovan/i.test(x2.text), "the default opener is Admin's Two-Man")
+    // the late lane keeps its name with the frozen legs
+    const late = donovanRow({ ...LATE_OK, playerIds: ['p6', 'p4'], now: NOW + 90 * 60e3, cardName: 'Late Look' })
+    assert.equal(late.late, true); assert.equal(late.row.legs[0].card_name, 'Late Look')
+    // the dual card model: the title is the name (upper case), LATE gets its prefix, the default is ADMIN'S TWO-MAN
+    if (dualOfRow) {
+      const noDb = { from: () => ({ select: () => ({ eq: () => ({ in: () => ({ limit: async () => ({ data: [], error: null }) }) }) }) }) }
+      const adapters = await import('../lib/cards/registry.js')
+      void adapters
+    }
+    // no public string anywhere names a person for the lane
+    for (const f of ['lib/card/text.js', 'lib/cards/dualData.js', 'lib/cards/dayCard.js', 'lib/cards/slabData.js', 'components/card/CardSection.js', 'app/admin/two-man/page.js', 'components/admin/TwoManForm.js', 'components/admin/DoubleForm.js', 'app/api/card/route.js']) {
+      const code = fs.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8').split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n').replace(/\/\/.*$/gm, '')
+      assert.ok(!/Donovan|DONOVAN/.test(code), `${f} shows no person's name as the lane's label`)
+    }
+    const form = fs.readFileSync(new URL('../components/admin/TwoManForm.js', import.meta.url), 'utf8')
+    assert.ok(/id="tm-name"/.test(form) && /maxLength=\{28\}/.test(form) && /card_name: cardName/.test(form), 'the form has the Card name field (28) and sends it to the save and the live preview')
+    const api = fs.readFileSync(new URL('../app/api/admin/two-man/route.js', import.meta.url), 'utf8')
+    assert.ok(/cardName: body\.card_name/.test(api))
+  })
+}
 
 console.log(failed ? `\n${failed} FAILED` : '\nall ok')
 process.exit(failed ? 1 : 0)

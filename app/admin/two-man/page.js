@@ -34,7 +34,7 @@ export default async function TwoManAdminPage() {
       <header className={start.bar}>
         <a className={start.brand} href="/admin" aria-label="Back to admin">
           <img src="/icon-192.png" alt="" width="30" height="30" />
-          <div><small>DASH NETWORK</small><strong>DONOVAN&apos;S TWO-MAN</strong></div>
+          <div><small>DASH NETWORK</small><strong>ADMIN&apos;S TWO-MAN</strong></div>
         </a>
       </header>
       <section style={{ padding: '18px 0 40px', maxWidth: 640 }}>
