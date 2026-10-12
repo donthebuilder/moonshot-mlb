@@ -3,7 +3,7 @@
 // cannot load is just no picture). Needs JSX, so run it through the card loader:
 //   node --no-warnings --import ./scripts/proto-cards/_loader.mjs scripts/check-special-cards.mjs
 import { readFileSync } from 'node:fs'
-import { MOMENTS, MOMENT_KEYS, TIERS, evaluate, nhlGameLines, mlbGameLines, nflGameLines, nflYardRows, nflSides, nflHomeOf, LONG_PRICE, NHL_MILESTONES, periodShort, strengthCode } from '../lib/cards/moments.js'
+import { MOMENTS, MOMENT_KEYS, TIERS, TIER_WORD, evaluate, nhlGameLines, mlbGameLines, nflGameLines, nflLogYardRows, nflSides, nflHomeOf, LONG_PRICE, NHL_MILESTONES, periodShort, strengthCode } from '../lib/cards/moments.js'
 import { buildSpecialModel, parseId, ID_SHAPE, idOf } from '../lib/cards/specialData.js'
 import { specialDesign, renderSpecial } from '../lib/cards/specialCard.js'
 import { lintType } from '../lib/cards/cardKit.js'
@@ -37,7 +37,7 @@ check(trig('nhl_goal', F.TEST_GOAL), 'nhl_goal: a standing goal triggers')
 check(!trig('nhl_goal', feed({ overturned_at: '2026-01-02T00:00:00Z' })), 'nhl_goal: an overturned goal does not')
 check(!trig('nhl_goal', feed({ period_type: 'SO' })), 'nhl_goal: a shootout goal does not')
 check(!trig('nhl_goal', feed({ name: '' })), 'nhl_goal: a goal with no scorer name does not')
-check(tier('nhl_goal', F.TEST_GOAL) === 'common' && tier('nhl_goal', F.TEST_GOAL_OT) === 'rare', 'nhl_goal: common; an overtime goal is rare')
+check(tier('nhl_goal', F.TEST_GOAL) === 'base' && tier('nhl_goal', F.TEST_GOAL_OT) === 'star', 'nhl_goal: common; an overtime goal is rare')
 check(evaluate('nhl_goal', F.TEST_GOAL).status === 'called' && evaluate('nhl_goal', F.TEST_GOAL_OT).status === 'board', 'nhl_goal: the label is the stored one (called / board)')
 check(evaluate('nhl_goal', F.TEST_GOAL_NOCALL).status === null && evaluate('nhl_goal', feed({ status: null })).status === null, 'nhl_goal: NOT on the board and a never-locked game carry NO call word')
 check(strengthCode(feed({ strength: 'pp' })) === 'PP' && strengthCode(feed({ strength: 'sh' })) === 'SH' && strengthCode(feed({ empty_net: true })) === 'EN' && strengthCode(feed({ strength: 'ev' })) === 'EV', 'nhl_goal: strength words EV / PP / SH / EN')
@@ -47,68 +47,71 @@ check(gp.hero.value === '11:41' && gp.tiles.some((t) => t.label === 'ASSISTS' &&
 check(!evaluate('nhl_goal', feed({ assists: [] })).print.tiles.some((t) => t.label === 'ASSISTS'), 'nhl_goal: no assists on the row = no assists tile (never "unassisted")')
 
 // ── hat trick / 3+ points ──
-check(trig('nhl_hat_trick', F.TEST_HAT) && tier('nhl_hat_trick', F.TEST_HAT) === 'epic', 'nhl_hat_trick: 3 goals = epic')
+check(trig('nhl_hat_trick', F.TEST_HAT) && tier('nhl_hat_trick', F.TEST_HAT) === 'elite', 'nhl_hat_trick: 3 goals = epic')
 check(!trig('nhl_hat_trick', nhlGameLines(F.TEST_HAT_ROWS.slice(0, 2)).get('1:11')), 'nhl_hat_trick: 2 goals does not')
 check(!trig('nhl_hat_trick', nhlGameLines([...F.TEST_HAT_ROWS.slice(0, 2), { ...F.TEST_HAT_ROWS[2], overturned_at: 'x' }]).get('1:11')), 'nhl_hat_trick: an overturned third goal does not make one')
 check(!trig('nhl_hat_trick', nhlGameLines([...F.TEST_HAT_ROWS.slice(0, 2), { ...F.TEST_HAT_ROWS[2], period_type: 'SO' }]).get('1:11')), 'nhl_hat_trick: a shootout goal does not count')
-check(tier('nhl_hat_trick', { ...F.TEST_HAT, goals: [...F.TEST_HAT.goals, F.TEST_HAT.goals[2]] }) === 'legendary', 'nhl_hat_trick: 4 goals = legendary')
+check(tier('nhl_hat_trick', { ...F.TEST_HAT, goals: [...F.TEST_HAT.goals, F.TEST_HAT.goals[2]] }) === 'legend', 'nhl_hat_trick: 4 goals = legendary')
 check(!trig('nhl_hat_trick', nhlGameLines(F.TEST_HAT_ROWS).get('1:21')), 'nhl_hat_trick: a man who only assisted never triggers it (scorer flag)')
-check(trig('nhl_three_points', F.TEST_POINTS) && F.TEST_POINTS.goals.length === 1 && F.TEST_POINTS.assists.length === 2 && tier('nhl_three_points', F.TEST_POINTS) === 'rare', 'nhl_three_points: 1 goal + 2 assists = 3 points, rare')
+check(trig('nhl_three_points', F.TEST_POINTS) && F.TEST_POINTS.goals.length === 1 && F.TEST_POINTS.assists.length === 2 && tier('nhl_three_points', F.TEST_POINTS) === 'star', 'nhl_three_points: 1 goal + 2 assists = 3 points, rare')
 check(!trig('nhl_three_points', F.TEST_HAT), 'nhl_three_points: a hat trick has its own card (not repeated here)')
 check(!trig('nhl_three_points', { ...F.TEST_POINTS, assists: F.TEST_POINTS.assists.slice(0, 1) }), 'nhl_three_points: 2 points does not')
-check(tier('nhl_three_points', { ...F.TEST_POINTS, assists: [...F.TEST_POINTS.assists, ...F.TEST_POINTS.assists] }) === 'epic', 'nhl_three_points: 5+ points = epic')
+check(tier('nhl_three_points', { ...F.TEST_POINTS, assists: [...F.TEST_POINTS.assists, ...F.TEST_POINTS.assists] }) === 'elite', 'nhl_three_points: 5+ points = epic')
 {
   const assistOnly = nhlGameLines(F.TEST_HAT_ROWS).get('1:21')
   check(assistOnly && assistOnly.assists.length >= 1 && assistOnly.status === null && evaluate('nhl_three_points', { ...assistOnly, assists: [...assistOnly.assists, ...assistOnly.assists, ...assistOnly.assists] }).status === null, 'nhl_three_points: an assist-only man carries no status (no call word)')
 }
 
 // ── milestone ──
-check(trig('nhl_season_goal_milestone', F.TEST_MILESTONE) && tier('nhl_season_goal_milestone', F.TEST_MILESTONE) === 'legendary', 'nhl_season_goal_milestone: his 50th is legendary')
+check(trig('nhl_season_goal_milestone', F.TEST_MILESTONE) && tier('nhl_season_goal_milestone', F.TEST_MILESTONE) === 'legend', 'nhl_season_goal_milestone: his 50th is legendary')
 check(!trig('nhl_season_goal_milestone', feed({ season_goals: 49 })) && !trig('nhl_season_goal_milestone', feed({ season_goals: null })), 'nhl_season_goal_milestone: 49 and a missing count do not trigger')
 check(NHL_MILESTONES.every((n) => trig('nhl_season_goal_milestone', feed({ season_goals: n }))), `nhl_season_goal_milestone: every milestone ${NHL_MILESTONES.join('/')} triggers`)
 check(!trig('nhl_season_goal_milestone', feed({ season_goals: 50, overturned_at: 'x' })), 'nhl_season_goal_milestone: an overturned goal never counts')
 
 // ── MLB ──
-check(trig('mlb_multi_hr', F.TEST_MULTI_HR) && tier('mlb_multi_hr', F.TEST_MULTI_HR) === 'epic' && tier('mlb_multi_hr', F.TEST_MULTI_HR_2) === 'rare', 'mlb_multi_hr: 2 = rare, 3 = epic')
+check(trig('mlb_multi_hr', F.TEST_MULTI_HR) && tier('mlb_multi_hr', F.TEST_MULTI_HR) === 'elite' && tier('mlb_multi_hr', F.TEST_MULTI_HR_2) === 'star', 'mlb_multi_hr: 2 = rare, 3 = epic')
 check(!trig('mlb_multi_hr', mlbGameLines([{ day: 'x', player_id: '1', hr_n: 1, name: 'Test', team: 'T', opponent: 'O', game_pk: '9' }, { day: 'x', player_id: '1', hr_n: 1, name: 'Test', team: 'T', opponent: 'O', game_pk: '9' }]).get('9:1')), 'mlb_multi_hr: a repeated hr_n is ONE home run, not two')
-check(tier('mlb_multi_hr', { ...F.TEST_MULTI_HR, hrs: [...F.TEST_MULTI_HR.hrs, F.TEST_MULTI_HR.hrs[0]] }) === 'legendary', 'mlb_multi_hr: 4 = legendary')
+check(tier('mlb_multi_hr', { ...F.TEST_MULTI_HR, hrs: [...F.TEST_MULTI_HR.hrs, F.TEST_MULTI_HR.hrs[0]] }) === 'legend', 'mlb_multi_hr: 4 = legendary')
 check(evaluate('mlb_multi_hr', F.TEST_MULTI_HR).status === 'called' && evaluate('mlb_multi_hr', F.TEST_MULTI_HR_2).status === null, 'mlb_multi_hr: the label is lib/callStatus over the stored role (a rank outside the top third = no call word)')
 
 // ── NFL ──
-check(trig('nfl_multi_td', F.TEST_MULTI_TD) && tier('nfl_multi_td', F.TEST_MULTI_TD) === 'epic', 'nfl_multi_td: 3 TDs = epic')
+check(trig('nfl_multi_td', F.TEST_MULTI_TD) && tier('nfl_multi_td', F.TEST_MULTI_TD) === 'elite', 'nfl_multi_td: 3 TDs = epic')
 check(!trig('nfl_multi_td', nflGameLines([{ game_id: '8', gsis_id: 'g', td_n: 1, scorer_name: 'Test', team: 'T', opponent: 'O' }]).get('8:g')), 'nfl_multi_td: 1 TD does not')
 check(!trig('nfl_multi_td', nflGameLines([{ game_id: '8', gsis_id: 'g', td_n: 1 }, { game_id: '8', gsis_id: 'g', td_n: 1 }]).get('8:g')), 'nfl_multi_td: a repeated td_n is ONE touchdown')
-check(trig('nfl_multi_td', { ...F.TEST_MULTI_TD, tds: F.TEST_MULTI_TD.tds.slice(0, 2) }) && tier('nfl_multi_td', { ...F.TEST_MULTI_TD, tds: F.TEST_MULTI_TD.tds.slice(0, 2) }) === 'rare', 'nfl_multi_td: 2 TDs = rare')
+check(trig('nfl_multi_td', { ...F.TEST_MULTI_TD, tds: F.TEST_MULTI_TD.tds.slice(0, 2) }) && tier('nfl_multi_td', { ...F.TEST_MULTI_TD, tds: F.TEST_MULTI_TD.tds.slice(0, 2) }) === 'star', 'nfl_multi_td: 2 TDs = rare')
 {
   const rs = [{ game_id: '8', td_n: 1, team: 'AAA', away_score: 0, home_score: 7 }, { game_id: '8', td_n: 2, team: 'BBB', away_score: 7, home_score: 7 }, { game_id: '8', td_n: 3, team: 'BBB', away_score: 14, home_score: 7 }]
   const sides = nflSides(rs)
   check(nflHomeOf(sides, '8', 'AAA') === true && nflHomeOf(sides, '8', 'BBB') === false && nflHomeOf(sides, '9', 'AAA') === null, 'nfl sides: the side whose score moved on a club\'s TD is that club\'s side (unknown game = no vs / @)')
 }
 check(evaluate('nfl_multi_td', F.TEST_MULTI_TD).status === 'called', 'nfl_multi_td: called when the stored on_bot says so (lib/callStatus tdCallStatus)')
-check(trig('nfl_100_yards', F.TEST_100) && tier('nfl_100_yards', F.TEST_100) === 'epic' && tier('nfl_100_yards', F.TEST_200) === 'legendary' && tier('nfl_100_yards', { ...F.TEST_100, rush_yds: 100 }) === 'rare', 'nfl_100_yards: 100 rare, 150 epic, 200 legendary')
+check(trig('nfl_100_yards', F.TEST_100) && tier('nfl_100_yards', F.TEST_100) === 'elite' && tier('nfl_100_yards', F.TEST_200) === 'legend' && tier('nfl_100_yards', { ...F.TEST_100, rush_yds: 100 }) === 'star', 'nfl_100_yards: 100 STAR, 150 ELITE, 200 LEGEND')
 check(!trig('nfl_100_yards', { ...F.TEST_100, rush_yds: 99, rec_yds: 99 }), 'nfl_100_yards: 99 does not')
 check(trig('nfl_100_yards', { ...F.TEST_100, rush_yds: 4, rec_yds: 100 }) && /RECEIVING/.test(evaluate('nfl_100_yards', { ...F.TEST_100, rush_yds: 4, rec_yds: 100 }).print.kicker), 'nfl_100_yards: receiving 100 prints RECEIVING')
 check(evaluate('nfl_100_yards', F.TEST_100).status === null, 'nfl_100_yards: no call word (the yardage file does not carry one)')
 {
-  const rows = nflYardRows({ results: { season: 2026, week: 5, names: { a: 'Test A', b: 'Test B' }, lines: { a: { RUSH_YDS: 101, RUSH_ATT: 20 }, b: {}, c: { KICK_PTS: 5 } } }, players: [{ player_id: 'a', team: 'TST' }], games: [{ home: 'TST', away: 'EXA', kickoff: '2026-01-02T18:00Z' }] })
-  check(rows.length === 1 && rows[0].opp === 'EXA' && rows[0].rush_yds === 101, 'nfl_100_yards: yard rows come only from lines that carry rush / rec yards, team and opponent from the week file')
+  const logs = { logs: { a: { log: [{ s: 2026, w: 5, d: '2026-01-02', h: 1, tm: 'TST', opp: 'EXA', g_ruyd: 101, g_car: 20, g_recyd: 4, g_rec: 1, g_td: 1 }, { s: 2026, w: 4, d: '2025-12-26', h: 0, tm: 'TST', opp: 'OLD', g_ruyd: 99, g_recyd: 99 }, { s: 2025, w: 9, d: '2025-11-02', h: 0, tm: 'TST', opp: 'PRV', g_ruyd: 12, g_recyd: 130, g_rec: 9, g_td: 0 }] }, b: { log: [{ s: 2026, w: 5, g_ruyd: 3 }] } } }
+  const rows = nflLogYardRows({ logs, names: new Map([['a', 'Test A']]) })
+  check(rows.length === 2 && rows[0].opp === 'EXA' && rows[0].rush_yds === 101 && rows[1].week === 9 && rows[1].rec_yds === 130 && rows[0].home === true && rows[1].home === false, 'nfl_100_yards: log rows come only from games of 100+ rush or rec yards, in EVERY week the log holds (an old week keeps its card), team / opponent / date from the log itself')
+  check(nflLogYardRows({ logs, only: 'b' }).length === 0, 'nfl_100_yards: a man with no 100-yard game has no rows')
 }
 
 // ── long shot ──
 const LS = F.TEST_LONG_SHOT
-check(trig('long_shot_cashed', LS) && tier('long_shot_cashed', LS) === 'legendary' && tier('long_shot_cashed', { ...LS, best: 300 }) === 'rare' && tier('long_shot_cashed', { ...LS, best: 600 }) === 'epic', `long_shot_cashed: +${LONG_PRICE} rare, +600 epic, +1000 legendary`)
-check(!trig('long_shot_cashed', { ...LS, best: 299 }), 'long_shot_cashed: +299 does not')
+check(trig('long_shot_cashed', LS) && tier('long_shot_cashed', LS) === 'elite' && tier('long_shot_cashed', { ...LS, best: 750 }) === 'star' && tier('long_shot_cashed', { ...LS, best: 1200 }) === 'elite' && tier('long_shot_cashed', { ...LS, best: 2000 }) === 'legend' && tier('long_shot_cashed', { ...LS, best: 1199 }) === 'star', `long_shot_cashed: +${LONG_PRICE} STAR, +1200 ELITE, +2000 LEGEND`)
+check(!trig('long_shot_cashed', { ...LS, best: 749 }) && LONG_PRICE === 750, 'long_shot_cashed: +749 does not (the floor is +750)')
 check(!trig('long_shot_cashed', { ...LS, books: 0 }) && !trig('long_shot_cashed', { ...LS, books: null }), 'long_shot_cashed: a price with no book count does not')
 check(!trig('long_shot_cashed', { ...LS, status: 'board' }) && !trig('long_shot_cashed', { ...LS, status: null }), 'long_shot_cashed: only a CALLED pick (never "on the board")')
 check(!trig('long_shot_cashed', { ...LS, hit: false }) && !trig('long_shot_cashed', { ...LS, hit: undefined }), 'long_shot_cashed: only when it cashed')
 check(!trig('long_shot_cashed', { ...LS, best: -150 }), 'long_shot_cashed: a minus price does not')
 
 // ── tiers, holo, ids ──
-check(TIERS.join() === 'common,rare,epic,legendary', 'tiers are common, rare, epic, legendary')
-check(evaluate('nhl_goal', F.TEST_GOAL).holo === false && evaluate('nhl_hat_trick', F.TEST_HAT).holo === true && evaluate('nhl_three_points', F.TEST_POINTS).holo === false && evaluate('mlb_multi_hr', F.TEST_MULTI_HR_2).holo === false && evaluate('nfl_100_yards', F.TEST_100).holo === true, 'holo = the moment is epic or legendary (a goal / 2-HR game / 3-point night is not)')
-check(parseId('nhl_goal', '2026020085:8478498:1')?.length === 3 && parseId('nfl_100_yards', '00-0031408')?.length === 1 && parseId('long_shot_cashed', 'nfl:00-0033106:2026-10-11')?.length === 3, 'ids parse by their shape')
+check(TIERS.join() === 'base,star,elite,legend' && TIER_WORD.base === 'BASE' && TIER_WORD.star === 'STAR' && TIER_WORD.elite === 'ELITE' && TIER_WORD.legend === 'LEGEND', 'tier words are BASE, STAR, ELITE, LEGEND')
+check(evaluate('nhl_goal', F.TEST_GOAL).holo === false && evaluate('nhl_hat_trick', F.TEST_HAT).holo === true && evaluate('nhl_three_points', F.TEST_POINTS).holo === false && evaluate('mlb_multi_hr', F.TEST_MULTI_HR_2).holo === false && evaluate('nfl_100_yards', F.TEST_100).holo === true, 'holo = the moment is ELITE or LEGEND (a goal / 2-HR game / 3-point night is not); a STAR card SHIMMERS instead (an OT goal, a 2-HR game, a +750 long shot) and a BASE goal has no foil')
+check(evaluate('nhl_goal', F.TEST_GOAL_OT).shimmer === true && evaluate('nhl_goal', F.TEST_GOAL_OT).holo === false && evaluate('nhl_goal', F.TEST_GOAL).shimmer === false && evaluate('nhl_hat_trick', F.TEST_HAT).shimmer === false && evaluate('mlb_multi_hr', F.TEST_MULTI_HR_2).shimmer === true, 'shimmer = STAR and not holo; BASE has none; ELITE / LEGEND are holo, never both')
+check(parseId('nhl_goal', '2026020085:8478498:1')?.length === 3 && parseId('nfl_100_yards', '00-0031408:2026:5')?.length === 3 && parseId('long_shot_cashed', 'nfl:00-0033106:2026-10-11')?.length === 3, 'ids parse by their shape')
 check(parseId('nhl_goal', '1:2') === null && parseId('nhl_goal', '1:2:../x') === null && parseId('nope', 'x') === null && parseId('nfl_100_yards', '') === null, 'a malformed id is refused')
-check(idOf.nhl_goal(F.TEST_GOAL) === '1:11:1' && idOf.nfl_100_yards(F.TEST_100) === '00-TEST' && idOf.long_shot_cashed(LS) === 'nhl:11:2026-01-02', 'idOf round-trips through parseId')
+check(idOf.nhl_goal(F.TEST_GOAL) === '1:11:1' && idOf.nfl_100_yards(F.TEST_100) === '00-TEST:2026:5' && idOf.long_shot_cashed(LS) === 'nhl:11:2026-01-02', 'idOf round-trips through parseId')
 
 // ── the models, the type floor, the call word, the banned words, a real render ──
 const TEST_MODELS = {

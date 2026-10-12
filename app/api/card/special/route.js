@@ -1,7 +1,7 @@
 // GET /api/card/special?moment=nhl_goal&id=<gameId:playerId:goalN>[&sport=nhl][&date=YYYY-MM-DD][&w=360|540|720|1080]   (PREVIEW, not wired to any post)
-// A SPECIAL card (PNG, 4:5): one real moment (lib/cards/moments.js) drawn in the player-card frame, with a holo foil for the epic and legendary ones.
+// A SPECIAL card (PNG, 4:5): one real moment (lib/cards/moments.js) drawn in the player-card frame, with a shimmer for a STAR card and a holo foil for the ELITE and LEGEND ones (tier words: BASE, STAR, ELITE, LEGEND).
 //   id shapes: nhl_goal / nhl_season_goal_milestone  gameId:playerId:goalN      nhl_hat_trick / nhl_three_points  gameId:playerId
-//              mlb_multi_hr  gamePk:playerId      nfl_multi_td  gameId:gsisId      nfl_100_yards  gsisId (this week's results file)
+//              mlb_multi_hr  gamePk:playerId      nfl_multi_td  gameId:gsisId      nfl_100_yards  gsisId:season:week (the published game logs, every week)
 //              long_shot_cashed  sport:playerId:YYYY-MM-DD   (or sport:playerId plus &date=)
 // Drawn only from stored public feeds, read-only (no db writes, no polling). A moment that did not happen, or an event that does not exist, is a
 // 404 JSON; a sport that does not match the moment is a 404; a bad id is a 400. There is no members content on these cards, and no printed probability.

@@ -56,6 +56,7 @@ import PlayerRead from './PlayerRead'
 import HomerShape from './HomerShape'
 import { downloadCard, playerUrl, slug, stamp } from '../lib/cards/saveCard'
 import CardFlip, { PostseasonChip } from './player/CardFlip'
+import CardsEarned from './player/CardsEarned'
 import BvP from './BvP'
 import FirstPitchSplit from './FirstPitchSplit'
 import { venueRecord } from '../lib/venueHr'
@@ -1064,6 +1065,9 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               <SituationalSplits playerId={pid} kind="batter" />
             </>
           )}
+
+          {/* the cards he has earned (his real multi-homer games, a long shot that cashed): at the END of the card, no section when he has none */}
+          {pid != null && <CardsEarned sport="mlb" id={String(pid)} name={nameOf(p)} />}
 
     </CardShell>
     {compareOpen && (
