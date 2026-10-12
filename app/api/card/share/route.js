@@ -4,6 +4,9 @@
 // MOONSHOT's season record. Read-only: nothing is written, no secret is in the response, no polling. Public data only (every number is already on a public
 // board). 404 with a JSON reason (never an empty or invented card) when the sport / market has no card, the day has no data or the source is down; 400 for a
 // malformed parameter (postseason: sport=mlb&id=<MLB id>&side=front|back[&group=hitting|pitching][&season=]; series: sport=mlb&team=NYY[&season=]: the postseason editions, MLB StatsAPI gameType=P, lib/cards/postseasonData.js); 502 when the render fails. BUCKETS (nba) answers like any missing page until it is public (lib/nba/gate.js).
+// POSTSEASON ART: the postseason / series editions use MLB's ACTION photos (img.mlbstatic.com .../people/{id}/action/vertical/current) as card art, at the
+// owner's decision (Donovan, 2026-10-12). They are MLB-owned images (almost certainly licensed photography); MLB serves no credit field for them. A photo that
+// is missing or slow (4 s) is left out and the silo headshot is drawn instead; the card never waits on it twice (lib/cards/postseasonData.js).
 import { shareCardImage } from '../../../../lib/cards/cardImage'
 
 export const runtime = 'nodejs'

@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react'
 import { useDashAccount } from '../../lib/dash/sync'
 import { dashSignOut } from '../../app/(front)/actions'
+import { useIsAdmin } from '../../lib/useIsAdmin'
+import { ADMIN_ENTRY_LIST } from '../../lib/adminHub.js'
 
 // THE ACCOUNT, IN THE MORE DRAWER ON A PHONE (2026-10-06, audit X3). The
 // header's "Sign up · free" pill was 23px tall and took a third of the phone
@@ -14,6 +16,7 @@ const row = { font: 'inherit', fontWeight: 800, display: 'flex', alignItems: 'ce
 
 export default function MoreAccount({ accent, theme, onNavigate }) {
   const account = useDashAccount()
+  const isAdmin = useIsAdmin()      // the server's answer (/api/admin/me); false for everyone else, so nothing admin is drawn
   const [here, setHere] = useState({ href: '/login#create-account', next: '/app' })
   useEffect(() => {
     const { pathname, search, hash } = window.location
@@ -34,6 +37,7 @@ export default function MoreAccount({ accent, theme, onNavigate }) {
       <div style={{ fontSize: 12, color: theme.text3, padding: '0 3px' }}>Signed in as <strong style={{ color: theme.text2 }}>{name}</strong></div>
       <a href="/account" onClick={onNavigate} style={item}>⚙ Account</a>
       <a href="/app#sport=mlb&tab=you" onClick={onNavigate} style={item}>⭐ Watchlist</a>
+      {isAdmin ? <a href={ADMIN_ENTRY_LIST[0].href} onClick={onNavigate} style={item} data-admin-entry>🛠 Admin</a> : null}
       <form action={dashSignOut} style={{ display: 'contents' }}>
         <input type="hidden" name="next" value={here.next} />
         <button type="submit" style={item}>Sign out</button>

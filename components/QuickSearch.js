@@ -10,6 +10,8 @@ import { norm, searchAll } from '../lib/search/engine'
 import { loadPlayers, loadGames } from '../lib/search/sources'
 import useScrollLock from '../lib/useScrollLock'
 import TeamMark from './TeamMark'
+import { useIsAdmin } from '../lib/useIsAdmin'
+import { ADMIN_ENTRY_LIST } from '../lib/adminHub.js'
 
 // What the roster file says about a man, in the words the search row shows.
 // A slate hit is never routed here -- he is in tonight's lineup and has a
@@ -79,6 +81,9 @@ export default function QuickSearch({ players = [], onPick = null, sport: sportP
   const visKey = visibleRaw.join(',')
   const visible = useMemo(() => (visKey ? visKey.split(',') : []), [visKey])
   const vp = useViewport(open)
+  // ADMIN COMMANDS (2026-10-12): the admin hub and the Two-Man form, as search rows. Only when the SERVER says this session is the admin
+  // (/api/admin/me via useIsAdmin); for everyone else the list is empty, so no row, no word and no key does anything.
+  const isAdmin = useIsAdmin()
   useScrollLock(open)
 
   useEffect(() => {
@@ -185,6 +190,11 @@ export default function QuickSearch({ players = [], onPick = null, sport: sportP
     return () => clearTimeout(debounceRef.current)
   }, [q, nothingHere, hasSlate])
 
+  const adminHits = useMemo(() => {
+    const t = q.trim().toLowerCase()
+    return isAdmin && t.length >= 2 ? ADMIN_ENTRY_LIST.filter((e) => `${e.label} ${e.words}`.toLowerCase().includes(t)) : []
+  }, [isAdmin, q])
+
   // ONE FLAT LIST for the arrow keys, in the order the rows are drawn.
   const flat = useMemo(() => {
     const out = []
@@ -194,8 +204,9 @@ export default function QuickSearch({ players = [], onPick = null, sport: sportP
     ;(here?.games || []).forEach((r) => out.push({ type: 'link', r }))
     if (nothingHere) apiHits.forEach((p) => out.push({ type: 'api', p }))
     groups.slice(1).forEach((g) => { [...g.teams, ...g.games, ...g.players].forEach((r) => out.push({ type: 'link', r })) })
+    adminHits.forEach((r) => out.push({ type: 'admin', r }))
     return out
-  }, [hits, rosterHits, here, groups, apiHits, nothingHere])
+  }, [hits, rosterHits, here, groups, apiHits, nothingHere, adminHits])
 
   useEffect(() => { if (sel > flat.length - 1) setSel(Math.max(0, flat.length - 1)) }, [flat.length, sel])
   useEffect(() => { listRef.current?.querySelector(`#qs-row-${sel}`)?.scrollIntoView?.({ block: 'nearest' }) }, [sel])
@@ -215,6 +226,7 @@ export default function QuickSearch({ players = [], onPick = null, sport: sportP
     if (item.type === 'slate') pick(item.p)
     else if (item.type === 'roster' && hasSlate && item.r.sport === sport) pick(rosterPlayer(item.r))
     else if (item.type === 'api') pick(item.p)
+    else if (item.type === 'admin') { setOpen(false); window.location.assign(item.r.href) }
     else {
       const href = (item.r || {}).href
       setOpen(false)
@@ -432,6 +444,20 @@ export default function QuickSearch({ players = [], onPick = null, sport: sportP
             </div>
           )
         })}
+        {adminHits.length > 0 && (
+          <div>
+            {head('Admin', { marginTop: 2, borderTop: `1px solid ${C.border}`, paddingTop: 9 })}
+            {adminHits.map((r) => {
+              idx += 1
+              return (
+                <a key={r.id} {...rowProps(idx, sport)} href={r.href} data-qs={`admin:${r.id}`} onClick={() => setOpen(false)}>
+                  <span style={{ fontSize: 13, fontWeight: 700 }}>{r.label}</span>
+                  <span className="qs-num" style={{ marginLeft: 'auto', fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>admin</span>
+                </a>
+              )
+            })}
+          </div>
+        )}
         </div>
       </div>
     </div>

@@ -29,6 +29,8 @@ import { VERSIONS as NHL_VERSIONS } from '../../lib/nhl/versions'
 import { getFromX } from '../../lib/dash/xPost'
 import { writeupsAutopost } from '../../lib/writeups/post'
 import featuredBacktest from '../../lib/writeups/featuredBacktest.json'
+import AdminHub from '../../components/admin/AdminHub'
+import { readHubStatus } from '../../lib/adminHubStatus'
 import { PARITY, SPORT_NAMES, isYes, naReason, todoReason } from '../../lib/parity'
 
 export const dynamic = 'force-dynamic'
@@ -156,7 +158,7 @@ export default async function AdminPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user || !isAdminUser(user)) notFound()
 
-  const c = await cachedCounts()
+  const [hub, c] = await Promise.all([readHubStatus(adminClient()).catch(() => null), cachedCounts()])
   const a = c.accounts || {}
   const p = c.push || {}
   // THE ODDS MONTH (lib/odds/budget.js): what SGO says we've spent, and the planner's call
@@ -192,9 +194,10 @@ export default async function AdminPage() {
         </a>
       </header>
       <section style={{ padding: '22px 0 40px', maxWidth: 560 }}>
-        <p className={start.kicker}>The numbers · read {c.readAt ? new Date(c.readAt).toLocaleString('en-US', { timeZone: 'America/New_York' }) : '—'} ET · cached 60 s</p>
+        <AdminHub status={hub} />
+
+        <p id="numbers" className={start.kicker} style={{ marginTop: 28 }}>The numbers · read {c.readAt ? new Date(c.readAt).toLocaleString('en-US', { timeZone: 'America/New_York' }) : '—'} ET · cached 60 s</p>
         {c.error ? <p>{c.error}</p> : null}
-        <p><a href="/admin/two-man" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, color: 'inherit', fontWeight: 800 }}>Admin&apos;s Two-Man (enter before the lock) →</a></p>
 
         <h2 className={start.kicker} style={{ marginTop: 18 }}>Accounts</h2>
         {c.accountsError ? <p>Accounts unavailable: {c.accountsError}</p> : <>
@@ -252,7 +255,7 @@ export default async function AdminPage() {
           <Line k="CLOSE this month" v={plan.closeOff ? 'off' : 'on'} src={plan.why} />
         </>}
 
-        <h2 className={start.kicker} style={{ marginTop: 18 }}>Fact posts</h2>
+        <h2 id="facts" className={start.kicker} style={{ marginTop: 18 }}>Fact posts</h2>
         <Line k="Auto-post" v={<AutopostSwitch on={fstate.on} missing={Boolean(fstate.missing)} />} src={fstate.why} />
         <Line k="Writer" v={process.env.ANTHROPIC_API_KEY ? 'Claude' : 'templates'} src={process.env.ANTHROPIC_API_KEY ? 'ANTHROPIC_API_KEY set (Vercel)' : 'ANTHROPIC_API_KEY not set: fixed templates, same checks'} />
         <Line k="Today" v={`${fToday.filter((r) => r.status === 'posted').length} / ${FACTS_CONFIG.maxPerDay} posted · ${fToday.filter((r) => r.status === 'rejected').length} rejected`} src={`fact_posts on ${today}, at least ${FACTS_CONFIG.spacingMin} min apart`} />
@@ -266,7 +269,7 @@ export default async function AdminPage() {
           </div>
         ))}
 
-        <h2 className={start.kicker} style={{ marginTop: 18 }}>Game write-ups</h2>
+        <h2 id="writeups" className={start.kicker} style={{ marginTop: 18 }}>Game write-ups</h2>
         <Line k="Auto-post" v={wstate.on ? 'ON' : 'PAUSED'} src={`${wstate.why} · live by code default; the only off-switch is X_WRITEUPS_PAUSE=on in Vercel (PAUSED = dry: written here, posted nowhere)`} />
         <Line k="X long posts" v={xTier.error ? 'unknown' : xTier.type ? `${xTier.type}${/premium/i.test(xTier.type) ? ' (long posts allowed)' : ' (280 characters)'}` : 'no subscription_type returned'}
           src={xTier.error ? `GET /2/users/me failed: ${xTier.error}` : `X's own answer for @${xTier.user || '?'} (GET /2/users/me subscription_type, once a day) · X_TEXT_LIMIT ${process.env.X_TEXT_LIMIT || 'unset (280)'}`} />
