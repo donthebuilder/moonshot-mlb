@@ -130,6 +130,8 @@ export default function CardSection({ sport, mode = 'slate', Table = DenseTable,
               initialSort={null}
               caption={`${data.date}${rows[0]?.start ? ` · first game ${hm(rows[0].start)}` : ''}. Ties go to the higher model rate, then the earlier start, then the player id. Donovan's picks appear once their entry has closed.${rows.some((r) => r.same) ? ` ${SAME_GAME_NOTE}` : ''}`} />
           )}
+          {/* MEMBERS FIRST (lib/card/reveal.js): the server holds the bot's Two-Man and straights #2-#3 until a row of the Card is graded; this line says so, once */}
+          {ready && data?.held?.line && <div data-card-held={sport} style={{ color: C.text3, fontSize: 12, lineHeight: 1.45, marginTop: 8 }}>{data.held.line}</div>}
         </div>
       )}
     </section>
