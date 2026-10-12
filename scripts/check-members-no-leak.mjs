@@ -189,11 +189,18 @@ for (const [label, v] of [[',', ','], ['", ,\n,"', ', ,\n,'], ['not a URL', 'hel
 
   setEnv(); seen.length = 0
   check('H. sendMembers with no members webhook sends nothing', (await sendMembers(SECRET, { sport: 'nfl', kind: 'writeup_nfl_T1' })) === false && seen.length === 0)
+  { // BUCKETS is hidden (lib/openSwitch.js): #members gets NO NBA write-up until BUCKETS_PUBLIC=on either (Donovan 2026-10-12)
+    setEnv({ DISCORD_MEMBERS_WEBHOOK: M }); seen.length = 0
+    delete process.env.BUCKETS_PUBLIC
+    check('H. nba while BUCKETS is hidden: sendMembers sends nothing, #members included', (await sendMembers(SECRET, { sport: 'nba', kind: 'writeup_nba_T1' })) === false && seen.length === 0)
+  }
+  process.env.BUCKETS_PUBLIC = 'on'
   for (const sport of ['mlb', 'nfl', 'nhl', 'nba']) {
     setEnv({ DISCORD_MEMBERS_WEBHOOK: M }); seen.length = 0
     const ok = await sendMembers(SECRET, { sport, kind: `writeup_${sport}_T1` })
     check(`H. ${sport}: sendMembers -> exactly the members URL, nothing public`, ok === true && seen.length === 1 && seen[0][0] === M && !publicHooks.includes(seen[0][0]))
   }
+  delete process.env.BUCKETS_PUBLIC
   { // a members URL that is also a public hook (paste mistake): refused, nothing sent anywhere
     setEnv({ DISCORD_MEMBERS_WEBHOOK: PUBLIC_ENV.DISCORD_NFL_WEBHOOKS }); seen.length = 0
     const errs = console.error; console.error = () => {}

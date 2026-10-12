@@ -413,20 +413,22 @@ await ok('the repeat guard: a player this kind named in the last 3 days (NFL 7) 
   db = fakeDb({ homer_feed_posts: [namedBy('nfl', '2026-10-01')], fact_posts: [], nfl_td_feed: [] })
   assert.equal(await PP.postPollOnce(db, { sport: 'nfl', day: today, adapter: only('nfl'), now: at('nfl') }), 'posted')
 })
-await ok('BUCKETS: built and on, but silent to Discord until BUCKETS_PUBLIC; no pointer line in any poll', async () => {
+await ok('BUCKETS: silent EVERYWHERE until BUCKETS_PUBLIC (no X poll, no Discord copy: Donovan 2026-10-12, lib/openSwitch.js); open, it posts to X and Discord with no pointer line', async () => {
   reset()
   const db = fakeDb({ homer_feed_posts: [], fact_posts: [], nfl_td_feed: [] })
   const slotNba = Date.parse(iso(today, '23:30'))
-  assert.equal(await PP.postPollOnce(db, { sport: 'nba', day: today, adapter: fakeAdapter('nba'), now: slotNba }), 'posted')
-  assert.equal(tweets.length, 1); assert.equal(discord.length, 0)
-  assert.match(tweets[0].text, /^🏀 BUCKETS POLL\n\n/)
-  assert.ok(!/Full board|DASH|->/.test(tweets[0].text))
+  assert.match(await PP.postPollOnce(db, { sport: 'nba', day: today, adapter: fakeAdapter('nba'), now: slotNba }), /^hidden/)
+  assert.equal(tweets.length, 0); assert.equal(discord.length, 0); assert.equal(db.tables.homer_feed_posts.length, 0)
+  assert.match(await PP.postRevealsOnce(db, { sport: 'nba', today, adapter: fakeAdapter('nba'), now: slotNba }), /^hidden/)
   process.env.BUCKETS_PUBLIC = 'on'
-  reset()
-  const db2 = fakeDb({ homer_feed_posts: [], fact_posts: [], nfl_td_feed: [] })
-  assert.equal(await PP.postPollOnce(db2, { sport: 'nba', day: '2026-10-10', adapter: fakeAdapter('nba'), now: Date.parse('2026-10-10T23:30:00Z') }), 'posted')
-  assert.equal(discord.length, 1)
-  delete process.env.BUCKETS_PUBLIC
+  try {
+    reset()
+    const db2 = fakeDb({ homer_feed_posts: [], fact_posts: [], nfl_td_feed: [] })
+    assert.equal(await PP.postPollOnce(db2, { sport: 'nba', day: '2026-10-10', adapter: fakeAdapter('nba'), now: Date.parse('2026-10-10T23:30:00Z') }), 'posted')
+    assert.equal(tweets.length, 1); assert.equal(discord.length, 1)
+    assert.match(tweets[0].text, /^🏀 BUCKETS POLL\n\n/)
+    assert.ok(!/Full board|DASH|->/.test(tweets[0].text))
+  } finally { delete process.env.BUCKETS_PUBLIC }
 })
 
 // ═══ 5. THE REVEAL ══════════════════════════════════════════════════════════
