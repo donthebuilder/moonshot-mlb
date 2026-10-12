@@ -15,6 +15,7 @@
 --     (locks_at := now()); it is then frozen (the update path refuses, as for any locked row). At or after the start the insert is still refused (those go LATE).
 --   * lane 'bot' and the rest of lane 'donovan' (his Double, every update, every delete) behave EXACTLY as before: nothing pregame is written at or after the start for the verified record.
 -- RUN BEFORE THE CODE THAT NEEDS IT. Until it is run the app refuses a late save with a clear message (the lane check constraint rejects the row).
+-- It also adds the three post kinds card_don_mlb / card_don_nfl / card_don_nhl to homer_feed_posts_kind_check (NOT VALID) for his own post.
 -- Idempotent: safe to run twice. No role switching.
 
 -- 1. the lane may be 'donovan_late': replace the two constraints that name the lanes (found by definition, not by a guessed name)
@@ -143,6 +144,31 @@ drop policy if exists card_calls_no_late on public.card_calls;
 create policy card_calls_no_late on public.card_calls as restrictive for select to anon, authenticated
   using (lane <> 'donovan_late');
 
+-- 4. HIS OWN POST KINDS (card_don_<sport>): his verified Two-Man gets its own once-a-day post, claimed independently of the card post (lib/card/post.js
+--    postDonovan), so an entry saved after the card post went out still posts. Appended to homer_feed_posts_kind_check the way 202610101100 did it:
+--    NOT VALID, so only new rows are checked and a stray old row cannot fail the re-check (23514 on 2026-10-10). A constraint left NOT VALID by that
+--    migration is read back without the suffix before it is extended. Idempotent: a kind already in the check is skipped.
+do $$
+declare d text; k text;
+begin
+  select pg_get_constraintdef(oid) into d
+    from pg_constraint where conname = 'homer_feed_posts_kind_check';
+  if d is null then
+    raise exception 'homer_feed_posts_kind_check not found -- stop and look before adding one';
+  end if;
+  d := regexp_replace(d, ' NOT VALID$', '');
+  foreach k in array array['card_don_mlb','card_don_nfl','card_don_nhl'] loop
+    if position(('''' || k || '''') in d) = 0 then
+      execute 'alter table public.homer_feed_posts drop constraint homer_feed_posts_kind_check';
+      execute 'alter table public.homer_feed_posts add constraint homer_feed_posts_kind_check check (('
+        || regexp_replace(d, '^CHECK ', '')
+        || ') or kind = ' || quote_literal(k) || ') not valid';
+      select pg_get_constraintdef(oid) into d from pg_constraint where conname = 'homer_feed_posts_kind_check';
+      d := regexp_replace(d, ' NOT VALID$', '');
+    end if;
+  end loop;
+end $$;
+
 -- PROBES (run after, each as its own run):
 --   select conname, pg_get_constraintdef(oid) from pg_constraint where conrelid = 'public.card_calls'::regclass and conname in ('card_calls_lane_name_ck','card_calls_note_lane_ck');
 --     -- expect both, the lane list including 'donovan_late'
@@ -154,4 +180,5 @@ create policy card_calls_no_late on public.card_calls as restrictive for select 
 --   delete from public.card_calls where model_version = 'probe' and lane = 'donovan_late';                                           -- expect DELETE 1 (inside the 15-minute typo window)
 --   insert into public.card_calls (sport, card_date, slate_key, lane, product, slot, model_version, rule, stake, legs, leg_count, start_at, locks_at)
 --     values ('mlb', '1970-01-01', '1970-01-01', 'donovan', 'two_man', 1, 'probe', 'probe', 0.5, '[{"player_id":"x"},{"player_id":"y"}]', 2, '1970-01-01T00:00:00Z', '1970-01-01T00:00:00Z');   -- expect ERROR (the verified lane still refuses a past start)
+--   select pg_get_constraintdef(oid) from pg_constraint where conname = 'homer_feed_posts_kind_check';   -- expect ... OR (kind = 'card_don_mlb'::text) OR (kind = 'card_don_nfl'::text) OR (kind = 'card_don_nhl'::text)
 --   select position('LOCK AT SAVE' in pg_get_functiondef('public.card_calls_guard'::regproc)) > 0 as lock_at_save_installed;   -- expect true (the lock-at-save branch is installed; it is not probed with a row because a locked row can never be deleted)

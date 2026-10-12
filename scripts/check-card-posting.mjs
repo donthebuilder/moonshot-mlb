@@ -345,5 +345,106 @@ const slabStub = (bytes = 'SLAB') => async (o) => { askedSlab.push(o); return Bu
   check(!/Dual|dual/.test(dayPost), 'I: THE DAY post (card_members_day*) carries no dual card')
 }
 
+// ── J. HIS OWN POST (2026-10-12, Donovan: "when I set them they push everywhere"): card_don_<sport>, claimed once per day + sport, independent of the card post ──
+{
+  const NOWJ = Date.now()
+  const iso = (ms) => new Date(ms).toISOString()
+  const mkDon = (o = {}) => ({ lane: 'donovan', product: 'two_man', slot: 1, legs: [{ ...leg('P4', 'Test Four'), start_at: iso(NOWJ + 2 * 3600e3) }, { ...leg('P5', 'Test Five'), start_at: iso(NOWJ + 2 * 3600e3) }], locks_at: iso(NOWJ - 5 * 60e3), start_at: iso(NOWJ + 2 * 3600e3), note: 'Both on the top line tonight.', ...o })
+  const problems = new Map([['P4', null], ['P5', null]])
+  // a homer_feed_posts table that remembers claims (select by day+kind, insert-or-ignore, update)
+  const stateDb = ({ seed = [], failClaim = false } = {}) => {
+    const rowsT = [...seed]
+    const t = {
+      select: () => ({ match: (m) => ({ maybeSingle: async () => ({ data: rowsT.find((r) => r.day === m.day && r.kind === m.kind) || null }) }), eq: () => t.select(), in: () => t.select(), order: () => t.select(), limit: async () => ({ data: [] }) }),
+      upsert: (r) => ({ select: async () => {
+        if (failClaim) return { data: null, error: { message: 'new row for relation "homer_feed_posts" violates check constraint "homer_feed_posts_kind_check"' } }
+        const out = []; for (const x of r) if (!rowsT.some((q) => q.day === x.day && q.kind === x.kind)) { rowsT.push({ ...x }); out.push({ day: x.day }) }
+        return { data: out, error: null } } }),
+      update: (patch) => ({ match: async (m) => { const q = rowsT.find((r) => r.day === m.day && r.kind === m.kind); if (q) Object.assign(q, patch); return { error: null } } }),
+      delete: () => ({ match: async () => ({ error: null }) }), insert: async () => ({ error: null }),
+    }
+    return { rowsT, db: { from: () => t } }
+  }
+  const { _resetTakenForTests: resetTaken } = await import('../lib/dash/postClaim.js')
+  const DAYJ = '2026-10-12'
+  const cardPosted = (picks) => ({ day: DAYJ, kind: 'card_nhl', payload: { picks: picks.map((id) => ({ player_id: id })) } })
+  const tweets = () => calls.filter((c) => c.url.endsWith('/2/tweets')).map((c) => JSON.parse(c.body))
+  let dualAsked = 0
+  const dualJ = async () => { dualAsked += 1; return png('dual-j') }
+
+  // 1. saved after the card post went out (it named only P1): HIS post goes out on X and the free channel, with his dual card, names and note, no link
+  setEnv(XENV); calls.length = 0; resetTaken()
+  const s1 = stateDb({ seed: [cardPosted(['P1'])] })
+  const r1 = await POST.postDonovan(s1.db, { sport: 'nhl', day: DAYJ, rows: [mkDon()], now: NOWJ, dual: dualJ, problems })
+  const tw = tweets()[0]
+  const dch = calls.find((c) => c.url === FREE)
+  check(/^posted/.test(r1) && tw && tw.text.includes('Test Four') && tw.text.includes('Test Five') && tw.text.includes('Both on the top line tonight.') && !/https?:\/\//.test(tw.text) && !/\block|\bdue\b|guarantee/i.test(tw.text), `J: his entry saved after the card post -> card_don_nhl posts on X with both names + his note, no link, no lock/due/guaranteed (${r1})`)
+  check(dch && filesOf(dch).length === 1 && tw.media?.media_ids?.length === 1, 'J: the free channel and X both carry his dual card')
+  check(s1.rowsT.some((r) => r.kind === 'card_don_nhl' && r.day === DAYJ && r.x_post_id), 'J: one claim row (day, card_don_nhl) records the post')
+  // 2. a second tick cannot double-post
+  calls.length = 0
+  const r2 = await POST.postDonovan(s1.db, { sport: 'nhl', day: DAYJ, rows: [mkDon()], now: NOWJ + 600e3, dual: dualJ, problems })
+  check(r2 === 'already-posted' && calls.length === 0, 'J: the next tick does not post him again (claimed once per day + sport)')
+  // 3. his entry is already inside the card post: no second post
+  setEnv(XENV); calls.length = 0; resetTaken()
+  const s3 = stateDb({ seed: [cardPosted(['P1', 'P4', 'P5'])] })
+  const r3 = await POST.postDonovan(s3.db, { sport: 'nhl', day: DAYJ, rows: [mkDon()], now: NOWJ, dual: dualJ, problems })
+  check(r3 === 'in-card-post' && calls.length === 0 && !s3.rowsT.some((r) => r.kind === 'card_don_nhl'), 'J: his entry is in the day\'s card post -> card_don does NOT also post (nothing sent, nothing claimed)')
+  // 4. the card post has not gone yet: it will carry him, so he waits; stuck for 20 minutes, he goes alone
+  setEnv(XENV); calls.length = 0; resetTaken()
+  const s4 = stateDb()
+  const r4 = await POST.postDonovan(s4.db, { sport: 'nhl', day: DAYJ, rows: [mkDon()], now: NOWJ, dual: dualJ, problems })
+  check(r4 === 'waits-for-card-post' && calls.length === 0, 'J: the card post is not out yet -> he waits for it (it carries him)')
+  const r4b = await POST.postDonovan(s4.db, { sport: 'nhl', day: DAYJ, rows: [mkDon({ locks_at: iso(NOWJ - 30 * 60e3) })], now: NOWJ, dual: dualJ, problems })
+  check(/^posted/.test(r4b), `J: the card post is stuck 20+ minutes -> his own post goes out (${r4b})`)
+  // 5. a card post that dropped (no names) leaves him free to post
+  setEnv(XENV); calls.length = 0; resetTaken()
+  const s5 = stateDb({ seed: [{ day: DAYJ, kind: 'card_nhl', payload: { dropped: 'x' } }] })
+  check(/^posted/.test(await POST.postDonovan(s5.db, { sport: 'nhl', day: DAYJ, rows: [mkDon()], now: NOWJ, dual: dualJ, problems })), 'J: a card post that was dropped did not name him -> his own post goes out')
+  // 6. never a LATE entry, never an entry whose game has started, never before its lock
+  setEnv(XENV); calls.length = 0; resetTaken()
+  const s6 = stateDb({ seed: [cardPosted(['P1'])] })
+  check(await POST.postDonovan(s6.db, { sport: 'nhl', day: DAYJ, rows: [mkDon({ lane: 'donovan_late' })], now: NOWJ, dual: dualJ, problems }) === 'no-entry', 'J: a LATE row is never posted (not his verified lane)')
+  check(await POST.postDonovan(s6.db, { sport: 'nhl', day: DAYJ, rows: [mkDon({ start_at: iso(NOWJ - 1000) })], now: NOWJ, dual: dualJ, problems }) === 'too-late', 'J: once his game has started it is not posted')
+  check(await POST.postDonovan(s6.db, { sport: 'nhl', day: DAYJ, rows: [mkDon({ locks_at: iso(NOWJ + 600e3) })], now: NOWJ, dual: dualJ, problems }) === 'not-locked-yet', 'J: before his lock it is not posted')
+  check(calls.length === 0, 'J: none of those sent anything')
+  // 7. the SQL is not run: the kind is not allowed -> nothing sent, logged, and not rebuilt every tick
+  setEnv(XENV); calls.length = 0; resetTaken(); dualAsked = 0
+  const s7 = stateDb({ seed: [{ ...cardPosted(['P1']), day: '2026-10-20' }], failClaim: true })
+  const errs = []; const ce = console.error; console.error = (...a) => errs.push(a.join(' '))
+  const r7 = await POST.postDonovan(s7.db, { sport: 'nhl', day: '2026-10-20', rows: [mkDon()], now: NOWJ, dual: dualJ, problems })
+  const r7b = await POST.postDonovan(s7.db, { sport: 'nhl', day: '2026-10-20', rows: [mkDon()], now: NOWJ + 60e3, dual: dualJ, problems })
+  console.error = ce
+  check(/^skipped: run the update/.test(r7) && calls.length === 0 && errs.some((e) => /card_don_nhl skipped/.test(e)), 'J: before the SQL is run the post is skipped, nothing is sent, and the log says to run the update')
+  check(/^waiting/.test(r7b) && dualAsked <= 1, 'J: the next ticks do not rebuild or re-render it (30 minutes)')
+  // 8. X refuses: the claim stays (no loop), the channel still got it
+  setEnv(XENV); calls.length = 0; resetTaken()
+  const realFetchJ = globalThis.fetch
+  globalThis.fetch = async (url, init) => (String(url).endsWith('/2/tweets') ? (calls.push({ url: String(url), body: init?.body, method: init?.method }), { ok: false, status: 403, statusText: 'Forbidden', headers: { get: () => null }, json: async () => ({ title: 'nope' }) }) : realFetchJ(url, init))
+  const s8 = stateDb({ seed: [cardPosted(['P1'])] })
+  const ce2 = console.error; console.error = () => {}
+  const r8 = await POST.postDonovan(s8.db, { sport: 'nhl', day: DAYJ, rows: [mkDon()], now: NOWJ, dual: dualJ, problems })
+  const n8 = calls.filter((c) => c.url.endsWith('/2/tweets')).length
+  const r8b = await POST.postDonovan(s8.db, { sport: 'nhl', day: DAYJ, rows: [mkDon()], now: NOWJ + 600e3, dual: dualJ, problems })
+  console.error = ce2; globalThis.fetch = realFetchJ
+  check(/^posted/.test(r8) && n8 === 1 && r8b === 'already-posted' && calls.filter((c) => c.url.endsWith('/2/tweets')).length === 1, 'J: an X refusal keeps the claim: one attempt, never a loop')
+  // 9. the card post leaves him out once his own post is claimed
+  const claimed = await POST.donovanPostClaimed(stateDb({ seed: [{ day: DAYJ, kind: 'card_don_nhl', payload: {} }] }).db, 'nhl', DAYJ)
+  const unclaimed = await POST.donovanPostClaimed(stateDb().db, 'nhl', DAYJ)
+  check(claimed === true && unclaimed === false, 'J: donovanPostClaimed reads the day\'s card_don claim (the card post then drops his row)')
+  const post = src('lib/card/post.js'); const tick = src('lib/card/tick.js')
+  check(/donovanPostClaimed\(db, sport, day\)\)\) rows = rows\.filter\(\(r\) => r\.lane !== 'donovan'\)/.test(post), 'J: postCardX leaves him out when card_don already went (no double naming)')
+  check(/post\.donovan = await postDonovan\(db, \{ sport, day, rows: rows\.filter/.test(tick), 'J: the tick posts his entry after the card post, from the verified rows only')
+  // 10. policy: tagged, write-up tier (like the card post), counted by the same cap, never suppressed by the repeat guard, sport read from the kind
+  const XS = await import('../lib/dash/xSchedule.js'); const XP = await import('../lib/dash/xPolicy.js')
+  for (const sp of ['mlb', 'nfl', 'nhl']) {
+    const k = `card_don_${sp}`
+    check(XS.tagOf(k) === 'INFO' && XS.modeOf(k) === 'event' && XP.tierOf(k) === XP.tierOf(`card_${sp}`) && XP.isCapExempt(k) === XP.isCapExempt(`card_${sp}`) && XP.sportOfKind(k) === sp && XP.isRepeatExempt(k) === true, `J: ${k} is tagged INFO/event, the card post's tier and cap policy, repeat-exempt, sport ${sp}`)
+  }
+  check(XS.untagged().length === 0 && XP.isRepeatExempt('card_nhl') === false, 'J: no untagged kind; the card post itself keeps the repeat guard')
+  const sql = src('supabase/migrations/202610121100_card_calls_late.sql')
+  check(/\['card_don_mlb','card_don_nfl','card_don_nhl'\]/.test(sql) && /\) not valid'/.test(sql) && /regexp_replace\(d, ' NOT VALID\$', ''\)/.test(sql), 'J: the migration adds the three kinds NOT VALID and strips a NOT VALID suffix before extending')
+}
+
 console.log(failed ? `\n${failed} FAILED` : '\nOK: card pictures on the posts')
 process.exit(failed ? 1 : 0)
