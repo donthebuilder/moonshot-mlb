@@ -25,15 +25,29 @@ import { downloadCard, shareUrl, stamp } from '../lib/cards/saveCard'
 
 // the model (cats, the per-category season record, the lock split, the form windows) is lib/reportModel.js, shared with the server's
 // track-record share card (lib/cards/shareData.js); only the colours live here
-const COLOR = { TOP_PICKS: C.amber, HR_PICKS: '#FB923C', HIT_PICKS: C.blue, HRR_PICKS: C.cyan, CONTACT_PICKS: C.purple }
+const CATS = [
+  { tier: 'TOP_PICKS', label: 'LEGACY TOP', color: C.amber, bar: 'HR', barLabel: 'homered' },
+  { tier: 'HR_PICKS', label: 'HR', color: '#FB923C', bar: 'HR', barLabel: 'homered' },
+  { tier: 'HIT_PICKS', label: 'HIT', color: C.blue, bar: '1+ Hit', barLabel: 'got a hit' },
+  { tier: 'HRR_PICKS', label: 'HRR', color: C.cyan, bar: '2+ HRR', barLabel: '2+ H+R+RBI' },
+  { tier: 'CONTACT_PICKS', label: 'CONTACT', color: C.purple, bar: '2+ TB', barLabel: '2+ total bases' },
+]
+const COLOR = Object.fromEntries(CATS.map((c) => [c.tier, c.color]))
 
 // Wilson 95% interval (audit #13, 2026-08-08) MOVED TO lib/interval.js on
 // 2026-08-16, when the blank board needed the same maths to rank on. Identical
 // implementation, one home — two copies of a calculation are two answers
 // waiting to diverge. Numbers here are unchanged.
 
-const GRADE_COL = { A: C.green, B: '#a3e635', C: C.amber, D: C.orange, F: C.red }
-const gradeOf = (letter) => ({ g: letter, col: GRADE_COL[letter] || C.text3 })
+const gradeOf = (rate, base) => {
+  if (rate == null || !base) return { g: '—', col: C.text3 }
+  const r = rate / base
+  if (r >= 1.3) return { g: 'A', col: C.green }
+  if (r >= 1.05) return { g: 'B', col: '#a3e635' }
+  if (r >= 0.8) return { g: 'C', col: C.amber }
+  if (r >= 0.5) return { g: 'D', col: C.orange }
+  return { g: 'F', col: C.red }
+}
 
 function Spark({ days, cat, lockX }) {
   // nightly own-bar rate dots + 5-day rolling line, 0–100 scale
@@ -74,7 +88,7 @@ function Spark({ days, cat, lockX }) {
 export default function ReportCard({ backtest }) {
   const model = useMemo(() => {
     const m = reportModel(backtest, new Date().toLocaleDateString('en-CA'))
-    return m && { ...m, rows: m.rows.map((r) => ({ ...r, cat: { ...r.cat, color: COLOR[r.cat.tier] }, grade: gradeOf(r.letter) })) }
+    return m && { ...m, rows: m.rows.map((r) => ({ ...r, cat: { ...r.cat, color: COLOR[r.cat.tier] }, grade: gradeOf(r.last?.rate, r.base) })) }
   }, [backtest])
 
   if (!model) return null

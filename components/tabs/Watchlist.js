@@ -16,7 +16,6 @@ import { boardRow, boardRowContext, withBoardColumns } from '../../lib/boardColu
 import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import PlayerCard from '../PlayerCard'
 import { downloadCard, shareUrl, stamp } from '../../lib/cards/saveCard'
-import { mlbId } from '../../lib/player'
 import WatchlistAlignLedger from '../WatchlistAlignLedger'
 import WatchRecord from '../watch/WatchRecord'
 import { oddsHistoryPaths } from '../../lib/dataSource'
