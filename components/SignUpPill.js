@@ -19,6 +19,7 @@ import { C as MLB_C } from '../lib/theme'
 import { useEffect, useRef, useState } from 'react'
 import { useDashAccount } from '../lib/dash/sync'
 import { dashSignOut } from '../app/(front)/actions'
+import { useIsAdmin } from '../lib/useIsAdmin'
 
 const pressable = {
   transition: 'transform .09s ease, filter .12s ease, box-shadow .12s ease',
@@ -27,6 +28,7 @@ const pressable = {
 
 export default function SignUpPill({ accent = '#f97316', dark = '#0d0c0a', onWatchlist }) {
   const account = useDashAccount()
+  const isAdmin = useIsAdmin()      // the server's answer (/api/admin/me); false for everyone else
   const [href, setHref] = useState('/login?next=%2Fapp%23sport%3Dmlb%26tab%3Dhome#create-account')
   const [next, setNext] = useState('/app')
   const [hover, setHover] = useState(false)
@@ -99,6 +101,7 @@ export default function SignUpPill({ accent = '#f97316', dark = '#0d0c0a', onWat
             {onWatchlist
               ? <MenuButton ac={accent} onClick={() => { setOpen(false); onWatchlist() }}>⭐ Watchlist</MenuButton>
               : <MenuLink ac={accent} href="/app#sport=mlb&tab=you">⭐ Watchlist</MenuLink>}
+            {isAdmin ? <MenuLink ac={accent} href="/admin">🛠 Admin</MenuLink> : null}
             <form action={dashSignOut} style={{ display: 'contents' }}>
               <input type="hidden" name="next" value={next} />
               <MenuButton ac={accent} type="submit">Sign out</MenuButton>
