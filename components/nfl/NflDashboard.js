@@ -22,7 +22,7 @@ import { AccentProvider } from '../Filters'
 import useBlendedMatchup from '../../lib/nfl/useBlendedMatchup'
 import { withRoles } from '../../lib/nfl/roles'
 import { withUsageShares } from '../../lib/nfl/usageShares'
-import { fetchNfl, nflSlatePaths, nflMetaPaths, nflMatchupPaths, nflLogPaths, nflPicksPaths, nflResultsPaths, nflOddsPaths, nflOddsStatusPaths, nflSlateLooksReal, nflMatchupLooksReal, nflPicksLooksReal, nflOddsLooksReal } from '../../lib/nfl/dataSource'
+import { fetchNfl, nflSlatePaths, nflMetaPaths, nflMatchupPaths, nflLogPaths, nflLogIndexPaths, nflLogIndexLooksReal, nflPicksPaths, nflResultsPaths, nflOddsPaths, nflOddsStatusPaths, nflSlateLooksReal, nflMatchupLooksReal, nflPicksLooksReal, nflOddsLooksReal } from '../../lib/nfl/dataSource'
 import { initialHashParams, setSport } from '../../lib/sport'
 import { tabSwitchHash } from '../../lib/useShellRoute'
 import { useNflLive } from '../../lib/nfl/useNflLive'
@@ -134,6 +134,7 @@ const cardViewOf = (h) => {
 }
 // the pages that print a price (see the effect that loads the quotes)
 const ODDS_TABS = new Set(['players', 'games', 'picks', 'research'])
+const LOG_TABS = new Set(['home', 'players', 'watchlist', 'games', 'picks', 'research', 'team', 'live', 'streaks'])   // the tabs handed `logs` (player game logs)
 const NFL_TAB_KEEP = { pos: new Set(['research']), player: new Set(['players']), team: new Set(['players', 'team']), game: new Set(['games']), lv: new Set(['ledger']), sec: new Set(['team']), sv: new Set(['team']) }   // sec=: the team page's section (components/team/TeamPage.js); lv=: The Ledger's sub-tab (lib/ledger/views.js)
 
 export default function NflDashboard({ palettePass = 0 }) {
@@ -153,6 +154,7 @@ export default function NflDashboard({ palettePass = 0 }) {
   // + HIS SHARE OF HIS CLUB (lib/nfl/usageShares.js): snap share, last-3 and trend, put on each row once for every table's Role & usage columns
   const data = useMemo(() => withUsageShares(withRoles(dataRaw, matchup), matchup), [dataRaw, matchup])
   const [logs, setLogs] = useState(null)
+  const [logIndex, setLogIndex] = useState(null)   // the slim team-games index: all the header needs
   const [picks, setPicks] = useState(null)
   const [nflResults, setNflResults] = useState(null)
   // ODDS (2026-08-24). Fetched once here and passed down as props, same
@@ -344,7 +346,7 @@ export default function NflDashboard({ palettePass = 0 }) {
       fetchNfl(nflSlatePaths(weekMode), nflSlateLooksReal).then((j) => { if (alive) setData(j) }),
       fetchNfl(nflMetaPaths()).then((j) => { if (alive) setMeta(j) }),
       fetchNfl(nflMatchupPaths(weekMode), nflMatchupLooksReal).then((j) => { if (alive) setMatchup(j) }),
-      fetchNfl(nflLogPaths(weekMode)).then((j) => { if (alive) setLogs(j) }),
+      fetchNfl(nflLogIndexPaths(weekMode), nflLogIndexLooksReal).then((j) => { if (alive) setLogIndex(j) }),
       fetchNfl(nflPicksPaths(weekMode), nflPicksLooksReal).then((j) => { if (alive) setPicks(j) }),
       // No validator: an absent results file is the normal state before
       // kickoff, and there is no committed snapshot to lose a race against.
@@ -352,6 +354,21 @@ export default function NflDashboard({ palettePass = 0 }) {
     ]).then(() => { if (alive) setLoading(false) })
     return () => { alive = false }
   }, [refreshKey, weekMode])
+
+  // THE PLAYER LOGS LOAD WHERE THEY ARE READ (data diet). nfl_logs.json (1.4 MB) is every tracked player's game log; the header's tile
+  // reads only the slim index above. Tabs that print a player's games, hit rates or streaks -- and the open card -- still get the full
+  // file, once wanted it stays loaded and refreshes with the same refresh. The tabs NOT in the set (matchups, explosive, redzone, odds,
+  // longshots, numerology, the Ledger, scores, standings, pairs, guide, leaders, storylines) are passed no logs today. Until the bot
+  // publishes the index (logIndex stays null) every tab loads the full file, exactly as before.
+  const needLogs = LOG_TABS.has(tab) || Boolean(modal) || !logIndex
+  const [logsWanted, setLogsWanted] = useState(false)
+  useEffect(() => { if (needLogs) setLogsWanted(true) }, [needLogs])
+  useEffect(() => {
+    if (!logsWanted) return undefined
+    let alive = true
+    fetchNfl(nflLogPaths(weekMode)).then((j) => { if (alive) setLogs(j) }).catch(() => {})
+    return () => { alive = false }
+  }, [logsWanted, refreshKey, weekMode])
 
   // PRICES LOAD WHERE THEY ARE READ (2026-10-10, Wave 3 data diet). The quotes (/api/odds/latest, ~420 KB) and the odds status
   // are read by the pages that print a price -- Players, Games, Picks, Rankings -- and by the open player card. Home, Live, the
@@ -480,7 +497,7 @@ export default function NflDashboard({ palettePass = 0 }) {
       <MobileCSS />
       {/* See the note in components/Dashboard.js -- same gap, same fix. */}
       <SkipLink />
-      <NflHeader tab={tab} setTab={setTab} data={data} meta={meta} matchup={matchup} logs={logs} weekMode={weekMode} setWeekMode={setWeekMode} onPlayerClick={openPlayer} />
+      <NflHeader tab={tab} setTab={setTab} data={data} meta={meta} matchup={matchup} logs={logIndex || logs} weekMode={weekMode} setWeekMode={setWeekMode} onPlayerClick={openPlayer} />
       <TodayContext.Provider value={nflToday}>
       <main id="board-main" className="dashboard-main"
             style={{ maxWidth: 1300, margin: '0 auto', padding: '14px 14px 40px' }}>
