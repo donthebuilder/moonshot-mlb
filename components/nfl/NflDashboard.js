@@ -134,7 +134,7 @@ const cardViewOf = (h) => {
 }
 // the pages that print a price (see the effect that loads the quotes)
 const ODDS_TABS = new Set(['players', 'games', 'picks', 'research'])
-const LOG_TABS = new Set(['home', 'players', 'watchlist', 'games', 'picks', 'research', 'team', 'live', 'streaks'])   // the tabs handed `logs` (player game logs)
+const LOG_TABS = new Set(['players', 'watchlist', 'games', 'picks', 'research', 'team', 'live', 'streaks'])   // the tabs handed `logs` (player game logs)
 const NFL_TAB_KEEP = { pos: new Set(['research']), player: new Set(['players']), team: new Set(['players', 'team']), game: new Set(['games']), lv: new Set(['ledger']), sec: new Set(['team']), sv: new Set(['team']) }   // sec=: the team page's section (components/team/TeamPage.js); lv=: The Ledger's sub-tab (lib/ledger/views.js)
 
 export default function NflDashboard({ palettePass = 0 }) {
@@ -154,6 +154,7 @@ export default function NflDashboard({ palettePass = 0 }) {
   // + HIS SHARE OF HIS CLUB (lib/nfl/usageShares.js): snap share, last-3 and trend, put on each row once for every table's Role & usage columns
   const data = useMemo(() => withUsageShares(withRoles(dataRaw, matchup), matchup), [dataRaw, matchup])
   const [logs, setLogs] = useState(null)
+  const [logIndexSettled, setLogIndexSettled] = useState(false)   // the index fetch has answered (found or not)
   const [logIndex, setLogIndex] = useState(null)   // the slim team-games index: all the header needs
   const [picks, setPicks] = useState(null)
   const [nflResults, setNflResults] = useState(null)
@@ -346,7 +347,7 @@ export default function NflDashboard({ palettePass = 0 }) {
       fetchNfl(nflSlatePaths(weekMode), nflSlateLooksReal).then((j) => { if (alive) setData(j) }),
       fetchNfl(nflMetaPaths()).then((j) => { if (alive) setMeta(j) }),
       fetchNfl(nflMatchupPaths(weekMode), nflMatchupLooksReal).then((j) => { if (alive) setMatchup(j) }),
-      fetchNfl(nflLogIndexPaths(weekMode), nflLogIndexLooksReal).then((j) => { if (alive) setLogIndex(j) }),
+      fetchNfl(nflLogIndexPaths(weekMode), nflLogIndexLooksReal).then((j) => { if (alive) setLogIndex(j) }).catch(() => {}).finally(() => { if (alive) setLogIndexSettled(true) }),
       fetchNfl(nflPicksPaths(weekMode), nflPicksLooksReal).then((j) => { if (alive) setPicks(j) }),
       // No validator: an absent results file is the normal state before
       // kickoff, and there is no committed snapshot to lose a race against.
@@ -360,7 +361,8 @@ export default function NflDashboard({ palettePass = 0 }) {
   // file, once wanted it stays loaded and refreshes with the same refresh. The tabs NOT in the set (matchups, explosive, redzone, odds,
   // longshots, numerology, the Ledger, scores, standings, pairs, guide, leaders, storylines) are passed no logs today. Until the bot
   // publishes the index (logIndex stays null) every tab loads the full file, exactly as before.
-  const needLogs = LOG_TABS.has(tab) || Boolean(modal) || !logIndex
+  // Home reads the index alone (its hottest-streak row comes from the index's `hot` block); an index without `hot` sends Home to the full file.
+  const needLogs = LOG_TABS.has(tab) || Boolean(modal) || (logIndexSettled && (!logIndex || (tab === 'home' && !logIndex.hot)))
   const [logsWanted, setLogsWanted] = useState(false)
   useEffect(() => { if (needLogs) setLogsWanted(true) }, [needLogs])
   useEffect(() => {
@@ -530,7 +532,7 @@ export default function NflDashboard({ palettePass = 0 }) {
           <GameNav.Provider value={openGameNav}>
           <ErrorBoundary resetKey={tab} label={`the ${tab} tab`}>
             {oddsHold && <TabLoading />}
-            {tab === 'home' && <Home data={slate} picks={picks} results={nflResults} matchup={matchup} logs={logs} onPlayerClick={openPlayer} setTab={setTab} liveSnap={liveSnap} />}
+            {tab === 'home' && <Home data={slate} picks={picks} results={nflResults} matchup={matchup} logs={logs} logIndex={logIndex} onPlayerClick={openPlayer} setTab={setTab} liveSnap={liveSnap} />}
             {/* MOONSHOT's Players page (2026-09-30): list + the card inline. */}
             {!oddsHold && tab === 'players' && <NflPlayers data={data} logs={logs} matchup={matchup} picks={picks} results={nflResults} odds={odds} />}
             {tab === 'watchlist' && <Watchlist data={slate} matchup={matchup} logs={logs} picks={picks} onPlayerClick={openPlayer} />}

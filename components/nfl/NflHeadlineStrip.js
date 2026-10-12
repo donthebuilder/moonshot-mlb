@@ -8,6 +8,7 @@ import HistoryWatch from '../HistoryWatch'
 import LongshotsPreview from '../LongshotsPreview'
 import { buildNflHeadlines, buildNflLeaderRows } from '../../lib/nfl/headlines'
 import { slateTotals } from '../../lib/nfl/teamTdModel'
+import { logsFromHot } from '../../lib/nfl/streaks'
 import { sharedJSON } from '../../lib/sharedRead'
 
 // ── THE HEADLINE STRIP (moved out of tabs/Home.js 2026-09-25) ───────────────
@@ -35,7 +36,7 @@ import { sharedJSON } from '../../lib/sharedRead'
 // (buildNflHeadlines) and what a tap opens. The card now draws exactly as
 // MOONSHOT's (glass fill, 232px on a phone too) where the old private CSS
 // used bg2 and a 200px phone width.
-export default function NflHeadlineStrip({ players, games, markets, matchup, logs = null, week = null, onPlayerClick, setTab }) {
+export default function NflHeadlineStrip({ players, games, markets, matchup, logs = null, logIndex = null, week = null, onPlayerClick, setTab }) {
   // 📜 HISTORY WATCH (milestones plan step 4): the rarest claim within reach
   // this week leads the strip, and the group sits under it.
   const [hist, setHist] = useState(null)
@@ -46,12 +47,13 @@ export default function NflHeadlineStrip({ players, games, markets, matchup, log
   }, [])
   const cards = useMemo(() => {
     // Around the League (TUDDY depth step 3): each page's own #1, after the bot's bites.
-    const totals = slateTotals(week, logs)   // the team model's number for GAME TO CIRCLE
-    const base = [...buildNflHeadlines({ players, games, markets, matchup, totals }), ...buildNflLeaderRows({ players, games, markets, matchup, logs })]
+    // the slim index carries the club rows and the hot-streak players, so Home needs no player logs; the full file, when loaded, wins
+    const totals = slateTotals(week, logIndex?.team_games ? logIndex : logs)   // the team model's number for GAME TO CIRCLE
+    const base = [...buildNflHeadlines({ players, games, markets, matchup, totals }), ...buildNflLeaderRows({ players, games, markets, matchup, logs: logs || logsFromHot(logIndex) })]
     if (!hist) return base
     const p = (players || []).find((x) => String(x?.player_id) === String(hist.player_id)) || null
     return [{ k: `hist-${hist.player_id}-${hist.unit}`, tag: 'HISTORY WATCH', icon: '📜', name: hist.name, why: `Next: ${hist.claim}.`, stat: `${hist.hr} ${hist.unit}`, col: C.yellow, p }, ...base]
-  }, [players, games, markets, matchup, logs, week, hist])
+  }, [players, games, markets, matchup, logs, logIndex, week, hist])
   const openGame = useGameNav()
   // a game card opens THAT game (game=<id> in the address), not just the Games tab
   const open = (c) => (c.p ? onPlayerClick?.(c.p, 'TD') : c.gameId && openGame ? openGame(c.gameId) : c.nav ? setTab?.(c.nav) : null)

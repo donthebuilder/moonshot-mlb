@@ -2,6 +2,7 @@
 // THE SLIM LOG INDEX reads the same as the full log (teamTdModel.teamGames / slateTotals), on TEST data -- invented clubs and players.
 //   node --import ./scripts/_esm-resolve.mjs scripts/check-nfl-log-index.mjs
 import { teamGames, slateTotals } from '../lib/nfl/teamTdModel.js'
+import { streakBoard, logsFromHot } from '../lib/nfl/streaks.js'
 import { nflPlayerLogPaths, nflLogIndexLooksReal } from '../lib/nfl/dataSource.js'
 
 let failed = 0
@@ -27,5 +28,15 @@ check(Object.keys(a).length === 2 && JSON.stringify(a) === JSON.stringify(b), 's
 check(teamGames({ team_games: [{ s: 2099, w: 1, tm: 'AAA' }, null, { s: 2099, w: 2, tm: 'AAA', opp: 'BBB', td: 'x' }] }).length === 1, 'a malformed index row is dropped, a non-numeric td counts 0')
 check(nflLogIndexLooksReal(index) && !nflLogIndexLooksReal({ team_games: [] }) && !nflLogIndexLooksReal(null), 'an empty or missing index is not "real" (the full file is used)')
 check(nflPlayerLogPaths('00-0033280')[0].endsWith('/nfl_logs/00-0033280.json') && nflPlayerLogPaths('../x').length === 0, "a player's log path is his id under nfl_logs/; an unsafe id gets no path")
+// HOME'S HOTTEST-STREAK ROW from the index's `hot` block == from the full log (TEST players; the bot builds `hot` the same way)
+const full = { bars: { TD: ['g_td', 1] }, logs: {
+  hotman: { log: [{ s: 2098, w: 18, g_td: 0, g_rec: 5, g_car: 0 }, { s: 2099, w: 1, g_td: 1, g_rec: 4, g_car: 0 }, { s: 2099, w: 2, g_td: 2, g_rec: 4, g_car: 0 }] },
+  coldman: { log: [{ s: 2099, w: 1, g_td: 1, g_rec: 5, g_car: 0 }, { s: 2099, w: 2, g_td: 0, g_rec: 5, g_car: 0 }] },
+} }
+const hot = { market: 'TD', field: 'g_td', bar: 1, cols: ['g_td', 'g_rec', 'g_car'], season: 2099, players: { hotman: full.logs.hotman.log.map((e) => [e.s, e.w, e.g_td, e.g_rec, e.g_car]) } }
+const pool = [{ player_id: 'hotman', position: 'WR' }, { player_id: 'coldman', position: 'WR' }]
+const top = (l) => streakBoard(l, pool, 'g_td', 1, 'over', 30, 'TD').filter((r) => r.streak > 0).map((r) => [r.player.player_id, r.streak, r.hits, r.games])
+check(JSON.stringify(top(logsFromHot({ bars: full.bars, hot }))) === JSON.stringify(top(full)) && top(full).length === 1, "streakBoard over logsFromHot(index) ranks exactly the full log's streakers")
+check(logsFromHot({ bars: full.bars }) === null && logsFromHot(null) === null, 'an index without a hot block gives null (Home then loads the full file)')
 console.log(failed ? `\n${failed} FAILED` : '\nall green')
 process.exit(failed ? 1 : 0)

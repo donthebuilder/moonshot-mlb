@@ -264,7 +264,7 @@ function MiniBoard({ market, title, players, onPlayerClick, onBoards }) {
   )
 }
 
-export default function Home({ data, picks, results, matchup, logs, onPlayerClick, setTab, liveSnap = null }) {
+export default function Home({ data, picks, results, matchup, logs, logIndex = null, onPlayerClick, setTab, liveSnap = null }) {
   const openBoard = boardOpener(setTab)
   // THE RECORD, ON THE FRONT PAGE (2026-09-05). MOONSHOT's Home leads with
   // "graded x% over N nights"; TUDDY's had a player-pool count in that slot,
@@ -407,7 +407,7 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
         {NFL_NAV.players.icon} Find a player — {NFL_NAV.players.label} ›
       </button>
 
-      <NflHeadlineStrip players={players} games={games} markets={data?.markets} matchup={matchup} logs={logs} week={data}
+      <NflHeadlineStrip players={players} games={games} markets={data?.markets} matchup={matchup} logs={logs} logIndex={logIndex} week={data}
         onPlayerClick={onPlayerClick} setTab={setTab} />
 
       {/* ONE RAIL, BOTH SPORTS (round 10, 2026-09-17) -- see lib/combinedRail.js's
