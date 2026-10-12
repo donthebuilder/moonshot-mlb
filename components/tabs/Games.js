@@ -1,7 +1,7 @@
 'use client'
 import { hashParams, writeHash } from '../../lib/urlState'
 import { takeTarget } from '../../lib/openTarget'
-import { useMemo, useState, useRef, useEffect } from 'react'
+import { useMemo, useState, useRef, useEffect, Fragment } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { roleBadge } from '../../lib/roleBadge'
 import PriceBubble from '../PriceBubble'
@@ -37,7 +37,7 @@ import LineupSlotMatchup from '../LineupSlotMatchup'
 import PairTray from '../PairTray'
 import MobileFold, { useIsPhone } from '../MobileFold'
 import GameSwitcher from '../GameSwitcher'
-import { panelPairs, panelSubs } from '../../lib/game/sections'
+import { panelPairs, panelSubs, gameSections } from '../../lib/game/sections'
 import { ViewPills, GameFilterRail, BASE_GAME_FILTERS, StripFold, GamePanelPills, PrevNextGame } from '../slate/SlateParts'
 import { statLineFor, useSlateScale, toneFor, toneTitle } from '../../lib/statline'
 import { downloadCard, shareUrl, slug, stamp, gameDay } from '../../lib/cards/saveCard'
@@ -1636,12 +1636,21 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                             lineups (table first), head-to-head, picks — and
                             the pills scroll to their section instead of
                             swapping content. One click opens the whole game. */}
+                        {/* THE SECTIONS OF THE OPEN GAME, in the registry's order (lib/game/sections.js 'mlb' slate), written in place as before:
+                            each id's renderer is the JSX that used to sit here (2026-10-12, stage 2). A section is one registry line and one entry here. */}
+                        {(() => {
+                        const SECTIONS = {
+                          read: () => (
+                            <>
                         <div id={`gp-read-${g.game_pk}`} />
                         {/* THE CALL (2026-10-05): the per-game post's write-up, from the same rows */}
                         <MlbWriteupBlock rows={g.players} onPlayerClick={onPlayerClick} />
                         <GameLedgerLine sport="mlb" gameId={g.game_pk} day={slateDate} />
                         <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} results={results} odds={odds} onPlayerClick={onPlayerClick} section="read" />
-
+                            </>
+                          ),
+                          lineups: () => (
+                            <>
                         {/* THE LINEUPS, WHERE HE ASKED FOR THEM. Same component
                             the Lineups mode uses — it now opens on its spot
                             read (what this arm does to each batting-order slot,
@@ -1651,7 +1660,10 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                         <div id={`gp-lineups-${g.game_pk}`} style={{ borderTop: `1px solid ${C.border}`, marginTop: 14, paddingTop: 12 }}>
                           <GameLineup players={g.players} onPlayerClick={onPlayerClick} />
                         </div>
-
+                            </>
+                          ),
+                          sim: () => (
+                            <>
                         {/* 🎲 THE SIMULATOR (2026-09-03). Collapsed by
                             default and it simulates NOTHING until opened —
                             2,000 games is ~250ms of main thread, which is
@@ -1662,11 +1674,17 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                         <div id={`gp-sim-${g.game_pk}`} style={{ borderTop: `1px solid ${C.border}`, marginTop: 14, paddingTop: 12 }}>
                           <GameSimPanel game={g} onPlayerClick={onPlayerClick} />
                         </div>
-
+                            </>
+                          ),
+                          h2h: () => (
+                            <>
                         <div id={`gp-h2h-${g.game_pk}`} style={{ borderTop: `1px solid ${C.border}`, marginTop: 14, paddingTop: 12 }}>
                           <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} results={results} odds={odds} onPlayerClick={onPlayerClick} section="h2h" />
                         </div>
-
+                            </>
+                          ),
+                          out: () => (
+                            <>
                         <div id={`gp-out-${g.game_pk}`} style={{ marginTop: 14 }}>
                           {(() => {
                             const rowsIn = (g.players || [])
@@ -1678,7 +1696,10 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                             )
                           })()}
                         </div>
-
+                            </>
+                          ),
+                          picks: () => (
+                            <>
                         <div id={`gp-picks-${g.game_pk}`} style={{ borderTop: `1px solid ${C.border}`, marginTop: 14, paddingTop: 12 }} />
                         {(<>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '12px 0 8px', flexWrap: 'wrap' }}>
@@ -1881,6 +1902,11 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                           })}
                         </div>
                         </>)}
+                            </>
+                          ),
+                        }
+                        return gameSections('mlb', 'slate').map((sec) => <Fragment key={sec.id}>{SECTIONS[sec.id]?.()}</Fragment>)
+                        })()}
                       </div>
                     )}
                   </section>
