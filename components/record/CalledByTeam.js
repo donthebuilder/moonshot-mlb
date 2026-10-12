@@ -39,9 +39,8 @@ export function CalledWeekStrip({ sport, style = null }) {
   if (!data) return null
   const words = CALLED_WORDS[sport] || CALLED_WORDS.mlb
   const tracking = data.tracking || []
-  if (!(data.calls || []).length) {
+  if (!(data.calls || []).length && tracking.length) {
     // a market under the BUCKETS public-number floor: counts and the word, no hit count (lib/record/nbaFloor.js)
-    if (!tracking.length) return null
     return (
       <section aria-label="Called accuracy" style={{ borderLeft: `3px solid ${alpha(accent, 0.6)}`, paddingLeft: 10, margin: '0 0 12px', ...style }}>
         <div style={{ font: `900 ${TYPE.label}px/1 ${NUM_FONT}`, letterSpacing: '.1em', color: C.text3, margin: '0 0 4px' }}>CALLED ACCURACY</div>
