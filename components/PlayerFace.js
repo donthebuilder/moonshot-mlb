@@ -49,6 +49,8 @@ const URL_OF = {
   // BUCKETS: ESPN's headshot CDN by athlete id (the same file the athlete card names)
   nba: ({ id }) => (id ? `https://a.espncdn.com/i/headshots/nba/players/full/${encodeURIComponent(id)}.png` : null),
 }
+// Which products ask their CDN for the pixel size as given (NFL's combiner), so the row face asks for 2x; mlb's URL doubles it itself
+const RETINA_OF = { nfl: 2 }
 // A product whose card face already exists keeps it (TUDDY's club tile).
 const CARD_OF = {
   nfl: ({ espnId, team, name, size }) => <NflFace player={{ espn_id: espnId, team, name }} size={size} />,
@@ -103,7 +105,7 @@ export default function PlayerFace({ sport, id = null, espnId = null, photo = nu
   // and the monogram underneath: a man with no picture, or a picture that 404s, keeps his initials. Decorative
   // (alt=""): his name is text beside it. Fixed width/height, lazy, 2x for retina.
   if (variant === 'row') {
-    const px = sport === 'nfl' ? size * 2 : size
+    const px = size * (RETINA_OF[sport] || 1)
     return <RowFace url={faceUrl({ sport, id, espnId, photo, size: px })} name={name} size={size} ring={ring} theme={theme} className={className} style={style} />
   }
   const bg = theme?.bg3 || 'rgba(255,255,255,.06)'
