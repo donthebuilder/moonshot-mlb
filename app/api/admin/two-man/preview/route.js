@@ -37,7 +37,9 @@ export async function POST(request) {
   if (!CARD_SPORTS.includes(sport) || !DATE_RE.test(date)) return json({ error: 'Pick a sport and a card date.' }, 400)
   const ids = Array.isArray(body.players) ? body.players.map((v) => String(v == null ? '' : v)) : []
   const nman = body.product === 'n_man'
-  if (!nman && ids.length !== 2) return json({ error: 'Pick two players to see the card.' }, 400)
+  const straight = body.product === 'straight'      // HIS STRAIGHT (2026-10-12): the player's FRONT card, the one that rides his post
+  if (straight && ids.length !== 1) return json({ error: 'Pick one player to see the card.' }, 400)
+  if (!nman && !straight && ids.length !== 2) return json({ error: 'Pick two players to see the card.' }, 400)
   const db = adminClient()
   if (!db) return json({ error: 'no database' }, 500)
   const now = Date.now()
@@ -47,9 +49,15 @@ export async function POST(request) {
   if (!win) return json({ error: `No ${sport} games on ${date}.` }, 404)
   const c = await loadCandidates(sport, win, now, { all: true })
   if (!c.ok) return json({ error: `The board could not be read: ${c.why}` }, 502)
-  const made = donovanRow({ sport, slate_key: win.slate_key, card_date: date, field: c.cands, playerIds: ids, note: PREVIEW_NOTE, cardName: body.card_name, now, lockAtMs: lockAtOf(win.first_start_ms), version: CARD_VERSION, allowLate: true, product: nman ? 'n_man' : 'two_man', units: nman ? body.units : null })
+  const made = donovanRow({ sport, slate_key: win.slate_key, card_date: date, field: c.cands, playerIds: ids, note: PREVIEW_NOTE, cardName: body.card_name, now, lockAtMs: lockAtOf(win.first_start_ms), version: CARD_VERSION, allowLate: true, product: nman ? 'n_man' : straight ? 'straight' : 'two_man', units: nman ? body.units : null })
   if (!made.ok) return json({ error: made.error }, 400)
   try {
+    if (straight) {
+      const { straightFrontCard } = await import('../../../../../lib/cards/alertCard')
+      const png = await straightFrontCard({ sport, id: ids[0], date, db })
+      if (!png) return json({ error: 'The card could not be drawn.' }, 502)
+      return new Response(png, { status: 200, headers: { 'Content-Type': 'image/png', 'Cache-Control': 'no-store', 'X-Entry': made.late ? 'late' : 'on-time' } })
+    }
     if (nman) {
       const { nManOfRow, previewNManSerial } = await import('../../../../../lib/cards/nManData')
       const { renderNMan } = await import('../../../../../lib/cards/nManCard')

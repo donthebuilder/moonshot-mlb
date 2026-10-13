@@ -1,4 +1,4 @@
-// GET /api/card/nman?sport=nhl|mlb|nfl[&date=YYYY-MM-DD][&w=360|540|720|1080]
+// GET /api/card/nman?sport=nhl|mlb|nfl[&date=YYYY-MM-DD][&slot=1..3][&w=360|540|720|1080]   (slot: his 1st, 2nd or 3rd N-man of that day; default 1)
 // HIS N-MAN (3 to 6 hand-picked players, all must land) as a collectible card (PNG, 4:5), drawn from the STORED card_calls row (lane 'donovan', product 'n_man').
 // Public from his lock (the Card's own rule: lib/card/store.js readCard does not even return the row before it, so an open entry is a 404 here, the same as a day
 // with none). Once the row is graded the same URL answers the GRADED card: each leg's mark and the ticket CASHED / MISSED / VOID, a miss drawn like a win.
@@ -27,7 +27,9 @@ export async function GET(request) {
   const date = want || await latestCardDate(db, sport)
   if (!date) return json({ error: 'NOT FOUND', detail: 'no card locked yet' }, 404, 'public, max-age=60')
   const w = Number(q.get('w'))
-  const r = await nManCardImage({ sport, date, width: WIDTHS.includes(w) ? w : 1080, db })
+  const slot = Number(q.get('slot') || 1)
+  if (!Number.isInteger(slot) || slot < 1 || slot > 3) return json({ error: 'BAD REQUEST', detail: 'bad slot' }, 400)
+  const r = await nManCardImage({ sport, date, width: WIDTHS.includes(w) ? w : 1080, db, slot })
   if (!r.ok) return json({ error: r.status === 404 ? 'NOT FOUND' : 'CARD DELAYED', detail: r.why }, r.status || 502, r.status === 404 ? 'public, max-age=60' : 'no-store')
   return new Response(r.png, { status: 200, headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=300' } })
 }

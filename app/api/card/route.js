@@ -34,6 +34,7 @@ const buildRecords = (sport, today) => unstable_cache(async () => {
       two_man: recordWords(rec.two_man, { product: 'two_man' }),
       two_man_same_game: recordWords(rec.two_man_same_game, { product: 'two_man', label: 'same-game two-mans', sameGame: true }),
       donovan: recordWords(rec.donovan, { product: 'two_man', who: "Admin's Two-Man: " }),
+      donovan_straight: recordWords(rec.donovan_straight, { product: 'straight', who: "Admin's straight: " }),
       donovan_n_man: recordWords(rec.donovan_n_man, { product: 'n_man', who: "Admin's N-man: " }),
       long_shot: recordWords(rec.long_shot, { product: 'long_shot' }),
       double: recordWords(drec.double, { product: 'double' }),
@@ -41,7 +42,7 @@ const buildRecords = (sport, today) => unstable_cache(async () => {
       ...(tr ? { tracked_straight: tr.words.straight, tracked_two_man: tr.words.two_man } : {}),
     },
   }
-}, ['card-records-v3', sport, today], { revalidate: 600 })()
+}, ['card-records-v4', sport, today], { revalidate: 600 })()
 
 export async function GET(request) {
   const q = new URL(request.url).searchParams

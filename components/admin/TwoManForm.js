@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { SPORT_ACCENT } from '../../lib/sportAccent'
 import { pairFloor, comboOf } from '../../lib/card/picker'
-import { fmtAmerican, adminNMan, NMAN_MIN, NMAN_MAX, NMAN_UNITS } from '../../lib/card/core'
+import { fmtAmerican, adminNMan, NMAN_MIN, NMAN_MAX, NMAN_UNITS, ADMIN_STRAIGHT } from '../../lib/card/core'
 import PlayerFace from '../PlayerFace'
 import TeamMark from '../TeamMark'
 import CallStatusBadge from '../CallStatusBadge'
@@ -56,7 +56,7 @@ function PriceLine({ p, compact = false }) {
 }
 
 const POST_STATE = { posted: 'posted', dropped: 'claimed, no names cleared', 'in-card-post': "in the day's card post", 'over-cap': 'saved, not posted (over 3)', 'not-yet': 'not posted yet' }
-const POST_NAME = { two_man: 'Two-Man', n_man: 'N-Man', straight_1: 'Straight', straight_2: 'Straight 2', straight_3: 'Straight 3' }
+const POST_NAME = { two_man: 'Two-Man', n_man_1: 'N-Man 1', n_man_2: 'N-Man 2', n_man_3: 'N-Man 3', straight_1: 'Straight 1', straight_2: 'Straight 2', straight_3: 'Straight 3' }
 /** POSTS TODAY (2026-10-12, up to 3 a day and sport): how many of his entries for this slate have gone out, and which. */
 function PostsToday({ posts }) {
   return (
@@ -69,7 +69,8 @@ function PostsToday({ posts }) {
 }
 
 export default function TwoManForm() {
-  const [kind, setKind] = useState('two_man')       // 'two_man' | 'double'
+  const [kind, setKind] = useState('two_man')       // 'two_man' | 'straight' | 'n_man' | 'double'
+  const [slotSel, setSlotSel] = useState(null)     // straights and N-men have slots 1..3: null = the first one he has (or a new one), a number = that slot, 'new' = a new entry
   const [sport, setSport] = useState('nhl')
   const [data, setData] = useState(null)
   const [date, setDate] = useState(null)
@@ -99,10 +100,16 @@ export default function TwoManForm() {
   const win = useMemo(() => data?.windows?.find((w) => w.card_date === date) || null, [data, date])
   // his own entry for this slate: the verified one while it is on time, else his late one
   const isN = kind === 'n_man'
-  const MINP = isN ? NMAN_MIN : 2
-  const MAXP = isN ? NMAN_MAX : 2
-  const entryOf = (w) => (isN ? w?.n_entry : w?.entry)
-  const lateOf = (w) => (isN ? w?.n_late_entry : w?.late_entry)
+  const isS = kind === 'straight'
+  const MINP = isS ? 1 : isN ? NMAN_MIN : 2
+  const MAXP = isS ? 1 : isN ? NMAN_MAX : 2
+  const SLOTS = data?.windows?.[0]?.slots || 3
+  // his entries of THIS product for a slate (straights and N-men: up to three, by slot), and the one the form is on
+  const listOf = (w) => (w?.entries || []).filter((e) => e.product === kind)
+  const lateListOf = (w) => (w?.late_entries || []).filter((e) => e.product === kind)
+  const effSlot = (w) => (kind === 'two_man' ? 1 : slotSel === 'new' ? null : slotSel ?? listOf(w)[0]?.slot ?? lateListOf(w)[0]?.slot ?? null)
+  const entryOf = (w) => listOf(w).find((e) => e.slot === effSlot(w)) || null
+  const lateOf = (w) => lateListOf(w).find((e) => e.slot === effSlot(w)) || null
   const own = win ? (win.mode === 'on_time' ? entryOf(win) : lateOf(win)) : null
   const lockedOnTime = win && win.mode !== 'on_time' && entryOf(win) ? entryOf(win) : null
   const nowMs = data?.now ? Date.parse(data.now) : 0
@@ -116,7 +123,8 @@ export default function TwoManForm() {
     api(`/api/admin/two-man?sport=${sport}&date=${date}`).then((r) => { if (live) { setBoard(r); setBusy(false) } })
     return () => { live = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date, sport, kind, win?.entry?.legs?.length, win?.late_entry?.legs?.length, win?.n_entry?.legs?.length, win?.n_late_entry?.legs?.length])
+  }, [date, sport, kind, slotSel, win?.entries?.length, win?.late_entries?.length, win?.entry?.legs?.length, win?.late_entry?.legs?.length, win?.n_entry?.legs?.length, win?.n_late_entry?.legs?.length])
+  useEffect(() => { setSlotSel(null) }, [date, sport, kind])
 
   const field = board?.field || []
   const byId = useMemo(() => new Map(field.map((p) => [p.player_id, p])), [field])
@@ -129,12 +137,12 @@ export default function TwoManForm() {
   const toggle = (id) => {
     if (isN && !pick.includes(id) && pick.length >= MAXP) { setMsg({ ok: false, text: `${MAXP} is the most. Tap one of your picks to take it off first.` }); return }
     setMsg(null)
-    setPick((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : !isN && cur.length >= 2 ? [cur[1], id] : [...cur, id]))
+    setPick((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : isS ? [id] : !isN && cur.length >= 2 ? [cur[1], id] : [...cur, id]))
   }
   const lines = note.split(/\r?\n/).filter((l) => l.trim()).length
   const lateNow = Boolean(win && chosen.some((p) => p.started))
   const lockNow = Boolean(win && win.mode !== 'on_time' && !lateNow)
-  const pair = !isN && chosen.length === 2 ? pairFloor(chosen[0], chosen[1]) : null
+  const pair = !isN && !isS && chosen.length === 2 ? pairFloor(chosen[0], chosen[1]) : null
   const combo = isN && chosen.length ? comboOf(chosen.map((p) => p.price)) : null
 
   // THE LIVE PREVIEW: the dual card that would post, drawn by the server from this selection (stores nothing)
@@ -144,7 +152,7 @@ export default function TwoManForm() {
     const t = setTimeout(async () => {
       setPv((o) => ({ ...o, state: 'loading', err: null }))
       try {
-        const r = await fetch('/api/admin/two-man/preview', { method: 'POST', cache: 'no-store', signal: ctl.signal, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sport, date, players: pick, card_name: cardName, ...(isN ? { product: 'n_man', units } : {}) }) })
+        const r = await fetch('/api/admin/two-man/preview', { method: 'POST', cache: 'no-store', signal: ctl.signal, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sport, date, players: pick, card_name: cardName, ...(isS ? { product: 'straight' } : isN ? { product: 'n_man', units } : {}) }) })
         if (!r.ok) { const j = await r.json().catch(() => ({})); setPv((o) => ({ ...o, state: 'err', err: j.error || `HTTP ${r.status}` })); return }
         const late = r.headers.get('x-entry') === 'late'
         const url = URL.createObjectURL(await r.blob())
@@ -152,12 +160,12 @@ export default function TwoManForm() {
       } catch (e) { if (e?.name !== 'AbortError') setPv((o) => ({ ...o, state: 'err', err: 'The card could not be drawn.' })) }
     }, 400)
     return () => { clearTimeout(t); ctl.abort() }
-  }, [pick, sport, date, win, cardName, isN, units])
+  }, [pick, sport, date, win, cardName, isN, isS, units])
   useEffect(() => () => { setPv((o) => { if (o.url) URL.revokeObjectURL(o.url); return o }) }, [])
 
   const save = async () => {
     setBusy(true); setMsg(null)
-    const r = await api('/api/admin/two-man', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sport, date, players: pick, note, card_name: cardName, confirm_late: lateNow || askLate, confirm_lock: lockNow || askLock, ...(isN ? { product: 'n_man', units } : {}) }) })
+    const r = await api('/api/admin/two-man', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sport, date, players: pick, note, card_name: cardName, confirm_late: lateNow || askLate, confirm_lock: lockNow || askLock, ...(isS ? { product: 'straight' } : isN ? { product: 'n_man', units } : {}), ...(own ? { slot: own.slot } : {}) }) })
     setBusy(false)
     if (r.ok) {
       setAskLate(false); setAskLock(false)
@@ -167,7 +175,7 @@ export default function TwoManForm() {
   }
   const withdraw = async (lane) => {
     setBusy(true); setMsg(null)
-    const r = await api('/api/admin/two-man', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sport, date, action: 'withdraw', ...(isN ? { product: 'n_man' } : {}), ...(lane === 'late' ? { lane: 'late' } : {}) }) })
+    const r = await api('/api/admin/two-man', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sport, date, action: 'withdraw', ...(isS ? { product: 'straight' } : isN ? { product: 'n_man' } : {}), slot: own?.slot || 1, ...(lane === 'late' ? { lane: 'late' } : {}) }) })
     setBusy(false)
     if (r.ok) { setMsg({ ok: true, text: 'Withdrawn.' }); setPick([]); setNote(''); loadWindows(sport, date) } else setMsg({ ok: false, text: r.error })
   }
@@ -175,6 +183,7 @@ export default function TwoManForm() {
   const tabs = (
     <div role="tablist" aria-label="Product" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
       <button type="button" role="tab" aria-selected={kind === 'two_man'} onClick={() => { setKind('two_man'); setMsg(null) }} style={btn(kind === 'two_man')}>Two-Man</button>
+      <button type="button" role="tab" aria-selected={kind === 'straight'} onClick={() => { setKind('straight'); setMsg(null) }} style={btn(kind === 'straight')}>Straight</button>
       <button type="button" role="tab" aria-selected={kind === 'n_man'} onClick={() => { setKind('n_man'); setMsg(null) }} style={btn(kind === 'n_man')}>2 to 6-Man</button>
       <button type="button" role="tab" aria-selected={kind === 'double'} onClick={() => setKind('double')} style={btn(kind === 'double')}>Double</button>
     </div>
@@ -182,15 +191,17 @@ export default function TwoManForm() {
   if (kind === 'double') return <div style={{ color: C.text }}>{tabs}<DoubleForm /></div>
 
   const accent = SPORT_ACCENT[sport]
-  const lateRows = (isN ? data?.late?.n_rows : data?.late?.rows) || []
-  const lateRec = (isN ? data?.late?.n_record : data?.late?.record) || { graded: 0, hits: 0 }
+  const lateRows = (isN ? data?.late?.n_rows : isS ? data?.late?.s_rows : data?.late?.rows) || []
+  const lateRec = (isN ? data?.late?.n_record : isS ? data?.late?.s_record : data?.late?.record) || { graded: 0, hits: 0 }
   const unitsOk = !isN || (Number.isFinite(Number(units)) && Number(units) >= NMAN_UNITS.min && Number(units) <= NMAN_UNITS.max)
   const canSave = !busy && pick.length >= MINP && pick.length <= MAXP && unitsOk && lines > 0 && lines <= (data?.note?.lines || 3) && !frozenLate
   return (
     <div style={{ color: C.text }}>
       {tabs}
       <p style={{ margin: '0 0 12px', fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
-        {isN
+        {isS
+          ? <>One player and a note of one to three lines. This is always open. Saved before a game starts it is <b>{ADMIN_STRAIGHT}</b> (verified, in its own record, 1 unit; after the card&apos;s lock it locks the moment you save). The market is the anytime one shown on each row, with its stored price; the floors are shown for information and never block you. Up to {SLOTS} straights a day for each sport.</>
+          : isN
           ? <>Two to six players, <b>every one must land</b>, and a note of one to three lines. This is always open. Saved before a game starts it is <b>{adminNMan(Math.max(pick.length, NMAN_MIN))}</b> (verified, in its own record; after the card&apos;s lock it locks the moment you save).
             {' '}<span style={{ color: C.text3 }}>A plain Two-Man (the Two-Man tab) stays the primary 2-leg entry; two players here are the same bet saved under the N-man card layout, counted in the N-man record, not the Two-Man&apos;s.</span></>
           : <>Your two players and a note of one to three lines. This is always open. Saved before a game starts it is <b>Admin&apos;s Two-Man</b> (verified, in its own record; after the card&apos;s lock it locks the moment you save).</>}
@@ -206,7 +217,7 @@ export default function TwoManForm() {
           {data.windows.map((w) => (
             <button key={w.card_date} type="button" role="tab" aria-selected={date === w.card_date} onClick={() => { setDate(w.card_date); setMsg(null) }} style={{ ...btn(date === w.card_date), display: 'grid', justifyItems: 'start', alignContent: 'center', lineHeight: 1.15, padding: '4px 12px' }}>
               <span>{w.label}</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: w.mode === 'live' ? C.yellow : C.text3 }}>{w.mode === 'live' ? 'games under way' : w.mode === 'lock_now' ? 'locks when saved' : 'on time'}{entryOf(w) ? ' · entered' : lateOf(w) ? ' · late entry' : ''}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: w.mode === 'live' ? C.yellow : C.text3 }}>{w.mode === 'live' ? 'games under way' : w.mode === 'lock_now' ? 'locks when saved' : 'on time'}{listOf(w).length ? ' · entered' : lateListOf(w).length ? ' · late entry' : ''}</span>
             </button>
           ))}
         </div>
@@ -217,6 +228,16 @@ export default function TwoManForm() {
         </p>
       )}
       {win?.posts && <PostsToday posts={win.posts} />}
+      {win && kind !== 'two_man' && (
+        <div role="tablist" aria-label="Entry" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+          {[...listOf(win), ...lateListOf(win)].map((e) => (
+            <button key={`${e.late ? 'l' : 'v'}${e.slot}`} type="button" role="tab" aria-selected={own?.slot === e.slot && Boolean(own?.late) === Boolean(e.late)} onClick={() => setSlotSel(e.slot)} style={btn(own?.slot === e.slot && Boolean(own?.late) === Boolean(e.late))}>
+              {e.late ? 'LATE ' : ''}{isS ? 'Straight' : 'N-Man'} {e.slot}: {e.legs.map((l) => String(l.name).split(' ').slice(-1)[0]).join(' + ')}
+            </button>
+          ))}
+          {listOf(win).length < SLOTS && <button type="button" role="tab" aria-selected={own == null} onClick={() => setSlotSel('new')} style={btn(own == null)}>+ New {isS ? 'straight' : 'N-man'}</button>}
+        </div>
+      )}
       {lockedOnTime && (
         <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 12px', fontSize: 13, lineHeight: 1.5, marginBottom: 10 }}>
           <b>{lockedOnTime.legs.map((l) => l.name).join(' + ')}</b>
@@ -330,7 +351,7 @@ export default function TwoManForm() {
               Verified: saved before the first game starts (locks now). It counts in your record and cannot be changed after you save. The post goes out only if this card&apos;s post has not already gone.
             </p>
           )}
-          {!lateNow && !askLate && win.posts && !entryOf(win) && win.posts.entries.length >= win.posts.max && (
+          {!lateNow && !askLate && win.posts && !own && win.posts.entries.length >= win.posts.max && (
             <p role="note" style={{ margin: '0 0 10px', fontSize: 12, lineHeight: 1.45, color: C.yellow }}>
               3 posts max a day: this one will not post. It is still saved, counts in your record and shows on the site.
             </p>
@@ -343,11 +364,11 @@ export default function TwoManForm() {
           )}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <button type="button" disabled={!canSave} onClick={save} style={{ ...btn(true), opacity: canSave ? 1 : 0.5 }}>
-              {lateNow || askLate ? 'Save as LATE' : lockNow || askLock ? 'Save and lock now' : own && !own.late ? (isN ? `Replace my ${pick.length}-Man` : 'Replace my Two-Man') : (isN ? `Save my ${Math.max(pick.length, NMAN_MIN)}-Man` : 'Save my Two-Man')}
+              {lateNow || askLate ? 'Save as LATE' : lockNow || askLock ? 'Save and lock now' : own && !own.late ? (isS ? 'Replace my Straight' : isN ? `Replace my ${pick.length}-Man` : 'Replace my Two-Man') : (isS ? 'Save my Straight' : isN ? `Save my ${Math.max(pick.length, NMAN_MIN)}-Man` : 'Save my Two-Man')}
             </button>
             {win.mode === 'on_time' && entryOf(win) && <button type="button" disabled={busy} onClick={() => withdraw('on_time')} style={btn(false)}>Withdraw</button>}
             {own?.late && !frozenLate && <button type="button" disabled={busy} onClick={() => withdraw('late')} style={btn(false)}>Withdraw late entry</button>}
-            <span style={{ fontSize: 12, color: C.text3 }}>{pick.length} of {isN ? `${MINP} to ${MAXP}` : 2} picked</span>
+            <span style={{ fontSize: 12, color: C.text3 }}>{pick.length} of {isN ? `${MINP} to ${MAXP}` : isS ? 1 : 2} picked</span>
           </div>
         </>
       )}
@@ -364,7 +385,7 @@ export default function TwoManForm() {
               <thead><tr style={{ textAlign: 'left', color: C.text3 }}><th style={{ padding: '8px 10px' }}>Date</th><th style={{ padding: '8px 6px' }}>Sport</th><th style={{ padding: '8px 6px' }}>Pair</th><th style={{ padding: '8px 10px' }}>Result</th></tr></thead>
               <tbody>
                 {lateRows.map((r) => (
-                  <tr key={`${r.sport}-${r.card_date}`} style={{ borderTop: `1px solid ${C.border}` }}>
+                  <tr key={`${r.sport}-${r.card_date}-${r.slot ?? 1}`} style={{ borderTop: `1px solid ${C.border}` }}>
                     <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{String(r.card_date).slice(5, 10)}</td>
                     <td style={{ padding: '8px 6px', textTransform: 'uppercase' }}>{r.sport}</td>
                     <td style={{ padding: '8px 6px' }}>{r.legs.map((l) => l.name).join(' + ')}</td>

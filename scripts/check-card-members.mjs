@@ -280,5 +280,24 @@ await t('G1 the quiet line is neutral (no "lock", no "locked", no "premium"), an
   assert.match(src('components/card/CardSection.js'), /data\?\.held\?\.line/)
 })
 
+await t('H1 (2026-10-12) his STRAIGHTS are public from their lock like his other entries; a LATE straight never is; the bot\'s straights and the lead rule are unaffected', async () => {
+  const { db, clock } = await lockedDb()
+  const before = bot(db.rows, 'straight').map((r) => r.id).join()
+  const mine = (product, ids, slot, now = NOW - 2 * H) => donovanRow({ sport: 'nhl', slate_key: DAY, card_date: DAY, field: FIELD, playerIds: ids, note: 'Why.', now, lockAtMs: NOW + 1 * H, product, slot, allowLate: true })
+  clock.now = NOW - 2 * H
+  for (const [p, ids, slot] of [['straight', ['alpha'], 1], ['straight', ['charlie'], 2]]) assert.equal((await saveDonovan(db, mine(p, ids, slot).row)).ok, true)
+  const late = mine('straight', ['delta'], 3, NOW + 5 * H)
+  assert.equal(late.late, true); clock.now = NOW + 5 * H; assert.equal((await saveDonovan(db, late.row)).ok, true)
+  clock.now = NOW
+  const pub = await readCard(db, 'nhl', DAY, { now: NOW + 0.5 * H })
+  assert.equal(pub.rows.filter((r) => r.lane === 'donovan').length, 0, 'not public before his lock')
+  const pub2 = await readCard(db, 'nhl', DAY, { now: NOW + 1.5 * H })
+  assert.equal(pub2.rows.filter((r) => r.lane === 'donovan' && r.product === 'straight').length, 2, 'public from the lock')
+  assert.equal(pub2.rows.filter((r) => r.lane === 'donovan_late').length, 0, 'LATE never')
+  assert.equal(bot(pub2.rows, 'straight').length, 1, 'the bot\'s other straights are still held'); assert.equal(bot(pub2.rows, 'straight')[0].id, leadStraight(db.rows).id)
+  assert.equal(bot(db.rows, 'straight').map((r) => r.id).join(), before, 'the bot\'s rows are untouched')
+  assert.equal(leadStraight(db.rows).lane, 'bot', 'the free pick is still a bot straight')
+})
+
 console.log(failed ? `\n${failed} FAILED` : '\nall ok')
 process.exit(failed ? 1 : 0)

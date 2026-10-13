@@ -345,8 +345,8 @@ await t('POST: his N-man posts through card_don_<sport>_n_man once a day (X + th
   assert.match(r1, /^posted/, r1)
   assert.ok(tw.text.includes("ADMIN'S 6-MAN: Player p1 + Player p3") && tw.text.includes(NOTE)); assert.ok(!/https?:\/\/|\block|guarantee|\bdue\b/i.test(tw.text))
   assert.equal(tw.media?.media_ids?.length, 1, 'the card rides the X post'); assert.ok(calls.some((c) => c.url === FREE && c.body instanceof FormData), 'and the free channel')
-  const claim = s1.rowsT.find((r) => r.kind === CARD_KIND.donEntry('nhl', 'n_man'))
-  assert.ok(claim && claim.day === DAY && claim.payload.product === 'n_man', 'one claim row (day, card_don_nhl_n_man) marks it an n_man post'); assert.equal(asked, 1)
+  const claim = s1.rowsT.find((r) => r.kind === CARD_KIND.donEntry('nhl', 'n_man_1'))
+  assert.ok(claim && claim.day === DAY && claim.payload.product === 'n_man', 'one claim row (day, card_don_nhl_n_man_1) marks it an n_man post'); assert.equal(asked, 1)
   calls.length = 0
   assert.equal(await postDonovanNMan(s1.db, { sport: 'nhl', day: DAY, rows: [mk()], now: NOWJ + 600e3, image, problems }), 'already-posted'); assert.equal(calls.length, 0)
   // the claim made by his N-man does NOT stop the card post from naming his Two-Man (donovanPostClaimed ignores an n_man claim)
@@ -404,7 +404,7 @@ await t('SERIAL: his N-man\'s number is its place among his locked N-men for the
 const src = (p) => fs.readFileSync(new URL(`../${p}`, import.meta.url), 'utf8')
 await t('ROUTES: admin only, same-origin writes, the same confirmations; the card route reads the PUBLIC view only; LATE is never drawn for the public', () => {
   const api = src('app/api/admin/two-man/route.js')
-  assert.ok(/product = body\.product === 'n_man' \? 'n_man' : 'two_man'/.test(api) && /product, units: product === 'n_man'/.test(api), 'the save passes product + units to donovanRow')
+  assert.ok(/product = body\.product === 'n_man' \? 'n_man' : body\.product === 'straight' \? 'straight' : 'two_man'/.test(api) && /product, units: product === 'n_man'/.test(api), 'the save passes product + units to donovanRow')
   assert.ok(/made\.lockAtSave && body\.confirm_lock !== true/.test(api) && /made\.late && body\.confirm_late !== true/.test(api), 'lock-at-save and LATE still need their confirmations')
   assert.ok(/needs_sql: saved\.needsSql/.test(api) && /sameOriginJson/.test(api) && /if \(!\(await admin\(\)\)\) return no\(\)/.test(api))
   assert.ok(/withdrawDonovan\(db, \{ sport, card_date: date, product,/.test(api), 'withdraw is per product')
@@ -476,8 +476,11 @@ await t('THE LANE CHECK THROUGH THE TABLE: the bot can never have an n_man row; 
   assert.match(r.error.message, /card_calls_lane_ck/); assert.equal(db.rows.length, 0)
   const seven = { ...row, legs: [...row.legs, row.legs[0]], leg_count: 7 }
   assert.match((await fakeDb(clock).from('card_calls').upsert([seven])).error.message, /card_calls_shape_ck/)
+  const slot4 = { ...row, slot: 4 }
+  assert.match((await fakeDb(clock).from('card_calls').upsert([slot4])).error.message, /shape_ck/, 'slot 4 is never allowed')
   const slot2 = { ...row, slot: 2 }
-  assert.match((await fakeDb(clock).from('card_calls').upsert([slot2])).error.message, /shape_ck/)
+  assert.equal((await fakeDb(clock).from('card_calls').upsert([slot2])).error, null, 'a 2nd N-man (slot 2) passes after the mix migration')
+  assert.match((await fakeDb(clock, { mix: false }).from('card_calls').upsert([slot2])).error.message, /shape_ck/, 'and is refused before it (slot 1 only)')
   const three = NM({ now: clock.now, playerIds: ['p1', 'p3', 'p4'] }).row
   assert.equal((await fakeDb(clock).from('card_calls').upsert([three])).error, null)
   assert.match((await fakeDb(clock, { nman: false }).from('card_calls').upsert([three])).error.message, /check constraint/)

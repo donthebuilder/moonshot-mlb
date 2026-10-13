@@ -206,7 +206,7 @@ await ok('MOMENT POSTS (moment_<sport>_<event>, postseason_mlb_<game>_<player>):
   assert.deepEqual(untagged(), [])
 })
 await ok('HIS ENTRY POSTS (card_don_<sport>_<two_man|n_man|straight_N>, up to 3 a day and sport): every suffixed kind is tagged INFO and event-driven (an untagged kind is held forever), the card post\'s write-up tier, counted by the cap (not exempt), never suppressed by the repeat guard, sport read from the kind', () => {
-  for (const sp of ['mlb', 'nfl', 'nhl']) for (const key of ['', '_two_man', '_n_man', '_straight_1', '_straight_2', '_straight_3']) {
+  for (const sp of ['mlb', 'nfl', 'nhl']) for (const key of ['', '_two_man', '_n_man_1', '_n_man_2', '_straight_1', '_straight_2', '_straight_3']) {
     const k = `card_don_${sp}${key}`
     assert.equal(tagOf(k), 'INFO', k); assert.equal(kindInfo(k).mode, 'event', k)
     assert.equal(P.tierOf(k), 'writeup', k); assert.ok(!P.isCapExempt(k), k); assert.ok(P.isRepeatExempt(k) && P.isDonovanKind(k), k)
