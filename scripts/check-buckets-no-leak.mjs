@@ -191,4 +191,26 @@ await ok('ON means exactly BUCKETS_PUBLIC=on: "yes", "1", "true", "" and an unse
   shut(); assert.equal(SW.isSportOpen('nba'), false); assert.equal(SW.isSportOpen('mlb'), true)
 })
 
+// ── EARLY ACCESS (2026-10-12): a grant opens the SITE for one account; it never opens a POSTER ─────────────────────────────
+await ok('EARLY ACCESS: no poster / push / member path imports early access or the access gate; with a grant holder signed in and the switch OFF every NBA send is still refused with nothing fetched', async () => {
+  const POSTS = /\b(postToX|postToDiscord|sendMembers|sendFree|postOnce|postMembers)\(/
+  const EA = /earlyAccess|lib\/features|\.\.?\/features|featureAccess|bucketsAccess|grantsOf|ownFeatures/
+  const bad = walk('lib').concat(walk('app/api')).filter((f) => !f.startsWith('lib/earlyAccess/') && f !== 'lib/features.js' && f !== 'lib/nba/gate.js' && !/^app\/api\/(buckets\/access|early-access|admin\/early-access)\//.test(f))
+    .filter((f) => { const c = code(read(f)); return POSTS.test(c) && EA.test(c) })
+  assert.deepEqual(bad, [], `a poster module reaches early access: ${bad.join(', ')}`)
+  assert.ok(!/earlyAccess|features/.test(code(read('lib/openSwitch.js'))))
+  // behaviour: a signed-in holder (fake database), switch closed
+  const G2 = await import('../lib/nba/gate.js'); const A2 = await import('../lib/earlyAccess/access.js')
+  process.env.ADMIN_EMAILS = 'admin@test.invalid'; process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://fake.test'; process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'TEST'
+  const fake = { from: () => { const b = { select: () => b, eq: async () => ({ data: [{ feature: 'buckets', expires_at: null, revoked_at: null }], error: null }) }; return b } }
+  A2.clearGrantCache(); shut(); reset()
+  const acc = await G2.bucketsAccess({ getUser: async () => ({ id: 'holder', email: 'h@test.invalid', email_confirmed_at: '2026-01-01' }), db: fake })
+  assert.equal(acc.ok, true); assert.equal(acc.early, true)                  // the site is open to them...
+  for (const kind of ['nba30', 'nba_top_totals', 'writeup_nba_401810001', 'card_members_nba']) { const r = await XP.postToX(`TEST ${kind}`, { kind }); assert.equal(r.ok, false, kind) }
+  assert.equal((await XP.postToDiscord('TEST nba', { sport: 'nba', sportKey: 'nba' }, 'https://discord.test/nba')).ok, false)
+  assert.equal(await DR.sendMembers('TEST', { sport: 'nba', kind: 'writeup_nba_1' }), false)
+  assert.equal(SW.isSportOpen('nba'), false); assert.equal(SW.mayPost({ sport: 'nba' }), false)
+  assert.equal(wire.length, 0, 'nothing reached the wire')                    // ...and nothing is posted
+})
+
 console.log(`\n${n} groups ok`)

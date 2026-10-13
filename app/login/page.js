@@ -71,6 +71,12 @@ export default async function LoginPage({ searchParams }) {
             🔗 You&apos;ve been invited to a FRANCHISE league. Create an account or sign in, and the invite opens on the other side.
           </p>
         ) : null}
+        {/* an early-access link (/early/<code>) arrives here: the generic words only, never which feature (lib/earlyAccess/redeemFlow.js) */}
+        {next.startsWith('/early/') ? (
+          <p className={styles.message} role="status" style={{ marginBottom: 14 }}>
+            You&apos;ve been invited to early access. Create an account or sign in, and the invite opens on the other side.
+          </p>
+        ) : null}
         <DashAuthCard
           next={next}
           notice={params.error || params.message || null}

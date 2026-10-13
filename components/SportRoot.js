@@ -1,12 +1,13 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useSport, setSport } from '../lib/sport'
-import { useCanSee } from '../lib/useVisibleSports'
+import { useCanSee, useEarly } from '../lib/useVisibleSports'
 import { themeFromUrl } from '../lib/themes'
 import { applyTheme, C } from '../lib/theme'
 import dynamic from 'next/dynamic'
 import AccountNudge from './AccountNudge'
 import ExplainToast from './ExplainToast'
+import EarlyTag from './EarlyTag'
 import { InjuryLayer } from './injuries/InjuryLayer'
 
 // One switch, two dashboards.
@@ -98,6 +99,7 @@ export default function SportRoot() {
   // only once its access route says yes; anyone else is sent to MOONSHOT, as
   // an unknown sport always was. While it asks: the Shell, never a flash.
   const allowed = useCanSee(sport)
+  const early = useEarly(sport)
   useEffect(() => { if (allowed === false) setSport('mlb') }, [allowed])
   if (!ready || !allowed) return <Shell />
   // The account ask (funnel step 3) and the explain panel (tap-to-explain
@@ -105,5 +107,5 @@ export default function SportRoot() {
   const nudge = <><AccountNudge sport={sport} /><ExplainToast sport={sport} /></>
   // one shell per sport key (0g D6); a key without one is MOONSHOT, as it always was
   const Shell2 = SHELLS[sport] || Dashboard
-  return <><InjuryLayer sport={sport}><Shell2 palettePass={pass} /></InjuryLayer>{nudge}</>
+  return <>{early ? <EarlyTag sport={sport} /> : null}<InjuryLayer sport={sport}><Shell2 palettePass={pass} /></InjuryLayer>{nudge}</>
 }

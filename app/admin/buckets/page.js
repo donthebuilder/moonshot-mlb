@@ -3,7 +3,7 @@
 // /admin (signed in + ADMIN_EMAILS), anyone else gets a 404. The night is built
 // server-side (lib/nba/board.js) -- no public API route serves it.
 import { notFound } from 'next/navigation'
-import { bucketsAccess } from '../../../lib/nba/gate'
+import { bucketsAdminAccess } from '../../../lib/nba/gate'
 import { adminClient } from '../../../lib/supabase/admin'
 import { buildNbaNight } from '../../../lib/nba/board'
 import { NBA_MARKETS, LIVE_VERSIONS, whyNba } from '../../../lib/nba/model'
@@ -20,7 +20,7 @@ const slim = (m, r) => ({ id: r.playerId, name: r.name, team: r.team, opp: r.opp
 
 export default async function BucketsPage({ searchParams }) {
   // the one gate every BUCKETS surface asks (lib/nba/gate.js)
-  if (!(await bucketsAccess()).ok) notFound()
+  if (!(await bucketsAdminAccess())) notFound()   // admin-only: an EARLY-ACCESS grant does not open /admin/*
 
   const sp = await searchParams
   const date = /^\d{4}-\d{2}-\d{2}$/.test(sp?.date || '') ? sp.date : easternToday()

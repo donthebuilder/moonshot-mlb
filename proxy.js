@@ -109,6 +109,7 @@ export const config = {
     '/dash/:path*',
     '/fantasy/:path*',
     '/auth/:path*',
+    '/early/:path*',   // early-access invite links read the session (refresh it like /app does)
     // '/api/dash/:path*' removed 2026-09-24: every route there reads the
     // session itself, so running the proxy first doubled every Auth lookup --
     // and Auth was 44% of the project's egress. Route handlers can refresh the

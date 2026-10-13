@@ -9,7 +9,7 @@ export default function robots() {
       {
         userAgent: '*',
         allow: ['/', '/app', '/start', '/called', '/nhl/'],
-        disallow: ['/api/', '/account', '/fantasy', '/login', '/forgot-password', '/reset-password', '/auth/', '/ask', '/dash'],
+        disallow: ['/api/', '/account', '/fantasy', '/login', '/forgot-password', '/reset-password', '/auth/', '/ask', '/dash', '/early/'],
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,

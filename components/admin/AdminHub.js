@@ -3,6 +3,7 @@
 // has passed; it takes `status` (lib/adminHubStatus.js readHubStatus: words and numbers only) and draws it. No client JS: links and one form.
 // Phone first: cards are full-width 64px rows below 420px and a two-column grid above; every target is 44px or more; colours are the page's tokens.
 import { ADMIN_TOOLS } from '../../lib/adminHub.js'
+import EarlyAccess from './EarlyAccess'
 import { dashSignOut } from '../../app/(front)/actions'
 
 const SPORT_WORD = { nhl: 'NHL · LAMP', nfl: 'NFL · TUDDY', mlb: 'MLB · MOONSHOT' }
@@ -46,6 +47,8 @@ export default function AdminHub({ status }) {
           </a>
         ))}
       </nav>
+
+      <EarlyAccess />
 
       <h2 style={{ margin: '22px 0 0', fontSize: 12, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--dim)', fontWeight: 400 }}>Today{s.day ? ` · ${s.day}` : ''}</h2>
       {s.cards
