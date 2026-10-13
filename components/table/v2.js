@@ -31,6 +31,8 @@ import Tap from '../Tap'
 import { STATUS_WORD } from '../../lib/callStatus'
 import PlayerFace from '../PlayerFace'
 import CallStatusBadge from '../CallStatusBadge'
+import PlayerNameCell, { PC_GEOM } from './PlayerNameCell'
+import { oppFromGame, oppWords } from '../../lib/nameFit'
 import { RankMoveCell } from '../RankMove'
 import InjuryChip from '../injuries/InjuryChip'
 import { ShowMoreButton } from '../ListPreview'
@@ -226,6 +228,34 @@ export function v2Css(C, ac, NUM_FONT) {
       .dtv2 .long .full { display: none; }
       .dtv2 .long .short { display: inline; }
     }
+    /* THE PLAYER NAME CELL (2026-10-13, PLAYER-ROWS; components/table/PlayerNameCell.js). ONE ROW HEIGHT: 52px on a desktop, 58px on a
+       phone, for every row, whatever the name or the Why sentence says (the cell is centred; a Why is two clamped lines). The face is
+       36px on a phone, 40px on a desktop. The geometry (cell width, face, gap) is PC_GEOM, the component's twin of these numbers. */
+    .dtv2-pc td { height: 52px; vertical-align: middle; }
+    .dtv2.dtv2-pc td.name, .dtv2.dtv2-pc th.name { width: 210px !important; min-width: 210px !important; max-width: 210px !important; }
+    .dtv2.dtv2-pc td.pcell { padding: 0 7px !important; overflow: visible; white-space: normal; }
+    .dtv2 .pc { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .dtv2 .pc-face { flex: none; display: inline-flex; margin: 2px; }
+    .dtv2 .pc-body { display: flex; flex-direction: column; justify-content: center; gap: 3px; min-width: 0; flex: 1 1 auto; }
+    .dtv2 .pc-name { display: block; min-width: 0; font-weight: 600; line-height: 1.12; color: ${C.text}; }
+    .dtv2 .pc-name .tap-link { display: block; max-width: 100%; text-align: left; }
+    .dtv2 .pc-nm { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+    .dtv2 .pc-name[data-fit="surname"] .pc-nm { overflow-wrap: anywhere; }
+    .dtv2 .pc-chips { display: flex; align-items: center; flex-wrap: nowrap; gap: 5px; min-height: 13px; font: 800 10px/1.3 ${NUM_FONT}; letter-spacing: .04em; color: ${C.text3}; white-space: nowrap; }
+    .dtv2 .pc-chip { display: inline-flex; align-items: center; flex: none; }
+    .dtv2 .pc-chip img { display: block; }
+    /* the site's touch rule gives every button a 32px floor; here the 44px target is the ::after hit box (.tap-link), the layout box stays the text's */
+    .dtv2 .pc .tap-link { min-height: 0 !important; min-width: 0 !important; padding: 0 !important; line-height: inherit; }
+    /* a chip's tap box is 9px (10px sideways) of invisible padding, handed back as negative margin: the logo (14px) is a 32px target, the layout does not move */
+    .dtv2 .pc-chip .tap-link { padding: 9px 10px !important; margin: -9px -10px !important; }
+    /* the rank move's 32px tap box needs a rank column of at least that width; a table with a fixed name cell lets the auto layout squeeze it (landscape, 844px) */
+    @media (min-width: 641px) { .dtv2-pc td.rank, .dtv2-pc th.rank { min-width: 36px; } }
+    @media (max-width: 640px) {
+      .dtv2-pc td { height: 58px; }
+      .dtv2.dtv2-pc td.name, .dtv2.dtv2-pc th.name { width: 164px !important; min-width: 164px !important; max-width: 164px !important; }
+      .dtv2.dtv2-pc td.pcell { padding: 0 6px !important; }
+      .dtv2 .pc { gap: 7px; }
+    }
   `
 }
 
@@ -247,7 +277,7 @@ export function renderV2(ctx) {
     explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
     truncated, maxRows, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
     capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam = null, injuryLayer = null,
-    adding = false, setAdding = () => {}, tierSig = null, phone = false,
+    adding = false, setAdding = () => {}, tierSig = null, phone = false, nameCell = null,
   } = ctx
   const ordered = noGroups ? rawColumns.map((c) => ({ ...c, group: null })) : orderByGroup(rawColumns)
   // THE STATUS STAMP (plan step 4): when the caller can say each row's status,
@@ -274,10 +304,14 @@ export function renderV2(ctx) {
   const isRank = (c) => c.rankCol === true || (c.rankCol !== false && c.heat === false && String(c.label).trim() === '#')
   const rankC = columns.find(isRank)
   const nameC = columns.find((c) => c.sticky && c.heat === false) || columns.find((c) => c.key === firstTextKey)
+  // THE PLAYER NAME CELL (2026-10-13): `nameCell: 'player'` on the table (or on its name column) draws components/table/PlayerNameCell.js
+  const pcell = nameCell === 'player' || nameC?.nameCell === 'player'
   // the 'call' group's other text columns fold into the phone sub-line
   const callKey = nameC?._g?.key ?? null
   // (or a column tagged `fold`, for tables without groups)
   const folds = (c) => c !== nameC && !isRank(c) && (c.fold === true || c.subOnly === true
+    // the player cell's chips carry his club on a phone: its own logo column folds away there (the desktop keeps it)
+    || (pcell && /^(team|tm)$/.test(c.key) && !!logoOf(c))
     // the ☆ never folds (Donovan 10-01: "fix the watchlist bug star") -- a
     // phone must be able to watch a player from every table, the Board too
     || (c.fold !== false && !!callKey && c._g?.key === callKey && c.heat === false && !c.action))
@@ -381,7 +415,7 @@ export function renderV2(ctx) {
             // the pinned name. Now a group is one cell spanning its columns and the label is sticky: it
             // stays at the pinned edge while any part of its group is on screen. A column a phone folds
             // away is not counted there (`phone`, DenseTable's own matchMedia at 640px).
-            const pinW = (rankC ? (phone ? 26 : (rankC.w || 40)) : 0) + (nameC ? (phone ? 122 : (nameC.w || 150)) : 0)
+            const pinW = (rankC ? (phone ? 26 : (rankC.w || 40)) : 0) + (nameC ? (pcell ? (phone ? PC_GEOM.phone.cell : PC_GEOM.desk.cell) : phone ? 122 : (nameC.w || 150)) : 0)
             const runs = []
             vis.forEach((c) => {
               const key = c._g?.key ?? null
@@ -552,6 +586,54 @@ export function renderV2(ctx) {
                   }
                   if (watched) sub.push(<span key="w" style={{ color: ac }}>★</span>)
                   if (injEntry) sub.push(<span key="inj"><InjuryChip entry={injEntry} C={C} font={NUM_FONT} size={8.5} style={{ marginLeft: 0 }} /></span>)
+                  if (pcell) {
+                    // THE PLAYER NAME CELL (2026-10-13): face, a name that fits, one line of chips; the row is one height
+                    // (components/table/PlayerNameCell.js). Chips in a fixed order: position, club logo + opponent, the call, the injury, the star.
+                    const nm = String(rawRow.name ?? rawRow.player ?? (typeof content === 'string' ? content : (v ?? '')))
+                    const rowTeam = String(rawRow.team ?? r.team ?? '').toUpperCase()
+                    const chips = []
+                    const posC = columns.find((x) => x !== nameC && !x.action && /^(pos|position)$/.test(x.key))
+                    const posV = posC ? r[posC.key] : (r.pos ?? rawRow.pos ?? null)
+                    const posTxt = isBlank(posV) ? '' : String(posC?.fmt && typeof posC.fmt(posV, r) === 'string' ? posC.fmt(posV, r) : posV).slice(0, 6)
+                    if (posTxt) chips.push({ key: 'pos', prio: 2, phoneOnly: true, text: posTxt, node: <span className="pc-pos">{posTxt}</span> })
+                    const clubC = columns.find((x) => x !== nameC && logoOf(x) && /^(team|tm)$/.test(x.key))
+                    const clubV = clubC ? r[clubC.key] : rowTeam
+                    const sportKey = clubC ? logoOf(clubC) : (columns.map(logoOf).find(Boolean) || null)
+                    if (sportKey && !isBlank(clubV) && /^[A-Z]{2,4}$/.test(String(clubV))) {
+                      const openClub = clubC?.link ? clubC.link(rawRow) : (onOpenTeam ? () => onOpenTeam(String(clubV)) : null)
+                      const mk = <TeamMark sport={sportKey} abbr={String(clubV)} variant="logo" px={phone ? 14 : 16} />
+                      chips.push({ key: 'club', prio: 1, phoneOnly: true, fixedW: phone ? 14 : 16, node: openClub ? <Tap onClick={openClub} title={String(clubV)}>{mk}</Tap> : mk })
+                    }
+                    // the opponent: an opp / game column (a sub-only one included); "EDM@LAK" is read from his club's side
+                    const oppC = columns.find((x) => x !== nameC && !x.action && x !== posC && (x.subOnly || /^(opp|oppTxt|vs|game)$/.test(x.key)) && !isBlank(r[x.key]))
+                    if (oppC) {
+                      const fo = oppC.fmt ? oppC.fmt(r[oppC.key], r) : null
+                      const raw = String(typeof fo === 'string' ? fo : r[oppC.key])
+                      const gm = oppFromGame(raw, rowTeam)
+                      const code = gm ? gm.opp : ((/^@?\s*([A-Z]{2,4})$/.exec(raw.trim()) || [])[1] || null)
+                      const homeSide = gm ? !gm.away : /^@/.test(raw.trim()) ? false : (typeof rawRow.home === 'boolean' ? rawRow.home : undefined)
+                      const words = gm ? `${gm.away ? '@ ' : 'vs '}${gm.opp}` : oppWords(raw, homeSide)
+                      if (words) {
+                        const openOpp = oppC.link ? oppC.link(rawRow) : (onOpenTeam && code ? () => onOpenTeam(code) : null)
+                        chips.push({ key: 'opp', prio: 3, text: words, node: <span className="pc-opp">{openOpp ? <Tap onClick={openOpp} title={raw}>{words}</Tap> : words}</span> })
+                      }
+                    }
+                    // the call word: the caller's own status (callStatus), CALLED in the product's accent; a desktop table with a Status column of its own lets the column say it
+                    const hasStatusCol = columns.some((x) => x._status || x.statusCol)
+                    if (called) chips.push({ key: 'call', prio: 0, phoneOnly: hasStatusCol, text: 'CALLED', node: <CallStatusBadge status="called" accent={ac} variant="text" style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.06em' }} /> })
+                    if (injEntry) chips.push({ key: 'inj', prio: 1, fixedW: 36, node: <InjuryChip entry={injEntry} C={C} font={NUM_FONT} size={9} style={{ marginLeft: 0 }} /> })
+                    if (watched) chips.push({ key: 'star', prio: 4, fixedW: 10, node: <span style={{ color: ac }}>★</span> })
+                    const fc = faceOf ? faceOf(r) : null
+                    const faceEl = <PlayerFace {...(fc || { sport: 'none' })} name={nm} variant="row" size={phone ? PC_GEOM.phone.face : PC_GEOM.desk.face} ring={withAlpha(ac, 0.55)} theme={C} />
+                    return (
+                      <td key={c.key} title={textTitle} className={cls(c, 'name pcell')}
+                        style={{ ...pin, ...(edge ? { boxShadow: `inset 3px 0 0 ${edge}` } : {}), ...(bgTint || {}) }}>
+                        <PlayerNameCell name={nm} face={faceEl} chips={chips} phone={phone} numFont={NUM_FONT}
+                          mark={light ? <span title={`Highlight: ${light.name || 'match'}`} style={cellMark(light.color)}>{light.mark || SPOT_MARK}</span> : null}
+                          onOpen={go || (onRowClick ? () => onRowClick(rawRow) : null)} />
+                      </td>
+                    )
+                  }
                   const nameEl = typeof content === 'string' && !c.plain   // plain: a label that is not a person's name (a date, a split) keeps its whole text on a phone
                     ? <><span className="full">{content}</span><span className="short">{surname(content)}</span></>
                     : content
@@ -679,7 +761,7 @@ export function renderV2(ctx) {
   const isInitial = JSON.stringify(sort) === JSON.stringify(initialStack())
 
   return (
-    <div className={tight ? 'dtv2 dtv2-tight' : 'dtv2'}>
+    <div className={`dtv2${tight ? ' dtv2-tight' : ''}${pcell ? ' dtv2-pc' : ''}`}>
       <style>{v2Css(C, ac, NUM_FONT)}</style>
       <ExplainBanner label={explain?.label} text={explain?.text} onClose={() => setExplain(null)}
         scoreTerms={scoreTerms} caveat={caveat} accent={accent || ac} art={explain?.art} answers={explain?.answers} />

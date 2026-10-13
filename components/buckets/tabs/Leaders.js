@@ -30,7 +30,7 @@ export default function Leaders({ onOpenPlayer, onOpenTeam }) {
       <DelayedBanner error={error} what="the league’s stats" />
       {loading && !data ? <Loading what="the leaders" /> : null}
       {data && !rows.length && <EmptyState title="NO LEADERS YET" note="Nobody has the games played to qualify." />}
-      {rows.length > 0 && <BucketsTable rows={rows} columns={cols} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })}
+      {rows.length > 0 && <BucketsTable rows={rows} columns={cols} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} nameCell="player" faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })}
         initialSort={{ key: 'rank', dir: 'asc' }} heatMode="sorted" maxHeight={9999} maxRows={rows.length} caption={`The league’s top ${rows.length} in ${cat.label}. Each row opens that player.`} />}
       <SourceLine>Source: ESPN’s league stats by athlete (/api/buckets/leaders).</SourceLine>
     </div>

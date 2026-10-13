@@ -6,6 +6,8 @@ import { useBucketsNumerology, useBucketsBoard } from '../../../lib/nba/useBucke
 import { DelayedBanner, Loading, EmptyState, Why, fmtDay } from '../ui'
 import TonightsNumbers from '../../numerology/TonightsNumbers'
 import AlignmentsView from '../../numerology/AlignmentsView'
+import LaneTable from '../../numerology/LaneTable'
+import { fromNba } from '../../../lib/numerology/adapters'
 import { useIsPhone } from '../../MobileFold'
 import { bucketsAlignModel, bucketsTonight, bucketsScoreOf } from '../../../lib/nba/alignRows'
 
@@ -40,6 +42,9 @@ export default function Numerology({ date = null, onOpenPlayer }) {
   const model = useMemo(() => bucketsAlignModel(data, board), [data, board])
   const tonight = useMemo(() => bucketsTonight(data, model), [data, model])
 
+  // TONIGHT'S PLAYERS ON THE LANES (parity, 2026-10-12): the lanes' adapter shape (lib/numerology/adapters.js fromNba: no `next` lane, a points total has no "his next one")
+  const laneTonight = useMemo(() => (data?.date ? { date: data.date, items: (data.all || []).map((r) => ({ id: r.id, name: r.name, team: r.team, a: fromNba(r) })) } : null), [data])
+
   const head = (
     <>
       <PageHeader eyebrow="BUCKETS · NUMEROLOGY" title={data ? `${fmtDay(data.date)} · the night's number is ${data.dateRoot}` : 'Numerology'}
@@ -56,6 +61,8 @@ export default function Numerology({ date = null, onOpenPlayer }) {
       <p style={{ margin: '8px 0 10px', color: C.text3, fontSize: 11, lineHeight: 1.5 }}>
         Chance alone lines up one axis in nine, so {data ? <b style={{ color: C.text2 }}>{data.expectedHits}</b> : 'about a ninth'} of tonight&apos;s axes would match whatever the date was{data ? `; ${data.alignedHits} did` : ''}.
       </p>
+      {/* THE LANE SCOREBOARD (parity): lane nights are recorded by the buckets tick only once BUCKETS is public (lib/numerology/nbaTick.js), so until then it says it has none; the 30-night gate guards every claim */}
+      <LaneTable sport="nba" theme={C} numFont={NUM_FONT} accent={C.purple} tonight={laneTonight} />
     </>
   )
   const foot = (

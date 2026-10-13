@@ -603,7 +603,7 @@ export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'G
       {scored.length === 0 ? <EmptyState title="NOBODY SCORED YET" note="No skater on either roster has ten NHL games on file." /> : layout === 'cards' ? (
         <LampCards market={market} onOpen={onOpenPlayer} items={rows.map((x) => ({ key: x.id, r: x._row, g, rank: x.rank, rankMove: x.rankMove, facts: { pp: pct1(spotOf(g, x.team, true)?.ppPct), pk: pct1(spotOf(g, x.team, false)?.pkPct), rest: x.rest } }))} />
       ) : (
-        <LampTable sets={!slate} {...withNhlFullSet(rows, withLastNight(withWeakZone(slate ? lampSlateColumns(g, market, onOpenTeam) : columnsFor(g, onOpenTeam, market), wk, () => game.id), cln))} heatMode="primary"
+        <LampTable sets={!slate} nameCell="player" {...withNhlFullSet(rows, withLastNight(withWeakZone(slate ? lampSlateColumns(g, market, onOpenTeam) : columnsFor(g, onOpenTeam, market), wk, () => game.id), cln))} heatMode="primary"
           rowEdge={(r) => (r.status === 'called' ? C.ice : null)}
           faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(game.season, r._row?.team, r._row?.playerId), name: r._row?.name })}
           dimRow={(r) => g.graded && r._row.dressed === false}
@@ -757,13 +757,13 @@ export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam, onOpenGa
       )
     } },
     { key: 'score', label: 'SCORE', cset: 'lean', primary: true, scale: 'seq', domain: [0, 100], w: 50, group: GROUPS.signal, explain: SCORE_TITLE[market], art: SCORE_ART[market] || null, answers: market === 'GOAL' ? 'nhl-goal' : null },
-    { ...whyColumn({ textOf: (r) => plainWhy(r._row, market).short, itemOf: (r) => whyItemFor(r._row, market, r.rank), open, theme: C, numFont: NUM_FONT, group: GROUPS.signal, w: 165 }), cset: 'lean' },
+    { ...whyColumn({ textOf: (r) => plainWhy(r._row, market).short, itemOf: (r) => whyItemFor(r._row, market, r.rank), open, theme: C, numFont: NUM_FONT, group: GROUPS.signal, w: 165, tidy: true }), cset: 'lean' },
     { key: 'gameRank', label: 'GAME #', cset: 'read', heat: false, mono: true, w: 52, group: GROUPS.signal, title: 'His rank in his own game. CALLED is the top-scored skater on each team (three in a game on the shots, points and assists boards).' },
     ...rateCols(market).map((c, i) => ({ ...c, cset: i === 0 ? 'lean' : 'read', group: GROUPS.shooter })),
     { key: 'toi', label: 'TOI', cset: 'read', primary: true, w: 48, group: GROUPS.shooter, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
   ]
   return (<>
-    <LampTable sets {...withNhlFullSet(rows, withLastNight(withWeakZone(columns, wk, (r) => r._g?.game?.id), cln))} heatMode="primary" statusOf={(r) => r.status}
+    <LampTable sets nameCell="player" {...withNhlFullSet(rows, withLastNight(withWeakZone(columns, wk, (r) => r._g?.game?.id), cln))} heatMode="primary" statusOf={(r) => r.status}
       rowEdge={(r) => (r.status === 'called' ? C.ice : null)}
       faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(r._g.game.season, r._row?.team, r._row?.playerId), name: r._row?.name })}
       dimRow={(r) => r._g?.graded && r._row?.dressed === false}

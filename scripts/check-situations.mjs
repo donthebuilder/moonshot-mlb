@@ -35,7 +35,7 @@ check(one({ day: DAY, totals: { stat: 'goals', before: 20, asOf: DAY } }, 'miles
 check(one({ day: DAY, totals: { stat: 'goals', before: 60, asOf: DAY } }, 'milestone') === null, 'past the last mark: nothing')
 check(one({ day: DAY, totals: { stat: 'assists', before: 19, asOf: DAY } }, 'milestone') === null, 'an unlisted stat prints nothing')
 check(one({ day: DAY, totals: { stat: 'goals', before: null, asOf: DAY } }, 'milestone') === null, 'no total -> nothing (unsure is skipped)')
-check(Object.keys(MILESTONES).join() === 'goals,hr,td', 'milestones: goals, hr, td')
+check(Object.keys(MILESTONES).join() === 'goals,hr,td,pts', 'milestones: goals, hr, td (+ BUCKETS season points, hidden)')
 
 // ── STREAK (counts only) ──
 const goals = (...vs) => vs.map((v, i) => g(`2026-10-${String(12 - i).padStart(2, '0')}`, { goals: v }))

@@ -135,7 +135,7 @@ export function KeyPlayers({ matchup, data, game, onPlayerClick, onOpenTeam }) {
     <section aria-label="Key players" style={{ marginBottom: 16 }}>
       <Kicker>KEY PLAYERS · WHO GETS THE BALL, AND THE CORNER HE FACES</Kicker>
       <NflTable rows={list} columns={cols} onRowClick={(r) => onPlayerClick?.(r?._raw ?? r)} bare maxRows={3} maxHeight={9999}
-        faceOf={(r) => ({ sport: 'nfl', espnId: r.espn, team: r.team, name: r.name })}
+        nameCell="player" faceOf={(r) => ({ sport: 'nfl', espnId: r.espn, team: r.team, name: r.name })}
         caption={`${notes.join(' ')}${old ? ` (${old} season)` : ''} Rows pair the depth chart in order. No source says who really covers whom. Side is from his own targets (left and right as the offence faces the defence), or 'role' when only his depth spot is known.`} />
     </section>
   )

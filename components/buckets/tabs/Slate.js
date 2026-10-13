@@ -125,7 +125,7 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
         {calls.length > 0 && <BucketsCards market={m} onOpen={onOpenPlayer} rows={[...calls].sort((a, b) => b.score - a.score)} />}
         {rows.length > 0
           ? <BucketsTable rows={rows} columns={boardColumns(m, { onOpenTeam, onOpenGame, withGame: false, withXpts: true })} statusOf={(r) => r.status}
-              onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={faceOf} dimRow={(r) => r.status === 'off'}
+              onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} nameCell="player" faceOf={faceOf} dimRow={(r) => r.status === 'off'}
               initialSort={{ key: 'nightRank', dir: 'asc' }} heatMode="sorted" maxHeight={560} maxRows={Math.max(rows.length, 1)}
               caption={`This game’s board for ${NBA_MARKETS[m].label}. Each row opens that player.`} />
           : <EmptyState title={NBA_MARKETS[m].startersOnly ? 'NO STARTERS LISTED YET' : 'NOBODY RATED IN THIS GAME'} note={NBA_MARKETS[m].startersOnly ? 'First basket waits for the pre-tip box score.' : 'No player in this game has ten NBA games on file.'} />}

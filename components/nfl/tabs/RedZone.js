@@ -149,7 +149,7 @@ export default function RedZone({ data, matchup = null, onPlayerClick }) {
       <NflTable
         {...withNflFullSet(filtered, buildColumns(watchlist), { skip: ['sc_TD', 'st_RZ', 'st_GL', 'st_xTD', 'st_TD', 'st_TDoE'] })}
         initialSort="rz"
-        faceOf={(r) => (r._raw?.espn_id ? { sport: 'nfl', espnId: String(r._raw.espn_id), name: r._raw.name } : null)}
+        nameCell="player" faceOf={(r) => (r._raw?.espn_id ? { sport: 'nfl', espnId: String(r._raw.espn_id), name: r._raw.name } : null)}
         onRowClick={onPlayerClick ? (r) => onPlayerClick(r?._raw ?? r, 'TD') : null}
         maxRows={rows.length}
         dimRow={(r) => r._raw?.carryover || r._raw?.low_sample}

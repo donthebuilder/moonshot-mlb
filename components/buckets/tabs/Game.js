@@ -163,7 +163,7 @@ function GameCalls({ id, date, onOpenPlayer }) {
   return (
     <section aria-label="Calls in this game">
       <Kicker tone={C.purple}>CALLED IN THIS GAME · {rows.length}</Kicker>
-      <BucketsTable rows={rows} columns={cols} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })}
+      <BucketsTable rows={rows} columns={cols} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} nameCell="player" faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })}
         heatMode="sorted" maxHeight={9999} maxRows={6} initialSort={null}
         caption="Every BUCKETS call in this game, with the result once it is graded. Each row opens that player." />
     </section>
@@ -189,7 +189,7 @@ function BoxTable({ team, box, onOpenPlayer, onOpenTeam }) {
   return (
     <section>
       <Kicker><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><TeamMark sport="nba" abbr={team.abbrev} variant="logo" px={16} /><Tap onClick={() => onOpenTeam?.(team.abbrev)}>{String(team.name).toUpperCase()}</Tap> · FG {pct(tot('fgm'), tot('fga'))} · 3PT {tot('tpm')}-{tot('tpa')}</span></Kicker>
-      {rows.length ? <BucketsTable rows={rows} columns={cols} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })}
+      {rows.length ? <BucketsTable rows={rows} columns={cols} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} nameCell="player" faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })}
         dimRow={(r) => r.dnp} heatMode="sorted" maxHeight={9999} maxRows={rows.length} initialSort={null}
         caption={`${team.name} box score. Each row opens that player.`} />
         : <p style={{ fontSize: 12, color: C.text3 }}>No box score yet.</p>}

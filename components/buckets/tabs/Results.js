@@ -66,7 +66,7 @@ export default function Results({ onOpenPlayer, onOpenTeam }) {
           {hits.length > 0 && (
             <section>
               <Kicker>THE CALLS THAT HIT</Kicker>
-              <BucketsTable rows={hits} columns={hitCols} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })}
+              <BucketsTable rows={hits} columns={hitCols} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} nameCell="player" faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })}
                 heatMode="none" maxHeight={480} maxRows={hits.length} caption="Every call that hit, newest night first. Each row opens that player." />
             </section>
           )}

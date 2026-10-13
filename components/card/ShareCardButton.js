@@ -15,9 +15,9 @@
 // for two seconds plus a short notice above the bottom bar; failed "Retry" for four seconds (the reason is the notice saveCard already says).
 // SIZE: 44 px tall on a phone or any touch screen, 34 px on a desktop with a mouse (the only place a smaller target is safe). Under 361 px
 // wide the word is dropped and the camera stays, still 44 x 44, so a 360 px phone never wraps the row.
-// A hidden product (BUCKETS until it opens, lib/routes.js isHiddenSport) has no button at all.
+// A hidden product (BUCKETS) has no button for a visitor its gate (lib/nba/gate.js) does not let in; an admin or an early-access holder gets it.
 import { useEffect, useRef, useState } from 'react'
-import { isHiddenSport } from '../../lib/routes'
+import { useSportOpen } from '../../lib/useVisibleSports'
 import { downloadCard, notice } from '../../lib/cards/saveCard'
 import { useSportTheme } from '../SportTheme'
 
@@ -47,7 +47,9 @@ export default function ShareCardButton({ sport, url, filename, what = 'this car
   const [state, setState] = useState('idle')
   const timer = useRef(null)
   useEffect(() => () => clearTimeout(timer.current), [])
-  if (isHiddenSport(sport)) return null
+  // BUCKETS: only for a visitor its gate lets in (admin, early access, public); the build-time isHiddenSport hid it from holders too (2026-10-12)
+  const allowed = useSportOpen(sport)
+  if (allowed !== true) return null
   const settle = (next, ms) => { setState(next); clearTimeout(timer.current); timer.current = setTimeout(() => setState('idle'), ms) }
   const go = async (e) => {
     e.stopPropagation()

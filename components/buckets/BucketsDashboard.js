@@ -58,6 +58,7 @@ const Leaders = dynamic(() => import('./tabs/Leaders'), { loading: TabLoading })
 const ShotMap = dynamic(() => import('./tabs/ShotMap'), { loading: TabLoading })
 const Results = dynamic(() => import('./tabs/Results'), { loading: TabLoading })
 const Guide = dynamic(() => import('./tabs/Guide'), { loading: TabLoading })
+const Binder = dynamic(() => import('./tabs/Binder'), { loading: TabLoading })   // 2026-10-12: cards earned by the players I follow (hidden with the rest of BUCKETS)
 const BucketsOdds = dynamic(() => import('./BucketsOdds'))
 import { useBucketsSaves } from '../../lib/nba/useBucketsSaves'
 import DashFooter from '../DashFooter'
@@ -150,6 +151,7 @@ export default function BucketsDashboard() {
             {tab === 'player' && <Player id={playerId} {...nav} onStep={stepPlayer} backLabel={backLabel('players')} onBack={() => goBack('players')} />}
             {tab === 'leaders' && <Leaders {...nav} />}
             {tab === 'shotmap' && <ShotMap {...nav} />}
+            {tab === 'binder' && <Binder />}
             {tab === 'guide' && <Guide onNavigate={setTab} />}
           </ErrorBoundary>
           <DashFooter sport="nba" theme={C} onGuide={() => setTab('guide')} />

@@ -60,6 +60,18 @@ export default function AdminHub({ status }) {
       <Row k="Last Card lock" v={etTime(s.activity?.card_lock)} />
       <Row k="Deployed build" v={s.build || 'unknown'} note="the first 7 characters of the commit" />
 
+      {/* BUCKETS (NBA): where it stands, in counts. Read-only; no names, no emails. The holders and the invite links are the Early access card above. */}
+      <h2 style={{ margin: '22px 0 0', fontSize: 12, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--dim)', fontWeight: 400 }}>BUCKETS (NBA)</h2>
+      {s.buckets ? (
+        <>
+          <Row k="Public switch" v={s.buckets.state} note={s.buckets.state === 'hidden' ? 'hidden: only admins and early-access holders see it; nothing is posted or pushed' : 'public: BUCKETS_PUBLIC is on'} />
+          <Row k="Graded nights" v={s.buckets.nights == null ? 'unavailable' : `${s.buckets.nights} of ${s.buckets.floor}`} note={s.buckets.floorWords} />
+          <Row k="NBA odds capture" v={s.buckets.capture ? 'on' : 'off'} note={s.buckets.capture ? `NBA_ODDS_CAPTURE is on: ${s.buckets.oddsGames == null ? 'games on the odds map unavailable' : `${s.buckets.oddsGames} NBA games on the odds map`}` : 'off by default: turn NBA_ODDS_CAPTURE on about a week before the public date so lines and price history exist on day one'} />
+          <Row k="Lane nights recorded" v={s.buckets.lanes == null ? 'unavailable' : String(s.buckets.lanes)} note="written only once BUCKETS is public (needs the numerology SQL)" />
+          <Row k="Card preview" v="admin and early access" note="/api/buckets/card shows what the Card would pick; nothing is locked or posted" />
+        </>
+      ) : <Row k="BUCKETS" v="unavailable" note="could not be read right now" />}
+
       <h2 style={{ margin: '22px 0 8px', fontSize: 12, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--dim)', fontWeight: 400 }}>Get here fast</h2>
       <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 14, lineHeight: 1.5 }}>
         <li><strong>Phone:</strong> sign in, open this page, then Share → Add to Home Screen. The icon opens straight here. Or bookmark <code>/login?next=/admin</code>: it signs you in and lands here.</li>

@@ -1,4 +1,5 @@
 'use client'
+import { useEffect, useRef, useState } from 'react'
 import NflFace from './nfl/NflFace'
 import { nflHeadshot } from '../lib/nfl/nflAssets'
 import { teamColor, isKnownTeam, mlbHeadshot } from '../lib/mlbTeams'
@@ -48,6 +49,8 @@ const URL_OF = {
   // BUCKETS: ESPN's headshot CDN by athlete id (the same file the athlete card names)
   nba: ({ id }) => (id ? `https://a.espncdn.com/i/headshots/nba/players/full/${encodeURIComponent(id)}.png` : null),
 }
+// Which products ask their CDN for the pixel size as given (NFL's combiner), so the row face asks for 2x; mlb's URL doubles it itself
+const RETINA_OF = { nfl: 2 }
 // A product whose card face already exists keeps it (TUDDY's club tile).
 const CARD_OF = {
   nfl: ({ espnId, team, name, size }) => <NflFace player={{ espn_id: espnId, team, name }} size={size} />,
@@ -62,7 +65,7 @@ export function faceUrl({ sport, id, espnId, photo, size = 40 }) {
   return photo || URL_OF[sport]?.({ id, espnId, size }) || null
 }
 
-export default function PlayerFace({ sport, id = null, espnId = null, photo = null, team = null, name = '', size = 40, variant = 'card', theme = null, className = '', style = null }) {
+export default function PlayerFace({ sport, id = null, espnId = null, photo = null, team = null, name = '', size = 40, variant = 'card', theme = null, ring = null, className = '', style = null }) {
   if ((variant === 'card' || variant === 'tile') && CARD_OF[sport]) return CARD_OF[sport]({ espnId, team, name, size })
   const src = faceUrl({ sport, id, espnId, photo, size })
   // variant 'tile' (2026-09-27, The Four like The Six): TUDDY's face look -- a
@@ -97,6 +100,14 @@ export default function PlayerFace({ sport, id = null, espnId = null, photo = nu
         style={{ width: size, height: size, borderRadius: '50%', background: theme?.bg3 || CHASSIS.bg3, objectFit: 'cover', objectPosition: 'center', flex: 'none', verticalAlign: 'middle', ...style }} />
     )
   }
+  // variant 'row' (2026-10-13, PLAYER-ROWS: the name cell of every player table, components/table/PlayerNameCell.js):
+  // a round headshot with a thin ring in the product's accent (`ring`), the dark circle behind a transparent cut-out,
+  // and the monogram underneath: a man with no picture, or a picture that 404s, keeps his initials. Decorative
+  // (alt=""): his name is text beside it. Fixed width/height, lazy, 2x for retina.
+  if (variant === 'row') {
+    const px = size * (RETINA_OF[sport] || 1)
+    return <RowFace url={faceUrl({ sport, id, espnId, photo, size: px })} name={name} size={size} ring={ring} theme={theme} className={className} style={style} />
+  }
   const bg = theme?.bg3 || 'rgba(255,255,255,.06)'
   const ink = theme?.text2 || 'rgba(255,255,255,.7)'
   return (
@@ -110,6 +121,26 @@ export default function PlayerFace({ sport, id = null, espnId = null, photo = nu
         <img src={src} alt={name || ''} width={size} height={size} loading="lazy" decoding="async"
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
       )}
+    </span>
+  )
+}
+
+// The 'row' face (see the variant's note in PlayerFace). The monogram shows until the picture has loaded, and again if it never does
+// (a cut-out is transparent: the initials must not show through a loaded face).
+function RowFace({ url, name, size, ring, theme, className, style }) {
+  const [state, setState] = useState('wait')   // wait | ok | bad
+  const ref = useRef(null)
+  useEffect(() => { const el = ref.current; if (el?.complete && el.naturalWidth > 0) setState('ok') }, [url])
+  return (
+    <span aria-hidden="true" className={className || undefined} style={{
+      position: 'relative', display: 'inline-grid', placeItems: 'center', flex: '0 0 auto', width: size, height: size, borderRadius: '50%', overflow: 'hidden',
+      background: theme?.bg3 || CHASSIS.bg3, boxShadow: ring ? `0 0 0 1.5px ${ring}` : undefined,
+      color: theme?.text2 || 'rgba(255,255,255,.7)', font: `900 ${Math.max(9, Math.round(size * 0.34))}px/1 monospace`, ...style,
+    }}>
+      {state === 'ok' ? null : initials(name)}
+      {url && state !== 'bad' && <img ref={ref} src={url} alt="" width={size} height={size} loading="lazy" decoding="async"
+        onLoad={() => setState('ok')} onError={() => setState('bad')}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />}
     </span>
   )
 }

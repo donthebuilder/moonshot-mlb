@@ -9,15 +9,17 @@ import { useEffect, useState } from 'react'
 import { useSportTheme } from '../SportTheme'
 import CallStatusBadge from '../CallStatusBadge'
 import { ledgerHash } from '../../lib/ledger/views'
-import { isHiddenSport, playerHref } from '../../lib/routes'
+import { playerHref } from '../../lib/routes'
+import { useSportOpen } from '../../lib/useVisibleSports'
 
 const FIRST = { mlb: 'first home run', nfl: 'first touchdown', nhl: 'first goal', nba: 'first basket' }
 
 export default function GameLedgerLine({ sport, gameId, day = null }) {
   const { C, NUM_FONT, accent } = useSportTheme()
   const [row, setRow] = useState(null)
+  const open = useSportOpen(sport) === true   // BUCKETS: only once its gate has let this visitor in
   useEffect(() => {
-    if (!gameId || isHiddenSport(sport)) return undefined
+    if (!gameId || !open) return undefined
     let alive = true
     setRow(null)
     fetch(`/api/ledger/first?sport=${encodeURIComponent(sport)}${day ? `&day=${encodeURIComponent(day)}` : ''}`)
@@ -25,7 +27,7 @@ export default function GameLedgerLine({ sport, gameId, day = null }) {
       .then((j) => { if (alive) setRow((j?.games || []).find((g) => String(g.gameId) === String(gameId)) || null) })
       .catch(() => {})
     return () => { alive = false }
-  }, [sport, gameId, day])
+  }, [sport, gameId, day, open])
   if (!row) return null
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '4px 10px', flexWrap: 'wrap', minHeight: 44, padding: '0 2px', borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, margin: '8px 0' }}>

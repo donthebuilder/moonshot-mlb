@@ -40,7 +40,7 @@ export default function Players({ onOpenPlayer, onOpenTeam }) {
       <DelayedBanner error={error} what="the league’s stats" />
       {loading && !data ? <Loading what="the players" /> : null}
       {data && !rows.length && <EmptyState title="NOBODY BY THAT NAME" note="Try a surname or a club like BOS." />}
-      {rows.length > 0 && <BucketsTable rows={rows} columns={cols} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })}
+      {rows.length > 0 && <BucketsTable rows={rows} columns={cols} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} nameCell="player" faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })}
         initialSort={{ key: 'pts', dir: 'desc' }} heatMode="sorted" maxHeight={620} maxRows={rows.length}
         caption="Every player, per game. Column headers sort; each row opens that player; the team opens the club." />}
       <SourceLine>Source: ESPN’s league stats by athlete (/api/buckets/players).</SourceLine>

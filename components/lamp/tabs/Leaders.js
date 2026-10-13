@@ -246,7 +246,7 @@ export default function Leaders({ onOpenPlayer }) {
             rows={rows}
             columns={(goalies ? GOALIE_COLS : SKATER_COLS).map((c) => ({ ...c, group: (goalies ? GOALIE_GROUP_OF : SKATER_GROUP_OF)[c.key] || LG.more }))}
             onRowClick={openRow}
-            faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(season, r.team, r.id), name: r.name })}
+            nameCell="player" faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(season, r.team, r.id), name: r.name })}
             initialSort={{ key: sortKey, dir: LOW_IS_GOOD.has(sortKey) ? 'asc' : 'desc' }}
             maxHeight={620}
             caption={`Regular-season lines, unmodelled. Minimum games played is set to ${minGP} because a rate on a handful of games is noise. ${goalies ? 'GAA, losses and OT losses are inverted so bright still means good for the goalie.' : 'PIM is inverted so bright still means good for his team; every other column reads high-is-good.'} Tap a row for his file.`}

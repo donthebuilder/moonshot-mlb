@@ -24,5 +24,6 @@ export const NBA_TEXTS = {
   leaders: { what: 'Who leads the league per game, with a 20-game floor.' },
   shotmap: { what: 'Where a club or a player shoots from: every attempt on record, by zone, made and missed.' },
   results: { what: 'Every graded night: how many of the calls hit, per market. Preseason is counted apart.' },
+  binder: { what: 'The cards your starred players earned in real games: a 30-point night, a double-double, a triple-double, 40 points, 10 threes. Rarest first. Empty until the regular season has graded games.' },
   guide: { what: 'What BUCKETS is, where its numbers come from, and what it does not do yet.' },
 }

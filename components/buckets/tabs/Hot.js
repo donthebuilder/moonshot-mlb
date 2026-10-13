@@ -50,7 +50,7 @@ export default function Hot({ date, setDate, onOpenPlayer, onOpenTeam }) {
       {loading && !data ? <Loading what="every rotation player’s game log" /> : null}
       {data && !data.games.length && <EmptyState title="NO GAMES THAT DAY" note="Hot streaks follows the day’s games. Try another day." />}
       {rows.length > 0 && (
-        <BucketsTable rows={rows} columns={columns} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })}
+        <BucketsTable rows={rows} columns={columns} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} nameCell="player" faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })}
           initialSort={{ key: `${k}_d`, dir: 'desc' }} heatMode="sorted" maxHeight={620} maxRows={rows.length}
           caption={`${label}: last 5 and last 10 games beside the season. Column headers sort; each row opens that player.`} />
       )}

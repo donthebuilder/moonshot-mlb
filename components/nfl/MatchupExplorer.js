@@ -102,7 +102,7 @@ function Coverage({ matchup, byId, onPlayerClick, season }) {
             { key: 'faces', group: 'This week', label: `Opp ${word}%`, w: 70, dp: 0, title: `How much of this week's opponent's coverage is ${word}` },
           ]}
           onRowClick={(p) => onPlayerClick?.(p, 'REC_YDS')}
-          faceOf={(r) => ({ sport: 'nfl', espnId: r._raw?.espn_id, name: r.name })}
+          nameCell="player" faceOf={(r) => ({ sport: 'nfl', espnId: r._raw?.espn_id, name: r.name })}
           initialSort={{ key: 'ypt', dir: 'desc' }}
           maxHeight={460}
           maxRows={15}
@@ -156,7 +156,7 @@ function Coverage({ matchup, byId, onPlayerClick, season }) {
               { key: 'faces', group: `Against ${word}`, label: `Opp ${word}%`, w: 70, dp: 0 },
             ]}
             onRowClick={(p) => onPlayerClick?.(p, 'REC_YDS')}
-            faceOf={(r) => ({ sport: 'nfl', espnId: r._raw?.espn_id, name: r.name })}
+            nameCell="player" faceOf={(r) => ({ sport: 'nfl', espnId: r._raw?.espn_id, name: r.name })}
             initialSort={{ key: 'ypt', dir: 'desc' }}
             maxHeight={9999}
             maxRows={6}
@@ -254,7 +254,7 @@ function Holes({ matchup, byId, onPlayerClick, season }) {
             { key: 'share', group: 'Through it', label: 'His %', w: 50, dp: 0, title: 'Share of his carries that go through this hole' },
           ]}
           onRowClick={(p) => onPlayerClick?.(p, 'RUSH_YDS')}
-          faceOf={(r) => ({ sport: 'nfl', espnId: r._raw?.espn_id, name: r.name })}
+          nameCell="player" faceOf={(r) => ({ sport: 'nfl', espnId: r._raw?.espn_id, name: r.name })}
           initialSort={{ key: 'ypc', dir: 'desc' }}
           maxHeight={420}
           maxRows={12}

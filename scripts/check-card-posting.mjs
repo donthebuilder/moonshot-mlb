@@ -380,7 +380,7 @@ const slabStub = (bytes = 'SLAB') => async (o) => { askedSlab.push(o); return Bu
   const dch = calls.find((c) => c.url === FREE)
   check(/^posted/.test(r1) && tw && tw.text.includes('Test Four') && tw.text.includes('Test Five') && tw.text.includes('Both on the top line tonight.') && !/https?:\/\//.test(tw.text) && !/\block|\bdue\b|guarantee/i.test(tw.text), `J: his entry saved after the card post -> card_don_nhl posts on X with both names + his note, no link, no lock/due/guaranteed (${r1})`)
   check(dch && filesOf(dch).length === 1 && tw.media?.media_ids?.length === 1, 'J: the free channel and X both carry his dual card')
-  check(s1.rowsT.some((r) => r.kind === 'card_don_nhl' && r.day === DAYJ && r.x_post_id), 'J: one claim row (day, card_don_nhl) records the post')
+  check(s1.rowsT.some((r) => r.kind === 'card_don_nhl_two_man' && r.day === DAYJ && r.x_post_id), 'J: one claim row (day, card_don_nhl_two_man) records the post')
   // 2. a second tick cannot double-post
   calls.length = 0
   const r2 = await POST.postDonovan(s1.db, { sport: 'nhl', day: DAYJ, rows: [mkDon()], now: NOWJ + 600e3, dual: dualJ, problems })
@@ -389,7 +389,7 @@ const slabStub = (bytes = 'SLAB') => async (o) => { askedSlab.push(o); return Bu
   setEnv(XENV); calls.length = 0; resetTaken()
   const s3 = stateDb({ seed: [cardPosted(['P1', 'P4', 'P5'])] })
   const r3 = await POST.postDonovan(s3.db, { sport: 'nhl', day: DAYJ, rows: [mkDon()], now: NOWJ, dual: dualJ, problems })
-  check(r3 === 'in-card-post' && calls.length === 0 && !s3.rowsT.some((r) => r.kind === 'card_don_nhl'), 'J: his entry is in the day\'s card post -> card_don does NOT also post (nothing sent, nothing claimed)')
+  check(r3 === 'in-card-post' && calls.length === 0 && !s3.rowsT.some((r) => /^card_don_nhl/.test(r.kind)), 'J: his entry is in the day\'s card post -> card_don does NOT also post (nothing sent, nothing claimed)')
   // 4. the card post has not gone yet: it will carry him, so he waits; stuck for 20 minutes, he goes alone
   setEnv(XENV); calls.length = 0; resetTaken()
   const s4 = stateDb()
@@ -434,7 +434,7 @@ const slabStub = (bytes = 'SLAB') => async (o) => { askedSlab.push(o); return Bu
   check(claimed === true && unclaimed === false, 'J: donovanPostClaimed reads the day\'s card_don claim (the card post then drops his row)')
   const post = src('lib/card/post.js'); const tick = src('lib/card/tick.js')
   check(/donovanPostClaimed\(db, sport, day\)\)\) rows = rows\.filter\(\(r\) => r\.lane !== 'donovan'\)/.test(post), 'J: postCardX leaves him out when card_don already went (no double naming)')
-  check(/post\.donovan = await postDonovan\(db, \{ sport, day, rows: rows\.filter/.test(tick), 'J: the tick posts his entry after the card post, from the verified rows only')
+  check(/post\.donovan = await postDonovanEntries\(db, \{ sport, day, rows: rows\.filter/.test(tick), 'J: the tick posts his entries after the card post, from the verified rows only')
   // 10. policy: tagged, write-up tier (like the card post), counted by the same cap, never suppressed by the repeat guard, sport read from the kind
   const XS = await import('../lib/dash/xSchedule.js'); const XP = await import('../lib/dash/xPolicy.js')
   for (const sp of ['mlb', 'nfl', 'nhl']) {
