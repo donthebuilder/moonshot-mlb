@@ -56,7 +56,7 @@ ok('confirmed but not listed fails', !isAdminUser({ email: 'rando@test.invalid',
 ok('null / no email fails', !isAdminUser(null) && !isAdminUser({ email_confirmed_at: 'x' }))
 process.env.ADMIN_EMAILS = ''
 ok('empty ADMIN_EMAILS: nobody', !isAdminUser({ email: 'boss@test.invalid', email_confirmed_at: 'x' }) && !isAdminEmail('boss@test.invalid'))
-const gated = ['app/admin/page.js', 'app/admin/two-man/page.js', 'app/api/admin/facts/route.js', 'app/api/admin/two-man/route.js', 'lib/nba/gate.js', 'app/account/page.js']
+const gated = ['app/admin/page.js', 'app/admin/two-man/page.js', 'app/api/admin/facts/route.js', 'app/api/admin/two-man/route.js', 'lib/earlyAccess/access.js', 'app/api/admin/early-access/route.js', 'app/account/page.js']
 ok('every admin entry point uses isAdminUser', gated.every((f) => /isAdminUser\(user\)/.test(read(f)) && !/isAdminEmail/.test(read(f))))
 ok('every one reads the full user from auth.getUser()', gated.every((f) => /auth\.getUser\(\)/.test(read(f))))
 
