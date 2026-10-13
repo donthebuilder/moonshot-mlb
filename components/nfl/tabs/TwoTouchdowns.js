@@ -68,14 +68,17 @@ function TwoCard({ p, rank, watchlist, status, onPlayerClick, weights, base, poo
   )
 }
 
-export default function TwoTouchdowns({ data, matchup, odds, onPlayerClick, oddsStatus, top = null, showOpts = true }) {
+export default function TwoTouchdowns({ data, matchup, odds, onPlayerClick, oddsStatus, top = null, showOpts = true, viewCtl = null }) {
   const watchlist = useNflWatchlist(data)
   const query = top?.query || ''
   const team = top?.team || 'all'
   const [onlyUpcoming, setOnlyUpcoming] = useState(false)
   const [onlyWatched, setOnlyWatched] = useState(false)
   const [all, setAll] = useState(false)
-  const [view, setView] = useState('list')
+  const [viewOwn, setViewOwn] = useState('list')
+  // the phone's List | Cards lives in BoardHub's top row (viewCtl); on its own the board keeps its own switch
+  const view = viewCtl ? viewCtl.view : viewOwn
+  const setView = viewCtl ? viewCtl.setView : setViewOwn
   const phone = useIsPhone()
   const now = useNowTick()
   const slateDay = useMemo(() => { const k = (data?.games || []).map((g) => g.kickoff).filter(Boolean).sort()[0]; return k ? String(k).slice(0, 10) : '' }, [data?.games])
@@ -130,7 +133,7 @@ export default function TwoTouchdowns({ data, matchup, odds, onPlayerClick, odds
           </FilterBar>
           {Boolean(chips.length) && <div style={{ marginTop: 8 }}><ActiveFilters filters={chips} shown={filtered.length} total={rows.length} onClearAll={clearAll} /></div>}
         </div>
-        {phone && <div style={{ marginTop: 8 }}><ViewSwitch value={view} onChange={setView} /></div>}
+        {phone && !viewCtl && <div style={{ marginTop: 8 }}><ViewSwitch value={view} onChange={setView} /></div>}
       </>)}
       {!phone && <BoardHead title="2+ TD" count={capped.length} view={view} setView={setView} sub={TWO_NOTE} />}
       {phone && <p style={{ margin: '8px 0 0', fontSize: 12, lineHeight: 1.4, color: C.text2 }}>{TWO_NOTE}</p>}

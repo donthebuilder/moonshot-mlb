@@ -20,6 +20,7 @@ import Picks from './Picks'
 import { tdStatusFor } from '../../../lib/nfl/tdStatus'
 import { useGameCalls } from '../GameCalls'
 import { useIsPhone } from '../../MobileFold'
+import { ViewSwitch } from '../NflBoardExtras'
 import ShareCardButton from '../../card/ShareCardButton'
 import { shareUrl, stamp } from '../../../lib/cards/saveCard'
 
@@ -66,6 +67,8 @@ const CALL_WORDS = { called: STATUS_WORD.called, board: STATUS_WORD.board }   //
 export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus, picks, results, liveSnap = null, onPlayerClick, initialView = 'board', onTitle = null, onView = null }) {
   const phone = useIsPhone()
   const [opts, setOpts] = useState(false)
+  const [layout, setLayout] = useState('list')   // List | Cards for whichever board is showing (the phone's switch is the top row below)
+  const viewCtl = { view: layout, setView: setLayout }
   const [market, setMarket] = useState('TD')
   const [view, setViewRaw] = useState(initialView)
   // THE BAR'S TWO SLOTS (2026-09-28, nav like MOONSHOT's): Props opens CALLED,
@@ -154,7 +157,8 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
       {phone ? (<>
         {/* PHONE (2026-10-06): the table first. One line, one control row; the rest is behind Filters. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between', marginBottom: 8 }}>
-          <div style={{ minWidth: 0, fontSize: 13, lineHeight: 1.3, color: C.text2 }}><NflNote tab="research" /></div>
+          {/* THE VIEW ROW (phone): List | Cards where the one-line note sat (it was behind Filters, so the cards were never seen) */}
+          <ViewSwitch tall value={layout} onChange={setLayout} />
           {view === 'board' && market === 'TD' && howRow && <HowToRead id="nfl-td-board" accent={C.green} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
@@ -205,10 +209,10 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
       {view === 'called' && !OWN_MODEL_MARKETS.has(market)
         ? <Picks picks={picks} results={results} data={data} matchup={matchup} onPlayerClick={onPlayerClick} odds={odds} oddsStatus={oddsStatus} logs={logs} market={market} hideMarketPicker top={top} />
         : OWN_MODEL_MARKETS.has(market)
-          ? <TwoTouchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} oddsStatus={oddsStatus} top={top} showOpts={!phone || opts} />
+          ? <TwoTouchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} oddsStatus={oddsStatus} top={top} showOpts={!phone || opts} viewCtl={viewCtl} />
           : market === 'TD'
-          ? <Touchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} oddsStatus={oddsStatus} logs={logs} top={top} results={results} liveSnap={liveSnap} statusOf={tdStatus.statusOf} showOpts={!phone || opts} />
-          : <Boards data={data} logs={logs} matchup={matchup} onPlayerClick={onPlayerClick} odds={odds} oddsStatus={oddsStatus} market={market} hideMarketPicker top={top} showOpts={!phone || opts} />}
+          ? <Touchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} oddsStatus={oddsStatus} logs={logs} top={top} results={results} liveSnap={liveSnap} statusOf={tdStatus.statusOf} showOpts={!phone || opts} viewCtl={viewCtl} />
+          : <Boards data={data} logs={logs} matchup={matchup} onPlayerClick={onPlayerClick} odds={odds} oddsStatus={oddsStatus} market={market} hideMarketPicker top={top} showOpts={!phone || opts} viewCtl={viewCtl} />}
     </div>
   )
 }

@@ -117,7 +117,7 @@ const stale = ['app', 'components', 'lib', 'scripts'].flatMap((d) => walkDir(d))
 check(stale.length === 0, `nothing imports the retired canvas kit or a shareCard wrapper${stale.length ? ` (${stale.join(', ')})` : ''}`)
 // every download button is the ONE ShareCardButton (components/card/ShareCardButton.js), which goes through saveCard; no page draws its own
 const BUTTONS = ['components/PlayerModal.js', 'components/PitcherModal.js', 'components/ReportCard.js', 'components/tabs/RankedBoard.js', 'components/tabs/HitsHRR.js', 'components/tabs/Watchlist.js', 'components/tabs/Games.js',
-  'components/nfl/NflPlayerModal.js', 'components/nfl/NflSlate.js', 'components/nfl/tabs/Touchdowns.js', 'components/nfl/tabs/Accountability.js',
+  'components/nfl/NflPlayerModal.js', 'components/nfl/NflSlate.js', 'components/nfl/tabs/Touchdowns.js', 'components/nfl/tabs/Accountability.js', 'components/nfl/tabs/Watchlist.js', 'components/nfl/tabs/BoardHub.js',
   'components/lamp/tabs/Player.js', 'components/lamp/tabs/Board.js', 'components/lamp/tabs/Game.js', 'components/lamp/LampSlate.js', 'components/buckets/tabs/Player.js', 'components/buckets/tabs/Board.js', 'components/buckets/tabs/Slate.js', 'components/buckets/tabs/Game.js']
 for (const f of BUTTONS) {
   const src = readFileSync(join(ROOT, f), 'utf8')

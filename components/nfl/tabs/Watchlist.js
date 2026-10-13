@@ -27,6 +27,8 @@ import { SportTheme } from '../../SportTheme'
 import CallStatusBadge from '../../CallStatusBadge'
 import PlayerFace from '../../PlayerFace'
 import PageHeader from '../../PageHeader'
+import ShareCardButton from '../../card/ShareCardButton'
+import { shareUrl, stamp } from '../../../lib/cards/saveCard'
 import BinderLink from '../../binder/BinderLink'
 import NflTable from '../NflTable'
 import FollowingStrip from '../../FollowingStrip'
@@ -263,6 +265,8 @@ export default function Watchlist({ data, matchup, logs, picks = null, onPlayerC
         <div role="group" aria-label="View" style={{ display: 'flex', gap: 6 }}>
           <button type="button" aria-pressed={view === 'list'} style={btn(view === 'list')} onClick={() => setViewKey('')}>☰ List</button>
           <button type="button" aria-pressed={view === 'cards'} style={btn(view === 'cards')} onClick={() => setViewKey('cards')}>▦ Cards</button>
+          {/* 📸 the list as a baseball card: the pinned players on this week's board, in board order */}
+          <ShareCardButton icon sport="nfl" what="this watchlist" url={shareUrl({ kind: 'ranked', sport: 'nfl', ids: pins.map((p) => p.player_id).filter(Boolean).slice(0, 40).join(',') })} filename={`watchlist_${stamp('')}.png`} />
         </div>
         {games.length > 1 && (
           <div role="group" aria-label="Game" className="nfl-watch-games">

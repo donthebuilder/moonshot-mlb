@@ -19,6 +19,7 @@ import PlayerCard from '../PlayerCard'
 import { usePreview, ShowMoreButton } from '../ListPreview'
 import MobileFold, { useIsPhone } from '../MobileFold'
 import { DrawerSection, drawerLabel } from '../FiltersDrawer'
+import { Segmented, LAYOUT_OPTIONS } from '../Filters'
 import { useHashFilter } from '../../lib/filterHash'
 import { COLUMN_VIEWS, columnViewKey } from '../../lib/boardColumns'
 import HowToRead from '../HowToRead'
@@ -543,13 +544,6 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
   )
   const phoneLead = (
     <>
-      <DrawerSection label="View">
-        <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-          {[['list', '☰ List'], ['cards', '▦ Cards']].map(([k, l]) => (
-            <button key={k} type="button" onClick={() => setLayout(k)} aria-pressed={layout === k} style={chip44(layout === k, C.orange)}>{l}</button>
-          ))}
-        </div>
-      </DrawerSection>
       <DrawerSection label="Columns" hint="The same board laid out the way you read it.">
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
           {COLUMN_VIEWS.map((v) => (
@@ -685,8 +679,8 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
           {phoneRank && (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between', margin: '0 0 8px' }}>
-                {/* WHO WE RANK, ONE LINE (2026-10-06): the subtitle every sport's Rankings page carries. */}
-                <div style={{ minWidth: 0, color: C.text2, fontSize: 13, lineHeight: 1.3 }}>Who we rank tonight, and why.</div>
+                {/* THE VIEW ROW (phone): List | Cards, in the place the "Who we rank tonight" line held (it was behind Filters, so the cards were never seen). */}
+                <Segmented tall value={layout} onChange={setLayout} options={LAYOUT_OPTIONS} />
                 {howBtn}
               </div>
             </>

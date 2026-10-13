@@ -118,6 +118,9 @@ export function PillRow({ label, hint, value, options, onChange, flag, tall = fa
   )
 }
 
+/** The List | Cards switch's two choices (one place: the board and the watchlist both read it). */
+export const LAYOUT_OPTIONS = [['list', '☰ List', 'One sortable table'], ['cards', '▦ Cards', 'The card board']].map(([id, text, hint]) => Object.assign({}, { key: id }, { label: text, title: hint }))
+
 // ── joined segments, for binary/tri-state toggles ───────────────────────────
 export function Segmented({ value, options, onChange, label, tall = false }) {
   const on = useOn()

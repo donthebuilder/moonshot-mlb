@@ -120,7 +120,7 @@ function FormBadge({ form, color }) {
 // `market` + `hideMarketPicker` (2026-09-26, the Board hub): the hub's own
 // market picker drives this page; standalone it keeps its own.
 const nflRankId = (p) => p?.player_id
-export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsStatus, market: marketProp = null, hideMarketPicker = false, top = null, showOpts = true }) {
+export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsStatus, market: marketProp = null, hideMarketPicker = false, top = null, showOpts = true, viewCtl = null }) {
   const dash = useDashLines()
   // ── SAVE FROM THE CARD ITSELF (parity pass, 2026-09-16) ─────────────────
   // MOONSHOT's PropsGrid found this exact gap 2026-08-24 (Donovan: "click a
@@ -153,7 +153,10 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   // LIST | CARDS (board filters plan, TUDDY 1): MOONSHOT's board has both;
   // TUDDY was cards only -- 60 players four to a row is a long scroll, worst on
   // a phone. List is the default; the card board is one tap away, unchanged.
-  const [view, setView] = useState('list')
+  const [viewOwn, setViewOwn] = useState('list')
+  // the phone's List | Cards lives in BoardHub's top row (viewCtl); on its own the board keeps its own switch
+  const view = viewCtl ? viewCtl.view : viewOwn
+  const setView = viewCtl ? viewCtl.setView : setViewOwn
   const [angle, setAngle] = useState(null)   // board filters plan, TUDDY 2
   const phone = useIsPhone()
 
@@ -314,7 +317,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
         <div style={{ marginTop: 8 }}><OddsStatus status={oddsStatus} /></div>
       )}
 
-      {phone && <div style={{ marginTop: 8 }}><ViewSwitch value={view} onChange={setView} /></div>}
+      {phone && !viewCtl && <div style={{ marginTop: 8 }}><ViewSwitch value={view} onChange={setView} /></div>}
       </>)}
       {!phone && (<BoardHead title={spec?.label || (MARKETS.find(([k]) => k === market) || [])[1] || market} count={capped.length} view={view} setView={setView}
         sub={spec?.v1 ? 'A new market, ranked on each team\u2019s recent rate, not yet tested like the others.' : null} />)}

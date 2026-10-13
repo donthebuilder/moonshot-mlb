@@ -166,7 +166,7 @@ function TapNote({ label, text, style, children }) {
   return <span role="button" tabIndex={0} title={text} onClick={say} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); say(e) } }} style={{ ...style, cursor: 'help', display: 'inline-block', padding: 9, margin: -9 }}>{children}</span>
 }
 
-export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsStatus, logs = null, top = null, results = null, liveSnap = null, statusOf = null, showOpts = true }) {
+export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsStatus, logs = null, top = null, results = null, liveSnap = null, statusOf = null, showOpts = true, viewCtl = null }) {
   const watchlist = useNflWatchlist(data)
   // Search, team and game come from the hub's top bar (2026-09-27).
   const query = top?.query || ''
@@ -177,7 +177,10 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   const [sortBy, setSortBy] = useState('score')
   const [all, setAll] = useState(false)
   // LIST | CARDS (board filters plan, TUDDY 1): list by default, like MOONSHOT.
-  const [view, setView] = useState('list')
+  const [viewOwn, setViewOwn] = useState('list')
+  // the phone's List | Cards lives in BoardHub's top row (viewCtl); on its own the board keeps its own switch
+  const view = viewCtl ? viewCtl.view : viewOwn
+  const setView = viewCtl ? viewCtl.setView : setViewOwn
   const [angle, setAngle] = useState(null)   // board filters plan, TUDDY 2
   const phone = useIsPhone()
   // CALLED LAST NIGHT (2026-10-10): last week's TD calls (board_lock) and what each did. The slate is named by
@@ -337,7 +340,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
         <div style={{ marginTop: 8 }}><OddsStatus status={oddsStatus} /></div>
       )}
 
-      {phone && <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}><ViewSwitch tall value={view} onChange={setView} /></div>}
+      {phone && !viewCtl && <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}><ViewSwitch tall value={view} onChange={setView} /></div>}
       </>)}
       {!phone && (<>
       {/* (on a phone it sits under the table) TD WATCH (board filters plan, TUDDY 5): MOONSHOT's B2B Watch slot. */}
