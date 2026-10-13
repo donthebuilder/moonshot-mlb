@@ -31,7 +31,7 @@ export default function AlertsQuick({ C, accent, NUM_FONT, onDone = null, framed
   const btn = (on) => ({
     minHeight: 44, padding: '8px 12px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
     border: `1px solid ${on ? accent : C.border}`, background: on ? `color-mix(in srgb, ${accent} 14%, transparent)` : C.bg2, color: on ? accent : C.text2,
-    font: `800 12px/1.25 ${NUM_FONT}`, letterSpacing: '.03em',
+    fontFamily: 'inherit', fontWeight: 700, fontSize: 12, lineHeight: 1.3,
   })
 
   // A preset is a choice; choosing one other than Off on a device that is not armed arms it in the same tap (the permission prompt needs this very tap).
@@ -56,13 +56,13 @@ export default function AlertsQuick({ C, accent, NUM_FONT, onDone = null, framed
           const on = active === k
           return (
             <button key={k} type="button" aria-pressed={on} disabled={busy} onClick={() => choose(k)} style={btn(on)}>
-              <span style={{ display: 'block' }}>{p.label}{on ? ' ✓' : ''}</span>
-              <span style={{ display: 'block', marginTop: 2, color: C.text3, fontWeight: 600, fontSize: 12, lineHeight: 1.35, letterSpacing: 0 }}>{p.detail}</span>
+              <span style={{ display: 'block', fontFamily: NUM_FONT, fontWeight: 800, letterSpacing: '.03em' }}>{p.label}{on ? ' ✓' : ''}</span>
+              <span style={{ display: 'block', marginTop: 2, color: C.text3, fontWeight: 500, fontSize: 12, lineHeight: 1.35 }}>{p.detail}</span>
             </button>
           )
         })}
       </div>
-      <button type="button" aria-pressed={paused} onClick={() => setPause(!paused)} style={{ ...btn(paused), marginTop: 6, width: '100%' }}>
+      <button type="button" aria-pressed={paused} onClick={() => setPause(!paused)} style={{ ...btn(paused), marginTop: 6, width: '100%', fontFamily: NUM_FONT, fontWeight: 800 }}>
         {paused ? 'Paused until 6 am ET. Tap to resume.' : 'Pause tonight (quiet until 6 am ET)'}
       </button>
       {device.state === 'blocked' || device.state === 'unsupported' || device.state === 'ios' ? (

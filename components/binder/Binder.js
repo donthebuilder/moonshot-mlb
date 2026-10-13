@@ -106,9 +106,6 @@ export default function Binder({ sport = 'mlb', board = [] }) {
         note={view === 'all' ? `Every card earned in the league in the last 30 days. ${RARITY_COPY}` : `Cards earned by the players on your watchlist. ${RARITY_COPY}`}
         theme={C} numFont={NUM_FONT} accent={accent} style={{ marginBottom: 2 }} />
 
-      {/* ALERTS, FROM THE BINDER (2026-10-13): collectors get a note when a player they follow earns a card; the switch is one tap from here. */}
-      <AlertsEntry C={C} accent={accent} NUM_FONT={NUM_FONT} />
-
       <div role="tablist" aria-label="Which cards" style={{ display: 'flex', gap: 8 }}>
         <button type="button" role="tab" aria-selected={view === 'my'} onClick={() => setView('')} style={{ ...chip(view === 'my'), flex: 1 }}>MY CARDS</button>
         <button type="button" role="tab" aria-selected={view === 'all'} onClick={() => setView('all')} style={{ ...chip(view === 'all'), flex: 1 }}>ALL CARDS</button>
@@ -205,6 +202,9 @@ export default function Binder({ sport = 'mlb', board = [] }) {
             : 'Players you follow with the star. A card is kept for each game a player earned one, his rarest. Every card is drawn from a real game.'}
         </p>
       ) : null}
+      {/* ALERTS, FROM THE BINDER (2026-10-13): collectors get a note when a player they follow earns a card; the switch is one tap from here. It sits at the END so the
+          first row of the binder is exactly where it was (no extra scroll on a phone). */}
+      <AlertsEntry C={C} accent={accent} NUM_FONT={NUM_FONT} />
       {open ? <CardSheet c={open} onClose={() => setOpen(null)} /> : null}
     </div>
   )
