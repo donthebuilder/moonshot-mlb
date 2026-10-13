@@ -79,8 +79,8 @@ export default function FiltersDrawer({
   // THE LEDGER CHIP (2026-10-07): a sport key puts "Ledger 7/18" in this row, beside the trigger (the Rankings pages
   // pass it; every other board leaves it off). It lives in the row that is already here, so no page gets taller.
   ledger = null,
-  // THE 📸 BUTTON (fix15): LAMP's and BUCKETS' Rankings put their ranked-list card button after the Ledger / Watchlist
-  // chips, in this same row. Every other caller leaves it null and draws exactly what it drew before.
+  // THE SAVE-A-PICTURE BUTTON (components/card/ShareCardButton.js): MOONSHOT's phone Rankings put it after the Ledger / Watchlist
+  // chips, in this same row, so it is visible without opening the sheet. Every other caller leaves it null and draws exactly what it drew before.
   share = null,
   // THE POSITION FILTER (2026-10-10, lib/usePositionFilter.js `control`): on a desktop its pills sit inline in this same
   // row (no extra line); inside a compact (phone) sheet they are the first section of the panel. Null = no row.

@@ -52,7 +52,6 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
     header: () => (
       <>
         <PageHeader eyebrow={`BUCKETS · GAME · ${fmtDay(gameDay(data.date)).toUpperCase()}`} title={`${away.name} at ${home.name}`} theme={C} numFont={NUM_FONT} accent={C.purple} showToday={false}
-          right={<ShareCardButton sport="nba" what="this game" url={shareUrl({ kind: 'game', sport: 'nba', game: id, market: 'pts', date: gameDay(data.date) })} filename={`game-${slug(away.abbrev)}-${slug(home.abbrev)}_${stamp(gameDay(data.date))}.png`} />}
           note={<>{live ? <><RimDot />{data.detail}</> : done ? 'Final' : `Tip ${fmtTip(data.date)}`}{data.venue ? ` · ${data.venue}` : ''}</>}
         />
         <DelayedBanner error={error} what="game data" />
@@ -87,7 +86,11 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <BackBtn onBack={onBack} label={backLabel} />
+      {/* 📸 this game as a baseball card: the right end of the top row, beside Back (no extra line on a phone) */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <BackBtn onBack={onBack} label={backLabel} />
+        <ShareCardButton sport="nba" what="this game" style={{ marginLeft: 'auto' }} url={shareUrl({ kind: 'game', sport: 'nba', game: id, market: 'pts', date: gameDay(data.date) })} filename={`game-${slug(away.abbrev)}-${slug(home.abbrev)}_${stamp(gameDay(data.date))}.png`} />
+      </div>
       {gameSections('nba', 'page').map((sec) => <Fragment key={sec.id}>{SECTIONS[sec.id]?.()}</Fragment>)}
       <SourceLine>Source: ESPN’s game summary and play-by-play (/api/buckets/game). Free throws and end-of-quarter heaves are left off the chart, as in the box score.</SourceLine>
     </div>

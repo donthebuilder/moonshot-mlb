@@ -8,7 +8,7 @@ import CallStatusBadge from '../../CallStatusBadge'
 import LampTable from '../LampTable'
 import Hint from '../Hint'
 import { PositionRow, PositionNote, PositionEmpty, Segmented } from '../../Filters'
-import { LampCards } from '../LampCard'
+import { LampCards, LAYOUT_OPTIONS } from '../LampCard'
 import ShareCardButton from '../../card/ShareCardButton'
 import { shareUrl, stamp } from '../../../lib/cards/saveCard'
 import { useIsPhone } from '../../MobileFold'
@@ -121,7 +121,7 @@ export default function Watchlist({ onOpenPlayer }) {
           {rows.length > 0 && (
             // THE VIEW ROW: List | Cards on the left, Save (the list as a baseball card, in board order) at the right end
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <Segmented tall={phone} value={layout} onChange={setLayout} options={[{ key: 'list', label: '☰ List', title: 'One sortable table' }, { key: 'cards', label: '▦ Cards', title: 'The card board' }]} />
+              <Segmented tall={phone} value={layout} onChange={setLayout} options={LAYOUT_OPTIONS} />
               {rows.some((x) => x.r) && <ShareCardButton sport="nhl" what="this watchlist" url={shareUrl({ kind: 'ranked', sport: 'nhl', market: 'GOAL', ids: rows.map((x) => x.f.id).slice(0, 40).join(',') })} filename={`watchlist_${stamp('')}.png`} />}
             </div>
           )}

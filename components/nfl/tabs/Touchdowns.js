@@ -337,7 +337,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
         <div style={{ marginTop: 8 }}><OddsStatus status={oddsStatus} /></div>
       )}
 
-      {phone && <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}><ViewSwitch tall value={view} onChange={setView} />{shareBtn}</div>}
+      {phone && <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}><ViewSwitch tall value={view} onChange={setView} /></div>}
       </>)}
       {!phone && (<>
       {/* (on a phone it sits under the table) TD WATCH (board filters plan, TUDDY 5): MOONSHOT's B2B Watch slot. */}
