@@ -6,6 +6,7 @@ import { themeFromUrl } from '../lib/themes'
 import { applyTheme, C } from '../lib/theme'
 import dynamic from 'next/dynamic'
 import AccountNudge from './AccountNudge'
+import AlertsAsk from './AlertsAsk'
 import ExplainToast from './ExplainToast'
 import EarlyTag from './EarlyTag'
 import { InjuryLayer } from './injuries/InjuryLayer'
@@ -104,7 +105,7 @@ export default function SportRoot() {
   if (!ready || !allowed) return <Shell />
   // The account ask (funnel step 3) and the explain panel (tap-to-explain
   // ticker pills), once for all three products.
-  const nudge = <><AccountNudge sport={sport} /><ExplainToast sport={sport} /></>
+  const nudge = <><AccountNudge sport={sport} /><AlertsAsk sport={sport} /><ExplainToast sport={sport} /></>
   // one shell per sport key (0g D6); a key without one is MOONSHOT, as it always was
   const Shell2 = SHELLS[sport] || Dashboard
   return <>{early ? <EarlyTag sport={sport} /> : null}<InjuryLayer sport={sport}><Shell2 palettePass={pass} /></InjuryLayer>{nudge}</>

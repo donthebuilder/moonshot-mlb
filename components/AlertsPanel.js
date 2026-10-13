@@ -28,6 +28,8 @@ import { CATEGORIES, PRESETS, presetOf, useAlertPrefs } from '../lib/dash/alerts
 import { useDashAccount } from '../lib/dash/sync'
 import { canNotify, installHint, permission, requestPermission } from '../lib/notify'
 import { currentSubscription, pushSupported, subscribePush, unsubscribePush, vapidPublicKey } from '../lib/dash/push'
+import { useCanSee } from '../lib/useVisibleSports'
+import { STARTER_DETAIL_WITH_NBA } from '../lib/copy/notifications'
 import RecentAlerts from './RecentAlerts'
 
 // Every group in lib/dash/alerts.js has to appear here or its switches simply
@@ -35,6 +37,8 @@ import RecentAlerts from './RecentAlerts'
 // shipped its categories without this line, which left four alerts on with no
 // way to turn them off.
 const GROUPS = [
+  // A scratch, a delay, a receipt: the same in every sport (2026-10-13), so they sit above the sports instead of under MOONSHOT.
+  { key: 'All', label: 'ALL SPORTS' },
   { key: 'Moonshot', label: 'MOONSHOT · MLB' },
   { key: 'Tuddy', label: 'TUDDY · NFL' },
   { key: 'Lamp', label: 'LAMP · NHL' },
@@ -45,11 +49,15 @@ const GROUPS = [
 // Loudest first, inside each list. The number is the same priority the sender
 // sorts on when more happens in one minute than a lock screen should carry,
 // so the order on this page is the order things actually survive in.
+// "6:00 AM ET" for the end of a pause
+const untilWords = (ms) => { try { return `${new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }).format(new Date(ms))} ET` } catch { return '6:00 AM ET' } }
 const byPriority = (a, b) => (a.priority - b.priority) || a.label.localeCompare(b.label)
 
 export default function AlertsPanel({ styles }) {
-  const { prefs, setMaster, setCategory, setPreset } = useAlertPrefs()
+  const { prefs, setMaster, setCategory, setPreset, setPause } = useAlertPrefs()
   const account = useDashAccount()
+  // BUCKETS is hidden until it opens (or this visitor holds an early-access grant): its basketball word stays out of the panel until then.
+  const nbaOpen = useCanSee('nba') === true
   const [perm, setPerm] = useState('default')
   const [hint, setHint] = useState(null)
   // MOUNTED, and it is load-bearing. This renders on the server, where there
@@ -94,13 +102,18 @@ export default function AlertsPanel({ styles }) {
       setClosedSite(false)
     } else {
       const res = await subscribePush(sports)
-      if (res.ok) { setClosedSite(true); setPushNote('Sent one to this device — it should be on your screen now.') }
+      // 'Sent one to this device' only when a welcome push really went out (the server sends it for a device it had not seen before; a device that was already on file
+      // gets nothing, and saying otherwise sent people looking for a message that was never coming).
+      if (res.ok) {
+        setClosedSite(true)
+        setPushNote(res.welcomed ? 'Sent one to this device, it should be on your screen now.' : 'This device is set up. Alerts will reach it, even with the site closed.')
+      }
       else setPushNote(
-        res.reason === 'signed-out' ? 'Sign in first — a subscription belongs to an account.'
+        res.reason === 'signed-out' ? 'Sign in first, a subscription belongs to an account.'
           : res.reason === 'permission' ? 'Allow notifications above first.'
           : res.reason === 'not-configured' ? 'Push keys are not set on this deploy yet.'
           : res.reason === 'unsupported' ? 'This browser has no push support.'
-          : 'That did not take — try again in a moment.',
+          : 'That did not take. Try again in a moment.',
       )
     }
     setBusy(false)
@@ -134,13 +147,14 @@ export default function AlertsPanel({ styles }) {
     : pushable && account.signedIn && !closedSite ? { state: 'partial', word: 'On while the site is open' }
     : { state: 'on', word: pushable && closedSite ? 'On ✓ · even with the site closed' : 'On ✓ · while the site is open' }
 
+  const paused = Number(prefs.pausedUntil) > Date.now()
   const active = presetOf(prefs.events)
   const onCount = CATEGORIES.filter((c) => c.push && prefs.events[c.key]).length
   // What a preset includes, by product ("MOONSHOT 6 · TUDDY 3 · LAMP 1").
-  const includes = (p) => GROUPS.map((g) => {
+  const includes = (p) => (p.key === 'off' ? 'nothing to your phone' : GROUPS.map((g) => {
     const n = CATEGORIES.filter((c) => c.group === g.key && p.on.includes(c.key)).length
     return n ? `${g.label.split(' · ')[0]} ${n}` : null
-  }).filter(Boolean).join(' · ')
+  }).filter(Boolean).join(' · '))
 
   const row = (cat) => {
     const on = Boolean(prefs.events[cat.key])
@@ -153,14 +167,14 @@ export default function AlertsPanel({ styles }) {
           className={on ? styles.alertOn : styles.alertOff}
         >
           <b>{cat.label}</b>
-          <small>{cat.detail}</small>
+          <small>{cat.key === 'starter' && nbaOpen ? STARTER_DETAIL_WITH_NBA : cat.detail}</small>
           <em>{on ? '● ON' : '○ OFF'}</em>
           {/* #53: this note used to render as a sibling of the card, hanging in
               the gap below it and knocking the grid's rhythm off under Homers,
               Any slate homer, At the plate and Touchdowns. It describes the
               switch, so it belongs inside the switch. */}
           {cat.scope === 'everyone' && on ? (
-            <small className={styles.alertNoteIn}>the whole slate, not just your names — this one is loud</small>
+            <small className={styles.alertNoteIn}>the whole slate, not just your names, so this one is loud</small>
           ) : cat.live && on ? (
             <small className={styles.alertNoteIn}>reaches you even with the site open</small>
           ) : null}
@@ -209,8 +223,15 @@ export default function AlertsPanel({ styles }) {
           : PRESETS.find((p) => p.key === active)?.detail}
       </p>
 
-      {/* SPORTS ON THIS DEVICE: filters only the alerts about nobody in
-          particular; the names you follow always come through. */}
+      {/* PAUSE TONIGHT (2026-10-13): nothing is sent until 6 am Eastern. It is saved with the switches (the sender reads it), so it holds on every device. */}
+      <div className={styles.presetRow}>
+        <button type="button" aria-pressed={paused} className={paused ? `${styles.presetBtn} ${styles.presetBtnOn}` : styles.presetBtn} onClick={() => setPause(!paused)}>
+          <b>{paused ? 'Paused ✓' : 'Pause tonight'}</b>
+          <small>{paused ? `Quiet until ${untilWords(prefs.pausedUntil)}. Tap to resume.` : 'Quiet until 6 am Eastern, then back to normal.'}</small>
+        </button>
+      </div>
+
+      {/* SPORTS ON THIS DEVICE (2026-10-13): a real mute for this browser. A sport switched off here sends this device nothing, followed players included. */}
       <div className={styles.presetRow} role="group" aria-label="Sports on this device">
         {[['mlb', 'MLB'], ['nfl', 'NFL'], ['nhl', 'NHL']].map(([k, label]) => (
           <button key={k} type="button" aria-pressed={sports.includes(k)}
@@ -220,7 +241,7 @@ export default function AlertsPanel({ styles }) {
           </button>
         ))}
       </div>
-      <p className={styles.muted} style={{ marginTop: 0 }}>Sports this device hears slate-wide alerts for. Players you follow always come through.</p>
+      <p className={styles.muted} style={{ marginTop: 0 }}>Sports this device buzzes for. Switch one off and this phone or laptop hears nothing about it, even for players you follow. Other devices are not affected.</p>
 
       <button
         type="button"
@@ -244,7 +265,7 @@ export default function AlertsPanel({ styles }) {
             {inApp.length ? (
               <>
                 <p className={styles.muted} style={{ margin: '10px 0 4px' }}>
-                  Needs a tab open somewhere — these cannot be pushed, and why is worth knowing
+                  Needs a tab open somewhere. These cannot be pushed, and why is worth knowing
                 </p>
                 <ul className={styles.alertList}>{inApp.map(row)}</ul>
               </>
@@ -267,10 +288,10 @@ export default function AlertsPanel({ styles }) {
               : device.state === 'unsupported'
                 ? (hint || 'This browser can’t show alerts. On an iPhone, add the site to the Home Screen first.')
                 : device.state === 'partial'
-                  ? 'Alerts show while a tab is open. One more tap and they reach this device with the site closed -- checked every minute during games.'
+                  ? 'Alerts show while a tab is open. One more tap and they reach this device with the site closed. Checked every minute during games.'
                   : pushable && !account.signedIn
                     ? 'Alerts show while a tab is open. Sign in above and they can reach this device with the site closed too.'
-                    : 'Everything picked in step 1, on this device. Checked every minute during games -- not instantly, nothing here holds a live line to the league.'}
+                    : 'Everything picked in step 1, on this device. Checked every minute during games, not instantly: nothing here holds a live line to the league.'}
           </small>
         </div>
         {device.state === 'off' || device.state === 'partial' ? (
@@ -297,8 +318,8 @@ export default function AlertsPanel({ styles }) {
           // (Any slate homer, Any CALLED goal) is on.
           const wide = CATEGORIES.filter((c) => c.scope === 'everyone' && prefs.events?.[c.key]).map((c) => c.label)
           return wide.length
-            ? `Nothing arrives about a player you have not followed, except ${wide.join(' and ')} — switched on above, and about everyone.`
-            : 'And nothing arrives about a player you have not followed — that gate is separate from every switch on this page.'
+            ? `Nothing arrives about a player you have not followed, except ${wide.join(' and ')}, switched on above and about everyone.`
+            : 'And nothing arrives about a player you have not followed. That gate is separate from every switch on this page.'
         })()}
       </p>
     </div>

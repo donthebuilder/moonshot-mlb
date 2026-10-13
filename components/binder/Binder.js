@@ -9,6 +9,7 @@
 // names three real players from today's board. Phone first: the first screen is the strip and the LEGEND / ELITE tiles; long sections preview two rows and say "+N more".
 import { useEffect, useMemo, useState } from 'react'
 import PageHeader from '../PageHeader'
+import AlertsEntry from '../AlertsEntry'
 import { useSportTheme } from '../SportTheme'
 import { useFollowing } from '../../lib/dash/follow'
 import { useHashFilter } from '../../lib/filterHash'
@@ -201,6 +202,9 @@ export default function Binder({ sport = 'mlb', board = [] }) {
             : 'Players you follow with the star. A card is kept for each game a player earned one, his rarest. Every card is drawn from a real game.'}
         </p>
       ) : null}
+      {/* ALERTS, FROM THE BINDER (2026-10-13): collectors get a note when a player they follow earns a card; the switch is one tap from here. It sits at the END so the
+          first row of the binder is exactly where it was (no extra scroll on a phone). */}
+      <AlertsEntry C={C} accent={accent} NUM_FONT={NUM_FONT} />
       {open ? <CardSheet c={open} onClose={() => setOpen(null)} /> : null}
     </div>
   )

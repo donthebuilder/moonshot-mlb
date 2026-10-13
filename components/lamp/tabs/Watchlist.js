@@ -4,6 +4,7 @@ import PageHeader from '../../PageHeader'
 import BinderLink from '../../binder/BinderLink'
 import FollowingStrip from '../../FollowingStrip'
 import WatchRecord from '../../watch/WatchRecord'
+import AlertsEntry from '../../AlertsEntry'
 import CallStatusBadge from '../../CallStatusBadge'
 import LampTable from '../LampTable'
 import Hint from '../Hint'
@@ -136,6 +137,8 @@ export default function Watchlist({ onOpenPlayer }) {
         </>
       )}
       <WatchRecord sport="nhl" theme={C} accent={C.ice} onOpen={(r) => onOpenPlayer?.(r.id)} />
+      {/* ALERTS (2026-10-13): where alerts stand, one tap from the list they are about; at the END, so the first row is where it was. */}
+      {all.length > 0 && <AlertsEntry C={C} accent={C.ice} NUM_FONT={NUM_FONT} />}
     </div>
   )
 }
