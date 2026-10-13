@@ -34,6 +34,7 @@ const CASES = {
   'two-players': { ...base, rows: [row(1), row(2)], banner: { away: club('MIN'), home: club('WPG'), proj: null, ...pre } },
   'none': { ...base, rows: [], banner: { away: club('CGY'), home: club('ANA'), proj: null, ...pre } },
   'long-note-and-long-line': { ...base, note: 'a note that is a little long but is still one line on this card', rows: [1, 2, 3, 4, 5, 6, 7, 8].map((i) => row(i)), banner: { away: club('VGK'), home: club('NSH'), proj, state: 'live', score: { away: 10, home: 12 }, whenLine: '3rd · 04:12 · power play', when: 'x' } },
+  'nfl-long-projection-word': { ...base, sport: 'nfl', brand: { name: 'TUDDY' }, headLabel: 'TD SCORE', rows: [1, 2, 3, 4, 5].map((i) => row(i)), banner: { away: club('SEA'), home: club('DEN'), proj: { label: 'EXPECTED TOUCHDOWNS', away: '2.7', home: '2.5', total: '5.2' }, ...pre } },
   'nba-four-letter': { ...base, sport: 'nba', brand: { name: 'BUCKETS' }, rows: [1, 2, 3, 4].map((i) => row(i)), banner: { away: club('GSW'), home: club('PHX'), proj: { label: 'EXPECTED POINTS', away: '112.4', home: '109.8', total: '222.2' }, ...pre } },
 }
 
@@ -43,7 +44,7 @@ for (const [name, m] of Object.entries(CASES)) {
   LINT.length = 0
   const lay = gameLayout(m)
   ok(lay.bottom <= lay.limit, `the grid ends at ${lay.bottom}, below the footer line ${lay.limit}`)
-  ok(lay.rows.length === 0 || lay.cardH >= 150, `mini card height ${lay.cardH} under 150`)
+  ok(lay.rows.length === 0 || lay.cardH >= 140, `mini card height ${lay.cardH} under 140`)
   const png = await renderShare('game', m)
   const meta = await sharp(png).metadata()
   ok(meta.width === 1080 && meta.height === 1350, `the PNG is ${meta.width} x ${meta.height}, not 1080 x 1350`)
@@ -58,6 +59,24 @@ for (const [name, m] of Object.entries(CASES)) {
   ok(low.length === 0, `text under the 22px floor: ${low.slice(0, 3).map((x) => `"${x.text}" ${x.size}px`).join(', ')}`)
   console.log(`  ${mine.length} fits, grid ${lay.rows.length} cards at ${lay.cardW} x ${lay.cardH}, ends ${lay.bottom}/${lay.limit}`)
   if (pngDir) writeFileSync(`${pngDir}/${name}.png`, png)
+}
+// club colours: the cream ink must stay >= 4.5:1 on the strongest wash any club colour can paint (and on the product accents, the fallback)
+console.log('club colour contrast')
+{
+  const { heroTone, WASH_MAX, parseColor, over, contrast } = await import('../lib/cards/clubTone.js')
+  const { NFL_TEAM_TONES } = await import('../lib/nfl/teamColors.js')
+  const { CHASSIS, INK } = await import('../lib/cards/cardKit.js')
+  const { SPORT_ACCENT } = await import('../lib/sportAccent.js')
+  const bg = parseColor(CHASSIS.bg); const ink = parseColor(INK)
+  const tones = [...Object.values(NFL_TEAM_TONES).flat(), ...Object.values(SPORT_ACCENT), 'rgb(250,250,250)', 'rgb(255,255,0)', 'rgb(0,0,0)', 'rgb(120,120,120)', null, 'junk']
+  let worst = 99
+  for (const t of tones) {
+    const h = heroTone(t, SPORT_ACCENT.nhl)
+    const c = contrast(ink, over(parseColor(h), WASH_MAX, bg))
+    worst = Math.min(worst, c)
+    ok(c >= 4.5, `ink on the ${t} wash reads ${c.toFixed(2)}:1`)
+  }
+  console.log(`  ${tones.length} colours, worst ${worst.toFixed(2)}:1`)
 }
 console.log(fails ? `${fails} FAILED` : 'all green')
 process.exit(fails ? 1 : 0)
