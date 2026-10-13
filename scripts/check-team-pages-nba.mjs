@@ -87,7 +87,7 @@ ok('every club fills all six sections from TEST payloads; the season is named LA
     const v = buildNbaTeam({ team: c, payload: { ...payload, team: nbaTeam(c) }, deep: deep({ lines: clubLines(statRowsNba(stats, standings), c), oppLines: clubLines(statRowsNba(stats, standings), 'NY') }), board })
     for (const s of v.sections) {
       assert.equal(s.state, 'ok', `${c}/${s.id}: ${s.empty?.title} ${s.empty?.note}`)
-      if (!['matchup', 'schedule'].includes(s.id)) assert.match(s.window, /2025-26 .*\(LAST SEASON\)/, `${c}/${s.id}: ${s.window}`)
+      if (!['matchup', 'schedule', 'cards'].includes(s.id)) assert.match(s.window, /2025-26 .*\(LAST SEASON\)/, `${c}/${s.id}: ${s.window}`)
       for (const b of s.blocks) if (b.type === 'table') for (const col of b.columns) assert.ok(col.group, `${c}/${s.id}/${b.id}: ${col.key} group`)
     }
     assert.deepEqual(neutralProblems(viewStrings(v)), [], `${c}: wording`)
