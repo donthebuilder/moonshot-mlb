@@ -477,7 +477,7 @@ await t('THE LANE CHECK THROUGH THE TABLE: the bot can never have an n_man row; 
   const seven = { ...row, legs: [...row.legs, row.legs[0]], leg_count: 7 }
   assert.match((await fakeDb(clock).from('card_calls').upsert([seven])).error.message, /card_calls_shape_ck/)
   const slot4 = { ...row, slot: 4 }
-  assert.match((await fakeDb(clock).from('card_calls').upsert([slot4])).error.message, /shape_ck/, 'slot 4 is never allowed')
+  assert.match((await fakeDb(clock).from('card_calls').upsert([slot4])).error.message, /shape_ck|slot_check/, 'slot 4 is never allowed')
   const slot2 = { ...row, slot: 2 }
   assert.equal((await fakeDb(clock).from('card_calls').upsert([slot2])).error, null, 'a 2nd N-man (slot 2) passes after the mix migration')
   assert.match((await fakeDb(clock, { mix: false }).from('card_calls').upsert([slot2])).error.message, /shape_ck/, 'and is refused before it (slot 1 only)')
