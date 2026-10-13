@@ -9,6 +9,7 @@
 // any, unless --report. The names come from the data, never guessed; a name
 // inside a sentence is not counted (the plan says so).
 import { createRequire } from 'node:module'
+import fs from 'node:fs'
 const req = createRequire(import.meta.url)
 const { chromium } = req('playwright-core')
 
@@ -36,7 +37,10 @@ for (const p of nhl?.players || []) { if (p?.name) names.add(p.name); if (p?.tea
 for (const p of nba?.players || []) { if (p?.name) names.add(p.name); if (p?.team) teams.add(p.team) }
 console.log(`known: ${names.size} players, ${teams.size} team codes (MLB slate, NFL week, NHL rosters${nba ? ', NBA directory' : ''})`)
 
-const browser = await chromium.launch({ executablePath: '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser' })
+// --browser <path> overrides; the default is Donovan's Brave, and any other machine falls back to the first Chrome/Chromium it can find (same idea as check-mobile)
+const BRAVE = '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'
+const found = [arg('--browser', null), BRAVE, process.env.PLAYWRIGHT_BROWSERS_PATH && `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium`].filter(Boolean).find((p) => fs.existsSync(p))
+const browser = await chromium.launch(found ? { executablePath: found } : {})
 let bad = 0
 const table = []
 for (const path of pages) {
