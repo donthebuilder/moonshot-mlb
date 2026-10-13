@@ -18,7 +18,7 @@ import { STATUS_WORD } from '../lib/callStatus.js'
 let fail = 0
 const ok = (name, fn) => { try { fn(); console.log(`ok   ${name}`) } catch (e) { fail += 1; console.log(`FAIL ${name}: ${e.message}`) } }
 const NFL = NFL_TEAMS.map((t) => t[0])
-const SECTIONS = ['roster', 'schedule', 'stats', 'calls', 'matchup', 'trends', 'special', 'defense']   // Defense is the client-fed slot (tags + defenders): it loads its own numbers
+const SECTIONS = ['roster', 'schedule', 'stats', 'calls', 'matchup', 'trends', 'special', 'cards', 'defense']   // Defense is the client-fed slot (tags + defenders): it loads its own numbers
 
 ok('registry: NFL lists eight sections, Players first; Defense is built, Tags ride inside it', () => {
   assert.deepEqual(sectionsOf('nfl').map((s) => s.id), SECTIONS)
@@ -34,7 +34,7 @@ ok('every NFL club builds with the real files absent: header name + logo, seven 
     const v = buildNflTeam({ team: c })
     assert.ok(v.header.name && v.header.known && /^https:\/\/a\.espncdn\.com/.test(v.header.logo), `${c}: header`)
     assert.deepEqual(v.sections.map((s) => s.id), SECTIONS)
-    for (const s of v.sections.filter((x) => x.id !== 'defense')) { assert.equal(s.state, 'empty', `${c}/${s.id}`); assert.ok(s.empty.title && s.empty.note); assert.deepEqual(s.blocks, []) }
+    for (const s of v.sections.filter((x) => x.id !== 'defense' && x.id !== 'cards')) { assert.equal(s.state, 'empty', `${c}/${s.id}`); assert.ok(s.empty.title && s.empty.note); assert.deepEqual(s.blocks, []) }
     assert.deepEqual(neutralProblems(viewStrings(v)), [], `${c}: wording`)
   }
   assert.equal(buildNflTeam({ team: 'ZZZ' }).header.known, false)
@@ -90,7 +90,7 @@ ok('every NFL club fills all seven sections from TEST payloads; season and sampl
     const v = all(c)
     for (const s of v.sections) {
       assert.equal(s.state, 'ok', `${c}/${s.id}: ${s.empty?.title} ${s.empty?.note}`)
-      if (s.id !== 'matchup') assert.match(s.window, /2026/, `${c}/${s.id}: ${s.window}`)
+      if (s.id !== 'matchup' && s.id !== 'cards') assert.match(s.window, /2026/, `${c}/${s.id}: ${s.window}`)
       for (const b of s.blocks) if (b.type === 'table') for (const col of b.columns) assert.ok(col.group, `${c}/${s.id}/${b.id}: ${col.key} needs a group`)
     }
     assert.deepEqual(neutralProblems(viewStrings(v)), [], `${c}: wording`)
@@ -185,7 +185,7 @@ if (ix > 0) {
     try {
       const server = await j(`${base}/api/nfl/team?team=${c}`)
       const v = buildNflTeam({ team: c, slate: slateR, matchup, logs, st, server, archive, picks, gameCalls, statusOf })
-      assert.ok(v.header.name && v.header.logo); assert.equal(v.sections.length, 7)
+      assert.ok(v.header.name && v.header.logo); assert.equal(v.sections.length, 8)
       assert.deepEqual(neutralProblems(viewStrings(v)), [], `${c}: wording`)
       const empties = v.sections.filter((s) => s.state !== 'ok').map((s) => `${s.id}(${s.empty?.title})`)
       filled += 7 - empties.length
