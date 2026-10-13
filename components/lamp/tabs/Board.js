@@ -281,7 +281,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
     </DrawerSection>
   </>)
   // 📸 the top of this ranking as a picture: the right end of the view row, after List | Cards (components/card/ShareCardButton.js has the rule).
-  const shareBtn = kept.length && (market === 'GOAL' || market === 'SOG') ? <ShareCardButton sport="nhl" what="this ranking" url={shareUrl({ kind: 'ranked', sport: 'nhl', market, date: shown || null })} filename={`rankings-${slug(market)}_${stamp(shown)}.png`} /> : null
+  const shareBtn = (icon = false) => kept.length && (market === 'GOAL' || market === 'SOG') ? <ShareCardButton icon={icon} sport="nhl" what="this ranking" url={shareUrl({ kind: 'ranked', sport: 'nhl', market, date: shown || null })} filename={`rankings-${slug(market)}_${stamp(shown)}.png`} /> : null
   const nActive = chips.length + drawerChips.length
   const colSet = useColumnSet('nhl')   // Short list / What I read / All (lib/columnViews.js); the tables below read the same choice
   const drawerProps = {
@@ -297,10 +297,10 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
       {!phone && data && market === 'GOAL' && <GoalWatch flat={flat} onOpenPlayer={onOpenPlayer} date={shown} />}
       {phone ? (
         // THE VIEW ROW (phone): List | Cards on the left (it was behind Filters, so the cards were never seen), Save and How to read on the right.
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'space-between', flexWrap: 'wrap' }}>
           {data ? <Segmented tall value={layout} onChange={setLayout} options={layoutOptions} /> : <span />}
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }}>
-            {shareBtn}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flex: '0 0 auto' }}>
+            {shareBtn(true)}
             {howRow && <HowToRead id="nhl-goal-board" accent={C.ice} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />}
           </span>
         </div>
@@ -339,7 +339,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
             <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
               {howRow && <HowToRead id="nhl-goal-board" accent={C.ice} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />}
               {layoutSwitch}
-              {shareBtn}
+              {shareBtn()}
             </span>
           </div>
           <FiltersDrawer ledger="nhl" {...drawerProps}>{drawerSections}</FiltersDrawer>

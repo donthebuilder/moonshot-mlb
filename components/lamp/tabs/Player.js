@@ -223,7 +223,19 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
   return (
     <SportTheme theme={C} accent={C.ice}>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {onBack && <BackBtn onBack={onBack} label={backLabel} />}
+      {/* THE TOP ROW: Back on the left, his card at the right end: the flip Card and Save (the same baseball card the alerts use: his word, score and night rank,
+          his rates, season line, form and drought). A goalie has no goal board, so no card. */}
+      {(onBack || !goalie) && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: onBack ? 'space-between' : 'flex-end', gap: 8 }}>
+          {onBack ? <BackBtn onBack={onBack} label={backLabel} /> : null}
+          {!goalie && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {row && <CardFlip sport="nhl" id={String(p.id)} name={p.name} />}
+              <ShareCardButton sport="nhl" what="his card" url={playerUrl({ sport: 'nhl', id: p.id })} filename={`${slug(p.name, 'player')}_${stamp(board?.date)}.png`} />
+            </span>
+          )}
+        </div>
+      )}
       <DelayedBanner error={error} what="his file" />
       {onStep && peers.length > 1 && (
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -295,12 +307,6 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
           <section aria-label="Season line">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
               <Kicker>{goalie ? 'RECORD' : 'THE LINE'} · {f.seasonLabel}{stale ? ' (LAST SEASON)' : ''}</Kicker>
-              {/* 📸 his card as a PNG (fix15): the board's word, score and night rank, his rates, season line, form and drought. It sits on
-                  the line, not in the sticky header (no room beside Watch at 360 without wrapping his name); a goalie has no goal board, so no card. */}
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              {!goalie && row && <CardFlip sport="nhl" id={String(p.id)} name={p.name} />}
-              {!goalie && <ShareCardButton sport="nhl" what="his card" url={playerUrl({ sport: 'nhl', id: p.id })} filename={`${slug(p.name, 'player')}_${stamp(board?.date)}.png`} />}
-              </span>
             </div>
             {stale && <div style={{ marginBottom: 10 }}><StaleSeasonNote label={f.seasonLabel} opens={p.opens} what="line" /></div>}
             <StatRow noun="skaters" stats={nhlStatRow({ goalie, fr, board, row, l10: goalsIn(10)?.num ?? null, drought: /^\d+$/.test(droughtOf(p.log?.rows)) ? Number(droughtOf(p.log?.rows)) : null, seasonLabel: f.seasonLabel, stale })} />

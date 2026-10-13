@@ -246,7 +246,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
     }
   }, [data, D]) // eslint-disable-line react-hooks/exhaustive-deps
   // 📸 the top of this ranking as a picture: the right end of the view row, after TABLE | CARDS (components/card/ShareCardButton.js has the rule). One market at a time: ALL MARKETS has no single ranking.
-  const shareBtn = m !== ALL && scored.length ? <ShareCardButton sport="nba" what="this ranking" url={shareUrl({ kind: 'ranked', sport: 'nba', market: mk, date: shown || null })} filename={`rankings-${slug(mk)}_${stamp(shown)}.png`} /> : null
+  const shareBtn = (icon = false) => m !== ALL && scored.length ? <ShareCardButton icon={icon} sport="nba" what="this ranking" url={shareUrl({ kind: 'ranked', sport: 'nba', market: mk, date: shown || null })} filename={`rankings-${slug(mk)}_${stamp(shown)}.png`} /> : null
   const layoutOptions = [{ key: 'table', text: 'TABLE' }, { key: 'cards', text: 'CARDS' }]
   const pick = (k) => { setM(k); setAngle(null); writeHashParam('m', k === 'pts' ? null : k) }
   return (
@@ -256,10 +256,10 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
             market chips, each with its count), then the table. Search, team, game, the day, Called only, the angles and the
             layout are all behind Filters. */}
         {/* THE VIEW ROW (phone): TABLE | CARDS on the left (it was behind Filters, so the cards were never seen), Save and How to read on the right. */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'space-between', flexWrap: 'wrap' }}>
           {m !== ALL ? <Pills ariaLabel="Layout" value={layout} onChange={setLayout} options={layoutOptions} nowrap /> : <span />}
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }}>
-            {shareBtn}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flex: '0 0 auto' }}>
+            {shareBtn(true)}
             <HowToRead id="buckets-board" accent={C.purple} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />
           </span>
         </div>
@@ -287,7 +287,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
       <HowToRead id="buckets-board" accent={C.purple} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />
       {m !== ALL && angles.length > 0 && <AngleRow defs={angles} pool={all} value={angleDef ? angle : null} onChange={setAngle} accent={C.purple} hideEmpty />}
       {m !== ALL && angleDef && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angleDef.title}</p>}
-      {m !== ALL && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}><Pills ariaLabel="Layout" value={layout} onChange={setLayout} options={layoutOptions} />{shareBtn}</div>}
+      {m !== ALL && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}><Pills ariaLabel="Layout" value={layout} onChange={setLayout} options={layoutOptions} />{shareBtn()}</div>}
       <FiltersDrawer ledger="nba" {...drawerProps}>{drawerSections}</FiltersDrawer>
       </>)}
       {m === ALL ? <FullBoard embedded keep={(r) => (!needle || `${r.name} ${r.team} ${r.opp}`.toLowerCase().includes(needle)) && (!team || r.team === team) && (!gameF || r.gameId === gameF) && (!gameSel.length || gameSel.includes(r.gameId)) && pf.test(r)} empty={pf.active ? <PositionEmpty control={pf.control} othersActive={chips.length + drawerChips.length - 1 > 0 || heldTop > 0} onClearAll={clearAll} /> : null} date={date} setDate={setDate} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} /> : (<>

@@ -162,7 +162,7 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
           <LedgerChip sport="nfl" />
           <WatchChip sport="nfl" />
           {/* 📸 the Anytime TD ranking as a picture: in this control row so it is there without opening Filters (Touchdowns keeps it for a desktop) */}
-          {market === 'TD' && view === 'board' && slate?.games?.length ? <ShareCardButton sport="nfl" what="this ranking" style={{ marginLeft: 'auto' }} url={shareUrl({ kind: 'ranked', sport: 'nfl' })} filename={`rankings-anytime-td_${stamp((slate.games || []).map((g) => g.kickoff).filter(Boolean).sort()[0])}.png`} /> : null}
+          {market === 'TD' && view === 'board' && slate?.games?.length ? <ShareCardButton icon sport="nfl" what="this ranking" style={{ marginLeft: 'auto' }} url={shareUrl({ kind: 'ranked', sport: 'nfl' })} filename={`rankings-anytime-td_${stamp((slate.games || []).map((g) => g.kickoff).filter(Boolean).sort()[0])}.png`} /> : null}
           <div style={{ flex: '1 1 100%', minWidth: 0 }}><PillRow value={market} options={marketOptions} onChange={setMarket} /></div>
         </div>
         {opts && (
