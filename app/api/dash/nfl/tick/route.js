@@ -84,6 +84,7 @@ import { hasX, postToDiscord, postToX, uploadImageToX } from '../../../../../lib
 import { settleAlert, staleBefore, xBlocked } from '../../../../../lib/dash/xFail'
 import { logXBudget } from '../../../../../lib/dash/xBudget'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
+import { momentAfterTick } from '../../../../../lib/posts/momentTick'
 import { sendMembers } from '../../../../../lib/writeups/discordRoute'
 import { postLongshotsOnce } from '../../../../../lib/dash/longshotsPost'
 import { postMultiClubOnce } from '../../../../../lib/dash/multiClubPost'
@@ -830,7 +831,7 @@ async function runNflMembers(db, day) {
   return 'not-now'
 }
 
-export async function GET(request) {
+async function nflTick(request) {
   if (!authorized(request)) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   if (await isMaintenanceMode()) return Response.json({ skipped: 'maintenance_mode' })
   const db = service()
@@ -883,4 +884,11 @@ export async function GET(request) {
 
   const threads = threadsSnapshot()
   return Response.json({ day, snapshots, td, milestone, weekly, longshots, multiClub, lists, members, numerology, storylines, writeups, ...(threads.length ? { threads } : {}) })
+}
+
+// MOMENT POSTS (2026-10-12): the special card of a multi-touchdown game, last, after the tick's own work; off unless MOMENT_POSTS_ON (lib/posts/momentTick.js).
+export async function GET(request) {
+  const res = await nflTick(request)
+  await momentAfterTick(res, { sources: ['nfl'] })
+  return res
 }
