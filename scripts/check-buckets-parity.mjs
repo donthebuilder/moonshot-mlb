@@ -25,7 +25,7 @@ const LANES = await import('../lib/numerology/nbaTick.js')
 const SIT = await import('../lib/cards/situations.js')
 const SITD = await import('../lib/cards/situationData.js')
 const MODEL = await import('../lib/nba/model.js')
-const ADAPTER = await import('../lib/cards/adapters/nba.js')
+const ADAPTER = await import('../lib/cards/adapters/nbaParts.js')
 const SW = await import('../lib/openSwitch.js')
 
 // ── 1 + 2. the moments ──
@@ -119,7 +119,8 @@ await ok('the NBA floors ARE the model\'s own bars (no new number); the Card map
   assert.deepEqual(Object.keys(CORE.MARKETS.nba).sort(), ['3pm', 'ast', 'pra', 'pts', 'reb'])
   for (const [k, def] of Object.entries(CORE.MARKETS.nba)) assert.ok(['pts', 'reb', 'ast', '3pm', 'pra'].includes(def.lineMarket) && k === def.lineMarket)
   assert.equal(CORE.SLOTS.nba.length, 3)
-  assert.equal(CORE.CARD_WORDS.nba.brand, 'BUCKETS')
+  assert.equal(CORE.CARD_WORDS.nba, undefined, 'CARD_WORDS is how the posters ask "is this a Card sport": BUCKETS is not in it')
+  assert.equal(CORE.PREVIEW_CARD_WORDS.nba.brand, 'BUCKETS')
 })
 await ok('NBA is NOT a locking Card sport: not in CARD_SPORTS, a PREVIEW sport; the public card registry says no cards for it; the preview registry says yes', () => {
   assert.ok(!CORE.CARD_SPORTS.includes('nba'))
