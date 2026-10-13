@@ -1,10 +1,11 @@
-// A FAKE card_calls TABLE THAT HOLDS THE MIGRATIONS' RULES (supabase/migrations/202610101000_card_calls.sql + 202610101100_card_map.sql + 202610121100_card_calls_late.sql). TEST harness
+// A FAKE card_calls TABLE THAT HOLDS THE MIGRATIONS' RULES (supabase/migrations/202610101000_card_calls.sql + 202610101100_card_map.sql + 202610121100_card_calls_late.sql + 202610121200_card_calls_nman.sql;
+// `fakeDb(clock, { nman: false })` is the table BEFORE the N-man migration: an n_man row hits the old product / leg_count checks, and a lock-at-save n_man hits the old trigger). TEST harness
 // for scripts/check-two-man.mjs and scripts/check-card-map.mjs: an in-memory table with the guard trigger's rules (insert only before the start; a locked row is
 // never rewritten, regraded or deleted; Donovan's row changes only before ITS lock), `clock.now` standing for the database's now().
 import assert from 'node:assert/strict'
 
 // card_calls and card_tracked (supabase/migrations/202610111200_card_tracked.sql: the same guard rules, no lane) are two tables with the same rules.
-function makeTable(clock) {
+function makeTable(clock, { nman = true } = {}) {
   const rows = []
   let id = 0
   const guard = (op, old, nw) => {
@@ -12,6 +13,13 @@ function makeTable(clock) {
     const LATE_WINDOW = 15 * 60e3     // 202610121100_card_calls_late.sql: a late entry can be changed or withdrawn for 15 minutes after it was saved
     const lane = (op === 'insert' ? nw : (nw || old)).lane      // card_tracked rows have no lane
     if (lane !== undefined && !['bot', 'donovan', 'donovan_late'].includes(lane)) throw new Error('card_calls: violates check constraint "card_calls_lane_name_ck"')
+    if (op === 'insert' && nw.product === 'n_man') {
+      // 202610121200: the old trigger runs first (a lock-at-save n_man says "entry is closed"), then the check constraints
+      if (!nman && nw.lane === 'donovan' && now < Date.parse(nw.start_at) && now >= Date.parse(nw.locks_at)) throw new Error("card_calls: the lock for x was at y -- Donovan's entry is closed")
+      if (!nman) throw new Error('card_calls: new row violates check constraint "card_calls_product_ck"')
+      if (nw.lane === 'bot') throw new Error('card_calls: new row violates check constraint "card_calls_lane_ck"')
+      if (!(nw.leg_count >= 2 && nw.leg_count <= 6) || nw.slot !== 1 || JSON.parse(JSON.stringify(nw.legs)).length !== nw.leg_count) throw new Error('card_calls: new row violates check constraint "card_calls_shape_ck"')
+    }
     if (op === 'insert') {
       if (nw.lane === 'donovan_late') {
         if (nw.result != null || nw.leg_results != null || nw.graded_at != null) throw new Error('card_calls: a card row is inserted ungraded')
@@ -19,7 +27,7 @@ function makeTable(clock) {
       }
       if (now >= Date.parse(nw.start_at)) throw new Error('card_calls: nothing is locked at or after the start')
       // 202610121100: his Two-Man saved after the lock but before the start LOCKS AT SAVE (locks_at = now); his Double keeps the old refusal
-      if (nw.lane === 'donovan' && now >= Date.parse(nw.locks_at)) { if (nw.product === 'two_man') nw = { ...nw, locks_at: new Date(now).toISOString() }; else throw new Error("card_calls: Donovan's entry is closed") }
+      if (nw.lane === 'donovan' && now >= Date.parse(nw.locks_at)) { if (nw.product === 'two_man' || nw.product === 'n_man') nw = { ...nw, locks_at: new Date(now).toISOString() }; else throw new Error("card_calls: Donovan's entry is closed") }
       if (nw.result != null || nw.leg_results != null || nw.graded_at != null) throw new Error('card_calls: a card row is inserted ungraded')
       return { ...nw, locked_at: new Date(now).toISOString() }
     }
@@ -82,8 +90,8 @@ function makeTable(clock) {
   return { rows, table }
 }
 
-export function fakeDb(clock) {
-  const main = makeTable(clock)
+export function fakeDb(clock, opts = {}) {
+  const main = makeTable(clock, opts)
   const tracked = makeTable(clock)
   return { rows: main.rows, trackedRows: tracked.rows, from: (name) => { assert.ok(name === 'card_calls' || name === 'card_tracked', 'only the card tables are touched'); return name === 'card_tracked' ? tracked.table : main.table } }
 }

@@ -16,7 +16,7 @@ import { useSportTheme } from '../SportTheme'
 import { useLiveFetch } from '../../lib/useLiveFetch'
 import { TeamTap, GameTap } from '../EntityTap'
 import { playerHref } from '../../lib/routes'
-import { ADMIN_TWO_MAN, ADMIN_DOUBLE, CARD_WORDS, isSameGameRule, MARKETS, SAME_GAME_NOTE, rowPrice, legPriceOf, marketWords, fmtAmerican } from '../../lib/card/core'
+import { ADMIN_TWO_MAN, ADMIN_DOUBLE, adminNMan, CARD_WORDS, isSameGameRule, MARKETS, SAME_GAME_NOTE, rowPrice, legPriceOf, marketWords, fmtAmerican } from '../../lib/card/core'
 import { TYPE } from '../../lib/theme'
 
 const RES = { hit: 'HIT', miss: 'MISS', void: 'VOID', push: 'PUSH' }
@@ -52,8 +52,8 @@ export default function CardSection({ sport, mode = 'slate', Table = DenseTable,
     const prices = data?.prices || {}
     const out = []
     const sameGame = (r) => isSameGameRule(r.rule)
-    const label = { straight: (r) => `S${r.slot}`, two_man: (r) => (r.lane === 'donovan' ? 'D2' : sameGame(r) ? 'SG' : '2M'), long_shot: () => 'LS', double: (r) => (r.lane === 'donovan' ? 'DD' : 'DB') }
-    const order = (r) => (r.lane === 'bot' ? 0 : 20) + ({ straight: r.slot, two_man: 5, long_shot: 7, double: 8 }[r.product] ?? 9)
+    const label = { straight: (r) => `S${r.slot}`, two_man: (r) => (r.lane === 'donovan' ? 'D2' : sameGame(r) ? 'SG' : '2M'), n_man: (r) => `D${r.legs.length}`, long_shot: () => 'LS', double: (r) => (r.lane === 'donovan' ? 'DD' : 'DB') }
+    const order = (r) => (r.lane === 'bot' ? 0 : 20) + ({ straight: r.slot, two_man: 5, n_man: 6, long_shot: 7, double: 8 }[r.product] ?? 9)
     for (const r of data?.rows || []) {
       const legPrices = r.legs.map((l) => legPriceOf(l, prices[String(l.player_id)] || null))
       const price = rowPrice(r, legPrices)
@@ -67,10 +67,10 @@ export default function CardSection({ sport, mode = 'slate', Table = DenseTable,
   }, [data])
 
   const columns = useMemo(() => [
-    { key: 'tag', label: '#', w: 34, heat: false, group: 'CALL', fmt: (v, r) => <b title={r.product === 'double' ? (r.lane === 'donovan' ? `${ADMIN_DOUBLE}: its own lane and record` : 'The Double: two sports, both must land') : r.product === 'long_shot' ? 'The Long Shot of the day: a plus-money pick, most of these miss' : r.lane === 'donovan' ? `${ADMIN_TWO_MAN}: its own lane and record` : r.same ? 'The same-game Two-Man: both legs from one game, so they are correlated' : r.product === 'two_man' ? 'The Two-Man: both must land' : `Straight ${v}`}>{v}</b> },
+    { key: 'tag', label: '#', w: 34, heat: false, group: 'CALL', fmt: (v, r) => <b title={r.product === 'double' ? (r.lane === 'donovan' ? `${ADMIN_DOUBLE}: its own lane and record` : 'The Double: two sports, both must land') : r.product === 'long_shot' ? 'The Long Shot of the day: a plus-money pick, most of these miss' : r.product === 'n_man' ? `${adminNMan(r.legs.length)}: a hand-picked ticket, every leg must land; its own lane and record` : r.lane === 'donovan' ? `${ADMIN_TWO_MAN}: its own lane and record` : r.same ? 'The same-game Two-Man: both legs from one game, so they are correlated' : r.product === 'two_man' ? 'The Two-Man: both must land' : `Straight ${v}`}>{v}</b> },
     { key: 'legs', label: 'Player', w: 190, heat: false, sticky: true, group: 'CALL', fmt: (v, r) => (
       <span style={{ display: 'grid', gap: 3, whiteSpace: 'normal', lineHeight: 1.2 }}>
-        {r.lane === 'donovan' && <span style={{ fontSize: 10, color: accent, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>{r.product === 'double' ? ADMIN_DOUBLE.toUpperCase() : (r.legs?.[0]?.card_name || ADMIN_TWO_MAN).toUpperCase()}</span>}
+        {r.lane === 'donovan' && <span style={{ fontSize: 10, color: accent, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>{r.product === 'double' ? ADMIN_DOUBLE.toUpperCase() : (r.legs?.[0]?.card_name || (r.product === 'n_man' ? adminNMan(r.legs.length) : ADMIN_TWO_MAN)).toUpperCase()}</span>}
         {r.product === 'long_shot' && <span style={{ fontSize: 10, color: accent, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>LONG SHOT OF THE DAY</span>}
         {r.product === 'double' && r.lane === 'bot' && <span style={{ fontSize: 10, color: accent, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>THE DOUBLE</span>}
         {r.same && <span style={{ fontSize: 10, color: C.text3 }}>same game</span>}
@@ -80,7 +80,7 @@ export default function CardSection({ sport, mode = 'slate', Table = DenseTable,
       </span>) },
     { key: 'score', label: 'Score', w: 52, dp: 0, primary: true, group: 'MODEL', blankWhen: (n) => !Number.isFinite(n), title: 'The model score at the lock (a rank, not a chance). A Two-Man shows its weaker leg: both must land' },
     { key: 'price', label: 'Price', w: 84, heat: false, group: 'PRICE', fmt: (v, r) => (v
-      ? <span style={{ display: 'grid', lineHeight: 1.15 }}><b>{fmtAmerican(r.legs.every((l) => l.price) ? v.median : v.best)}</b><span style={{ fontSize: 10, color: C.text3 }}>{r.product === 'two_man' || r.product === 'double' ? 'multiplied' : r.legs[0]?.price ? 'median at lock' : 'best on file'}</span></span>
+      ? <span style={{ display: 'grid', lineHeight: 1.15 }}><b>{fmtAmerican(r.legs.every((l) => l.price) ? v.median : v.best)}</b><span style={{ fontSize: 10, color: C.text3 }}>{r.product === 'two_man' || r.product === 'double' || r.product === 'n_man' ? 'multiplied' : r.legs[0]?.price ? 'median at lock' : 'best on file'}</span></span>
       : <span style={{ color: C.text3, fontSize: 11 }}>none yet</span>), title: 'Best price on file. A Two-Man is the two legs\' prices multiplied (your book\'s parlay price will differ); blank when a leg has no price on file' },
     { key: 'stake', label: 'Stake', w: 48, heat: false, group: 'PRICE', fmt: (v) => `${v}u`, title: 'Flat stake in units' },
     { key: 'result', label: 'Result', w: 60, heat: false, group: 'RESULT', fmt: (v) => (v ? <b style={{ color: v === 'hit' ? accent : C.text2 }}>{RES[v] || v}</b> : <span style={{ color: C.text3 }}>{'—'}</span>), title: 'Graded from the box score. A Two-Man needs both legs; a player who did not play voids it' },
@@ -94,7 +94,7 @@ export default function CardSection({ sport, mode = 'slate', Table = DenseTable,
 
   if (mode === 'record') {
     const volume = Object.entries(data?.words?.volume || {}).map(([k, ws]) => [(MARKETS[sport]?.[k]?.label || k).toUpperCase(), ws])
-    const lines = [['STRAIGHTS', data?.words?.straight], ...volume, ['TWO-MAN', data?.words?.two_man], ['SAME-GAME TWO-MAN', data?.words?.two_man_same_game], [ADMIN_TWO_MAN.toUpperCase(), data?.words?.donovan], ['LONG SHOT OF THE DAY', data?.words?.long_shot], ['THE DOUBLE', data?.words?.double], [ADMIN_DOUBLE.toUpperCase(), data?.words?.donovan_double], ['TRACKED, NOT ON THE CARD · STRAIGHTS', data?.words?.tracked_straight], ['TRACKED, NOT ON THE CARD · TWO-MAN', data?.words?.tracked_two_man]].filter(([, ws]) => ws?.length)
+    const lines = [['STRAIGHTS', data?.words?.straight], ...volume, ['TWO-MAN', data?.words?.two_man], ['SAME-GAME TWO-MAN', data?.words?.two_man_same_game], [ADMIN_TWO_MAN.toUpperCase(), data?.words?.donovan], ["ADMIN'S N-MAN", data?.words?.donovan_n_man], ['LONG SHOT OF THE DAY', data?.words?.long_shot], ['THE DOUBLE', data?.words?.double], [ADMIN_DOUBLE.toUpperCase(), data?.words?.donovan_double], ['TRACKED, NOT ON THE CARD · STRAIGHTS', data?.words?.tracked_straight], ['TRACKED, NOT ON THE CARD · TWO-MAN', data?.words?.tracked_two_man]].filter(([, ws]) => ws?.length)
     if (!lines.length) return null
     return (
       <section aria-label="The card record" data-card-record={sport} style={{ margin: '4px 0 12px' }}>

@@ -8,6 +8,10 @@
 //                                           once a leg's game has started it is stored in the LATE lane (never the record, never posted, never public) and needs
 //                                           confirm_late:true (else 409 with needs_confirm). A late entry never touches an on-time one.
 //   POST { sport, date, action:'withdraw', lane?:'late' }   withdraw his open entry (on-time: only before the lock; late: inside its 15-minute typo window)
+//   HIS N-MAN (2026-10-12, "do up a 6 man with a card too"): 3 to 6 players, ALL must land, product 'n_man', the same rules as his Two-Man in every way (on time / lock at save /
+//   LATE, never over a locked entry, own post card_don_<sport>), 0.5 unit unless `units` (0.25..1) says otherwise. Each window also carries n_entry / n_late_entry; `late.n_rows` his late N-men.
+//   POST { product:'n_man', sport, date, players:[3..6 ids], note, card_name?, units?, confirm_lock?, confirm_late? }   save;   POST { product:'n_man', sport, date, action:'withdraw', lane? }
+//   Until supabase/migrations/202610121200_card_calls_nman.sql is run a save answers 409 with needs_sql and stores NOTHING; the 2-leg Two-Man is unaffected.
 //   HIS DOUBLE (optional, daily; two players from two different sports, free to show after the lock with his note):
 //   GET  ?product=double&date=YYYY-MM-DD    each sport's window + board for that day, the earlier lock, and his entry if he made one
 //   POST { product:'double', date, picks:[{sport,player_id},{sport,player_id}], note }   save (or replace, before the EARLIER of the two locks)
@@ -17,7 +21,7 @@ import { hasSupabaseConfig } from '../../../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
 import { adminClient } from '../../../../lib/supabase/admin'
 import { isAdminUser, adminDenyReason, sameOriginJson } from '../../../../lib/admin'
-import { CARD_SPORTS, CARD_VERSION, DOUBLE_SPORT, LATE_LANE, LATE_EDIT_MIN, lockAtOf, donovanRow, donovanDoubleRow, NOTE_MAX_LINES, NOTE_MAX_CHARS } from '../../../../lib/card/core'
+import { CARD_SPORTS, CARD_VERSION, DOUBLE_SPORT, LATE_LANE, LATE_EDIT_MIN, NMAN_MIN, NMAN_MAX, NMAN_UNITS, lockAtOf, donovanRow, donovanDoubleRow, NOTE_MAX_LINES, NOTE_MAX_CHARS } from '../../../../lib/card/core'
 import { loadWindows, loadCandidates, loadAnytimePrices } from '../../../../lib/card/sources'
 import { saveDonovan, withdrawDonovan, donovanEntry, lateEntries } from '../../../../lib/card/store'
 import { pickerRow, nhlSeasonOf, etWhen } from '../../../../lib/card/picker'
@@ -41,7 +45,7 @@ async function admin() {
 const boardWhy = (why, date) => (/the board file is for/.test(String(why)) ? `The model's board for ${date} is not published yet; it appears on the day. (${why})` : String(why))
 
 const slimEntry = (r) => (r ? {
-  card_date: r.card_date, sport: r.sport, locks_at: r.locks_at, start_at: r.start_at, note: r.note, card_name: r.legs?.[0]?.card_name || null, lane: r.lane, late: r.lane === LATE_LANE,
+  card_date: r.card_date, sport: r.sport, product: r.product, stake: r.stake ?? null, locks_at: r.locks_at, start_at: r.start_at, note: r.note, card_name: r.legs?.[0]?.card_name || null, lane: r.lane, late: r.lane === LATE_LANE,
   saved_at: r.locked_at || null, edit_until: r.lane === LATE_LANE && r.locked_at ? new Date(Date.parse(r.locked_at) + LATE_EDIT_MIN * 60e3).toISOString() : null,
   legs: r.legs.map((l) => ({ player_id: l.player_id, name: l.name, team: l.team, opp: l.opp, game_id: l.game_id, start_at: l.start_at, sport: l.sport || null, status: l.status || null })),
   result: r.result,
@@ -100,8 +104,10 @@ export async function GET(request) {
     // way: a pick whose game has started is LATE, a pick whose game has not is still verified and locks at save)
     open: onTime(win, now), mode: onTime(win, now) ? 'on_time' : now < win.first_start_ms ? 'lock_now' : 'live',
     entry: slimEntry(await donovanEntry(db, sport, win.card_date)), late_entry: slimEntry(await donovanEntry(db, sport, win.card_date, 'two_man', CARD_VERSION, LATE_LANE)),
+    n_entry: slimEntry(await donovanEntry(db, sport, win.card_date, 'n_man')), n_late_entry: slimEntry(await donovanEntry(db, sport, win.card_date, 'n_man', CARD_VERSION, LATE_LANE)),
   })))
   const late = await lateEntries(db, { sport })
+  const nLate = await lateEntries(db, { sport, product: 'n_man' })
   const date = q.get('date')
   let field = null
   let pricesOk = null
@@ -116,8 +122,8 @@ export async function GET(request) {
     field = c.cands.slice().sort((a, b) => b.score - a.score).slice(0, PICKER_MAX).map((x) => pickerRow(x, { sport, price: prices?.get(String(x.player_id)) || null, now, season }))
   }
   return Response.json({
-    sport, windows, field, prices_ok: pricesOk, now: new Date(now).toISOString(), note: { lines: NOTE_MAX_LINES, chars: NOTE_MAX_CHARS },
-    late: { rows: late.rows.map(slimEntry), record: { graded: late.record.graded, hits: late.record.hits, misses: late.record.misses, voids: late.record.voids, pending: late.record.pending }, edit_min: LATE_EDIT_MIN },
+    sport, windows, field, prices_ok: pricesOk, now: new Date(now).toISOString(), note: { lines: NOTE_MAX_LINES, chars: NOTE_MAX_CHARS }, n_man: { min: NMAN_MIN, max: NMAN_MAX, units: NMAN_UNITS },
+    late: { n_rows: nLate.rows.map(slimEntry), n_record: { graded: nLate.record.graded, hits: nLate.record.hits, misses: nLate.record.misses, voids: nLate.record.voids, pending: nLate.record.pending }, rows: late.rows.map(slimEntry), record: { graded: late.record.graded, hits: late.record.hits, misses: late.record.misses, voids: late.record.voids, pending: late.record.pending }, edit_min: LATE_EDIT_MIN },
   }, { headers: { 'Cache-Control': 'no-store' } })
 }
 
@@ -147,6 +153,7 @@ export async function POST(request) {
   }
   const sport = String(body.sport || '')
   const date = String(body.date || '')
+  const product = body.product === 'n_man' ? 'n_man' : 'two_man'      // 'two_man' = his Two-Man exactly as before; 'n_man' = his 3-to-6-man
   if (!CARD_SPORTS.includes(sport) || !DATE_RE.test(date)) return Response.json({ error: 'Pick a sport and a card date.' }, { status: 400 })
   const now = Date.now()
   const w = await loadWindows(sport, now, { ahead: AHEAD })
@@ -157,17 +164,18 @@ export async function POST(request) {
   if (body.action === 'withdraw') {
     // the on-time entry only before its lock (the database holds it too); a LATE entry only inside its typo window (the database holds that)
     if (body.lane !== 'late' && !onTime(win, now)) return Response.json({ error: 'The lock has passed; the entry is closed.' }, { status: 409 })
-    const r = await withdrawDonovan(db, { sport, card_date: date, lane: body.lane === 'late' ? LATE_LANE : 'donovan' })
+    const r = await withdrawDonovan(db, { sport, card_date: date, product, lane: body.lane === 'late' ? LATE_LANE : 'donovan' })
     return r.ok ? Response.json({ ok: true }) : Response.json({ error: r.error }, { status: 409 })
   }
   const c = await loadCandidates(sport, win, now, { all: true })
   if (!c.ok) return Response.json({ error: `The board could not be read: ${boardWhy(c.why, date)}` }, { status: 502 })
-  const made = donovanRow({ sport, slate_key: win.slate_key, card_date: date, field: c.cands, playerIds: body.players, note: body.note, now, lockAtMs, version: CARD_VERSION, allowLate: true, cardName: body.card_name })
+  const made = donovanRow({ sport, slate_key: win.slate_key, card_date: date, field: c.cands, playerIds: body.players, note: body.note, now, lockAtMs, version: CARD_VERSION, allowLate: true, cardName: body.card_name, product, units: product === 'n_man' ? body.units : null })
   if (!made.ok) return Response.json({ error: made.error }, { status: 400 })
   // LOCKS AT SAVE is irreversible at once, so it is saved only when he has seen that (the form says so and sends confirm_lock)
   if (made.lockAtSave && body.confirm_lock !== true) return Response.json({ error: 'The lock has passed. This entry is still before your first game, so it is VERIFIED and locks the moment you save: it cannot be changed.', lock_now: true, needs_confirm: true }, { status: 409 })
   // A LATE entry is saved only when he has seen that it is late (the form says so and sends confirm_late); it is never the verified entry
   if (made.late && body.confirm_late !== true) return Response.json({ error: `This would be saved as a LATE entry (${made.lateWhy}): it is kept apart from the record and never posted.`, late: true, needs_confirm: true }, { status: 409 })
+  // THE SAME CONFIRMATIONS for the N-man as for the Two-Man (above): nothing irreversible is saved without them
   const saved = await saveDonovan(db, made.row, { lockAtSave: made.lockAtSave })
   if (!saved.ok) return Response.json({ error: saved.error, needs_sql: saved.needsSql || undefined }, { status: 409 })
   return Response.json({ ok: true, late: made.late, lock_now: made.lockAtSave, entry: slimEntry(made.row) })

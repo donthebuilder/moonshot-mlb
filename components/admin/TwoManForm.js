@@ -6,11 +6,13 @@
 // SEE WHO YOU ARE LOOKING AT: every candidate shows his face, name, club, opponent and the game's start (ET, with the day), the market and the stored
 // price, whether the leg and the pair clear the Card's floors (information only; his lane is never blocked), OUR BOARD WORD and the model score; and the
 // two picked men are drawn as the dual card that would post (a preview that stores nothing).
+// THE N-MAN TAB (2026-10-12, "do up a 6 man with a card too"): the same picker, 3 to 6 players (no one twice), the COMBINED price (each leg's best stored price multiplied; a leg with no
+// price says "no price" and the line says "not all priced"), an optional stake in units (0.25 to 1, 0.5 by default), the same note and card name, a live preview of the N-man card.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { SPORT_ACCENT } from '../../lib/sportAccent'
-import { pairFloor } from '../../lib/card/picker'
-import { fmtAmerican } from '../../lib/card/core'
+import { pairFloor, comboOf } from '../../lib/card/picker'
+import { fmtAmerican, adminNMan, NMAN_MIN, NMAN_MAX, NMAN_UNITS } from '../../lib/card/core'
 import PlayerFace from '../PlayerFace'
 import TeamMark from '../TeamMark'
 import CallStatusBadge from '../CallStatusBadge'
@@ -62,6 +64,7 @@ export default function TwoManForm() {
   const [pick, setPick] = useState([])
   const [note, setNote] = useState('')
   const [cardName, setCardName] = useState('')
+  const [units, setUnits] = useState(String(NMAN_UNITS.def))
   const [q, setQ] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
@@ -82,20 +85,25 @@ export default function TwoManForm() {
 
   const win = useMemo(() => data?.windows?.find((w) => w.card_date === date) || null, [data, date])
   // his own entry for this slate: the verified one while it is on time, else his late one
-  const own = win ? (win.mode === 'on_time' ? win.entry : win.late_entry) : null
-  const lockedOnTime = win && win.mode !== 'on_time' && win.entry ? win.entry : null
+  const isN = kind === 'n_man'
+  const MINP = isN ? NMAN_MIN : 2
+  const MAXP = isN ? NMAN_MAX : 2
+  const entryOf = (w) => (isN ? w?.n_entry : w?.entry)
+  const lateOf = (w) => (isN ? w?.n_late_entry : w?.late_entry)
+  const own = win ? (win.mode === 'on_time' ? entryOf(win) : lateOf(win)) : null
+  const lockedOnTime = win && win.mode !== 'on_time' && entryOf(win) ? entryOf(win) : null
   const nowMs = data?.now ? Date.parse(data.now) : 0
   const frozenLate = Boolean(own?.late && own.edit_until && Date.parse(own.edit_until) <= nowMs)
 
   useEffect(() => {
     if (!date || !win) return
-    setPick(own?.legs?.map((l) => String(l.player_id)) || []); setNote(own?.note || ''); setCardName(own?.card_name || ''); setAskLate(false); setAskLock(false)
+    setPick(own?.legs?.map((l) => String(l.player_id)) || []); setNote(own?.note || ''); setCardName(own?.card_name || ''); setUnits(String(own?.stake ?? NMAN_UNITS.def)); setAskLate(false); setAskLock(false)
     let live = true
     setBusy(true); setBoard(null)
     api(`/api/admin/two-man?sport=${sport}&date=${date}`).then((r) => { if (live) { setBoard(r); setBusy(false) } })
     return () => { live = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date, sport, win?.entry?.legs?.length, win?.late_entry?.legs?.length])
+  }, [date, sport, kind, win?.entry?.legs?.length, win?.late_entry?.legs?.length, win?.n_entry?.legs?.length, win?.n_late_entry?.legs?.length])
 
   const field = board?.field || []
   const byId = useMemo(() => new Map(field.map((p) => [p.player_id, p])), [field])
@@ -104,20 +112,26 @@ export default function TwoManForm() {
     const t = q.trim().toLowerCase()
     return t ? field.filter((p) => `${p.name} ${p.team} ${p.opp}`.toLowerCase().includes(t)) : field
   }, [field, q])
-  const toggle = (id) => setPick((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : cur.length >= 2 ? [cur[1], id] : [...cur, id]))
+  // a Two-Man swaps the older of two picks for a new one (as it always did); an N-man never drops a pick behind his back: at six, the next tap says so
+  const toggle = (id) => {
+    if (isN && !pick.includes(id) && pick.length >= MAXP) { setMsg({ ok: false, text: `${MAXP} is the most. Tap one of your picks to take it off first.` }); return }
+    setMsg(null)
+    setPick((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : !isN && cur.length >= 2 ? [cur[1], id] : [...cur, id]))
+  }
   const lines = note.split(/\r?\n/).filter((l) => l.trim()).length
   const lateNow = Boolean(win && chosen.some((p) => p.started))
   const lockNow = Boolean(win && win.mode !== 'on_time' && !lateNow)
-  const pair = chosen.length === 2 ? pairFloor(chosen[0], chosen[1]) : null
+  const pair = !isN && chosen.length === 2 ? pairFloor(chosen[0], chosen[1]) : null
+  const combo = isN && chosen.length ? comboOf(chosen.map((p) => p.price)) : null
 
   // THE LIVE PREVIEW: the dual card that would post, drawn by the server from this selection (stores nothing)
   useEffect(() => {
-    if (!win || pick.length !== 2) { setPv((o) => { if (o.url) URL.revokeObjectURL(o.url); return { state: 'idle', url: null, late: false, err: null } }); return }
+    if (!win || pick.length < MINP || pick.length > MAXP) { setPv((o) => { if (o.url) URL.revokeObjectURL(o.url); return { state: 'idle', url: null, late: false, err: null } }); return }
     const ctl = new AbortController()
     const t = setTimeout(async () => {
       setPv((o) => ({ ...o, state: 'loading', err: null }))
       try {
-        const r = await fetch('/api/admin/two-man/preview', { method: 'POST', cache: 'no-store', signal: ctl.signal, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sport, date, players: pick, card_name: cardName }) })
+        const r = await fetch('/api/admin/two-man/preview', { method: 'POST', cache: 'no-store', signal: ctl.signal, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sport, date, players: pick, card_name: cardName, ...(isN ? { product: 'n_man', units } : {}) }) })
         if (!r.ok) { const j = await r.json().catch(() => ({})); setPv((o) => ({ ...o, state: 'err', err: j.error || `HTTP ${r.status}` })); return }
         const late = r.headers.get('x-entry') === 'late'
         const url = URL.createObjectURL(await r.blob())
@@ -125,12 +139,12 @@ export default function TwoManForm() {
       } catch (e) { if (e?.name !== 'AbortError') setPv((o) => ({ ...o, state: 'err', err: 'The card could not be drawn.' })) }
     }, 400)
     return () => { clearTimeout(t); ctl.abort() }
-  }, [pick, sport, date, win, cardName])
+  }, [pick, sport, date, win, cardName, isN, units])
   useEffect(() => () => { setPv((o) => { if (o.url) URL.revokeObjectURL(o.url); return o }) }, [])
 
   const save = async () => {
     setBusy(true); setMsg(null)
-    const r = await api('/api/admin/two-man', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sport, date, players: pick, note, card_name: cardName, confirm_late: lateNow || askLate, confirm_lock: lockNow || askLock }) })
+    const r = await api('/api/admin/two-man', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sport, date, players: pick, note, card_name: cardName, confirm_late: lateNow || askLate, confirm_lock: lockNow || askLock, ...(isN ? { product: 'n_man', units } : {}) }) })
     setBusy(false)
     if (r.ok) {
       setAskLate(false); setAskLock(false)
@@ -140,27 +154,33 @@ export default function TwoManForm() {
   }
   const withdraw = async (lane) => {
     setBusy(true); setMsg(null)
-    const r = await api('/api/admin/two-man', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sport, date, action: 'withdraw', ...(lane === 'late' ? { lane: 'late' } : {}) }) })
+    const r = await api('/api/admin/two-man', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sport, date, action: 'withdraw', ...(isN ? { product: 'n_man' } : {}), ...(lane === 'late' ? { lane: 'late' } : {}) }) })
     setBusy(false)
     if (r.ok) { setMsg({ ok: true, text: 'Withdrawn.' }); setPick([]); setNote(''); loadWindows(sport, date) } else setMsg({ ok: false, text: r.error })
   }
 
   const tabs = (
     <div role="tablist" aria-label="Product" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-      <button type="button" role="tab" aria-selected={kind === 'two_man'} onClick={() => setKind('two_man')} style={btn(kind === 'two_man')}>Two-Man</button>
+      <button type="button" role="tab" aria-selected={kind === 'two_man'} onClick={() => { setKind('two_man'); setMsg(null) }} style={btn(kind === 'two_man')}>Two-Man</button>
+      <button type="button" role="tab" aria-selected={kind === 'n_man'} onClick={() => { setKind('n_man'); setMsg(null) }} style={btn(kind === 'n_man')}>3 to 6-Man</button>
       <button type="button" role="tab" aria-selected={kind === 'double'} onClick={() => setKind('double')} style={btn(kind === 'double')}>Double</button>
     </div>
   )
   if (kind === 'double') return <div style={{ color: C.text }}>{tabs}<DoubleForm /></div>
 
   const accent = SPORT_ACCENT[sport]
-  const canSave = !busy && pick.length === 2 && lines > 0 && lines <= (data?.note?.lines || 3) && !frozenLate
+  const lateRows = (isN ? data?.late?.n_rows : data?.late?.rows) || []
+  const lateRec = (isN ? data?.late?.n_record : data?.late?.record) || { graded: 0, hits: 0 }
+  const unitsOk = !isN || (Number.isFinite(Number(units)) && Number(units) >= NMAN_UNITS.min && Number(units) <= NMAN_UNITS.max)
+  const canSave = !busy && pick.length >= MINP && pick.length <= MAXP && unitsOk && lines > 0 && lines <= (data?.note?.lines || 3) && !frozenLate
   return (
     <div style={{ color: C.text }}>
       {tabs}
       <p style={{ margin: '0 0 12px', fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
-        Your two players and a note of one to three lines. This is always open. Saved before a game starts it is <b>Admin&apos;s Two-Man</b> (verified, in its own record; after the card&apos;s lock it locks the moment you save).
-        Saved after a game has started it is <span style={LATE_TAG}>LATE</span>: kept out of the record, never posted.
+        {isN
+          ? <>Three to six players, <b>every one must land</b>, and a note of one to three lines. This is always open. Saved before a game starts it is <b>{adminNMan(Math.max(pick.length, NMAN_MIN))}</b> (verified, in its own record; after the card&apos;s lock it locks the moment you save).</>
+          : <>Your two players and a note of one to three lines. This is always open. Saved before a game starts it is <b>Admin&apos;s Two-Man</b> (verified, in its own record; after the card&apos;s lock it locks the moment you save).</>}
+        {' '}Saved after a game has started it is <span style={LATE_TAG}>LATE</span>: kept out of the record, never posted.
       </p>
       <div role="tablist" aria-label="Sport" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
         {SPORTS.map(([k, label]) => <button key={k} type="button" role="tab" aria-selected={sport === k} onClick={() => setSport(k)} style={btn(sport === k)}>{label}</button>)}
@@ -172,7 +192,7 @@ export default function TwoManForm() {
           {data.windows.map((w) => (
             <button key={w.card_date} type="button" role="tab" aria-selected={date === w.card_date} onClick={() => { setDate(w.card_date); setMsg(null) }} style={{ ...btn(date === w.card_date), display: 'grid', justifyItems: 'start', alignContent: 'center', lineHeight: 1.15, padding: '4px 12px' }}>
               <span>{w.label}</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: w.mode === 'live' ? C.yellow : C.text3 }}>{w.mode === 'live' ? 'games under way' : w.mode === 'lock_now' ? 'locks when saved' : 'on time'}{w.entry ? ' · entered' : w.late_entry ? ' · late entry' : ''}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: w.mode === 'live' ? C.yellow : C.text3 }}>{w.mode === 'live' ? 'games under way' : w.mode === 'lock_now' ? 'locks when saved' : 'on time'}{entryOf(w) ? ' · entered' : lateOf(w) ? ' · late entry' : ''}</span>
             </button>
           ))}
         </div>
@@ -236,16 +256,24 @@ export default function TwoManForm() {
 
           {chosen.length > 0 && (
             <div style={{ marginTop: 12, border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 12px', display: 'grid', gap: 8 }}>
-              <b style={{ fontSize: 13 }}>Your pick</b>
+              <b style={{ fontSize: 13 }}>{isN ? `Your picks (${chosen.length} of ${MINP} to ${MAXP})` : 'Your pick'}</b>
               {chosen.map((p) => (
-                <div key={p.player_id} style={{ display: 'grid', gridTemplateColumns: '40px minmax(0,1fr)', gap: 10, alignItems: 'center' }}>
+                <div key={p.player_id} style={{ display: 'grid', gridTemplateColumns: isN ? '40px minmax(0,1fr) 44px' : '40px minmax(0,1fr)', gap: 10, alignItems: 'center' }}>
                   <Face sport={sport} f={p.face} name={p.name} team={p.team} />
                   <span style={{ display: 'grid', gap: 2, minWidth: 0, fontSize: 12, color: C.text2 }}>
                     <b style={{ fontSize: 14, color: C.text }}>{p.name} <span style={{ fontWeight: 400, color: C.text3 }}>{p.team} vs {p.opp} · {p.when}</span></b>
                     <PriceLine p={p} />
                   </span>
+                  {isN && <button type="button" aria-label={`Take ${p.name} off`} onClick={() => toggle(p.player_id)} style={{ minWidth: 44, minHeight: 44, borderRadius: 10, border: `1px solid ${C.border2}`, background: 'transparent', color: C.text, fontWeight: 800, fontSize: 18, cursor: 'pointer' }}>×</button>}
                 </div>
               ))}
+              {combo && (
+                <div role="status" data-combined style={{ fontSize: 13, lineHeight: 1.45, color: C.text }}>
+                  <b>Combined: {combo.all ? fmtAmerican(combo.best) : 'not all priced'}</b>
+                  <span style={{ color: C.text2 }}>{combo.all ? ' (each leg\'s best stored price, multiplied; your book\'s parlay price will differ).' : ` (${combo.priced} of ${combo.n} legs have a stored price; the legs with no price are shown as no price).`}</span>
+                  {' '}<span style={{ color: C.text3 }}>For your information only: your lane is never held to the floors.</span>
+                </div>
+              )}
               {pair && (
                 <div style={{ fontSize: 12, lineHeight: 1.45, color: C.text2 }}>
                   {pair.code === 'no_price'
@@ -254,11 +282,11 @@ export default function TwoManForm() {
                   {' '}For your information only: your lane is never held to the floors.
                 </div>
               )}
-              {chosen.length === 2 && (
+              {chosen.length >= MINP && chosen.length <= MAXP && (
                 <div style={{ display: 'grid', justifyItems: 'center', gap: 6 }}>
                   <div style={{ fontSize: 12, color: C.text3 }}>The card that posts{pv.late || lateNow ? ' (this one is LATE and will not post)' : lockNow ? ' (verified, locks when saved)' : ' at the lock'}</div>
                   <div style={{ width: '100%', maxWidth: 360, aspectRatio: '4 / 5', borderRadius: 10, overflow: 'hidden', background: C.bg3, display: 'grid', placeItems: 'center' }}>
-                    {pv.url && <img src={pv.url} alt={`The Two-Man card: ${chosen.map((p) => p.name).join(' and ')}`} style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: pv.state === 'loading' ? 0.5 : 1 }} />}
+                    {pv.url && <img src={pv.url} alt={`${isN ? `The ${chosen.length}-man card` : 'The Two-Man card'}: ${chosen.map((p) => p.name).join(', ')}`} style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: pv.state === 'loading' ? 0.5 : 1 }} />}
                     {!pv.url && pv.state !== 'err' && <span style={{ fontSize: 12, color: C.text3 }}>Drawing the card…</span>}
                     {pv.state === 'err' && <span style={{ fontSize: 12, color: C.text2, padding: 12, textAlign: 'center' }}>{pv.err}</span>}
                   </div>
@@ -267,10 +295,17 @@ export default function TwoManForm() {
             </div>
           )}
 
-          <label style={{ display: 'block', fontSize: 12, color: C.text3, margin: '12px 0 4px' }} htmlFor="tm-name">Card name (optional; blank = ADMIN&apos;S TWO-MAN)</label>
-          <input id="tm-name" value={cardName} onChange={(e) => setCardName(e.target.value.replace(/[@#]/g, ''))} maxLength={28} placeholder="Admin's Two-Man" autoComplete="off"
+          <label style={{ display: 'block', fontSize: 12, color: C.text3, margin: '12px 0 4px' }} htmlFor="tm-name">Card name (optional; blank = {isN ? adminNMan(Math.max(pick.length, NMAN_MIN)) : "ADMIN'S TWO-MAN"})</label>
+          <input id="tm-name" value={cardName} onChange={(e) => setCardName(e.target.value.replace(/[@#]/g, ''))} maxLength={28} placeholder={isN ? adminNMan(Math.max(pick.length, NMAN_MIN)) : "Admin's Two-Man"} autoComplete="off"
             style={{ width: '100%', boxSizing: 'border-box', minHeight: 44, padding: '0 12px', borderRadius: 10, border: `1px solid ${C.border2}`, background: 'transparent', color: C.text, fontSize: 16 }} />
           <div style={{ fontSize: 12, color: C.text3, margin: '2px 0 0' }}>{cardName.length} of 28 · letters, numbers, spaces and basic punctuation; shows on the card, the Discord post and the X text</div>
+          {isN && (
+            <>
+              <label style={{ display: 'block', fontSize: 12, color: C.text3, margin: '12px 0 4px' }} htmlFor="tm-units">Stake in units ({NMAN_UNITS.min} to {NMAN_UNITS.max}; {NMAN_UNITS.def} like the Two-Man)</label>
+              <input id="tm-units" type="number" inputMode="decimal" min={NMAN_UNITS.min} max={NMAN_UNITS.max} step={NMAN_UNITS.step} value={units} onChange={(e) => setUnits(e.target.value)}
+                style={{ width: 120, boxSizing: 'border-box', minHeight: 44, padding: '0 12px', borderRadius: 10, border: `1px solid ${unitsOk ? C.border2 : C.red}`, background: 'transparent', color: C.text, fontSize: 16 }} />
+            </>
+          )}
           <label style={{ display: 'block', fontSize: 12, color: C.text3, margin: '12px 0 4px' }} htmlFor="tm-note">Your note (1 to 3 lines; no links, no hashtags)</label>
           <textarea id="tm-note" value={note} onChange={(e) => setNote(e.target.value)} rows={3} maxLength={data?.note?.chars || 420}
             style={{ width: '100%', boxSizing: 'border-box', padding: 10, borderRadius: 10, border: `1px solid ${C.border2}`, background: 'transparent', color: C.text, fontSize: 16, lineHeight: 1.4, resize: 'vertical' }} />
@@ -288,27 +323,27 @@ export default function TwoManForm() {
           )}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <button type="button" disabled={!canSave} onClick={save} style={{ ...btn(true), opacity: canSave ? 1 : 0.5 }}>
-              {lateNow || askLate ? 'Save as LATE' : lockNow || askLock ? 'Save and lock now' : own && !own.late ? 'Replace my Two-Man' : 'Save my Two-Man'}
+              {lateNow || askLate ? 'Save as LATE' : lockNow || askLock ? 'Save and lock now' : own && !own.late ? (isN ? `Replace my ${pick.length}-Man` : 'Replace my Two-Man') : (isN ? `Save my ${Math.max(pick.length, NMAN_MIN)}-Man` : 'Save my Two-Man')}
             </button>
-            {win.mode === 'on_time' && win.entry && <button type="button" disabled={busy} onClick={() => withdraw('on_time')} style={btn(false)}>Withdraw</button>}
+            {win.mode === 'on_time' && entryOf(win) && <button type="button" disabled={busy} onClick={() => withdraw('on_time')} style={btn(false)}>Withdraw</button>}
             {own?.late && !frozenLate && <button type="button" disabled={busy} onClick={() => withdraw('late')} style={btn(false)}>Withdraw late entry</button>}
-            <span style={{ fontSize: 12, color: C.text3 }}>{pick.length} of 2 picked</span>
+            <span style={{ fontSize: 12, color: C.text3 }}>{pick.length} of {isN ? `${MINP} to ${MAXP}` : 2} picked</span>
           </div>
         </>
       )}
       {msg && <p role="status" style={{ marginTop: 10, fontSize: 13, color: msg.ok ? C.green : C.red }}>{msg.text}</p>}
 
-      {data?.ok && data.late?.rows?.length > 0 && (
+      {data?.ok && lateRows.length > 0 && (
         <section aria-label="Late entries" style={{ marginTop: 22 }}>
-          <h2 style={{ margin: '0 0 6px', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}><span style={LATE_TAG}>LATE</span> entries, for your reference</h2>
+          <h2 style={{ margin: '0 0 6px', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}><span style={LATE_TAG}>LATE</span> {isN ? 'N-man ' : ''}entries, for your reference</h2>
           <p style={{ margin: '0 0 8px', fontSize: 12, lineHeight: 1.45, color: C.text3 }}>
-            Not part of the record, the ledger or any post. {data.late.record.graded ? `${data.late.record.hits} of ${data.late.record.graded} landed both legs.` : 'None graded yet.'}
+            Not part of the record, the ledger or any post. {lateRec.graded ? `${lateRec.hits} of ${lateRec.graded} landed ${isN ? 'every leg' : 'both legs'}.` : 'None graded yet.'}
           </p>
           <div style={{ overflowX: 'auto', border: `1px solid ${C.border}`, borderRadius: 10 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead><tr style={{ textAlign: 'left', color: C.text3 }}><th style={{ padding: '8px 10px' }}>Date</th><th style={{ padding: '8px 6px' }}>Sport</th><th style={{ padding: '8px 6px' }}>Pair</th><th style={{ padding: '8px 10px' }}>Result</th></tr></thead>
               <tbody>
-                {data.late.rows.map((r) => (
+                {lateRows.map((r) => (
                   <tr key={`${r.sport}-${r.card_date}`} style={{ borderTop: `1px solid ${C.border}` }}>
                     <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{String(r.card_date).slice(5, 10)}</td>
                     <td style={{ padding: '8px 6px', textTransform: 'uppercase' }}>{r.sport}</td>

@@ -1,4 +1,5 @@
 // POST /api/admin/two-man/preview   { sport, date, players:[id,id] }   -> the Two-Man DUAL CARD (PNG) drawn from the form's current selection. ADMIN ONLY.
+// POST ... { product:'n_man', sport, date, players:[3 to 6 ids], card_name?, units? }   -> HIS N-MAN CARD (lib/cards/nManCard.js), shaped by the same donovanRow, stored nowhere.
 // "So he sees exactly what posts" (Donovan, 2026-10-12). It shapes the row with lib/card/core.js donovanRow (the same function the save uses), draws it with
 // the same renderer the post uses (lib/cards/dualData.js dualOfRow + dualCard.js renderDual), and STORES NOTHING: no card_calls write, no post, no cache.
 // A late selection (a game has started, or the lock has passed) is drawn plainly labelled "LATE" and carries no serial, because that is what it is.
@@ -35,7 +36,8 @@ export async function POST(request) {
   const date = String(body.date || '')
   if (!CARD_SPORTS.includes(sport) || !DATE_RE.test(date)) return json({ error: 'Pick a sport and a card date.' }, 400)
   const ids = Array.isArray(body.players) ? body.players.map((v) => String(v == null ? '' : v)) : []
-  if (ids.length !== 2) return json({ error: 'Pick two players to see the card.' }, 400)
+  const nman = body.product === 'n_man'
+  if (!nman && ids.length !== 2) return json({ error: 'Pick two players to see the card.' }, 400)
   const db = adminClient()
   if (!db) return json({ error: 'no database' }, 500)
   const now = Date.now()
@@ -45,9 +47,17 @@ export async function POST(request) {
   if (!win) return json({ error: `No ${sport} games on ${date}.` }, 404)
   const c = await loadCandidates(sport, win, now, { all: true })
   if (!c.ok) return json({ error: `The board could not be read: ${c.why}` }, 502)
-  const made = donovanRow({ sport, slate_key: win.slate_key, card_date: date, field: c.cands, playerIds: ids, note: PREVIEW_NOTE, cardName: body.card_name, now, lockAtMs: lockAtOf(win.first_start_ms), version: CARD_VERSION, allowLate: true })
+  const made = donovanRow({ sport, slate_key: win.slate_key, card_date: date, field: c.cands, playerIds: ids, note: PREVIEW_NOTE, cardName: body.card_name, now, lockAtMs: lockAtOf(win.first_start_ms), version: CARD_VERSION, allowLate: true, product: nman ? 'n_man' : 'two_man', units: nman ? body.units : null })
   if (!made.ok) return json({ error: made.error }, 400)
   try {
+    if (nman) {
+      const { nManOfRow, previewNManSerial } = await import('../../../../../lib/cards/nManData')
+      const { renderNMan } = await import('../../../../../lib/cards/nManCard')
+      const serial = made.late ? null : await previewNManSerial(db, { sport, cardDate: date, locksAt: made.row.locks_at })
+      const card = await nManOfRow({ sport, row: made.row, db, serial, label: made.late ? 'late' : null })
+      const png = await renderNMan(card, { width: 540 })
+      return new Response(png, { status: 200, headers: { 'Content-Type': 'image/png', 'Cache-Control': 'no-store', 'X-Entry': made.late ? 'late' : 'on-time' } })
+    }
     const { dualOfRow, previewSerial } = await import('../../../../../lib/cards/dualData')
     const { renderDual } = await import('../../../../../lib/cards/dualCard')
     const serial = made.late ? null : await previewSerial(db, { sport, cardDate: date, locksAt: made.row.locks_at })
