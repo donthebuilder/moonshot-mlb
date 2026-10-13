@@ -255,5 +255,18 @@ await t('rule ids moved on (v3 / v2) without touching the model_version; a same-
   assert.equal(CARD_RULE.straight, 'straight-slots-v3-floors'); assert.equal(isSameGameRule('two-man-same-game-v1'), true); assert.equal(isSameGameRule('two-man-same-game-v2'), true); assert.equal(isSameGameRule(CARD_RULE.two_man), false)
 })
 
+await t('football anytime TD: a straight comes from the top 30 of the board (2026-10-13); the flat +120 floor stays; other sports have no cap', () => {
+  // TEST DATA: 40 invented players, scores 100..61; 'deep' is board rank 36, 'top' is rank 2
+  const board = Array.from({ length: 40 }, (_, i) => 100 - i)
+  const mk = (id, g, score) => ({ player_id: id, game_id: g, score, status: 'called', start_ms: NOW + 1e6, price: { median: 300 } })
+  const run = (sport, cands) => planStraights({ sport, n: 1, now: NOW, byMarket: { anytime: { cands, board } } })
+  assert.deepEqual(run('nfl', [mk('deep', 'g1', 65)]).picks, [])
+  assert.match(run('nfl', [mk('deep', 'g1', 65)]).skipped[0].reason, /board-rank cap/)
+  assert.equal(run('nfl', [mk('deep', 'g1', 65), mk('top', 'g2', 99)]).picks[0].cand.player_id, 'top')
+  assert.equal(run('nhl', [mk('deep', 'g1', 65)]).picks[0].cand.player_id, 'deep', 'no cap outside football')
+  assert.equal(straightVerdict('nfl', 'anytime', { ...mk('x', 'g', 80), board_rank: 30 }).ok, true)
+  assert.equal(straightVerdict('nfl', 'anytime', { ...mk('x', 'g', 80), board_rank: 31 }).code, 'rank')
+})
+
 console.log(failed ? `\n${failed} FAILED` : '\nall ok')
 process.exit(failed ? 1 : 0)
