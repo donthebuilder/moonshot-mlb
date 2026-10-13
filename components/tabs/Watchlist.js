@@ -16,7 +16,8 @@ import DenseTable from '../DenseTable'
 import { boardRow, boardRowContext, withBoardColumns } from '../../lib/boardColumns'
 import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import PlayerCard from '../PlayerCard'
-import { downloadCard, shareUrl, stamp } from '../../lib/cards/saveCard'
+import ShareCardButton from '../card/ShareCardButton'
+import { shareUrl, stamp } from '../../lib/cards/saveCard'
 import WatchlistAlignLedger from '../WatchlistAlignLedger'
 import WatchRecord from '../watch/WatchRecord'
 import { oddsHistoryPaths } from '../../lib/dataSource'
@@ -511,19 +512,8 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
             >
               {copied === 'ok' ? (partCount > 1 ? `✓ Copied ${part === 0 ? partCount : part}/${partCount}` : '✓ Copied') : copied === 'fail' ? 'Copy failed' : partCount > 1 ? `📋 Copy ${part + 1}/${partCount}` : '📋 Copy List'}
             </button>
-            <button
-              onClick={() => downloadCard(shareUrl({ kind: 'ranked', sport: 'mlb', ids: items.map((p) => mlbId(p)).filter(Boolean).slice(0, 40).join(',') }), `watchlist_${stamp('')}.png`)}
-              title="Download the list as a baseball card for posting — the hitters on tonight's board, in board order"
-              style={{
-                fontSize: 11, fontWeight: 700, padding: '7px 11px', borderRadius: 8,
-                border: `1px solid ${C.border2}`,
-                background: 'rgba(249,115,22,.10)',
-                color: C.orange,
-                cursor: 'pointer', whiteSpace: 'nowrap',
-              }}
-            >
-              📸 Share Card
-            </button>
+            {/* 📸 the list as a baseball card: the hitters on tonight's board, in board order */}
+            <ShareCardButton sport="mlb" what="this watchlist" url={shareUrl({ kind: 'ranked', sport: 'mlb', ids: items.map((p) => mlbId(p)).filter(Boolean).slice(0, 40).join(',') })} filename={`watchlist_${stamp('')}.png`} />
             <button
               onClick={() => downloadTxt(items)}
               style={{

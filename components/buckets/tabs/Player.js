@@ -10,8 +10,8 @@ import HisNumbers from '../../HisNumbers'
 import InTheLedger from '../../ledger/InTheLedger'
 import PlayerNotes from '../../PlayerNotes'
 import FollowButton from '../../FollowButton'
-import CardButton from '../../CardButton'
-import { downloadCard, shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
+import ShareCardButton from '../../card/ShareCardButton'
+import { shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
 import StarMemory from '../../watch/StarMemory'
 import CallStatusBadge from '../../CallStatusBadge'
 import TeamMark from '../../TeamMark'
@@ -259,7 +259,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
                 <Kicker>THE LINE · PER GAME</Kicker>
                 {/* 📸 his card as a PNG (fix15): the board's word, score and night rank, PTS / REB / AST a game, projected points, his last five.
                     On the line, not in the sticky header (no room beside Watch at 360 without wrapping his name). */}
-                <CardButton sport="nba" label="Download his card as an image" onDownload={() => downloadCard(shareUrl({ kind: 'pick', sport: 'nba', id: card.id, market: 'pts', date: board?.date || null }), `${slug(card.name, 'player')}_${stamp(board?.date)}.png`)} />
+                <ShareCardButton sport="nba" what="his card" url={shareUrl({ kind: 'pick', sport: 'nba', id: card.id, market: 'pts', date: board?.date || null })} filename={`${slug(card.name, 'player')}_${stamp(board?.date)}.png`} />
               </div>
               {stale && <p style={{ margin: '0 0 8px', fontSize: 12, color: C.text3, lineHeight: 1.5 }}>The new season has no regular-season games yet, so this is last season’s line ({seasonWord}).</p>}
               {lineRows.length > 0

@@ -41,7 +41,8 @@ import GameSwitcher from '../GameSwitcher'
 import { panelPairs, panelSubs, gameSections } from '../../lib/game/sections'
 import { ViewPills, GameFilterRail, BASE_GAME_FILTERS, StripFold, GamePanelPills, PrevNextGame } from '../slate/SlateParts'
 import { statLineFor, useSlateScale, toneFor, toneTitle } from '../../lib/statline'
-import { downloadCard, shareUrl, slug, stamp, gameDay } from '../../lib/cards/saveCard'
+import ShareCardButton from '../card/ShareCardButton'
+import { shareUrl, slug, stamp, gameDay } from '../../lib/cards/saveCard'
 import ProjectedOutput from '../ProjectedOutput'
 import TeamMark, { MatchLogos } from '../TeamMark'
 import PostseasonRow from '../slate/PostseasonRow'
@@ -1453,17 +1454,8 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                           {!isActive && temp > 0 && <span title="Game-time temperature" style={{ color: temp >= 82 ? C.orange : C.text3 }}>{Math.round(temp)}°</span>}
                           {!isActive && wind > 0 && <span title={`Wind: ${wLbl || 'direction n/a'}`} style={{ color: /out/i.test(wLbl) ? C.orange : C.text3 }}>{/out/i.test(wLbl) ? '↗' : /in\b/i.test(wLbl) ? '↙' : '→'}{Math.round(wind)}</span>}
                           {!isActive && parkF > 0 && <span title="Park HR factor — above 1.00 the yard helps hitters" style={{ color: parkF >= 1.03 ? C.orange : C.text3 }}>×{parkF.toFixed(2)}</span>}
-                          {/* 📸 SHARE (2026-08-23) — this matchup's picks as a
-                              PNG, zero backend. stopPropagation so it doesn't
-                              also toggle the card open/closed. */}
-                          <button onClick={(e) => { e.stopPropagation(); downloadCard(shareUrl({ kind: 'game', sport: 'mlb', game: g.game_pk }), `game-${slug(g.away)}-${slug(g.home)}_${stamp(gameDay(g.game_time))}.png`) }}
-                            title="Download this game's picks as a baseball card for posting"
-                            aria-label="Download game card as image"
-                            style={{
-                              background: 'transparent', border: `1px solid ${C.border}`, color: C.text2,
-                              borderRadius: 6, padding: '4px 9px', fontSize: 11, lineHeight: 1.4,
-                              cursor: 'pointer',
-                            }}>📸</button>
+                          {/* 📸 this matchup's picks as a baseball card: the right end of the game's title row, before the open / close mark (the button never toggles the row) */}
+                          <ShareCardButton icon sport="mlb" what="this game" url={shareUrl({ kind: 'game', sport: 'mlb', game: g.game_pk })} filename={`game-${slug(g.away)}-${slug(g.home)}_${stamp(gameDay(g.game_time))}.png`} />
                           <span style={{ color: isActive ? C.orange : C.text3, fontWeight: 800 }}>{isActive ? '▾' : '▸'}</span>
                         </span>
                       </div>

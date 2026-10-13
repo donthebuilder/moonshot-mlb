@@ -200,3 +200,9 @@ button {
   .slate-tight .chip-row { margin-bottom: 6px !important; }
   .slate-tight button.tap-row { padding: 5px 12px !important; border-radius: 8px !important; }
 }
+
+/* THE SHARE-CARD BUTTON (components/card/ShareCardButton.js, 2026-10-12): 44 px tall everywhere, 34 px only on a desktop with a mouse;
+   under 361 px the word is dropped and the camera stays a 44 x 44 target. */
+.share-card-btn { min-height: 44px; }
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) { .share-card-btn { min-height: 34px; } }
+@media (max-width: 360px) { .share-card-btn { width: 44px !important; } .share-card-btn .share-card-word { display: none; } }

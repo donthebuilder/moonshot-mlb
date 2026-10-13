@@ -21,8 +21,8 @@ import FiltersDrawer, { DrawerSection, drawerChip } from '../../FiltersDrawer'
 import RangeDual from '../../RangeDual'
 import { bucketsAngles } from '../../../lib/nba/angles'
 import { BucketsCards } from '../BucketsCard'
-import CardButton from '../../CardButton'
-import { downloadCard, shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
+import ShareCardButton from '../../card/ShareCardButton'
+import { shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager, Why, fmtDay, fmtTip, writeHashParam, readHashParam } from '../ui'
 import { STATUS_WORD } from '../../../lib/callStatus'
 import { useRankMove } from '../../../lib/useRankMove'
@@ -245,9 +245,9 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
       fifth: { label: 'Game', value: GAME_FOR(g, top) },
     }
   }, [data, D]) // eslint-disable-line react-hooks/exhaustive-deps
-  // 📸 the top of this ranking as a PNG (fix15): in the Filters row beside Ledger and Watchlist on a desktop, beside How to read on a phone (that row has no room left; one market at a time; ALL MARKETS has no single ranking)
-  const shareBtn = m !== ALL && scored.length ? <CardButton sport="nba" label="Download this ranking as an image"
-    onDownload={() => downloadCard(shareUrl({ kind: 'ranked', sport: 'nba', market: mk, date: shown || null }), `rankings-${slug(mk)}_${stamp(shown)}.png`)} /> : null
+  // 📸 the top of this ranking as a picture: the right end of the view row, after TABLE | CARDS (components/card/ShareCardButton.js has the rule). One market at a time: ALL MARKETS has no single ranking.
+  const shareBtn = m !== ALL && scored.length ? <ShareCardButton sport="nba" what="this ranking" url={shareUrl({ kind: 'ranked', sport: 'nba', market: mk, date: shown || null })} filename={`rankings-${slug(mk)}_${stamp(shown)}.png`} /> : null
+  const layoutOptions = [{ key: 'table', text: 'TABLE' }, { key: 'cards', text: 'CARDS' }]
   const pick = (k) => { setM(k); setAngle(null); writeHashParam('m', k === 'pts' ? null : k) }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -255,9 +255,10 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
         {/* PHONE (2026-10-08): TUDDY's Rankings anatomy -- one line, one control row (Filters / Ledger / Watchlist / the
             market chips, each with its count), then the table. Search, team, game, the day, Called only, the angles and the
             layout are all behind Filters. */}
+        {/* THE VIEW ROW (phone): TABLE | CARDS on the left (it was behind Filters, so the cards were never seen), Save and How to read on the right. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
-          <div style={{ minWidth: 0, fontSize: 13, lineHeight: 1.3, color: C.text2 }}>Every player tonight, #1 down. Tap a header to sort.</div>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flex: '0 0 auto' }}>
+          {m !== ALL ? <Pills ariaLabel="Layout" value={layout} onChange={setLayout} options={layoutOptions} nowrap /> : <span />}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }}>
             {shareBtn}
             <HowToRead id="buckets-board" accent={C.purple} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />
           </span>
@@ -271,7 +272,6 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
             </DayPager>
             {m !== ALL && angles.length > 0 && <AngleRow defs={angles} pool={all} value={angleDef ? angle : null} onChange={setAngle} accent={C.purple} hideEmpty />}
             {m !== ALL && angleDef && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angleDef.title}</p>}
-            {m !== ALL && <Pills ariaLabel="Layout" value={layout} onChange={setLayout} options={[{ key: 'table', text: 'TABLE' }, { key: 'cards', text: 'CARDS' }]} />}
           </div>)}>
           {drawerSections}
         </FiltersDrawer>
@@ -287,8 +287,8 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
       <HowToRead id="buckets-board" accent={C.purple} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />
       {m !== ALL && angles.length > 0 && <AngleRow defs={angles} pool={all} value={angleDef ? angle : null} onChange={setAngle} accent={C.purple} hideEmpty />}
       {m !== ALL && angleDef && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angleDef.title}</p>}
-      {m !== ALL && <Pills ariaLabel="Layout" value={layout} onChange={setLayout} options={[{ key: 'table', text: 'TABLE' }, { key: 'cards', text: 'CARDS' }]} />}
-      <FiltersDrawer ledger="nba" share={shareBtn} {...drawerProps}>{drawerSections}</FiltersDrawer>
+      {m !== ALL && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}><Pills ariaLabel="Layout" value={layout} onChange={setLayout} options={layoutOptions} />{shareBtn}</div>}
+      <FiltersDrawer ledger="nba" {...drawerProps}>{drawerSections}</FiltersDrawer>
       </>)}
       {m === ALL ? <FullBoard embedded keep={(r) => (!needle || `${r.name} ${r.team} ${r.opp}`.toLowerCase().includes(needle)) && (!team || r.team === team) && (!gameF || r.gameId === gameF) && (!gameSel.length || gameSel.includes(r.gameId)) && pf.test(r)} empty={pf.active ? <PositionEmpty control={pf.control} othersActive={chips.length + drawerChips.length - 1 > 0 || heldTop > 0} onClearAll={clearAll} /> : null} date={date} setDate={setDate} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} /> : (<>
       <DelayedBanner error={error} what="the board" />

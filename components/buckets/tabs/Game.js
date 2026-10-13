@@ -4,6 +4,8 @@ import dynamic from 'next/dynamic'
 import PageHeader from '../../PageHeader'
 import TeamMark from '../../TeamMark'
 import Tap from '../../Tap'
+import ShareCardButton from '../../card/ShareCardButton'
+import { shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsGame, useBucketsBoard, useBucketsTeamModel } from '../../../lib/nba/useBuckets'
 import { NBA_MARKETS } from '../../../lib/nba/model'
@@ -50,6 +52,7 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
     header: () => (
       <>
         <PageHeader eyebrow={`BUCKETS · GAME · ${fmtDay(gameDay(data.date)).toUpperCase()}`} title={`${away.name} at ${home.name}`} theme={C} numFont={NUM_FONT} accent={C.purple} showToday={false}
+          right={<ShareCardButton sport="nba" what="this game" url={shareUrl({ kind: 'game', sport: 'nba', game: id, market: 'pts', date: gameDay(data.date) })} filename={`game-${slug(away.abbrev)}-${slug(home.abbrev)}_${stamp(gameDay(data.date))}.png`} />}
           note={<>{live ? <><RimDot />{data.detail}</> : done ? 'Final' : `Tip ${fmtTip(data.date)}`}{data.venue ? ` · ${data.venue}` : ''}</>}
         />
         <DelayedBanner error={error} what="game data" />
