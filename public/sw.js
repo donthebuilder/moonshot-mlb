@@ -137,8 +137,11 @@ self.addEventListener('push', (e) => {
   let d = {}
   try { d = e.data ? e.data.json() : {} } catch { d = { body: e.data ? e.data.text() : '' } }
   const product = PRODUCT[sportOf(d.url)]
+  // THE CARD PICTURE (2026-10-13): a card-earned push carries the baseball-card image (the server card). Only that one same-site path is accepted, never any other URL.
+  const image = /^\/api\/card\/special\?[\w=&%.:-]+$/.test(String(d.image || '')) ? d.image : undefined
   e.waitUntil(self.registration.showNotification(d.title || product, {
     body: d.body || '',
+    image,
     tag: d.tag || undefined,
     // A tag that matches a notification already on the screen REPLACES it; renotify makes the
     // replacement buzz again instead of arriving silently (2026-10-09 push audit).

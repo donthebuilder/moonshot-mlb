@@ -9,6 +9,7 @@
 // names three real players from today's board. Phone first: the first screen is the strip and the LEGEND / ELITE tiles; long sections preview two rows and say "+N more".
 import { useEffect, useMemo, useState } from 'react'
 import PageHeader from '../PageHeader'
+import AlertsEntry from '../AlertsEntry'
 import { useSportTheme } from '../SportTheme'
 import { useFollowing } from '../../lib/dash/follow'
 import { useHashFilter } from '../../lib/filterHash'
@@ -104,6 +105,9 @@ export default function Binder({ sport = 'mlb', board = [] }) {
       <PageHeader eyebrow={`${brand.name} · BINDER`} title={view === 'all' ? 'All cards' : 'Your binder'}
         note={view === 'all' ? `Every card earned in the league in the last 30 days. ${RARITY_COPY}` : `Cards earned by the players on your watchlist. ${RARITY_COPY}`}
         theme={C} numFont={NUM_FONT} accent={accent} style={{ marginBottom: 2 }} />
+
+      {/* ALERTS, FROM THE BINDER (2026-10-13): collectors get a note when a player they follow earns a card; the switch is one tap from here. */}
+      <AlertsEntry C={C} accent={accent} NUM_FONT={NUM_FONT} />
 
       <div role="tablist" aria-label="Which cards" style={{ display: 'flex', gap: 8 }}>
         <button type="button" role="tab" aria-selected={view === 'my'} onClick={() => setView('')} style={{ ...chip(view === 'my'), flex: 1 }}>MY CARDS</button>

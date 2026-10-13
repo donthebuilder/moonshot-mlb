@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import { C as MLB_C, NUM_FONT as MLB_NUM, TYPE } from '../lib/theme'
 import { useFollowing } from '../lib/dash/follow'
 import { useDashAccount } from '../lib/dash/sync'
+import { useAlertPrefs } from '../lib/dash/alerts'
+import AlertsEntry from './AlertsEntry'
 
 // ⭐ YOUR PLAYERS, THE VIEW (2026-10-03, parity). MOONSHOT's Your players
 // section (components/YourPlayers.js) lifted out markup for markup -- the
@@ -86,7 +88,9 @@ export default function YourPlayersView({
   const ACC = accent || C.orange
   const LIVE = liveInk || C.green
   const wrap = wrapOf(C); const head = headS; const title = titleOf(C); const note = noteOf(C, NUM_FONT)
-  const { unfollow, clear: clearFollowing } = useFollowing(sport)
+  const { unfollow, clear: clearFollowing, muted, mute } = useFollowing(sport)
+  // The bell-off shows once alerts are on for this device (or a man is already muted): before that there is nothing to mute.
+  const { prefs: alertPrefs } = useAlertPrefs()
   const [armed, setArmed] = useState(false)
   useEffect(() => {
     if (!armed) return undefined
@@ -198,6 +202,7 @@ export default function YourPlayersView({
           <div
             key={r.id}
             className="quiet-tile yp-row"
+            data-bell={alertPrefs.on || muted(r.id) ? '1' : undefined}
             role="button"
             tabIndex={0}
             onClick={() => r.p && onPlayerClick?.(r.p)}
@@ -261,6 +266,22 @@ export default function YourPlayersView({
                   button (a near-miss used to open his card instead of
                   removing him, which reads exactly like "nothing
                   happened"). */}
+              {alertPrefs.on || muted(r.id) ? (
+                <button
+                  type="button"
+                  className="yp-bell"
+                  aria-pressed={muted(r.id)}
+                  aria-label={muted(r.id) ? `Alerts for ${r.name} are off. Turn them on` : `Turn off alerts for ${r.name}`}
+                  title={muted(r.id) ? 'Alerts off for him. Tap to turn on' : 'Turn off alerts for him'}
+                  onClick={(e) => { e.stopPropagation(); mute(r.id, !muted(r.id)) }}
+                  style={{
+                    flexShrink: 0, width: 44, height: 44, marginTop: -11, marginBottom: -11,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+                    background: 'transparent', border: 'none', borderRadius: 6,
+                    color: muted(r.id) ? ACC : C.text3, fontSize: 15, lineHeight: 1, cursor: 'pointer', opacity: muted(r.id) ? 1 : 0.8,
+                  }}
+                >{muted(r.id) ? '🔕' : '🔔'}</button>
+              ) : null}
               <button
                 type="button"
                 className="yp-x"
@@ -327,7 +348,8 @@ export default function YourPlayersView({
           the show-more control rather than up in the header: a destructive
           action should not be the first thing your thumb finds. */}
       {rows.length > 0 && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+          <AlertsEntry C={C} accent={ACC} NUM_FONT={NUM_FONT} />
           <button
             type="button"
             onClick={() => {

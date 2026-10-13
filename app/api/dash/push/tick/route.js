@@ -524,7 +524,7 @@ function bundle(events) {
   const head = list[0]
   // ONE EVENT: its own words, untouched. The title already carries the player
   // (or none), so nothing is appended to it -- the name appears once.
-  if (list.length === 1) return { title: head.title, body: head.body, tag: head.key, url: head.url }
+  if (list.length === 1) return { title: head.title, body: head.body, tag: head.key, url: head.url, ...(head.image ? { image: head.image } : {}) }
   // SEVERAL: one short note. "<emoji> 3 went deep" / "Alpha · Bravo · Charlie". No "DASH" filler.
   const groups = new Set(list.map((e) => e.group).filter(Boolean))
   const verb = groups.size === 1 ? [...groups][0] : ''

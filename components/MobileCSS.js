@@ -113,6 +113,9 @@ export default function MobileCSS() {
            an inline one. Donovan: "your players is hard to remove." */
         .yp-x { position: absolute !important; right: 0 !important; top: 0 !important; margin: 0 !important; }
         .yp-row { position: relative !important; padding-right: 46px !important; min-height: 44px !important; }
+        /* 2026-10-13: the bell-off (per-player mute) sits beside the ×, another 44px box, so the row reserves both. */
+        .yp-bell { position: absolute !important; right: 44px !important; top: 0 !important; margin: 0 !important; }
+        .yp-row[data-bell] { padding-right: 90px !important; }
       }
 
       /* PHONE PILL ROWS SCROLL, NOT WRAP (2026-09-24 audit). On Boards the
