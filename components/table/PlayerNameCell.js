@@ -19,10 +19,10 @@ import { fitName, planChips, estimateWidth } from '../../lib/nameFit'
 
 // the cell's geometry, the css's twin (v2Css .dtv2.pc): name column width, face, gap, side padding
 export const PC_GEOM = {
-  phone: { cell: 164, face: 36, gap: 7, pad: 12 },
-  desk: { cell: 210, face: 40, gap: 8, pad: 14 },
+  phone: { cell: 164, face: 36, gap: 7, pad: 12, ring: 4 },
+  desk: { cell: 210, face: 40, gap: 8, pad: 14, ring: 4 },
 }
-export const pcRoom = (phone) => { const g = phone ? PC_GEOM.phone : PC_GEOM.desk; return g.cell - g.pad - g.face - g.gap }
+export const pcRoom = (phone) => { const g = phone ? PC_GEOM.phone : PC_GEOM.desk; return g.cell - g.pad - g.face - g.ring - g.gap }
 
 let _ctx = null
 /** a text measure on the page's own fonts; an estimate where there is no document (a server render, a test) */
@@ -51,7 +51,7 @@ export function makeMeasure(family) {
 export default function PlayerNameCell({ name, face = null, chips = [], phone, numFont, onOpen = null, mark = null, sizes = null }) {
   const fit = fitName(name, { room: pcRoom(phone), measure: makeMeasure(null), sizes: sizes || (phone ? [12, 11] : [13, 12]), maxLines: 2 })
   const g = phone ? PC_GEOM.phone : PC_GEOM.desk
-  const room = g.cell - g.pad - g.face - g.gap
+  const room = pcRoom(phone)
   const mono = makeMeasure(numFont)
   const live = chips.filter((c) => c && !(c.phoneOnly && !phone))
   const sized = live.map((c) => ({ key: c.key, prio: c.prio, w: (c.fixedW || 0) + (c.text ? mono(c.text, 10, 800) + c.text.length * 0.4 : 0) }))

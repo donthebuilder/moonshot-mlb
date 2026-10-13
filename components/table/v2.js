@@ -591,14 +591,14 @@ export function renderV2(ctx) {
                     const posC = columns.find((x) => x !== nameC && !x.action && /^(pos|position)$/.test(x.key))
                     const posV = posC ? r[posC.key] : (r.pos ?? rawRow.pos ?? null)
                     const posTxt = isBlank(posV) ? '' : String(posC?.fmt && typeof posC.fmt(posV, r) === 'string' ? posC.fmt(posV, r) : posV).slice(0, 6)
-                    if (posTxt) chips.push({ key: 'pos', prio: 1, phoneOnly: true, text: posTxt, node: <span className="pc-pos">{posTxt}</span> })
+                    if (posTxt) chips.push({ key: 'pos', prio: 2, phoneOnly: true, text: posTxt, node: <span className="pc-pos">{posTxt}</span> })
                     const clubC = columns.find((x) => x !== nameC && logoOf(x) && /^(team|tm)$/.test(x.key))
                     const clubV = clubC ? r[clubC.key] : rowTeam
                     const sportKey = clubC ? logoOf(clubC) : (columns.map(logoOf).find(Boolean) || null)
                     if (sportKey && !isBlank(clubV) && /^[A-Z]{2,4}$/.test(String(clubV))) {
                       const openClub = clubC?.link ? clubC.link(rawRow) : (onOpenTeam ? () => onOpenTeam(String(clubV)) : null)
                       const mk = <TeamMark sport={sportKey} abbr={String(clubV)} variant="logo" px={phone ? 14 : 16} />
-                      chips.push({ key: 'club', prio: 2, phoneOnly: true, fixedW: phone ? 14 : 16, node: openClub ? <Tap onClick={openClub} title={String(clubV)}>{mk}</Tap> : mk })
+                      chips.push({ key: 'club', prio: 1, phoneOnly: true, fixedW: phone ? 14 : 16, node: openClub ? <Tap onClick={openClub} title={String(clubV)}>{mk}</Tap> : mk })
                     }
                     // the opponent: an opp / game column (a sub-only one included); "EDM@LAK" is read from his club's side
                     const oppC = columns.find((x) => x !== nameC && !x.action && x !== posC && (x.subOnly || /^(opp|oppTxt|vs|game)$/.test(x.key)) && !isBlank(r[x.key]))
@@ -617,7 +617,7 @@ export function renderV2(ctx) {
                     // the call word: the caller's own status (callStatus), CALLED in the product's accent; a desktop table with a Status column of its own lets the column say it
                     const hasStatusCol = columns.some((x) => x._status || x.statusCol)
                     if (called) chips.push({ key: 'call', prio: 0, phoneOnly: hasStatusCol, text: 'CALLED', node: <CallStatusBadge status="called" accent={ac} variant="text" style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.06em' }} /> })
-                    if (injEntry) chips.push({ key: 'inj', prio: 1, fixedW: 28, node: <InjuryChip entry={injEntry} C={C} font={NUM_FONT} size={9} style={{ marginLeft: 0 }} /> })
+                    if (injEntry) chips.push({ key: 'inj', prio: 1, fixedW: 36, node: <InjuryChip entry={injEntry} C={C} font={NUM_FONT} size={9} style={{ marginLeft: 0 }} /> })
                     if (watched) chips.push({ key: 'star', prio: 4, fixedW: 10, node: <span style={{ color: ac }}>★</span> })
                     const fc = faceOf ? faceOf(r) : null
                     const faceEl = <PlayerFace {...(fc || { sport: 'none' })} name={nm} variant="row" size={phone ? PC_GEOM.phone.face : PC_GEOM.desk.face} ring={withAlpha(ac, 0.55)} theme={C} />
