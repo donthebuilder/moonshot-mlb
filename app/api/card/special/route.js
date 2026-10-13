@@ -6,7 +6,7 @@
 // Drawn only from stored public feeds, read-only (no db writes, no polling). A moment that did not happen, or an event that does not exist, is a
 // 404 JSON; a sport that does not match the moment is a 404; a bad id is a 400. There is no members content on these cards, and no printed probability.
 import { adminClient } from '../../../../lib/supabase/admin'
-import { MOMENTS } from '../../../../lib/cards/moments'
+import { MOMENTS, NBA_MOMENTS, isHiddenMoment } from '../../../../lib/cards/moments'
 import { DATE_RE } from '../../../../lib/cards/cardImage'
 
 export const runtime = 'nodejs'
@@ -19,7 +19,13 @@ const json = (body, status, cache = 'no-store') => Response.json(body, { status,
 export async function GET(request) {
   const q = new URL(request.url).searchParams
   const key = String(q.get('moment') || '')
-  const moment = Object.hasOwn(MOMENTS, key) ? MOMENTS[key] : null
+  // BUCKETS' moments (hidden, lib/cards/moments.js NBA_MOMENTS) answer only a visitor its gate lets in; to anyone else they are "no such moment", like any unknown key
+  const hidden = isHiddenMoment(key)
+  if (hidden) {
+    const { bucketsGuard } = await import('../../../../lib/nba/gate')
+    if (await bucketsGuard()) return json({ error: 'NOT FOUND', detail: 'no such moment' }, 404, 'no-store')
+  }
+  const moment = Object.hasOwn(MOMENTS, key) ? MOMENTS[key] : hidden ? NBA_MOMENTS[key] : null
   if (!moment) return json({ error: 'NOT FOUND', detail: 'no such moment' }, 404, 'public, max-age=300')
   const sport = String(q.get('sport') || '').toLowerCase()
   if (sport && moment.sport !== 'any' && sport !== moment.sport) return json({ error: 'NOT FOUND', detail: 'that moment is not in that sport' }, 404, 'public, max-age=300')
@@ -28,7 +34,7 @@ export async function GET(request) {
   let id = String(q.get('id') || '')
   if (key === 'long_shot_cashed' && date && id.split(':').length === 2) id = `${id}:${date}`
   let db = null
-  try { db = adminClient({ anon: true }) } catch { db = null }
+  try { db = adminClient(hidden ? {} : { anon: true }) } catch { db = null }
   if (!db) return json({ error: 'NOT CONFIGURED' }, 503)
   const w = Number(q.get('w'))
   const width = WIDTHS.includes(w) ? w : 1080
@@ -41,7 +47,7 @@ export async function GET(request) {
     if (!model) return json({ error: 'NOT FOUND', detail: 'that moment did not happen' }, 404, 'public, max-age=60')
     const { renderSpecial } = await import('../../../../lib/cards/specialCard')
     const png = await renderSpecial(model, { width })
-    return new Response(png, { status: 200, headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1200' } })
+    return new Response(png, { status: 200, headers: { 'Content-Type': 'image/png', 'Cache-Control': hidden ? 'private, no-store' : 'public, s-maxage=600, stale-while-revalidate=1200' } })
   } catch (e) {
     console.error(`[cards] special ${key}/${id}: ${e?.message || e}`)
     return json({ error: 'CARD DELAYED', detail: 'render failed' }, 502)

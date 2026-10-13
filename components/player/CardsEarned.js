@@ -8,8 +8,9 @@
 //   - the pictures are the site's own image routes (/api/card/special, /api/card/image): the card is drawn once, on the server
 import { useEffect, useState } from 'react'
 import { useSportTheme } from '../SportTheme'
-import { isHiddenSport, binderHref } from '../../lib/routes'
-import { CARD_SPORTS } from '../../lib/card/core'
+import { binderHref } from '../../lib/routes'
+import { useSportOpen } from '../../lib/useVisibleSports'
+import { CARD_SPORTS, PREVIEW_CARD_SPORTS } from '../../lib/card/core'
 import CardSheet, { specialUrl } from './CardSheet'
 
 const SHOWN = 3
@@ -20,7 +21,8 @@ export default function CardsEarned({ sport, id, name = '' }) {
   const [shelf, setShelf] = useState(null)
   const [base, setBase] = useState(false)
   const [open, setOpen] = useState(null)
-  const live = CARD_SPORTS.includes(String(sport)) && !isHiddenSport(sport) && id != null && id !== ''
+  const allowed = useSportOpen(sport) === true   // BUCKETS: only once its gate has let this visitor in (admin, early access, public)
+  const live = (CARD_SPORTS.includes(String(sport)) || PREVIEW_CARD_SPORTS.includes(String(sport))) && allowed && id != null && id !== ''
   useEffect(() => {
     if (!live) return undefined
     let on = true

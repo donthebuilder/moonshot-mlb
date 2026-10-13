@@ -11,6 +11,8 @@ import InTheLedger from '../../ledger/InTheLedger'
 import PlayerNotes from '../../PlayerNotes'
 import FollowButton from '../../FollowButton'
 import ShareCardButton from '../../card/ShareCardButton'
+import CardFlip from '../../player/CardFlip'
+import CardsEarned from '../../player/CardsEarned'
 import { shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
 import StarMemory from '../../watch/StarMemory'
 import CallStatusBadge from '../../CallStatusBadge'
@@ -190,7 +192,11 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
         {/* THE TOP ROW: Back on the left, his card (the board's word, score and night rank, PTS / REB / AST a game, projected points, his last five) at the right end */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: onBack ? 'space-between' : 'flex-end', gap: 8 }}>
           {onBack ? <BackBtn onBack={onBack} label={backLabel} /> : null}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {/* his BASEBALL-CARD (front and back): a PREVIEW sport, shown only to a visitor BUCKETS' gate lets in, and only for a player on tonight's board (lib/card/core.js PREVIEW_CARD_SPORTS) */}
+            {row && <CardFlip sport="nba" id={String(card.id)} name={card.name} />}
           <ShareCardButton sport="nba" what="his card" url={shareUrl({ kind: 'pick', sport: 'nba', id: card.id, market: 'pts', date: board?.date || null })} filename={`${slug(card.name, 'player')}_${stamp(board?.date)}.png`} />
+          </span>
         </div>
         <DelayedBanner error={error} what="player data" />
         {onStep && peers.length > 1 && (
@@ -280,6 +286,8 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
             <InTheLedger sport="nba" id={pid} name={card.name} jersey={card.jersey} birthDate={card.birthDate} next={next} date={dateNow} />
             <HisNumbers name={card.name} jersey={card.jersey} birthDate={card.birthDate} next={next} nextWord="point" date={dateNow} theme={C} accent={C.purple} numFont={NUM_FONT} />
             <PlayerNotes playerId={pid} scope="nba" accent={C.purple} />
+            {/* CARDS EARNED, at the END of the page (the first useful row never moves): his 30-point / 40-point / double-double / triple-double / 10-threes cards from his GRADED regular-season rows; no section until he has one */}
+            <CardsEarned sport="nba" id={pid} name={card.name} />
           </>
         )}
 

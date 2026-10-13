@@ -18,12 +18,18 @@ export async function GET(request) {
   const sport = String(q.get('sport') || '').toLowerCase()
   const id = String(q.get('id') || '')
   if (!/^[a-z]{3}$/.test(sport) || !/^[A-Za-z0-9_.-]{1,24}$/.test(id)) return json({ error: 'BAD REQUEST', detail: 'sport and id are needed' }, 400)
+  // BUCKETS (nba, hidden): only a visitor its gate lets in, privately, from the service client (its rows are closed to the public key)
+  const hidden = sport === 'nba'
+  if (hidden) {
+    const { bucketsGuard } = await import('../../../../lib/nba/gate')
+    if (await bucketsGuard()) return json({ total: 0, cards: [] })
+  }
   let db = null
-  try { db = adminClient({ anon: true }) } catch { db = null }
+  try { db = adminClient(hidden ? {} : { anon: true }) } catch { db = null }
   if (!db) return json({ total: 0, cards: [] })
   try {
     const shelf = await earnedFor({ sport, id, db, limit: 60 })
-    return json(shelf, 200, 'public, s-maxage=300, stale-while-revalidate=600')
+    return json(shelf, 200, hidden ? 'private, max-age=60' : 'public, s-maxage=300, stale-while-revalidate=600')
   } catch (e) {
     console.error(`[cards] earned ${sport}/${id}: ${e?.message || e}`)
     return json({ total: 0, cards: [] })

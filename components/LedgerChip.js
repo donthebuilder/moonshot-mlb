@@ -6,14 +6,15 @@
 // none yet it reads just "Ledger". A real link (an address), so a long-press or a copied link opens the
 // same page, and a 44px target pulled back with a negative margin so the row keeps its height.
 import { useSportTheme } from './SportTheme'
-import { isHiddenSport } from '../lib/routes'
+import { useSportOpen } from '../lib/useVisibleSports'
 import { ledgerHash } from '../lib/ledger/views'
 import { useLedgerCount, ledgerCountText } from '../lib/ledger/chip'
 
 export default function LedgerChip({ sport, style = null }) {
   const { C, NUM_FONT, accent } = useSportTheme()
   const count = useLedgerCount(sport)
-  if (isHiddenSport(sport)) return null   // BUCKETS has no Ledger on any public surface until it opens
+  const open = useSportOpen(sport)
+  if (open !== true) return null   // BUCKETS: only for a visitor its gate lets in (admin, early access, or once it is public)
   const text = ledgerCountText(count)
   return (
     <a href={ledgerHash(sport)}

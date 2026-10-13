@@ -25,7 +25,7 @@ import { whichSeason } from '../../../../lib/nhl/whichSeason'
 import { cronAuthorized, adminClient } from '../../../../lib/supabase/admin'
 import { hasKey, monthUsage, eventsBetween, eventsById } from '../../../../lib/odds/sgo'
 import { playerJoin } from '../../../../lib/odds/playerJoin'
-import { activeLeagues, MARKETS, snapRows, startsAt, gameDate } from '../../../../lib/odds/snap'
+import { activeLeagues, nbaOddsCapture, MARKETS, snapRows, startsAt, gameDate } from '../../../../lib/odds/snap'
 import { bucketsPublic } from '../../../../lib/nba/gate'
 import { linesRows } from '../../../../lib/odds/lines'
 import { gameTotalRow } from '../../../../lib/odds/gameTotal'
@@ -104,7 +104,7 @@ export async function GET(request) {
   // LAMP's own season read says when -- preseason goal props are not the
   // record and would spend objects. It switches itself on, and next year too.
   const nhlLive = await whichSeason().then((sn) => !sn.stale).catch(() => false)
-  for (const league of activeLeagues(bucketsPublic())) {
+  for (const league of activeLeagues(bucketsPublic(), nbaOddsCapture())) {
     const sport = MARKETS[league].sport
     if (league === 'NHL' && !nhlLive) continue
     if (!dry) {
@@ -156,7 +156,7 @@ export async function GET(request) {
   const due = new Map() // event_id -> Set of snaps
   // THE MONTH PLANNER (lib/odds/budget.js): CLOSE stays off all month when the month can't afford it
   let plan = null
-  try { plan = await monthPlan(date.slice(0, 7), activeLeagues(bucketsPublic())); out.plan = { month: plan.month, games: plan.games, projected: plan.projected, closeOff: plan.closeOff, why: plan.why } } catch (e) { out.plan = { error: e?.message } }
+  try { plan = await monthPlan(date.slice(0, 7), activeLeagues(bucketsPublic(), nbaOddsCapture())); out.plan = { month: plan.month, games: plan.games, projected: plan.projected, closeOff: plan.closeOff, why: plan.why } } catch (e) { out.plan = { error: e?.message } }
   const forced = q.get('event')
   if (forced && WINDOWS[q.get('snap')]) due.set(forced, new Set([q.get('snap')]))
   else {

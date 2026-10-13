@@ -14,6 +14,7 @@ import { storiesTick } from '../../../../lib/stories/record'
 import { writeFirstFeed, FIRST_KIND } from '../../../../lib/nba/firstFeed'
 import { readNbaBoard } from '../../../../lib/nba/boardRead'
 import { runNbaWriteups } from '../../../../lib/writeups/post'
+import { recordNbaLanes, gradeNbaLanes } from '../../../../lib/numerology/nbaTick'
 
 
 export const dynamic = 'force-dynamic'
@@ -88,10 +89,14 @@ export async function GET(request) {
     }
   }
 
+  // 🔢 LANE NIGHTS (BUCKETS parity, 2026-10-12): the night's players on the shared numerology record, BEFORE tip. Writes NOTHING while BUCKETS is hidden
+  // (lib/numerology/nbaTick.js asks the one open switch first); a failure is logged and never stops the lock or the grade.
+  out.lanes = await recordNbaLanes(db, { date, games: sb }).catch((e) => { console.error(`[buckets tick] lanes write: ${e?.message}`); return { error: String(e?.message || e) } })
+
   // ── GRADE (today and yesterday: a late final grades the next morning) ──
   // The last WEEK, not two days (2026-10-04 ops audit): a tick that missed two
   // days left those games ungraded for good.
-  const pending = await db.from('buckets_games').select('game_id, game_date, season_type').is('graded_at', null).gte('game_date', shiftDay(date, -6)).lte('game_date', date)
+  const pending = await db.from('buckets_games').select('game_id, game_date, season_type, away, home').is('graded_at', null).gte('game_date', shiftDay(date, -6)).lte('game_date', date)
   for (const p of pending.data || []) {
     // Straight from the source: a cached summary could predate the final stats (LAMP's BUF@CHI, audit F1).
     const s = await nbaGet(`/summary?event=${p.game_id}`, 0).catch(() => null)
@@ -139,6 +144,8 @@ export async function GET(request) {
     if (ff) out.skipped.push({ game: p.game_id, why: `first basket: ${ff}` })
     const closed = await db.from('buckets_games').update({ graded_at: gradedAt, state: 'final' }).eq('game_id', p.game_id)
     if (closed.error) { out.skipped.push({ game: p.game_id, why: `close: ${closed.error.message}` }); continue }
+    // the lane nights of that game, graded from the same box (open switch only; never blocks the grade)
+    try { await gradeNbaLanes(db, { game: { seasonType: p.season_type, away: { abbrev: p.away }, home: { abbrev: p.home } }, day: p.game_date, box: [...box.values()] }) } catch (e) { console.error(`[buckets tick] lanes grade ${p.game_id}: ${e?.message}`) }
     out.graded.push({ game: p.game_id, rows: ups.length, shots: shots.length })
   }
   // FIRST BASKETS, CATCH-UP (2026-10-05): a game graded before the first basket was kept
