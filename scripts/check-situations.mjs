@@ -111,5 +111,17 @@ check(texts.length >= 6, `${texts.length} stamps with everything true`)
 check(texts.every((t) => !BANNED.test(t)), 'no stamp text contains hot / due / lock / guaranteed / bounce-back')
 check(BANNED.test('He is due') && BANNED.test('a lock') && BANNED.test('bounce-back') && BANNED.test('hot streak') && !BANNED.test('Season-high 9 shots'), 'the banned-word guard bites')
 
+// ── the strip's text fit (lib/cards/stampLayout.js) ──
+{
+  const { layoutStamps, FLOOR, SIZES } = await import('../lib/cards/stampLayout.js')
+  const two = layoutStamps([{ text: 'Goal in 5 straight' }, { text: 'Division Series' }], { maxW: 940 })
+  check(two.length === 2 && two.every((c) => c.size >= FLOOR) && two[0].size === SIZES[0], 'strip: two short stamps fit one row at the largest size')
+  const tight = layoutStamps([{ text: 'Against his former club: TOR and a very long line of words' }, { text: 'Season-high 151 rec yds' }], { maxW: 600 })
+  check(tight.every((c) => c.size >= FLOOR) && tight.reduce((a, c) => a + c.w, 0) + 12 <= 600, 'strip: never below the 22px floor, never wider than the box (cut with an ellipsis instead)')
+  check(tight.some((c) => c.cut) && tight.find((c) => c.cut).text.endsWith('…'), 'strip: the cut chip says so with an ellipsis')
+  check(layoutStamps([], { maxW: 900 }).length === 0 && layoutStamps(null, { maxW: 900 }).length === 0, 'strip: no stamps, no strip')
+  check(layoutStamps([{ text: 'a' }, { text: 'b' }, { text: 'c' }], { maxW: 900 }).length === 2, 'strip: at most 2 chips')
+}
+
 console.log(failed ? `\n${failed} FAILED` : '\nall situation checks passed')
 process.exit(failed ? 1 : 0)
