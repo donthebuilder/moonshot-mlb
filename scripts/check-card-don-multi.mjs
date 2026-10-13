@@ -227,6 +227,7 @@ const kindsOf = (s) => s.rowsT.map((r) => r.kind).sort()
   check((await fakeDb({ now: NOW }).from('card_calls').upsert([rowDb])).error === null && /check constraint/.test((await fakeDb(clock, { nman: false }).from('card_calls').upsert([rowDb])).error?.message || ''), 'G: the table takes a 2-leg n_man after the N-man migration (leg_count 2..6) and refuses it before')
   const nsql = src('supabase/migrations/202610121200_card_calls_nman.sql')
   check(/product = 'n_man'\s+and leg_count between 2 and 6 and slot = 1/.test(nsql), 'G: the shape check in the migration already allows leg_count 2..6 for n_man (no SQL needed for the 2-leg ticket)')
+  check(/05-two/.test(src('scripts/proto-cards/nManStressFixtures.mjs')) && /gridOf\(2\)\.rows === 1/.test(src('scripts/check-nman-card.mjs')), 'G: the N-man card\'s own sizing check (check-nman-card) already draws and measures a 2-leg variant (05-two)')
   const form = src('components/admin/TwoManForm.js')
   check(/2 to 6-Man/.test(form) && /same bet saved under the N-man card layout/i.test(form.replace(/\s+/g, ' ')), 'G: the form\'s tab is "2 to 6-Man" and a one-line note explains how it differs from the Two-Man')
 }
