@@ -2,7 +2,7 @@
 --
 -- homer_feed_posts is keyed (day, kind) and kind is checked, so every one of his entries needs its own claim row. The kind CARRIES the entry, the way the moment
 -- kinds carry their event:
---   card_don_<sport>_<key>     sport = mlb | nfl | nhl;   key = two_man | n_man | straight_<slot>   (lowercase letters, digits and underscores)
+--   card_don_<sport>_<key>     sport = mlb | nfl | nhl;   key = two_man | n_man_<slot> | straight_<slot>   (slot 1..3)   (lowercase letters, digits and underscores)
 -- The old one-a-day kinds (card_don_mlb / card_don_nfl / card_don_nhl, from 202610121100_card_calls_late.sql) stay exactly as they are.
 -- Until this is run the code keeps today's behaviour: one post a day and sport under the old kind, the extra entries skipped with a log line
 -- ("card_don_<sport>_<key> skipped: the kind is not allowed yet (run supabase/migrations/202610121700_card_don_multi.sql)"), nothing sent for them.
