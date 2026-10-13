@@ -12,6 +12,8 @@ import GoalieQuality from '../GoalieQuality'
 import GoalieWeakSpots from '../GoalieWeakSpots'
 import GameRink from '../GameRink'
 import Tap from '../../Tap'
+import ShareCardButton from '../../card/ShareCardButton'
+import { shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
 import GameTotalLine, { useGameTotals } from '../../GameTotalLine'
 import SiteTeamMark from '../../TeamMark'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, GoalLabel, fmtDay, fmtPuckDrop, zoneAbbrev } from '../ui'
@@ -64,6 +66,8 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
           <span style={{ color: C.ice, font: `900 8px/1 ${NUM_FONT}`, letterSpacing: '.14em' }}>LAMP · GAME</span>
           <GameTypeChip label={g.gameTypeLabel} />
           <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.08em' }}>{g.seasonLabel} · {fmtDay(g.date)}</span>
+          {/* 📸 this game as a baseball card: the right end of the title row (the same card the slate's Save button draws) */}
+          <ShareCardButton sport="nhl" what="this game" style={{ marginLeft: 'auto' }} url={shareUrl({ kind: 'game', sport: 'nhl', game: g.id, date: g.date })} filename={`game-${slug(g.away.abbrev)}-${slug(g.home.abbrev)}_${stamp(g.date)}.png`} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 10 }}>
           <Side team={g.away} lead={lead('away')} align="left" />

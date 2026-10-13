@@ -20,7 +20,8 @@ import { heatModeFromUrl } from '../../lib/heatMode'
 import { uniqueByPerson, gameNumbers, gameNumOf, doubleheaderNote } from '../../lib/doubleheader'
 import { SCORE } from '../../lib/scales'
 import { categoryColumns, categoryValues } from '../../lib/categoryColumns'
-import { downloadCard, shareUrl, slug, stamp } from '../../lib/cards/saveCard'
+import ShareCardButton from '../card/ShareCardButton'
+import { shareUrl, slug, stamp } from '../../lib/cards/saveCard'
 import { usePreview, ShowMoreButton } from '../ListPreview'
 import { callStatus, boardOfRows } from '../../lib/callStatus'
 import { reasonContext, boardReasonFor } from '../../lib/mlb/boardReason'
@@ -60,7 +61,7 @@ const PROFILE_INPUTS = [
 ]
 
 // the boards the server draws a card for (lib/cards/shareData.js MLB_TYPES)
-const CARD_TYPES = new Set(['top', 'hr', 'hrr', 'hit', 'tb'])
+export const CARD_TYPES = new Set(['top', 'hr', 'hrr', 'hit', 'tb'])
 
 const TITLES = {
   top: ['Top Board', 'MOONSHOT’s overall #1s — ranked by its own top_board_score_v2, the number the Top-30 sheet sorts by, untouched by site adjustments'],
@@ -209,8 +210,6 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
   )
   // the board's size the bot published (lib/callStatus boardOfRows), not this list's length
   const boardOf = useMemo(() => boardOfRows(whyPool) || whyPool.length, [whyPool])
-  // 📸 the board as a baseball card: drawn on the server from the same board file (lib/cards/shareData.js), so it is the board's own top, not this screen's filters
-  const shareBoard = () => downloadCard(shareUrl({ kind: 'ranked', sport: 'mlb', type }), `board-${slug(type)}_${stamp(slateDate)}.png`)
   // the sheet for one row: his sentence, the three numbers his board place is made of, and where to look next
   const whyItem = (r) => {
     const p = r._raw
@@ -328,17 +327,6 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               })}
             </div>
           )}
-          {/* 📸 SHARE (2026-08-23) — this board as a PNG, zero backend, same
-              canvas mechanism as the Watchlist/Player share cards. */}
-          {ranked.length > 0 && CARD_TYPES.has(type) && (
-            <button onClick={() => shareBoard()}
-              title="Download this board as a PNG for posting"
-              aria-label="Download board as image"
-              style={{
-                padding: '4px 11px', fontSize: TYPE.label, fontWeight: 700, borderRadius: 7, cursor: 'pointer',
-                border: `1px solid ${C.border}`, background: 'rgba(249,115,22,.10)', color: C.orange,
-              }}>📸</button>
-          )}
           <button onClick={() => setViewMode('list')} style={{
             padding: '4px 11px', fontSize: TYPE.label, fontWeight: 700, borderRadius: 7, cursor: 'pointer',
             border: `1px solid ${viewMode === 'list' ? C.orange : C.border}`,
@@ -351,6 +339,8 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             background: viewMode === 'cards' ? 'rgba(249,115,22,.12)' : 'transparent',
             color: viewMode === 'cards' ? C.orange : C.text3,
           }}>▦ Cards</button>
+          {/* 📸 the board as a baseball card, drawn on the server from the same board file (lib/cards/shareData.js): the right end of the header, after List | Cards. A phone has it in the Filters row (HitsHRR). */}
+          {ranked.length > 0 && CARD_TYPES.has(type) && <ShareCardButton sport="mlb" what="this board" url={shareUrl({ kind: 'ranked', sport: 'mlb', type })} filename={`board-${slug(type)}_${stamp(slateDate)}.png`} />}
         </div>
       </div>
       {/* the ember underline — the same signature the top bar wears */}
@@ -567,11 +557,6 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
         />
       )}
 
-      {compact && viewMode === 'list' && ranked.length > 0 && CARD_TYPES.has(type) && (
-        <button onClick={() => shareBoard()}
-          title="Download this board as a PNG for posting" aria-label="Download board as image"
-          style={{ minHeight: 44, margin: '8px 0 0', padding: '0 14px', borderRadius: 8, cursor: 'pointer', fontSize: TYPE.label, fontWeight: 700, border: `1px solid ${C.border}`, background: 'transparent', color: C.text2 }}>📸 Download this board as an image</button>
-      )}
       {whySheet}
       {rankings && viewMode === 'list' && <RankMoveNote show={rankMv.any} color={C.text3} />}
 

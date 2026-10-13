@@ -54,7 +54,8 @@ import ThresholdGrid from './ThresholdGrid'
 import ColdCase from './ColdCase'
 import PlayerRead from './PlayerRead'
 import HomerShape from './HomerShape'
-import { downloadCard, playerUrl, slug, stamp } from '../lib/cards/saveCard'
+import ShareCardButton from './card/ShareCardButton'
+import { playerUrl, slug, stamp } from '../lib/cards/saveCard'
 import CardFlip, { PostseasonChip } from './player/CardFlip'
 import CardsEarned from './player/CardsEarned'
 import BvP from './BvP'
@@ -633,16 +634,8 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               {!apiOnly && p?.player_id != null && <CardFlip sport="mlb" id={String(p.player_id)} name={nameOf(p)} />}
               {/* a player off the slate has no season card; if he played in the postseason his postseason card is one tap (draws nothing otherwise) */}
               {apiOnly && p?.player_id != null && <PostseasonChip sport="mlb" id={String(p.player_id)} name={nameOf(p)} />}
-              {!apiOnly && (
-                <button onClick={() => downloadCard(playerUrl({ sport: 'mlb', id: p.player_id }), `${slug(nameOf(p), 'player')}_${stamp(p?.game_date || p?.day)}.png`)}
-                  title="Download his card as a PNG for posting — the same baseball card MOONSHOT's alerts use: his call, his stat tiles and his place on the board"
-                  aria-label="Download player card as image"
-                  style={{
-                    background: 'transparent', border: `1px solid ${C.border2}`, color: C.text2,
-                    borderRadius: 7, padding: '3px 9px', fontSize: 12, lineHeight: 1,
-                    cursor: 'pointer', minHeight: 26,
-                  }}>📸</button>
-              )}
+              {/* 📸 his card as a picture: the same baseball card MOONSHOT's alerts use (his call, his stat tiles, his place on the board), beside the flip Card button */}
+              {!apiOnly && <ShareCardButton sport="mlb" what="his card" url={playerUrl({ sport: 'mlb', id: p.player_id })} filename={`${slug(nameOf(p), 'player')}_${stamp(p?.game_date || p?.day)}.png`} />}
               {/* ⚖ COMPARE (2026-08-21, Phase 4) — nothing in the codebase let
                   you put two hitters' numbers next to each other before this;
                   the Navigator right beside it only ever holds one player at

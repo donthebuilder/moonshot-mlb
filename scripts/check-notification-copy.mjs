@@ -14,7 +14,7 @@ const check = (cond, label, extra = '') => { if (cond) console.log(`ok   ${label
 const cp = (s) => [...String(s)].length
 
 // ── 1. the limits: title <= 26, body <= 48, one line, the news inside 30 characters ──
-const NO_STAT = new Set(['scratched', 'dropout', 'welcome', 'bundle'])
+const NO_STAT = new Set(['scratched', 'dropout', 'welcome', 'bundle', 'nflinj'])
 for (const row of C.CATALOG) {
   if (row.limits === false || !['push', 'system'].includes(row.kind)) continue
   const r = row.render()
@@ -130,14 +130,45 @@ check(HF.postText({ name: 'Test Sample Alpha', role: '', hr_n: 1 }) === "\u{1F4A
   check(rows.length >= 4, 'cardearned: a catalog row for each sport / variant', String(rows.length))
   for (const r of rows) {
     const o = r.render()
-    check(/\b(STAR|ELITE|LEGEND) card\b/.test(o.title), `cardearned (${r.variant}): the title carries the tier word`, o.title)
+    check(/ earned (STAR|ELITE|LEGEND)\b/.test(o.title), `cardearned (${r.variant}): the title has its verb and the tier word`, o.title)
     check(!/\bBASE\b/i.test(`${o.title} ${o.body}`), `cardearned (${r.variant}): a BASE card is never a push`)
     check(!/CALLED|ON THE BOARD|\+\d{3,}/.test(`${o.title} ${o.body}`), `cardearned (${r.variant}): no call word and no price`, o.body)
-    check(/^Earned: /.test(o.body), `cardearned (${r.variant}): the body says what he earned`, o.body)
+    check(/^New card: /.test(o.body), `cardearned (${r.variant}): the body says what the card is`, o.body)
   }
   const long = C.cards.earned({ name: 'A Very Long Name Indeed Here', tierWord: 'LEGEND', kicker: '4-GOAL GAME', line: '4 GOALS', team: 'TST', opp: 'EXA' })
   check(cp(long.title) <= C.LIMITS.title && cp(long.body) <= C.LIMITS.body, 'cardearned: a long name still fits the limits', JSON.stringify(long))
-  check(C.cards.earned({ name: 'Test Skater', tierWord: 'STAR', kicker: 'OT GOAL', line: '', team: 'TST', opp: 'EXA' }).body.startsWith('Earned: OT goal'), 'cardearned: OT stays upper-case')
+  check(C.cards.earned({ name: 'Test Skater', tierWord: 'STAR', kicker: 'OT GOAL', line: '', team: 'TST', opp: 'EXA' }).body.startsWith('New card: OT goal'), 'cardearned: OT stays upper-case')
+}
+
+// ── 8c. the brake and the new pushes (2026-10-13), TEST data ──
+{
+  const G = { away: 'TST', home: 'EXA', awayScore: 2, homeScore: 3, half: 'Bottom', inning: 7 }
+  const L = { h: 2, ab: 3, tb: 5, r: 1, rbi: 1 }
+  snap(C.mlb.homer({ name: 'Test Alpha', n: 1, line: L, game: G, status: 'board', rank: 7 }), '\u{1F4A5} Test Alpha goes deep', 'ON THE BOARD #7 · HR · 2-for-3 · ▼7')
+  snap(C.mlb.homer({ name: 'Test Alpha', n: 1, line: L, game: G, status: 'off' }), '\u{1F4A5} Test Alpha goes deep', 'NOT ON THE BOARD · HR · 2-for-3 · ▼7')
+  snap(C.mlb.barCleared({ name: 'Test Doyle', bar: { kind: 'hits', n: 2 }, line: { h: 2, ab: 3, hr: 1, tb: 5 }, game: { away: 'NYY', home: 'TB', awayScore: 2, homeScore: 4, half: 'Bottom', inning: 7 } }), '✅ Doyle cleared 2 hits', '2-for-3 · 1 HR · ▼7 · TB 4, NYY 2')
+  snap(C.mlb.barCleared({ name: 'Test Doyle', bar: { kind: 'bases', n: 4 }, line: { h: 2, ab: 3, tb: 4 }, game: G }), '✅ Doyle cleared 4 bases', '2-for-3 · ▼7 · EXA 3, TST 2')
+  snap(C.mlb.nightRecap({ total: 10, cleared: 3 }), '\u{1F3C1} Your 10 hitters', '3 cleared, 7 did not')
+  snap(C.mlb.nightRecap({ total: 4, cleared: 4 }), '\u{1F3C1} Your 4 hitters', '4 cleared')
+  snap(C.nightly.callsGraded({ cashed: 3, total: 5 }), '\u{1F4D2} Your CALLED picks', '3 of 5 cleared')
+  snap(C.nightly.weekly({ cards: 3, cashed: 2, total: 5 }), '\u{1F4CA} Last week', '3 cards earned · 2 of 5 CALLED picks cleared')
+  snap(C.mlb.lineupIn({ name: 'Test Delta', slot: 3, away: 'TST', home: 'EXA' }), '\u{1F4CB} Delta is in the lineup', 'bats 3rd · TST at EXA')
+  snap(C.nhl.puckDrop({ mins: 30, away: 'TST', home: 'EXA', whenMs: W, now: W - 30 * 60000 }), '\u{1F3D2} Puck drop in 30 min', 'TST at EXA · 1:00 PM ET')
+  snap(C.nfl.injuryStatus({ name: 'Test Receiver', status: 'DOUBTFUL', away: 'TST', home: 'EXA', whenMs: W, now: W - 20 * 3600 * 1000 }), '\u{1F3C8} Receiver is doubtful', 'Injury report · TST at EXA · Sun 1:00 PM ET')
+  snap(C.cards.earned({ name: 'Test Skater', tierWord: 'ELITE', kicker: 'HAT TRICK', line: '3 GOALS', team: 'TST', opp: 'EXA' }), '\u{1F0CF} Skater earned ELITE card', 'New card: hat trick · 3 goals · TST-EXA')
+  snap(C.WELCOME, '\u{1F514} Alerts are on', 'Homers, goals, touchdowns, who is out.')
+  check(!/\bscores\b/.test(C.WELCOME.body), 'the welcome line no longer says only "scores"')
+  // a 0-for night has no words anywhere
+  check(!C.CATALOG.filter((r) => !r.cut && r.kind === 'push').some((r) => /Nothing cleared|0-for/.test(`${r.render().title} ${r.render().body}`)), 'no PUSH catalog row speaks of a 0-for or "Nothing cleared" night')
+  // panel words
+  check(C.CATEGORY_COPY.scratched[0] === 'Out or lineup change', 'panel: "Scratch" is now "Out or lineup change"')
+  check(!/starting five/i.test(C.CATEGORY_COPY.starter[1]), 'panel: the starter line has no basketball word while BUCKETS is hidden')
+  check(!Object.values(C.CATEGORY_COPY).some(([a, b]) => / -- | — /.test(`${a} ${b}`)), 'panel: no double hyphen or long dash dressed as punctuation')
+  // every new category's words fit when a long name arrives
+  const longName = 'Testington Longhurst'
+  for (const t of [C.mlb.barCleared({ name: longName, bar: { kind: 'hits', n: 3 }, line: { h: 3, ab: 4 }, game: G }), C.mlb.lineupIn({ name: longName, slot: 9, away: 'TST', home: 'EXA' }), C.nfl.injuryStatus({ name: longName, status: 'QUESTIONABLE', away: 'TST', home: 'EXA', whenMs: W, now: W }), C.cards.earned({ name: longName, tierWord: 'LEGEND', kicker: 'X', line: 'Y', team: 'TST', opp: 'EXA' })]) {
+    check(cp(t.title) <= C.LIMITS.title && !t.title.endsWith('…') && cp(t.body) <= C.LIMITS.body, `a long name still fits: ${t.title}`)
+  }
 }
 
 // ── 9. the cut ──

@@ -10,10 +10,10 @@ import HisNumbers from '../../HisNumbers'
 import InTheLedger from '../../ledger/InTheLedger'
 import PlayerNotes from '../../PlayerNotes'
 import FollowButton from '../../FollowButton'
-import CardButton from '../../CardButton'
+import ShareCardButton from '../../card/ShareCardButton'
 import CardFlip from '../../player/CardFlip'
 import CardsEarned from '../../player/CardsEarned'
-import { downloadCard, shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
+import { shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
 import StarMemory from '../../watch/StarMemory'
 import CallStatusBadge from '../../CallStatusBadge'
 import TeamMark from '../../TeamMark'
@@ -189,7 +189,15 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
   return (
     <SportTheme theme={C} accent={C.purple} numFont={NUM_FONT}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {onBack && <BackBtn onBack={onBack} label={backLabel} />}
+        {/* THE TOP ROW: Back on the left, his card (the board's word, score and night rank, PTS / REB / AST a game, projected points, his last five) at the right end */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: onBack ? 'space-between' : 'flex-end', gap: 8 }}>
+          {onBack ? <BackBtn onBack={onBack} label={backLabel} /> : null}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {/* his BASEBALL-CARD (front and back): a PREVIEW sport, shown only to a visitor BUCKETS' gate lets in, and only for a player on tonight's board (lib/card/core.js PREVIEW_CARD_SPORTS) */}
+            {row && <CardFlip sport="nba" id={String(card.id)} name={card.name} />}
+          <ShareCardButton sport="nba" what="his card" url={shareUrl({ kind: 'pick', sport: 'nba', id: card.id, market: 'pts', date: board?.date || null })} filename={`${slug(card.name, 'player')}_${stamp(board?.date)}.png`} />
+          </span>
+        </div>
         <DelayedBanner error={error} what="player data" />
         {onStep && peers.length > 1 && (
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -259,13 +267,6 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
             <section aria-label="Season line">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                 <Kicker>THE LINE · PER GAME</Kicker>
-                {/* 📸 his card as a PNG (fix15): the board's word, score and night rank, PTS / REB / AST a game, projected points, his last five.
-                    On the line, not in the sticky header (no room beside Watch at 360 without wrapping his name). */}
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  {/* his BASEBALL-CARD (front and back), a PREVIEW sport: shown only to a visitor BUCKETS' gate lets in, and only for a player on tonight's board (lib/card/core.js PREVIEW_CARD_SPORTS) */}
-                  {row && <CardFlip sport="nba" id={String(card.id)} name={card.name} />}
-                  <CardButton sport="nba" label="Download his card as an image" onDownload={() => downloadCard(shareUrl({ kind: 'pick', sport: 'nba', id: card.id, market: 'pts', date: board?.date || null }), `${slug(card.name, 'player')}_${stamp(board?.date)}.png`)} />
-                </span>
               </div>
               {stale && <p style={{ margin: '0 0 8px', fontSize: 12, color: C.text3, lineHeight: 1.5 }}>The new season has no regular-season games yet, so this is last season’s line ({seasonWord}).</p>}
               {lineRows.length > 0

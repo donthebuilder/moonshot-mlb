@@ -31,6 +31,7 @@ import BinderLink from '../../binder/BinderLink'
 import NflTable from '../NflTable'
 import FollowingStrip from '../../FollowingStrip'
 import WatchRecord from '../../watch/WatchRecord'
+import AlertsEntry from '../../AlertsEntry'
 import TuddyRecentAlerts from '../TuddyRecentAlerts'
 
 // THE WATCHLIST, UPGRADED (2026-10-10, Donovan: "make the NFL watch list page better and more updated, I don't like how it
@@ -317,6 +318,8 @@ export default function Watchlist({ data, matchup, logs, picks = null, onPlayerC
 
       {/* MOONSHOT's "Your nights, graded" (components/watch/WatchRecord.js), TUDDY's bars. */}
       <WatchRecord sport="nfl" theme={C} accent={C.green} onOpen={(r) => { const p = byId.get(String(r.id)); if (p) onPlayerClick?.(p, 'TD') }} />
+      {/* ALERTS (2026-10-13): where alerts stand, one tap from the list they are about; at the END, so the first row is where it was. */}
+      <AlertsEntry C={C} accent={C.green} NUM_FONT={NUM_FONT} />
       <TuddyRecentAlerts />
       <Style />
     </div>

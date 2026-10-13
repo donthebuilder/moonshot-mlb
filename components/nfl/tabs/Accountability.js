@@ -9,7 +9,8 @@ import { C, NUM_FONT, MARKETS, gradeFor, TYPE } from '../../../lib/nfl/theme'
 import NflTable from '../NflTable'
 import { useResultsArchive, seasonTotals, grandTotal, gradeBands, labelOf, weekKey } from '../../../lib/nfl/resultsArchive'
 import { regradeNote, regradeNotes } from '../../../lib/nfl/regrades'
-import { downloadCard, shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
+import ShareCardButton from '../../card/ShareCardButton'
+import { shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
 import PageHeader from '../../PageHeader'
 import { GameCallsRecord } from '../GameCalls'
 import { WhatThis } from '../../ui'
@@ -658,17 +659,10 @@ export default function Accountability({ data, results: latest, onPlayerClick })
             columns={[
               { key: 'did', label: '✓', flag: true, mark: '✓', w: 26,
                 title: 'Did this rung clear its own market’s bar?' },
-              { key: 'share', label: '', heat: false, w: 24,
+              // 📸 this graded pick as a baseball-card result: the camera alone (a table row has no room for the word), 44 x 44
+              { key: 'share', label: '', heat: false, w: 52,
                 fmt: (v, r) => (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); downloadCard(shareUrl({ kind: 'pick', sport: 'nfl', id: r.player_id, market: r.market, season: results.season, week: results.week, mode: results.mode === 'preseason' ? 'preseason' : 'week' }), `result-${slug(r.market, 'pick')}-${slug(r.name, 'pick')}_${stamp('')}.png`) }}
-                    title="Download this result as a PNG for posting"
-                    aria-label="Download result card as image"
-                    style={{
-                      background: 'transparent', border: `1px solid ${C.border}`, color: C.text3,
-                      borderRadius: 6, padding: '1px 5px', cursor: 'pointer', fontSize: TYPE.micro,
-                    }}
-                  >📸</button>
+                  <ShareCardButton icon sport="nfl" what="this result" url={shareUrl({ kind: 'pick', sport: 'nfl', id: r.player_id, market: r.market, season: results.season, week: results.week, mode: results.mode === 'preseason' ? 'preseason' : 'week' })} filename={`result-${slug(r.market, 'pick')}-${slug(r.name, 'pick')}_${stamp('')}.png`} />
                 ) },
               { key: 'name', label: 'Player', heat: false, w: 150, bold: true, sticky: true },
               { key: 'position', label: 'Pos', heat: false, w: 36, mono: true, dim: true },

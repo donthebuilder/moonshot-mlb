@@ -103,7 +103,7 @@ check(nflItem({ player_id: 'b', name: 'TEST B', team: 'AAA', opp: 'BBB', score: 
 
 // ── the source ──
 const code = (f) => readFileSync(join(ROOT, f), 'utf8').split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).map((l) => l.replace(/\s\/\/.*$/, '')).join('\n')
-for (const f of ['lib/cards/shareCards.js', 'lib/cards/shareData.js', 'lib/cards/saveCard.js', 'lib/cards/nflRows.js', 'components/CardButton.js']) {
+for (const f of ['lib/cards/shareCards.js', 'lib/cards/shareData.js', 'lib/cards/saveCard.js', 'lib/cards/nflRows.js', 'components/card/ShareCardButton.js']) {
   const c = code(f)
   check(!/\bsport\s*[!=]==?\s*['"]/.test(c) && !/\bsportKey\([^)]*\)\s*[!=]==?\s*['"]/.test(c), `${f}: no sport ternary`)
   check(!/#[0-9a-fA-F]{3,8}\b/.test(c.replace(/['"]#['"]/g, '')), `${f}: no hex literal`)
@@ -115,11 +115,17 @@ for (const f of ['lib/cards/kit.js', 'lib/cards/cards.js', 'components/shareCard
 const walkDir = (d, out = []) => { for (const n of readdirSync(join(ROOT, d))) { if (['node_modules', '.next', 'ARCHIVE', '.git', 'scratch'].includes(n)) continue; const p = `${d}/${n}`; if (statSync(join(ROOT, p)).isDirectory()) walkDir(p, out); else if (/\.(js|mjs)$/.test(n)) out.push(p) } return out }
 const stale = ['app', 'components', 'lib', 'scripts'].flatMap((d) => walkDir(d)).filter((f) => f !== 'scripts/check-cards.mjs' && /from ['"][^'"]*(cards\/kit|cards\/cards|\/shareCard)(\.js)?['"]/.test(readFileSync(join(ROOT, f), 'utf8')))
 check(stale.length === 0, `nothing imports the retired canvas kit or a shareCard wrapper${stale.length ? ` (${stale.join(', ')})` : ''}`)
-// every download button goes through saveCard
-const BUTTONS = ['components/PlayerModal.js', 'components/PitcherModal.js', 'components/ReportCard.js', 'components/tabs/RankedBoard.js', 'components/tabs/Watchlist.js', 'components/tabs/Games.js',
+// every download button is the ONE ShareCardButton (components/card/ShareCardButton.js), which goes through saveCard; no page draws its own
+const BUTTONS = ['components/PlayerModal.js', 'components/PitcherModal.js', 'components/ReportCard.js', 'components/tabs/RankedBoard.js', 'components/tabs/HitsHRR.js', 'components/tabs/Watchlist.js', 'components/tabs/Games.js',
   'components/nfl/NflPlayerModal.js', 'components/nfl/NflSlate.js', 'components/nfl/tabs/Touchdowns.js', 'components/nfl/tabs/Accountability.js',
-  'components/lamp/tabs/Player.js', 'components/lamp/tabs/Board.js', 'components/lamp/LampSlate.js', 'components/buckets/tabs/Player.js', 'components/buckets/tabs/Board.js', 'components/buckets/tabs/Slate.js']
-for (const f of BUTTONS) check(/lib\/cards\/saveCard/.test(readFileSync(join(ROOT, f), 'utf8')) && /downloadCard\(/.test(readFileSync(join(ROOT, f), 'utf8')), `${f}: its 📸 goes through lib/cards/saveCard.js`)
+  'components/lamp/tabs/Player.js', 'components/lamp/tabs/Board.js', 'components/lamp/tabs/Game.js', 'components/lamp/LampSlate.js', 'components/buckets/tabs/Player.js', 'components/buckets/tabs/Board.js', 'components/buckets/tabs/Slate.js', 'components/buckets/tabs/Game.js']
+for (const f of BUTTONS) {
+  const src = readFileSync(join(ROOT, f), 'utf8')
+  check(/card\/ShareCardButton/.test(src) && /<ShareCardButton\b/.test(src), `${f}: its 📸 is the shared ShareCardButton`)
+  check(!/downloadCard\(/.test(src) && !/>\s*📸\s*</.test(code(f)), `${f}: no hand-made 📸 button`)
+}
+check(/lib\/cards\/saveCard/.test(readFileSync(join(ROOT, 'components/card/ShareCardButton.js'), 'utf8')) && /downloadCard\(/.test(readFileSync(join(ROOT, 'components/card/ShareCardButton.js'), 'utf8')), 'ShareCardButton goes through lib/cards/saveCard.js downloadCard')
+check(!existsSync(join(ROOT, 'components/CardButton.js')), 'components/CardButton.js stays retired')
 
 console.log(`\nPNGs for a look: ${OUT}`)
 console.log(failed ? `${failed} FAILED` : 'all green')

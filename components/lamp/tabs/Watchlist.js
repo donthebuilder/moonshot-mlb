@@ -4,10 +4,15 @@ import PageHeader from '../../PageHeader'
 import BinderLink from '../../binder/BinderLink'
 import FollowingStrip from '../../FollowingStrip'
 import WatchRecord from '../../watch/WatchRecord'
+import AlertsEntry from '../../AlertsEntry'
 import CallStatusBadge from '../../CallStatusBadge'
 import LampTable from '../LampTable'
 import Hint from '../Hint'
-import { PositionRow, PositionNote, PositionEmpty } from '../../Filters'
+import { PositionRow, PositionNote, PositionEmpty, Segmented } from '../../Filters'
+import { LampCards, LAYOUT_OPTIONS } from '../LampCard'
+import ShareCardButton from '../../card/ShareCardButton'
+import { shareUrl, stamp } from '../../../lib/cards/saveCard'
+import { useIsPhone } from '../../MobileFold'
 import usePositionFilter from '../../../lib/usePositionFilter'
 import { canonPos } from '../../../lib/positions'
 import { useFollowing, follow } from '../../../lib/dash/follow'
@@ -36,6 +41,8 @@ export default function Watchlist({ onOpenPlayer }) {
   const fol = useFollowing('nhl')
   const { data: board } = useLampBoardOnce()
   const [undo, setUndo] = useState(null)
+  const [layout, setLayout] = useState('list')   // List | Cards, MOONSHOT's and TUDDY's watchlists have the same switch
+  const phone = useIsPhone()
   const timer = useRef(null)
   useEffect(() => () => clearTimeout(timer.current), [])
 
@@ -112,13 +119,26 @@ export default function Watchlist({ onOpenPlayer }) {
         <>
           {pf.control && <PositionRow control={pf.control} accent={C.ice} />}
           {pf.active && rows.length > 0 && <PositionNote control={pf.control} shown={rows.length} total={all.length} />}
-          {rows.length === 0 ? <PositionEmpty control={pf.control} onClearAll={pf.clear} /> : (
+          {rows.length > 0 && (
+            // THE VIEW ROW: List | Cards on the left, Save (the list as a baseball card, in board order) at the right end
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <Segmented tall={phone} value={layout} onChange={setLayout} options={LAYOUT_OPTIONS} />
+              {rows.some((x) => x.r) && <ShareCardButton sport="nhl" what="this watchlist" url={shareUrl({ kind: 'ranked', sport: 'nhl', market: 'GOAL', ids: rows.map((x) => x.f.id).slice(0, 40).join(',') })} filename={`watchlist_${stamp('')}.png`} />}
+            </div>
+          )}
+          {rows.length === 0 ? <PositionEmpty control={pf.control} onClearAll={pf.clear} /> : layout === 'cards' ? (
+            rows.some((x) => x.r && x.g)
+              ? <LampCards market="GOAL" onOpen={onOpenPlayer} items={rows.filter((x) => x.r && x.g).map((x, i) => ({ key: String(x.f.id), r: x.r, g: x.g, rank: x.r.rank ?? i + 1, facts: {} }))} />
+              : <div style={{ color: C.text3, fontSize: 13, lineHeight: 1.5 }}>None of the skaters you watch is on tonight's board, so there is no card to show. The list view keeps them.</div>
+          ) : (
             <LampTable {...table} onRowClick={(row) => onOpenPlayer?.(row.id)}
               caption="The skaters you watch, on tonight's board. # is his place in his game; the status word is the board's own. A skater whose club is not playing tonight stays on your list and reads NO GAME. Tap a row for his page." />
           )}
         </>
       )}
       <WatchRecord sport="nhl" theme={C} accent={C.ice} onOpen={(r) => onOpenPlayer?.(r.id)} />
+      {/* ALERTS (2026-10-13): where alerts stand, one tap from the list they are about; at the END, so the first row is where it was. */}
+      {all.length > 0 && <AlertsEntry C={C} accent={C.ice} NUM_FONT={NUM_FONT} />}
     </div>
   )
 }

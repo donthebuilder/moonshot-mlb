@@ -4,6 +4,8 @@ import dynamic from 'next/dynamic'
 import PageHeader from '../../PageHeader'
 import TeamMark from '../../TeamMark'
 import Tap from '../../Tap'
+import ShareCardButton from '../../card/ShareCardButton'
+import { shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsGame, useBucketsBoard, useBucketsTeamModel } from '../../../lib/nba/useBuckets'
 import { NBA_MARKETS } from '../../../lib/nba/model'
@@ -84,7 +86,11 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <BackBtn onBack={onBack} label={backLabel} />
+      {/* 📸 this game as a baseball card: the right end of the top row, beside Back (no extra line on a phone) */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <BackBtn onBack={onBack} label={backLabel} />
+        <ShareCardButton sport="nba" what="this game" style={{ marginLeft: 'auto' }} url={shareUrl({ kind: 'game', sport: 'nba', game: id, market: 'pts', date: gameDay(data.date) })} filename={`game-${slug(away.abbrev)}-${slug(home.abbrev)}_${stamp(gameDay(data.date))}.png`} />
+      </div>
       {gameSections('nba', 'page').map((sec) => <Fragment key={sec.id}>{SECTIONS[sec.id]?.()}</Fragment>)}
       <SourceLine>Source: ESPN’s game summary and play-by-play (/api/buckets/game). Free throws and end-of-quarter heaves are left off the chart, as in the box score.</SourceLine>
     </div>

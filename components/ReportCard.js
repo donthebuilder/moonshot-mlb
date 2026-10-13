@@ -3,7 +3,8 @@ import { useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { wilson, ciText } from '../lib/interval'
 import { reportModel, headline, LOCK_DATE } from '../lib/reportModel'
-import { downloadCard, shareUrl, stamp } from '../lib/cards/saveCard'
+import ShareCardButton from './card/ShareCardButton'
+import { shareUrl, stamp } from '../lib/cards/saveCard'
 
 // 🧾 REPORT CARD — the accountability page (2026-08-06).
 //
@@ -190,18 +191,8 @@ export default function ReportCard({ backtest }) {
         <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
           {model.lastDate ? `last complete night: ${model.lastDate}` : 'no complete night graded yet'}
         </span>
-        {/* 📸 SHARE (2026-08-23) — the season record as a PNG, zero backend.
-            Passes the exact numbers already computed above it, nothing
-            recomputed from `backtest` a second time. */}
-        <button
-          onClick={() => downloadCard(shareUrl({ kind: 'record', sport: 'mlb' }), `track-record_${stamp(model.lastDate)}.png`)}
-          title="Download the track record as a PNG for posting"
-          aria-label="Download track record as image"
-          style={{
-            marginLeft: 'auto', background: 'rgba(249,115,22,.10)', border: `1px solid ${C.border}`,
-            color: C.orange, borderRadius: 7, padding: '3px 10px', fontSize: 10.5, fontWeight: 700,
-            cursor: 'pointer',
-          }}>📸 Share</button>
+        {/* 📸 the season record as a baseball card (the numbers the server reads from the same record file): the right end of this header */}
+        <ShareCardButton sport="mlb" what="the track record" url={shareUrl({ kind: 'record', sport: 'mlb' })} filename={`track-record_${stamp(model.lastDate)}.png`} style={{ marginLeft: 'auto' }} />
       </div>
       <div style={{ fontSize: 9.5, color: C.text3, marginBottom: 10, lineHeight: 1.5 }}>
         Each category graded against its OWN bar and its OWN season baseline — a 20% HR night can be an A

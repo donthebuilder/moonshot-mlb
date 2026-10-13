@@ -16,9 +16,9 @@ import { EXPECTED_POINTS_WORDS } from '../../../lib/nba/teamModel'
 import { basisLine } from '../BucketsTeamExpected'
 import Rail from '../../Rail'
 import { BucketsCards } from '../BucketsCard'
-import CardButton from '../../CardButton'
+import ShareCardButton from '../../card/ShareCardButton'
 import GameTotalLine, { GameTotalMark, totalRowFor, useGameTotals } from '../../GameTotalLine'
-import { downloadCard, shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
+import { shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager, RimDot, fmtDay, fmtTip, readHashParam, writeHashParam } from '../ui'
 
 // 📋 THE SLATE -- tonight one game at a time (LAMP's Slate): pick a game, see
@@ -117,7 +117,7 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
             <div>{g.venue}</div>
           </div>
           <NavBtn onClick={() => onOpenGame?.(g.id)}>Open game →</NavBtn>
-          <CardButton sport="nba" label="Download this game as an image" onDownload={() => downloadCard(shareUrl({ kind: 'game', sport: 'nba', game: g.id, market: m, date: shown || null }), `game-${slug(g.away.abbrev)}-${slug(g.home.abbrev)}_${stamp(shown)}.png`)} />
+          <ShareCardButton sport="nba" what="this game" url={shareUrl({ kind: 'game', sport: 'nba', game: g.id, market: m, date: shown || null })} filename={`game-${slug(g.away.abbrev)}-${slug(g.home.abbrev)}_${stamp(shown)}.png`} />
         </div>
         {/* THIS GAME'S TOTAL (2026-10-10): the Top Totals row the lock stored for it */}
         <GameTotalLine sport="nba" row={gameTotals?.[String(g.id)]} />

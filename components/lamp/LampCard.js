@@ -127,6 +127,9 @@ export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen, rank
   )
 }
 
+/** The List | Cards switch's two choices (one place: the board and the watchlist both read it). */
+export const LAYOUT_OPTIONS = [['list', '☰ List', 'One sortable table'], ['cards', '▦ Cards', 'The card board']].map(([id, text, hint]) => Object.assign({}, { key: id }, { label: text, title: hint }))
+
 /** The grid: 1 across on a phone, as many 300px columns as fit above it; a preview, then "Show all". */
 export function LampCards({ items, market, onOpen, preview = null }) {
   const phone = useIsPhone()

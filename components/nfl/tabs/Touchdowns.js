@@ -15,8 +15,8 @@ import { baselineFor, topStatChips } from '../ScoreAnatomy'
 import { Card as UiCard } from '../../ui'
 import StatStrip from '../../StatStrip'
 import { SportTheme } from '../../SportTheme'
-import CardButton from '../../CardButton'
-import { downloadCard, shareUrl, stamp } from '../../../lib/cards/saveCard'
+import ShareCardButton from '../../card/ShareCardButton'
+import { shareUrl, stamp } from '../../../lib/cards/saveCard'
 import RankCard from '../../card/RankCard'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { ActiveFilters, FilterBar, FilterPill, PositionNote, PositionEmpty } from '../../Filters'
@@ -285,9 +285,8 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   // openPlayer third argument, 2026-09-29), like MOONSHOT's.
   const openFromBoard = (p, market) => onPlayerClick?.(p, market, filtered)
   const hidden = filtered.length - capped.length
-  // 📸 the top of this ranking as a PNG (Wave 8): the rows the table shows, best first, with the call word the table prints (lib/callStatus via statusOf)
-  const shareBtn = filtered.length ? <CardButton sport="nfl" label="Download this ranking as an image" style={{ margin: '-8px 0' }}
-    onDownload={() => downloadCard(shareUrl({ kind: 'ranked', sport: 'nfl' }), `rankings-anytime-td_${stamp(slateDay)}.png`)} /> : null
+  // 📸 the top of this ranking as a picture (the rows the table shows, best first, with the call word the table prints): the right end of the view row, after List | Cards
+  const shareBtn = filtered.length ? <ShareCardButton sport="nfl" what="this ranking" url={shareUrl({ kind: 'ranked', sport: 'nfl' })} filename={`rankings-anytime-td_${stamp(slateDay)}.png`} /> : null
 
   if (!rows.length) {
     return <div style={{ color: C.text3, fontSize: TYPE.body, padding: 18 }}>
@@ -338,7 +337,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
         <div style={{ marginTop: 8 }}><OddsStatus status={oddsStatus} /></div>
       )}
 
-      {phone && <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}><ViewSwitch value={view} onChange={setView} />{shareBtn}</div>}
+      {phone && <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}><ViewSwitch tall value={view} onChange={setView} /></div>}
       </>)}
       {!phone && (<>
       {/* (on a phone it sits under the table) TD WATCH (board filters plan, TUDDY 5): MOONSHOT's B2B Watch slot. */}

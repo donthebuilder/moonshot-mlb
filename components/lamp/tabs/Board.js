@@ -18,8 +18,8 @@ import { useCalledLastLens } from '../../../lib/calledLast/useCalledLast'
 import GoalCompare from '../GoalCompare'
 import MobileFold, { useIsPhone } from '../../MobileFold'
 import LedgerChip from '../../LedgerChip'
-import CardButton from '../../CardButton'
-import { downloadCard, shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
+import ShareCardButton from '../../card/ShareCardButton'
+import { shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
 import WatchChip from '../../WatchChip'
 import HowToRead from '../../HowToRead'
 import { LampCards, PctBars, countOf } from '../LampCard'
@@ -232,8 +232,8 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   const angleDef = angle ? angles.find((a) => a.key === angle) : null
   const viewSwitch = <Segmented value={view} onChange={setView}
     options={[{ key: 'game', label: 'By game', title: 'Each game, its two calls (one per team) on top' }, { key: 'all', label: 'All games', title: 'Every scored skater tonight, one ranked table' }]} />
-  const layoutSwitch = <Segmented value={layout} onChange={setLayout}
-    options={[{ key: 'list', label: '☰ List', title: 'One sortable table per game' }, { key: 'cards', label: '▦ Cards', title: 'The card board' }]} />
+  const layoutOptions = [{ key: 'list', label: '☰ List', title: 'One sortable table per game' }, { key: 'cards', label: '▦ Cards', title: 'The card board' }]
+  const layoutSwitch = <Segmented value={layout} onChange={setLayout} options={layoutOptions} />
   // the day, and Called only beside it: one row, the same two buttons on every Rankings page
   const dayRow = (
     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -280,9 +280,8 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
       </div>
     </DrawerSection>
   </>)
-  // 📸 the top of this ranking as a PNG (fix15): in the Filters row beside Ledger and Watchlist on a desktop, beside How to read on a phone (that row has no room left): the rows the table shows, best score first
-  const shareBtn = kept.length && (market === 'GOAL' || market === 'SOG') ? <CardButton sport="nhl" label="Download this ranking as an image"
-    onDownload={() => downloadCard(shareUrl({ kind: 'ranked', sport: 'nhl', market, date: shown || null }), `rankings-${slug(market)}_${stamp(shown)}.png`)} /> : null
+  // 📸 the top of this ranking as a picture: the right end of the view row, after List | Cards (components/card/ShareCardButton.js has the rule).
+  const shareBtn = (icon = false) => kept.length && (market === 'GOAL' || market === 'SOG') ? <ShareCardButton icon={icon} sport="nhl" what="this ranking" url={shareUrl({ kind: 'ranked', sport: 'nhl', market, date: shown || null })} filename={`rankings-${slug(market)}_${stamp(shown)}.png`} /> : null
   const nActive = chips.length + drawerChips.length
   const colSet = useColumnSet('nhl')   // Short list / What I read / All (lib/columnViews.js); the tables below read the same choice
   const drawerProps = {
@@ -297,10 +296,11 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
           so the ranking is the first thing on the screen, as on TUDDY. */}
       {!phone && data && market === 'GOAL' && <GoalWatch flat={flat} onOpenPlayer={onOpenPlayer} date={shown} />}
       {phone ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
-          <div style={{ minWidth: 0, color: C.text2, fontSize: 13, lineHeight: 1.3 }}>Every skater tonight, #1 down. Tap a header to sort.{M.test ? ' A test.' : ''}</div>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flex: '0 0 auto' }}>
-            {shareBtn}
+        // THE VIEW ROW (phone): List | Cards on the left (it was behind Filters, so the cards were never seen), Save and How to read on the right.
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          {data ? <Segmented tall value={layout} onChange={setLayout} options={layoutOptions} /> : <span />}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flex: '0 0 auto' }}>
+            {shareBtn(true)}
             {howRow && <HowToRead id="nhl-goal-board" accent={C.ice} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />}
           </span>
         </div>
@@ -327,7 +327,6 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
             {dayRow}
             {data && <AngleRow defs={angles} pool={flat} value={angle} onChange={setAngle} accent={C.ice} className="lamp-angle-row" hideEmpty />}
             {angleDef && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angleDef.title}</p>}
-            {layoutSwitch}
           </div>)}>
           {drawerSections}
         </FiltersDrawer>
@@ -340,9 +339,10 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
             <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
               {howRow && <HowToRead id="nhl-goal-board" accent={C.ice} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />}
               {layoutSwitch}
+              {shareBtn()}
             </span>
           </div>
-          <FiltersDrawer ledger="nhl" share={shareBtn} {...drawerProps}>{drawerSections}</FiltersDrawer>
+          <FiltersDrawer ledger="nhl" {...drawerProps}>{drawerSections}</FiltersDrawer>
         </div>)
       )}
       {data?.season?.stale && <StaleSeasonNote label={data.season.label} opens={data.season.opens} what="per-game stats" />}

@@ -13,7 +13,8 @@ import VerdictHero from './VerdictHero'
 import PitcherTags from './PitcherTags'
 import DenseTable from './DenseTable'
 import MatchupPitcher from './MatchupPitcher'
-import { downloadCard, shareUrl, slug, stamp } from '../lib/cards/saveCard'
+import ShareCardButton from './card/ShareCardButton'
+import { shareUrl, slug, stamp } from '../lib/cards/saveCard'
 import PitcherSpots from './PitcherSpots'
 import PitcherProfile from './PitcherProfile'
 import SituationalSplits from './SituationalSplits'
@@ -403,16 +404,8 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
               the pitcher's NAME on a 430px phone, and the name has an
               ellipsis. 📸 keeps every argument it had. */}
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'flex-end', marginBottom: 8 }}>
-            {/* 📸 SHARE (2026-08-23) — his card as a PNG, zero backend, the
-                same tiles this modal already drew above. */}
-            <button onClick={() => downloadCard(shareUrl({ kind: 'pitcher', sport: 'mlb', id: pitcher?.pitcher_id }), `pitcher-${slug(name, 'pitcher')}_${stamp('')}.png`)}
-              title="Download his card as a PNG for posting — the at-a-glance tiles and his toughest lineup matchup"
-              aria-label="Download pitcher card as image"
-              style={{
-                background: 'transparent', border: `1px solid ${C.border2}`, color: C.text2,
-                borderRadius: 7, padding: '3px 9px', fontSize: 12, lineHeight: 1,
-                cursor: 'pointer', minHeight: 26,
-              }}>📸</button>
+            {/* 📸 his card as a baseball card: the at-a-glance tiles and his toughest lineup matchup */}
+            <ShareCardButton sport="mlb" what="his card" url={shareUrl({ kind: 'pitcher', sport: 'mlb', id: pitcher?.pitcher_id })} filename={`pitcher-${slug(name, 'pitcher')}_${stamp('')}.png`} />
           </div>
 
           {/* ── THE HERO (2026-08-23) ─────────────────────────────────────
