@@ -492,15 +492,16 @@ await t('the X post: the #1 straight carries its status word and ONE data line (
   assert.ok(!l.text.includes('www') && l.text.includes('ON THE BOARD') && l.text.includes('Shots, shots, shots.'), 'the data line goes first, his note stays')
 })
 
-await t('status words: a football straight is CALLED or ON THE BOARD from its leg; the record shows the mix; NFL pool takes called + board only from the TD ladder / game calls', () => {
+await t('status words: football straights are CALLED only (2026-10-13); a board man never takes a straight slot; the record shows the mix; the pool still reads the TD ladder / game calls', () => {
   const rows = lockRows({ sport: 'nfl', slate_key: 'k', card_date: 'd', byMarket: { anytime: { cands: [C('a', 'g1', 2, 90, 0.3, { status: 'board' }), C('b', 'g2', 2, 80, 0.3, { status: 'called' }), C('c', 'g3', 2, 70, 0.3, { status: 'called' })], board: [90, 80, 70] }, rec_yds: { cands: [{ ...C('r', 'g4', 2, 99, null, { status: 'called' }), market: 'rec_yds', line: 99.5, price: { median: 125, best: 130 } }], board: [99] } }, games: 6, now: NOW, lockAtMs: LOCK_AT })
-  assert.deepEqual(rows.filter((r) => r.product === 'straight').map((r) => r.legs[0].status), ['board', 'called'])
-  assert.deepEqual(rows.filter((r) => r.product === 'straight').map((r) => r.legs[0].market), ['anytime', 'rec_yds'], 'slot 3 (rushing yards) had no board: skipped')
+  const st = rows.filter((r) => r.product === 'straight')
+  assert.deepEqual(st.map((r) => r.legs[0].status), ['called', 'called'], 'the ON THE BOARD man (score 90) is passed over for the CALLED one')
+  assert.ok(!st.some((r) => r.legs[0].player_id === 'a'), 'a board man is not a straight')
+  assert.deepEqual(st.map((r) => r.legs[0].market), ['anytime', 'rec_yds'], 'slot 3 (rushing yards) had no board: skipped')
   const g = rows.map((r) => ({ ...r, result: 'hit' }))
   const rec = recordOf(g.filter((r) => r.product === 'straight'))
-  assert.deepEqual(rec.mix, { called: 1, board: 1 })
-  assert.match(recordWords(rec, { product: 'straight' }).join(' '), /1 CALLED, 1 ON THE BOARD/)
-  assert.match(membersCardText({ sport: 'nfl', day: 'd', rows: rows.map((r, i) => ({ id: i, ...r })) }).text, /ON THE BOARD/)
+  assert.deepEqual(rec.mix, { called: 2, board: 0 })
+  assert.doesNotMatch(recordWords(rec, { product: 'straight' }).join(' '), /ON THE BOARD/)
   const src = fs.readFileSync(new URL('../lib/card/sources.js', import.meta.url), 'utf8')
   assert.ok(/status === 'called' \|\| status === 'board'/.test(src) && /onBot\.market === 'TD' \|\| onBot\.market === 'GAME'/.test(src))
 })
