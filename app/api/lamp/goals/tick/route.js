@@ -33,6 +33,7 @@ import { goalCard } from '../../../../../lib/nhl/goalCard'
 import { alertFrontCard } from '../../../../../lib/cards/alertCard'
 import { kindOn } from '../../../../../lib/dash/longshotsPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
+import { momentAfterTick } from '../../../../../lib/posts/momentTick'
 
 // The host printed in the goal card's footer.
 const SITE_HOST = (process.env.NEXT_PUBLIC_SITE_URL || 'dashnetwork.vercel.app').replace(/^https?:\/\//, '').replace(/\/$/, '')
@@ -146,6 +147,10 @@ export async function GET(request) {
   }
   try {
     const out = await tickGoals({ games, store: supabaseStore(db), poster, modelVersion: (game) => versionsFor(game.date).goal })
+    // MOMENT POSTS (2026-10-12): the special cards of confirmed goals (an OT goal, a milestone, a hat trick, a 3+ point night) and the update when a goal behind
+    // one is overturned. After the feed's own work; off unless MOMENT_POSTS_ON; never changes the feed's answer (lib/posts/momentTick.js).
+    const moments = await momentAfterTick(null, { sources: ['nhl'], db })
+    if (moments) out.moments = moments.nhl
     out.ms = Date.now() - t0
     console.log(`[lamp goals] ${dates.join(',')} active ${out.active} goals ${out.goals} new ${out.inserted} confirmed ${out.confirmed} overturned ${out.overturned} posted ${out.posted.length} in ${out.ms}ms`)
     return Response.json({ dates, ...out }, { headers: { 'Cache-Control': 'no-store' } })

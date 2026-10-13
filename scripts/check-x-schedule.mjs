@@ -195,6 +195,16 @@ await ok('THE LAMP SLATE (nhl_slate): INFO, event-driven, slate tier, NHL; it ca
   assert.equal(mayPostNow({ kind: 'slate', now: at(DAY, '15:15') }).ok, false)
   assert.equal(payloadFor('nhl_slate').x_tag, 'INFO')
 })
+await ok('MOMENT POSTS (moment_<sport>_<event>, postseason_mlb_<game>_<player>): every new kind is tagged INFO and event-driven, counted write-up tier, not cap-exempt, repeat-guard exempt (one post per event), sport read from the kind', () => {
+  for (const k of ['moment_mlb', 'moment_nfl', 'moment_nhl', 'postseason_mlb', 'moment_nhl_8478402_2025020123_ht3', 'moment_nhl_8478402_2025020123_ht3_upd', 'moment_nfl_000038124_s2026w5_yd', 'postseason_mlb_849831_660271']) {
+    assert.equal(tagOf(k), 'INFO', k); assert.equal(kindInfo(k).mode, 'event', k)
+    assert.equal(P.tierOf(k), 'writeup', k); assert.ok(!P.isCapExempt(k), k); assert.ok(P.isRepeatExempt(k) && P.isMomentKind(k), k)
+    assert.equal(mayPostNow({ kind: k, now: at(DAY, '12:30') }).ok, true, k)
+  }
+  assert.equal(P.sportOfKind('moment_nfl_000038124_s2026w5_yd'), 'nfl'); assert.equal(P.sportOfKind('postseason_mlb_849831_660271'), 'mlb')
+  assert.ok(!P.EXEMPT_KINDS.some((k) => /^(moment|postseason)/.test(k)))
+  assert.deepEqual(untagged(), [])
+})
 await ok('hold and drop: a post that is not due is held with the next window; 30 minutes before its game it is dropped', () => {
   const now = at(DAY, '03:00')
   const held = mayPostNow({ kind: 'numerology', now, startMs: now + 120 * 60e3 })
