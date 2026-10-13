@@ -1,4 +1,5 @@
 'use client'
+import TeamCards from '../../binder/TeamCards'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../../../lib/nfl/theme'
 import { NFL_TEAMS } from '../../../lib/nfl/teams'
@@ -63,6 +64,7 @@ export default function Team({ data, picks = null, matchup = null, logs = null, 
   // the injury module is one stable component; it reads the latest handlers from a ref (a new function each render would remount it)
   const live = useRef({})
   const slots = useMemo(() => ({
+    teamCards: (p) => <TeamCards {...p} />,
     defense: TeamDefenders,
     injuries: ({ clubs }) => <InjuryOut sport="nfl" clubs={clubs} theme={{ C, NUM_FONT, accent: C.green }} title="Out this week" onOpenTeam={(a) => live.current.openTeam?.(a)}
       openPlayer={(e) => (live.current.openPlayer && live.current.has(e.player_id) ? () => live.current.openPlayer(e.player_id) : null)} />,

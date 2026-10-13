@@ -16,6 +16,7 @@ import { usePageTitle } from '../lib/usePageTitle'
 import TabNotFound from './TabNotFound'
 import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows, keepNewerSlate, easternDate, mlbScheduleSpan } from '../lib/data'
 import { stampSave, unstampSave, seedFromOldLedger } from '../lib/watchNights'
+import { boardPicks } from './binder/boardPicks'
 import { slatePaths, resultsPaths, runMetaPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, evalReportPaths, oddsPaths, gradedResultsUrl, setSlateMode } from '../lib/dataSource'
 import { nameOf, teamOf, oppOf, clean, playerId, obj } from '../lib/player'
 import { fetchLiveSlate, setLiveSlateDay } from '../lib/liveSlate'
@@ -80,6 +81,7 @@ const Results = dynamic(() => import('./tabs/Results'), { loading: TabLoading })
 const CalledLedger = dynamic(() => import('./tabs/CalledLedger'), { loading: TabLoading })
 const LedgerLab = dynamic(() => import('./tabs/LedgerLab'), { loading: TabLoading })   // the Ledger's Archive (was a pill in Parlays)
 const Watchlist = dynamic(() => import('./tabs/Watchlist'), { loading: TabLoading })
+const Binder = dynamic(() => import('./binder/Binder'), { loading: TabLoading })   // 2026-10-12: cards earned by the players I follow
 const Pairs = dynamic(() => import('./tabs/Pairs'), { loading: TabLoading })
 const Bot = dynamic(() => import('./tabs/Bot'), { loading: TabLoading })
 const OddsBoard = dynamic(() => import('./tabs/OddsBoard'), { loading: TabLoading })
@@ -688,6 +690,7 @@ export default function Dashboard({ palettePass = 0 }) {
   }, [allPlayers, watch])
 
   const watchIds = useMemo(() => new Set(watch.map(playerId)), [watch])
+  const binderBoard = useMemo(() => boardPicks('mlb', allPlayers), [allPlayers])   // the Binder's empty state names real players from this board
 
   // FOLLOWED NAMES NO LONGER COME BACK ON THEIR OWN (2026-10-01). The relight
   // that re-starred every followed man on each new board is gone: Donovan
@@ -1040,6 +1043,7 @@ export default function Dashboard({ palettePass = 0 }) {
             )}
             {tab === 'combos'      && <Combos onNavigate={setTab} odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
             {tab === 'odds'        && <OddsBoard players={players} odds={oddsRaw} onPlayerClick={setModalPlayer} />}
+            {tab === 'binder'      && <Binder sport="mlb" board={binderBoard} />}
             {tab === 'you'         && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
 
             {/* ── ALIASES — every old key keeps landing somewhere right ───── */}

@@ -11,6 +11,7 @@ import { byGameThenTeam, discordGameBlocks, gameTimeOf, startLabel } from '../..
 import { dedupeGraded } from '../../lib/graded'
 import { C, NUM_FONT } from '../../lib/theme'
 import { PanelTitle, Grid, Empty } from '../ui'
+import BinderLink from '../binder/BinderLink'
 import DenseTable from '../DenseTable'
 import { boardRow, boardRowContext, withBoardColumns } from '../../lib/boardColumns'
 import BoardFilters, { useBoardFilter } from '../BoardFilters'
@@ -476,6 +477,7 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
     return (
       <div>
         <PanelTitle title="Watchlist" sub="Tap the ☆ on any player card to save them here. Saved on this device only." />
+        <div style={{ margin: '0 0 10px' }}><BinderLink sport="mlb" /></div>
         <CrossReference players={players} onPlayerClick={onPlayerClick} onWatch={onWatch} watchedIds={new Set(items.map(playerId))} />
         <Empty text={stale
           ? "No players loaded yet — tonight's slate isn't up yet, so there's nothing to star. This isn't a broken watchlist; it clears up once the slate posts."
@@ -562,6 +564,7 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
           </div>
         }
       />
+      <div style={{ margin: '0 0 10px' }}><BinderLink sport="mlb" /></div>
       {/* YOUR NIGHTS, GRADED (2026-09-29): every night a name was on your list,
           graded off his own game log, with units at the archived price
           (components/watch/WatchRecord.js). Replaces WatchTracker, which only

@@ -1,6 +1,7 @@
 'use client'
 import { useMemo, useRef, useState, useEffect } from 'react'
 import PageHeader from '../../PageHeader'
+import BinderLink from '../../binder/BinderLink'
 import FollowingStrip from '../../FollowingStrip'
 import WatchRecord from '../../watch/WatchRecord'
 import CallStatusBadge from '../../CallStatusBadge'
@@ -96,6 +97,7 @@ export default function Watchlist({ onOpenPlayer }) {
             {called > 0 && <span style={{ color: C.ice }}><b>{called}</b> {STATUS_WORD.called}</span>}
           </div>}</>}
         theme={C} numFont={NUM_FONT} accent={C.ice} style={{ marginBottom: 6 }} />
+      <div><BinderLink sport="nhl" /></div>
 
       {undo && (
         <div role="status" data-watch-undo style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, minHeight: 48, padding: '0 6px 0 12px', borderRadius: 10, border: `1px solid ${C.border2}`, background: C.bg3, color: C.text, fontSize: 13 }}>

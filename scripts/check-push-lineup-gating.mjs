@@ -247,5 +247,38 @@ if (AL) check(AL.PUSHABLE.includes('starter'), 'the settings panel offers the St
 // the claim-table memory the route reads back
 check(JSON.stringify(SRC.priorStartersFrom(['nhl:2026-10-10:2026020001:starter:away:9001', 'nhl:2026-10-10:2026020001:starter:away:9001:out:9004', 'mlb:x'], new Map([['9001', 'Test Netminder']]))) === JSON.stringify({ '2026020001:away': [{ id: '9001', name: 'Test Netminder' }] }), 'the route\'s memory of who was confirmed reads only the confirmed key, not the "out" key')
 
+
+// ── THE BINDER: a followed player earns a STAR+ card (cardearned), 2026-10-12. TEST rows. ──
+{
+  const PR = await import('../lib/dash/pushRules.js')
+  const F = await import('../lib/cards/specialFixtures.js')
+  const aud = (o = {}) => ({ nhl: new Set(['11']), mlb: new Set(['900']), nfl: new Set([PR.followNameKey('Test Runner')]), ...o })
+  const hat = PR.cardEarnedEventsFrom('nhl', F.TEST_HAT_ROWS, aud())
+  check(hat.length === 1 && hat[0].category === 'cardearned' && hat[0].playerId === '11' && hat[0].priority === 1, 'card push: a followed skater\'s hat trick is one cardearned event')
+  check(hat[0].key === 'card:nhl_hat_trick:1:11', 'card push: the event key is the card (moment + id), so a repeat sweep claims nothing new', hat[0]?.key)
+  check(/ELITE card/.test(hat[0].title) && /hat trick/i.test(hat[0].body), 'card push: short neutral words (tier word, what he did)', `${hat[0].title} | ${hat[0].body}`)
+  check(PR.laneOf(hat[0]) === 'urgent', 'card push: rides the never-dropped lane')
+  check(PR.cardEarnedEventsFrom('nhl', F.TEST_HAT_ROWS, aud({ nhl: new Set(['99']) })).length === 0, 'card push: audience = followers of THAT player only')
+  check(PR.cardEarnedEventsFrom('nhl', [F.TEST_GOAL], aud()).length === 0, 'card push: a plain goal (BASE) is never a push')
+  check(PR.cardEarnedEventsFrom('nhl', [F.TEST_GOAL_OT], aud()).length === 1, 'card push: an overtime goal (STAR) is')
+  check(PR.cardEarnedEventsFrom('nhl', F.TEST_HAT_ROWS.map((r) => ({ ...r, game_type: 1 })), aud()).length === 0, 'card push: a preseason game earns no push')
+  check(PR.cardEarnedEventsFrom('nhl', F.TEST_HAT_ROWS.map((r) => ({ ...r, overturned_at: '2026-01-02T00:00:00Z' })), aud()).length === 0, 'card push: an overturned goal earns nothing')
+  const hrRows = (n) => Array.from({ length: n }, (_, i) => ({ day: '2026-01-02', player_id: '900', hr_n: i + 1, name: 'Test Slugger', team: 'TST', opponent: 'EXA', game_pk: '700', inning: 'top 2nd', home: true, role: 'TOP', on_board: true }))
+  check(PR.cardEarnedEventsFrom('mlb', hrRows(2), aud()).length === 0, 'card push: two homers (STAR) are already told by the second-homer push: no card push')
+  const three = PR.cardEarnedEventsFrom('mlb', hrRows(3), aud())
+  check(three.length === 1 && three[0].url.includes('tab=binder') && three[0].url.includes('bp=mlb:900'), 'card push: three homers (ELITE) is one push that opens the binder on that player', three[0]?.url)
+  check(PR.cardEarnedEventsFrom('nfl', [], aud()).length === 0 && PR.cardEarnedEventsFrom('nba', hrRows(3), aud()).length === 0 && PR.cardEarnedEventsFrom('mlb', null, aud()).length === 0, 'card push: no rows / a sport with no cards -> nothing')
+  // opt-out and defaults: wants() is the sender's gate, exactly as for every follow push
+  const st = (events) => ({ dash_follow_v1: { 'nhl:11': { sport: 'nhl', id: '11', name: 'Test Skater' } }, dash_alerts_v1: { events } })
+  check(PR.wants(st({}), hat[0]) === true, 'card push: on by default for a follower')
+  check(PR.wants(st({ cardearned: false }), hat[0]) === false, 'card push: the opt-out switch is respected')
+  check(PR.wants({ dash_follow_v1: {}, dash_alerts_v1: { events: {} } }, hat[0]) === false, 'card push: nobody who does not follow him is told')
+  const AL2 = await import('../lib/dash/alerts.js')
+  check(AL2.PUSHABLE.includes('cardearned') && AL2.CATEGORIES.find((c) => c.key === 'cardearned')?.group === 'Cards', 'card push: the settings panel offers the Cards switch')
+  const CP2 = await import('../lib/copy/notifications.js')
+  check(CP2.categoryAllowed('cardearned'), 'card push: inside the kept categories')
+  check(PR.deviceWantsSport(['mlb'], 'nhl') === false, 'card push: a device that chose MLB only does not get an NHL card (sport list respected)')
+}
+
 if (failed) { console.log(`\n${failed} FAILED`); process.exit(1) }
 console.log('\nall green')

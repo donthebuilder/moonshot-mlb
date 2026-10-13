@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { C, NUM_FONT } from '../lib/theme'
 import NetworkSwitch from './NetworkSwitch'
 import MoreAccount from './header/MoreAccount'
+import useBinderNew from './binder/useBinderNew'
 import { MLB_NAV, MLB_MORE_GROUPS, BAR_KEYS } from '../lib/routes'
 
 // 2026-08-30, Donovan: "i want slate as a selection on the navigator at the
@@ -118,6 +119,7 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
   const AC_ICON = accentText || accent || '#fb923c'
   const AC_FADE = `${accent || C.amber}0b`
   const [open, setOpen] = useState(false)
+  const binderNew = useBinderNew(open)   // 2026-10-12: the NEW badge on the Binder row (one read, only while the drawer is open)
   const sheetRef = useRef(null)
   useEffect(() => {
     const el = sheetRef.current
@@ -266,11 +268,11 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
             ) : (
               hrefOf ? (
                 <a key={key} href={hrefOf(key)} tabIndex={open ? undefined : -1} onClick={(e) => follow(e, key)} className={`mobileMoreRow${tab === key ? ' active' : ''}`} aria-current={tab === key ? 'page' : undefined} aria-busy={pending === key || undefined}>
-                  <i aria-hidden="true">{iconFor(label, icon)}</i><span>{label}{blurb && <small>{blurbLine(blurb)}</small>}</span>{hasBlurbs && <u aria-hidden="true">{'›'}</u>}
+                  <i aria-hidden="true">{iconFor(label, icon)}</i><span>{label}{key === 'binder' && binderNew > 0 ? <b className="mobileMoreNew">NEW</b> : null}{blurb && <small>{blurbLine(blurb)}</small>}</span>{hasBlurbs && <u aria-hidden="true">{'›'}</u>}
                 </a>
               ) : (
                 <button key={key} tabIndex={open ? undefined : -1} onClick={() => go(key)} className={`mobileMoreRow${tab === key ? ' active' : ''}`} aria-current={tab === key ? 'page' : undefined}>
-                  <i aria-hidden="true">{iconFor(label, icon)}</i><span>{label}{blurb && <small>{blurbLine(blurb)}</small>}</span>{hasBlurbs && <u aria-hidden="true">{'›'}</u>}
+                  <i aria-hidden="true">{iconFor(label, icon)}</i><span>{label}{key === 'binder' && binderNew > 0 ? <b className="mobileMoreNew">NEW</b> : null}{blurb && <small>{blurbLine(blurb)}</small>}</span>{hasBlurbs && <u aria-hidden="true">{'›'}</u>}
                 </button>
               )
             )
@@ -324,6 +326,7 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
         .mobileMoreHead strong{display:block;margin-top:3px;font-size:18px;color:${C.text}}
         .mobileMoreHead button{width:44px;height:44px;border:1px solid ${C.border};border-radius:11px;background:${C.bg};color:${C.text2};cursor:pointer;font-size:22px}
         .mobileMoreLede{margin:0 3px 10px;color:${C.text3};font-size:12px;line-height:1.5}
+        .mobileMoreNew{margin-left:8px;padding:3px 6px;border-radius:6px;background:${AC};color:${C.bg};font:900 10px/1 ${NUM_FONT};letter-spacing:.08em;vertical-align:middle}
         .mobileMoreDot{position:absolute;top:6px;right:calc(50% - 17px);width:7px;height:7px;border-radius:50%;background:${AC};box-shadow:0 0 0 2px ${C.bg2}}
         .mobileMoreList{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;margin:0 -14px;padding:0 14px calc(62px + max(9px,env(safe-area-inset-bottom)) + 18px);display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start}
         .mobileMoreWide{grid-column:1/-1;min-width:0}

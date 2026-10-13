@@ -1,4 +1,5 @@
 'use client'
+import TeamCards from '../binder/TeamCards'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { teamKey, isKnownTeam } from '../../lib/mlbTeams'
@@ -51,6 +52,7 @@ export default function Team({ players = [], onPlayerClick, onOpenGame, onOpenBo
   // the injury module is one stable component (a new function each render would remount it); it reads the latest handlers from a ref
   const live = useRef({})
   const slots = useMemo(() => ({
+    teamCards: (p) => <TeamCards {...p} />,
     injuries: ({ clubs }) => <InjuryOut sport="mlb" clubs={clubs} theme={{ C, NUM_FONT, accent: C.orange }} title="Out" onOpenTeam={(a) => live.current.openTeam?.(a)}
       openPlayer={(e) => (live.current.openPlayer && live.current.has(e.player_id) ? () => live.current.openPlayer(e.player_id) : null)} />,
   }), [])

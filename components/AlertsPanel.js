@@ -38,6 +38,7 @@ const GROUPS = [
   { key: 'Moonshot', label: 'MOONSHOT · MLB' },
   { key: 'Tuddy', label: 'TUDDY · NFL' },
   { key: 'Lamp', label: 'LAMP · NHL' },
+  { key: 'Cards', label: 'CARDS · BINDER' },
   { key: 'Franchise', label: 'FRANCHISE · FANTASY' },
 ]
 

@@ -27,6 +27,7 @@ import { SportTheme } from '../../SportTheme'
 import CallStatusBadge from '../../CallStatusBadge'
 import PlayerFace from '../../PlayerFace'
 import PageHeader from '../../PageHeader'
+import BinderLink from '../../binder/BinderLink'
 import NflTable from '../NflTable'
 import FollowingStrip from '../../FollowingStrip'
 import WatchRecord from '../../watch/WatchRecord'
@@ -143,6 +144,7 @@ export default function Watchlist({ data, matchup, logs, picks = null, onPlayerC
     <PageHeader eyebrow="YOUR TUDDY BOARD" title="Watchlist" theme={C} numFont={NUM_FONT} accent={C.green} style={{ marginBottom: 6 }}
       note={<><NflNote tab="watchlist" />{summaryLine}</>} />
   )
+  const binderLink = <div style={{ margin: '0 0 10px' }}><BinderLink sport="nfl" /></div>
 
   // ── EMPTY: say how to add, offer real names from this week's board ──
   if (!pins.length) {
@@ -150,6 +152,7 @@ export default function Watchlist({ data, matchup, logs, picks = null, onPlayerC
     return (
       <div className="nfl-watch">
         {header}
+        {binderLink}
         <section style={{ border: `1px dashed ${C.border2}`, borderRadius: 14, padding: '18px 14px', background: C.bg2 }}>
           <div style={{ font: `900 15px/1.3 ${NUM_FONT}`, color: C.text }}>Nobody on your list yet.</div>
           <p style={{ margin: '6px 0 0', color: C.text2, fontSize: 13, lineHeight: 1.5 }}>Tap <b style={{ color: C.yellow }}>☆</b> on any player and he lands here, with his status, injury tag and game for the week.</p>
@@ -227,6 +230,7 @@ export default function Watchlist({ data, matchup, logs, picks = null, onPlayerC
   return (
     <div className="nfl-watch">
       {header}
+      {binderLink}
 
       {moved.length > 0 && (
         <section data-watch-moved aria-label="Moved" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0 4px' }}>
