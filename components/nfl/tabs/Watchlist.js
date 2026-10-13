@@ -205,11 +205,7 @@ export default function Watchlist({ data, matchup, logs, picks = null, onPlayerC
   const table = withNflFullSet(tableRows, [
     { key: 'star', label: '★', action: true, w: 44, group: G.player, mark: '★', markOff: '☆', titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist', onAction: (row) => { const r = byRow.get(String(row?.player_id ?? row?._id)); if (r) remove(r) } },
     { key: 'rank', label: '#', w: 34, heat: false, group: G.player, title: 'His place on this week’s anytime-TD board. The arrow is places moved since the last update.' },
-    { key: 'name', label: 'Player', w: 158, heat: false, bold: true, sticky: true, group: G.player, fmt: (v, r) => (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-        {r._player && <PlayerFace sport="nfl" espnId={r._player.espn_id} team={r._player.team} name={r._player.name} size={22} />}
-        <a href={playerHref('nfl', r.player_id)} onClick={(e) => e.preventDefault()} style={{ color: 'inherit', textDecoration: 'none', whiteSpace: 'normal', lineHeight: 1.15, minWidth: 0 }}>{v}</a>
-      </span>) },
+    { key: 'name', label: 'Player', w: 158, heat: false, bold: true, sticky: true, group: G.player },   // the shared player name cell draws the face, the name and the chips
     { key: 'pos', label: 'Role', w: 44, heat: false, fold: true, group: G.player, title: 'His usage role this week (RB1, WR2 ...), from snaps and touches.' },
     { key: 'team', label: 'Tm', w: 34, heat: false, teamMark: 'nfl', fold: true, group: G.player },
     { key: 'opp', label: 'Opp', w: 34, heat: false, teamMark: 'nfl', fold: true, subOnly: true, group: G.game },
@@ -281,6 +277,7 @@ export default function Watchlist({ data, matchup, logs, picks = null, onPlayerC
           : <div style={{ color: C.text3, fontSize: 13, padding: '10px 2px' }}>No pins in this game. <button type="button" onClick={() => setGameId('')} style={{ ...btn(), minHeight: 44 }}>Show all {pins.length}</button></div>
       ) : view === 'list' ? (
         <NflTable
+          nameCell="player" faceOf={(r) => (r._player ? { sport: 'nfl', espnId: r._player.espn_id, team: r._player.team, name: r._player.name } : null)}
           {...table}
           onRowClick={(row) => { if (row?._player) onPlayerClick?.(row._player, 'TD', rows.map((x) => x.player).filter(Boolean)) }}
           caption="Your saved players, by this week's anytime-TD score. # is his place on the TD board; the arrow is places moved since the board's last update. Move is measured against the score showing when you saved him, on that same market. Tap a row for his card."

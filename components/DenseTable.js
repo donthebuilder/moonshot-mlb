@@ -134,6 +134,9 @@ export default function DenseTable({
   // rule below). Negative vertical margins keep it out of the line box, so
   // the row height does not change. Absent: nothing renders.
   faceOf = null,
+  // nameCell: 'player' draws the shared player name cell (components/table/PlayerNameCell.js, 2026-10-13): face, name that fits, one
+  // chip line, one row height. One prop per table; absent, the name cell is what it always was.
+  nameCell = null,
   // THE ONE SKIN (components/table/v2.js; the 'classic' skin and ?skin= were
   // deleted 2026-10-11, Wave 4 -- a ?skin= in an old link is simply ignored).
   //   statusOf  (row) -> 'called'|'board'|'off'|null, from the caller's one
@@ -407,6 +410,6 @@ export default function DenseTable({
     heatMode, ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
     explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
     truncated, maxRows, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
-    capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam: teamNav, injuryLayer,
+    capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam: teamNav, injuryLayer, nameCell,
   })
 }

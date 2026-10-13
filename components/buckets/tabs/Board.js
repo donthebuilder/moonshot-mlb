@@ -309,8 +309,8 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
         <BucketsCards market={mk} onOpen={onOpenPlayer} rankOf={(r) => cardRank.get(r._id || `${r.gameId}-${r.playerId}`)} rows={[...rows].filter((r) => r.score != null && Number.isFinite(Number(r.score))).sort((a, b) => b.score - a.score).map((r) => ({ ...r, rankMove: rankMv.cell(r._id) }))} />
       )}
       {rows.length > 0 && !noStarters && layout === 'table' && (
-        <BucketsTable sets rows={rows.map((r) => ({ ...r, ...(cln.on ? { cln: cln.cell(r.playerId) } : null), rankMove: rankMv.cell(r._id) }))} columns={withLastNight(boardColumns(m, { onOpenTeam, onOpenGame, withXpts: true, whyCol: whyColumn({ textOf: (r) => (r.status === 'off' && r.reason ? r.reason : plainWhy(r, m)?.short || ''), itemOf: (r) => whyItemFor(r, m, r.nightRank), open: openWhy, theme: C, numFont: NUM_FONT, w: 165 }) }), cln)} statusOf={(r) => r.status}
-          onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={faceOf}
+        <BucketsTable sets rows={rows.map((r) => ({ ...r, ...(cln.on ? { cln: cln.cell(r.playerId) } : null), rankMove: rankMv.cell(r._id) }))} columns={withLastNight(boardColumns(m, { onOpenTeam, onOpenGame, withXpts: true, whyCol: whyColumn({ textOf: (r) => (r.status === 'off' && r.reason ? r.reason : plainWhy(r, m)?.short || ''), itemOf: (r) => whyItemFor(r, m, r.nightRank), open: openWhy, theme: C, numFont: NUM_FONT, w: 165, tidy: true }) }), cln)} statusOf={(r) => r.status}
+          onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} nameCell="player" faceOf={faceOf}
           dimRow={(r) => Boolean(r.voidReason) || r.status === 'off'}
           initialSort={{ key: 'nightRank', dir: 'asc' }} heatMode="sorted" maxHeight={620} maxRows={Math.max(rows.length, 1)}
           caption="Every player tonight for this market, #1 to the bottom. Column headers sort; each row opens that player; the team and opponent open the club; the game column opens the game." />

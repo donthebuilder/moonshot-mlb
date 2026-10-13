@@ -8,7 +8,6 @@ import { quoteFor } from '../../lib/nfl/oddsMatch'
 import LineMoveChip from '../LineMoveChip'
 import { lineMove } from '../../lib/odds/lineMove'
 import NflTable from './NflTable'
-import PlayerFace from '../PlayerFace'
 import { Segmented, FilterPill, AngleRow as SharedAngleRow } from '../Filters'
 import { alpha } from '../../lib/scales'
 import RangeDual from '../RangeDual'
@@ -74,6 +73,16 @@ export function DrawerPills({ label, children }) {
   )
 }
 
+/** Is his club the home side of its game this week? true / false from the week's games (away, home); null when the game is not on file (never guessed). */
+export function sideOf(games, p) {
+  if (!Array.isArray(games) || !p?.team || !p?.opp) return null
+  for (const g of games) {
+    if (g?.home === p.team && g?.away === p.opp) return true
+    if (g?.away === p.team && g?.home === p.opp) return false
+  }
+  return null
+}
+
 /** The week's games for the top bar's game picker, by kickoff: AWY @ HOM. */
 export function nflGameOptions(games) {
   const seen = new Map()
@@ -102,7 +111,7 @@ const PLAYER_GROUP = { key: 'player', label: 'Player', order: 0 }
 const CALL_GROUP = { key: 'call', label: 'The call', order: 1 }
 const MARK_GROUP = { key: 'marks', label: 'Marks', order: 2 }
 const TAGS_GROUP = { key: 'matchup', label: 'The matchup', order: 2.6 }
-export function NflBoardList({ players, market, weights, odds, phone, onPlayerClick, statusOf = null, rankOf = null, base = null, pool = null, watchlist = null, lastNight = null, tags = null, rankMv = null, twoOf = null }) {
+export function NflBoardList({ games = null, players, market, weights, odds, phone, onPlayerClick, statusOf = null, rankOf = null, base = null, pool = null, watchlist = null, lastNight = null, tags = null, rankMv = null, twoOf = null }) {
   const { open: openWhy, sheet: whySheet } = useWhySheet({ theme: C, accent: C.green, numFont: NUM_FONT })
   // our line beside the book's (TEST, BATCH-DASH-LINE): only where one exists for this market
   const dash = useDashLines()
@@ -113,7 +122,7 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
     return {
       rankMove: rankMv ? rankMv.cell(p.player_id) : null,   // places moved since the last update (components/RankMove.js, drawn in the # cell)
       _id: p.player_id, _p: p, rank: rankOf ? (rankOf.get(String(p.player_id)) ?? null) : i + 1,   // the stored board place, not the place in this filtered list
-      name: p.name, pos: roleLabel(p),
+      name: p.name, pos: roleLabel(p), home: sideOf(games, p),
       team: p.team || null, opp: p.opp || null,
       score: Math.round(p.scores[market]), grade: gradeFor(p.scores[market]).label,
       price: q && q.over != null && q.matches !== false ? Number(q.over) : null,
@@ -161,12 +170,8 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
   const columns = [
     ...(watchlist ? [{ key: 'watched', group: PLAYER_GROUP, label: '☆', action: true, w: 28, mark: '★', markOff: '☆', titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist', onAction: (row) => watchlist.toggle(row._p ?? row) }] : []),
     { key: 'rank', group: PLAYER_GROUP, label: '#', w: 30, heat: false },
-    { key: 'name', group: PLAYER_GROUP, label: 'Player', w: phone ? 158 : 170, heat: false, sticky: true, fmt: (v, r) => (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-        <PlayerFace sport="nfl" espnId={r._p?.espn_id} team={r._p?.team} name={r._p?.name} size={22} />
-        {/* Wraps to a second line rather than "Amon-Ra St. B…" on a phone. */}
-        <span style={{ whiteSpace: 'normal', lineHeight: 1.15, minWidth: 0 }}>{v}</span>
-      </span>) },
+    // the shared player name cell (components/table/PlayerNameCell.js): the face, the name that fits, pos / club / opponent / the call on one line
+    { key: 'name', group: PLAYER_GROUP, label: 'Player', w: phone ? 158 : 170, heat: false, sticky: true },
     // On a phone these fold into the sub-line under his name (v2 `fold`), not
     // vanish: the phone board showed no team or opponent at all (audit X12).
     { key: 'pos', group: PLAYER_GROUP, label: 'Pos', w: 40, heat: false, fold: true },
@@ -176,7 +181,7 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
     ...(lastNight?.on ? [{ ...lastNightColumn({ w: phone ? 190 : 240, group: { key: 'lastNight', label: 'Last night', order: 0.4 } }), cset: 'lean' }] : []),
     { key: 'score', group: CALL_GROUP, label: 'Score', cset: 'lean', w: 52, primary: true, scale: 'seq', domain: [0, 100], art: SCORE_ART[market] || null, answers: market === 'TD' ? 'nfl-td' : null },
     ...(phone ? [] : [{ key: 'grade', group: CALL_GROUP, label: 'Grade', cset: 'read', w: 56, heat: false }]),
-    { ...whyColumn({ textOf: (r) => whyOf(r._p)?.text || '', itemOf: whyItem, open: openWhy, theme: C, numFont: NUM_FONT, w: phone ? 124 : 260 }), group: CALL_GROUP, cset: 'lean' },
+    { ...whyColumn({ textOf: (r) => whyOf(r._p)?.text || '', itemOf: whyItem, open: openWhy, theme: C, numFont: NUM_FONT, w: phone ? 124 : 260, tidy: true }), group: CALL_GROUP, cset: 'lean' },
     // Status right after Why (2026-10-06): short on a phone, so Why shows without a swipe
     ...(statusOf ? [{ key: 'status', group: CALL_GROUP, label: 'Status', heat: false, statusCol: true, w: phone ? 64 : 118, fmt: (v, r) => <CallStatusBadge status={statusOf(r._p)} accent={C.green} short={phone} /> }] : []),
     ...top.map((k, i) => ({ group: CALL_GROUP, key: k, label: LABELS[k] || k, cset: i < 2 ? 'lean' : 'read', w: phone ? 74 : 86, scale: 'seq', domain: [0, 100] })),
@@ -205,7 +210,7 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
     <div className="nfl-board-list">
     <style>{`@media (max-width: 860px){.nfl-board-list .dense-sticky{max-width:150px!important;min-width:132px!important}}`}</style>
     {whySheet}
-    <NflTable sets rows={rows} columns={allColumns} heatMode="primary" maxRows={rows.length} maxHeight={9999}
+    <NflTable sets nameCell="player" faceOf={(r) => ({ sport: 'nfl', espnId: r._p?.espn_id, team: r._p?.team, name: r._p?.name })} rows={rows} columns={allColumns} heatMode="primary" maxRows={rows.length} maxHeight={9999}
       dimRow={(r) => r._p?.low_sample} onRowClick={(r) => (r._p?.position === 'DEF' ? null : onPlayerClick?.(r._p, market))}
       // the TD board's Status column: CALLED / ON THE BOARD / NOT ON THE BOARD (lib/nfl/tdStatus)
       statusOf={statusOf ? (r) => statusOf(r._p) : null}

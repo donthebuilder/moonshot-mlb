@@ -143,7 +143,7 @@ export default function TwoTouchdowns({ data, matchup, odds, onPlayerClick, odds
       ) : (
         <>
           {view === 'list'
-            ? <NflBoardList players={capped} market={MARKET} rankOf={rankOf} rankMv={rankMv} weights={weights} odds={null} phone={phone} onPlayerClick={openFromBoard} statusOf={statusOf} base={base} pool={rows} watchlist={watchlist} />
+            ? <NflBoardList games={data?.games} players={capped} market={MARKET} rankOf={rankOf} rankMv={rankMv} weights={weights} odds={null} phone={phone} onPlayerClick={openFromBoard} statusOf={statusOf} base={base} pool={rows} watchlist={watchlist} />
             : <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
                 {capped.map((p, i) => (
                   <TwoCard key={p.player_id} p={p} rank={rankOf.get(String(p.player_id)) ?? i + 1} status={statusOf(p)} onPlayerClick={openFromBoard} weights={weights} base={base} pool={rows} watchlist={watchlist} rankMove={rankMv.cell(p.player_id)} />

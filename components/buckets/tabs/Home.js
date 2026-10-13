@@ -88,7 +88,7 @@ export default function Home({ today, date, setTab, onOpenPlayer, onOpenGame, on
             { key: 'name', label: 'Player', group: 'Leader', w: 150, heat: false, bold: true, sticky: true },
             { key: 'team', label: 'Tm', group: 'Leader', w: 52, heat: false, mono: true, teamMark: 'nba', link: (r) => (onOpenTeam ? () => onOpenTeam(r.team) : null) },
             { key: 'value', label: 'Value', group: 'Line', w: 56, heat: false, mono: true, dp: 1 },
-          ]} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })}
+          ]} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} nameCell="player" faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })}
             heatMode="none" maxHeight={9999} maxRows={top.length} caption="The league leader in each category. Each row opens that player." />
         )}
         <div style={{ marginTop: 8 }}><NavBtn onClick={() => setTab('leaders')}>Every leader →</NavBtn></div>

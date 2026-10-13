@@ -68,7 +68,7 @@ export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onO
       {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Nothing to rank. Try another day." />}
       {rows.length === 0 && !loading && games.length > 0 && empty}
       {rows.length > 0 && (
-        <BucketsTable sets rows={rows} columns={columns} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={faceOf}
+        <BucketsTable sets rows={rows} columns={columns} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} nameCell="player" faceOf={faceOf}
           initialSort={{ key: 's_pts', dir: 'desc' }} heatMode="sorted" maxHeight={620} maxRows={Math.max(rows.length, 1)}
           caption="Every rated player, every market. Column headers sort; each row opens that player; the team and opponent open the club." />
       )}
