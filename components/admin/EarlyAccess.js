@@ -25,6 +25,10 @@ export default function EarlyAccess() {
   const [expires, setExpires] = useState('7d')
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
+  const [gEmail, setGEmail] = useState('')
+  const [gExpires, setGExpires] = useState('never')
+  const [gNote, setGNote] = useState('')
+  const [gMsg, setGMsg] = useState('')
   const [made, setMade] = useState(null)       // { link, label, uses, expires } -- shown ONCE
   const [copied, setCopied] = useState(false)
 
@@ -44,7 +48,7 @@ export default function EarlyAccess() {
     try {
       const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
       const j = await r.json().catch(() => ({}))
-      if (!r.ok) { setErr(j.needs_sql ? 'Run the early-access update in Supabase first (supabase/migrations/202610121500_early_access.sql), then reload.' : (j.error || 'That did not work.')); return null }
+      if (!r.ok) { setErr(j.needs_sql ? `${j.error || 'Run the early-access update first'} Run ${j.file || 'the early-access SQL file'} in the SQL editor, then reload.` : (j.error || 'That did not work.')); return null }
       setErr('')
       return j
     } catch { setErr('That did not work. Check your connection.'); return null } finally { setBusy(false) }
@@ -53,6 +57,13 @@ export default function EarlyAccess() {
   const create = async () => {
     const j = await post({ action: 'create_invite', feature, uses, expires, note })
     if (j?.link) { setMade(j); setCopied(false); setNote(''); load() }
+  }
+  const grantEmail = async () => {
+    const j = await post({ action: 'grant_email', email: gEmail, feature, expires: gExpires, note: gNote })
+    if (j?.ok) {
+      setGMsg(j.status === 'granted' ? `Access granted to ${j.who}. It works within a minute.` : `No confirmed account for ${j.who} yet. It is waiting, and switches on the first time that email signs in with a confirmed address.`)
+      setGEmail(''); setGNote(''); load()
+    } else setGMsg('')
   }
   const revoke = async (action, id, what) => {
     if (typeof window !== 'undefined' && !window.confirm(what)) return
@@ -78,7 +89,7 @@ export default function EarlyAccess() {
       <p style={{ ...small, margin: '0 0 4px' }}>Early access users see BUCKETS with its tracking labels; nothing is posted publicly. They need a signed-in account; a link opens the feature for one account per use.</p>
       {err ? <p role="alert" style={{ margin: '8px 0', fontSize: 14, lineHeight: 1.4 }}>{err}</p> : null}
       {data && data.installed === false ? (
-        <div style={box}><strong>Run the update first.</strong><div style={small}>The two private tables are not in Supabase yet. Run <code>supabase/migrations/202610121500_early_access.sql</code> in the SQL editor, then reload this page.</div></div>
+        <div style={box}><strong>Run the update first.</strong><div style={small}>The private tables are not in the database yet. Run the <code>202610121500_early_access.sql</code> file (migrations folder) in the SQL editor, then reload this page.</div></div>
       ) : null}
 
       {data && data.installed !== false ? (
@@ -100,6 +111,21 @@ export default function EarlyAccess() {
             <label htmlFor="ea-note" style={label}>Private note (only you see it)</label>
             <input id="ea-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={120} placeholder="for @name" style={field} autoComplete="off" />
             <button type="button" onClick={create} disabled={busy || !feature} style={{ ...btn, width: '100%', marginTop: 14, background: 'var(--ink)', color: 'var(--bg)', opacity: busy ? 0.6 : 1 }}>{busy ? 'Working…' : 'Create link'}</button>
+          </div>
+
+          <div style={box} data-grant-email>
+            <strong style={{ fontSize: 16 }}>Grant by email</strong>
+            <div style={small}>For someone who already has an account, or will. No link needed.</div>
+            <label htmlFor="ea-email" style={label}>Their email</label>
+            <input id="ea-email" type="email" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="off" value={gEmail} onChange={(e) => setGEmail(e.target.value)} placeholder="name@example.com" style={field} />
+            <span style={label}>Access lasts</span>
+            <div role="group" aria-label="Access lasts" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {[...EXPIRES].reverse().map(([k, w]) => <button key={k} type="button" aria-pressed={gExpires === k} onClick={() => setGExpires(k)} style={{ ...seg(gExpires === k), flex: '1 1 70px' }}>{w === 'Never' ? 'Until I revoke' : w}</button>)}
+            </div>
+            <label htmlFor="ea-gnote" style={label}>Private note (optional)</label>
+            <input id="ea-gnote" value={gNote} onChange={(e) => setGNote(e.target.value)} maxLength={120} placeholder="for @name" style={field} autoComplete="off" />
+            <button type="button" onClick={grantEmail} disabled={busy || !feature || !gEmail.includes('@')} style={{ ...btn, width: '100%', marginTop: 14, background: 'var(--ink)', color: 'var(--bg)', opacity: busy || !gEmail.includes('@') ? 0.6 : 1 }}>Grant access</button>
+            {gMsg ? <p role="status" style={{ margin: '10px 0 0', fontSize: 14, lineHeight: 1.4 }}>{gMsg}</p> : null}
           </div>
 
           {made ? (
@@ -143,6 +169,21 @@ export default function EarlyAccess() {
               <button type="button" disabled={busy} onClick={() => revoke('revoke_grant', g.id, `Take ${g.label} access away from ${g.who}? It stops within a minute.`)} style={{ ...btn, flex: '0 0 auto' }}>Revoke</button>
             </div>
           ))}
+
+          {(data.pending || []).filter((p) => p.status === 'pending').length ? (
+            <>
+              <h3 style={{ margin: '18px 0 0', fontSize: 12, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--dim)', fontWeight: 400 }}>Waiting for sign-in · {c.pending ?? 0}</h3>
+              {data.pending.filter((p) => p.status === 'pending').map((p) => (
+                <div key={p.id} style={{ padding: '10px 0', borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <strong style={{ fontSize: 15, wordBreak: 'break-all' }}>{p.who}</strong>
+                    <div style={small}>{p.label} · pending · {expWords(p.expires_at)}{p.note ? ` · ${p.note}` : ''}</div>
+                  </div>
+                  <button type="button" disabled={busy} onClick={() => revoke('revoke_pending', p.id, `Cancel the waiting grant for ${p.who}?`)} style={{ ...btn, flex: '0 0 auto' }}>Revoke</button>
+                </div>
+              ))}
+            </>
+          ) : null}
 
           {pastInvites.length ? (
             <>

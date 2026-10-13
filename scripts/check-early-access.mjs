@@ -30,11 +30,12 @@ const { safeNext } = await import('../lib/safeNext.js')
 const { adminEntries, adminSurface } = await import('../lib/adminHub.js')
 
 // ── a fake Supabase: just the calls lib/earlyAccess uses ───────────────────────────────────────────────────────────────────
-function fakeDb({ missing = false, failGrantWrite = false } = {}) {
-  const t = { early_access_invites: [], early_access_grants: [] }
+function fakeDb({ missing = false, failGrantWrite = false, noPending = false } = {}) {
+  const t = { early_access_invites: [], early_access_grants: [], early_access_pending: [] }
   const users = new Map()
   let seq = 0
-  const db = { t, users, missing, failGrantWrite }
+  const db = { t, users, missing, failGrantWrite, rows: [] }
+  db.addUser = (id, email, confirmed = true) => { users.set(id, email); db.rows.push({ id, email, email_confirmed_at: confirmed ? '2026-01-01T00:00:00Z' : null }) }
   db.from = (table) => {
     const st = { op: 'select', filters: [], patch: null, row: null, conflict: null, ret: false }
     const match = (r) => st.filters.every(([k, col, v]) => {
@@ -45,7 +46,7 @@ function fakeDb({ missing = false, failGrantWrite = false } = {}) {
     })
     const run = async () => {
       await Promise.resolve()                                     // yield, so two callers really interleave
-      if (db.missing) return { data: null, error: { code: '42P01', message: 'relation does not exist' } }
+      if (db.missing || (noPending && table === 'early_access_pending')) return { data: null, error: { code: '42P01', message: 'relation does not exist' } }
       const rows = t[table]
       if (st.op === 'select') return { data: rows.filter(match).map((r) => ({ ...r })), error: null }
       if (st.op === 'insert') {
@@ -79,7 +80,7 @@ function fakeDb({ missing = false, failGrantWrite = false } = {}) {
     }
     return b
   }
-  db.auth = { admin: { getUserById: async (id) => ({ data: { user: users.get(id) ? { id, email: users.get(id) } : null } }) } }
+  db.auth = { admin: { listUsers: async ({ page, perPage }) => ({ data: { users: db.rows.slice((page - 1) * perPage, page * perPage) }, error: null }), getUserById: async (id) => ({ data: { user: users.get(id) ? { id, email: users.get(id) } : null } }) } }
   return db
 }
 const user = (id, email = `${id}@test.invalid`) => ({ id, email, email_confirmed_at: '2026-01-01T00:00:00Z' })
@@ -327,6 +328,81 @@ await ok('admin: a grant holder is not an admin -- no admin surface, no admin en
   assert.equal(read('lib/admin.js').includes('early'), false, 'lib/admin.js is untouched by early access')
 })
 
+
+// ── 8b. GRANT BY EMAIL ────────────────────────────────────────────────────────────────────────────────────────────────────
+await ok('by email: an existing confirmed account is granted at once (case-insensitive exact match, idempotent); output is masked only', async () => {
+  A.clearGrantCache(); A._resetPendingFlag(); db = fakeDb(); db.addUser('u1', 'Jane.Doe@Gmail.com'); db.addUser('u2', 'jane.doe@gmail.com.evil.test')
+  const r = await AD.act(db, { action: 'grant_email', email: '  JANE.doe@gmail.COM ', feature: 'buckets', expires: '7d', note: 'for @jane' }, { by: 'adm', now: T0 })
+  assert.equal(r.status, 200); assert.equal(r.json.status, 'granted'); assert.equal(r.json.who, 'J***@gmail.COM'.replace('J', 'J').replace('COM', 'COM')); assert.ok(!/Doe|doe/.test(JSON.stringify(r.json)), 'the typed address is not echoed')
+  assert.equal(db.t.early_access_grants.length, 1); assert.equal(db.t.early_access_grants[0].user_id, 'u1'); assert.equal(db.t.early_access_grants[0].expires_at, new Date(T0 + 7 * 86400e3).toISOString())
+  const again = await AD.act(db, { action: 'grant_email', email: 'jane.doe@gmail.com', feature: 'buckets' }, { by: 'adm', now: T0 + 5 }); assert.equal(again.json.status, 'granted'); assert.equal(db.t.early_access_grants.length, 1, 'idempotent: one row')
+  assert.equal(db.t.early_access_pending.length, 0)
+  assert.equal((await A.featureAccess('buckets', { user: { id: 'u1', email: 'Jane.Doe@Gmail.com', email_confirmed_at: 'x' }, db, now: T0 + 6 })).early, true)
+  assert.equal((await A.featureAccess('buckets', { user: { id: 'u2', email: 'jane.doe@gmail.com.evil.test', email_confirmed_at: 'x' }, db, now: T0 + 6 })).ok, false, 'a lookalike address gets nothing')
+})
+await ok('by email: no account yet -> a PENDING grant under sha256(lowercase email); no plain email stored; it activates on the first CONFIRMED sign-in only', async () => {
+  A.clearGrantCache(); A._resetPendingFlag(); db = fakeDb()
+  const r = await AD.act(db, { action: 'grant_email', email: 'New.Person@Example.com', feature: 'buckets', expires: 'never', note: 'x' }, { by: 'adm', now: T0 })
+  assert.equal(r.json.status, 'pending'); assert.equal(r.json.who, 'N***@Example.com'); assert.equal(db.t.early_access_grants.length, 0)
+  const row = db.t.early_access_pending[0]; assert.equal(row.email_hash, S.emailHash('new.person@example.com')); assert.match(row.email_hash, /^[0-9a-f]{64}$/)
+  assert.ok(!/new\.person/i.test(JSON.stringify(db.t)), 'the plain email is nowhere in the stored rows')
+  // an UNCONFIRMED sign-up with that email never activates
+  const unconf = { id: 'n1', email: 'new.person@example.com', email_confirmed_at: null }
+  assert.equal((await A.featureAccess('buckets', { user: unconf, db, now: T0 + 1 })).ok, false); assert.equal(db.t.early_access_grants.length, 0); assert.equal(db.t.early_access_pending[0].activated_at ?? null, null)
+  // a confirmed one does (case differs from what the admin typed)
+  A.clearGrantCache()
+  const conf = { id: 'n1', email: 'NEW.person@EXAMPLE.com', email_confirmed_at: '2026-01-01T00:00:00Z' }
+  assert.equal((await A.featureAccess('buckets', { user: conf, db, now: T0 + 2 })).early, true)
+  assert.equal(db.t.early_access_grants.length, 1); assert.equal(db.t.early_access_grants[0].user_id, 'n1'); assert.ok(db.t.early_access_pending[0].activated_at)
+  // someone else's email never matches
+  A.clearGrantCache(); assert.equal((await A.featureAccess('buckets', { user: { id: 'z', email: 'someone@example.com', email_confirmed_at: 'x' }, db, now: T0 + 3 })).ok, false)
+})
+await ok('by email: an existing but UNCONFIRMED account is pending, not granted; confirming later activates it', async () => {
+  A.clearGrantCache(); A._resetPendingFlag(); db = fakeDb(); db.addUser('u9', 'late@example.com', false)
+  const r = await AD.act(db, { action: 'grant_email', email: 'late@example.com', feature: 'buckets' }, { now: T0 }); assert.equal(r.json.status, 'pending'); assert.equal(db.t.early_access_grants.length, 0)
+  assert.equal((await A.featureAccess('buckets', { user: { id: 'u9', email: 'late@example.com', email_confirmed_at: null }, db, now: T0 + 1 })).ok, false)
+  A.clearGrantCache(); assert.equal((await A.featureAccess('buckets', { user: { id: 'u9', email: 'late@example.com', email_confirmed_at: 'now' }, db, now: T0 + 2 })).early, true)
+})
+await ok('by email: revoke a pending grant (never activates), expired pending never activates, the list shows masked pending only', async () => {
+  A.clearGrantCache(); A._resetPendingFlag(); db = fakeDb()
+  await AD.act(db, { action: 'grant_email', email: 'gone@example.com', feature: 'buckets' }, { now: T0 })
+  await AD.act(db, { action: 'grant_email', email: 'old@example.com', feature: 'buckets', expires: '24h' }, { now: T0 })
+  const ov = await AD.overview(db, T0 + 1); assert.equal(ov.json.pending.length, 2); assert.equal(ov.json.counts.pending, 2); assert.equal(ov.json.email_installed, true)
+  const txt = JSON.stringify(ov.json); assert.ok(!/gone@|old@|"email_hash"/.test(txt)); assert.ok(txt.includes('g***@example.com'))
+  const gone = ov.json.pending.find((p) => p.who === 'g***@example.com')
+  assert.equal((await AD.act(db, { action: 'revoke_pending', id: gone.id }, { now: T0 + 2 })).status, 200)
+  assert.equal((await A.featureAccess('buckets', { user: { id: 'g', email: 'gone@example.com', email_confirmed_at: 'x' }, db, now: T0 + 3 })).ok, false, 'revoked pending')
+  A.clearGrantCache(); assert.equal((await A.featureAccess('buckets', { user: { id: 'o', email: 'old@example.com', email_confirmed_at: 'x' }, db, now: T0 + 25 * 3600e3 })).ok, false, 'expired pending')
+  assert.equal((await AD.overview(db, T0 + 25 * 3600e3)).json.counts.pending, 0)
+})
+await ok('by email: bad input refused; before the second migration it says run the update, stores nothing, and the access path still works', async () => {
+  db = fakeDb(); db.addUser('u1', 'a@example.com')
+  for (const bad of ['', 'nope', 'a@b', '@x.com', 'a b@x.com']) assert.equal((await AD.act(db, { action: 'grant_email', email: bad, feature: 'buckets' }, {})).status, 400)
+  assert.equal((await AD.act(db, { action: 'grant_email', email: 'a@example.com', feature: 'nope' }, {})).status, 400)
+  const np = fakeDb({ noPending: true }); np.addUser('u1', 'a@example.com')
+  const r = await AD.act(np, { action: 'grant_email', email: 'a@example.com', feature: 'buckets' }, {}); assert.equal(r.status, 409); assert.equal(r.json.needs_sql, true); assert.match(r.json.file, /202610121600_early_access_email\.sql/)
+  assert.equal(np.t.early_access_grants.length, 0); assert.equal(np.t.early_access_pending.length, 0)
+  assert.equal((await AD.act(np, { action: 'revoke_pending', id: 'x' }, {})).status, 409)
+  A.clearGrantCache(); A._resetPendingFlag(); np.t.early_access_grants.push({ id: 'g', user_id: 'u1', feature: 'buckets', granted_at: new Date(T0).toISOString(), expires_at: null, revoked_at: null })
+  assert.equal((await A.featureAccess('buckets', { user: { id: 'u1', email: 'a@example.com', email_confirmed_at: 'x' }, db: np, now: T0 + 1 })).early, true, 'existing grants unaffected')
+  assert.equal((await AD.overview(np, T0)).json.email_installed, false)
+})
+await ok('by email: paginated lookup finds a user beyond the first page; the route stays admin-only and the card never echoes the typed address', async () => {
+  db = fakeDb(); for (let i = 0; i < 450; i += 1) db.addUser(`p${i}`, `user${i}@example.com`)
+  assert.equal((await S.findUserByEmail(db, 'USER433@example.com')).id, 'p433'); assert.equal(await S.findUserByEmail(db, 'nobody@example.com'), null)
+  const r = code(read('app/api/admin/early-access/route.js')); assert.match(r, /isAdminUser\(user\)/); assert.match(r, /sameOriginJson/)
+  const ui = read('components/admin/EarlyAccess.js'); assert.match(ui, /setGEmail\(''\)/); assert.ok(!/supabase/i.test(code(ui).replace(/\{j\.file[^}]*\}/g, '')) , 'no "supabase" in browser-bundled code')
+  assert.match(read('components/admin/EarlyAccess.js'), /Grant access/)
+})
+await ok('migration 2: a second idempotent file, RLS on, no policies, privileges revoked, no plain email column, byte-identical .txt; the first file is untouched', () => {
+  const sql = read('supabase/migrations/202610121600_early_access_email.sql')
+  assert.match(sql, /create table if not exists public\.early_access_pending/); assert.match(sql, /enable row level security/); assert.match(sql, /revoke all on table public\.early_access_pending from anon, authenticated/)
+  assert.ok(!/create policy/i.test(sql)); assert.ok(!/\bemail\s+text/.test(sql)); assert.match(sql, /email_hash\s+text not null/); assert.match(sql, /unique \(email_hash, feature\)/)
+  assert.ok(!/\bset role\b/i.test(sql.replace(/--.*$/gm, '')))
+  try { assert.equal(readFileSync('/Volumes/DONX/USERS/Kingdondondon/Desktop/AUDITS-TO-READ/EARLY-ACCESS/early_access_email_SQL.txt', 'utf8'), sql) } catch (e) { if (e.code !== 'ENOENT') throw e }
+  assert.ok(!/early_access_pending/.test(read('supabase/migrations/202610121500_early_access.sql')), 'the first migration was not changed')
+})
+
 // ── 9. public surfaces and posting ──────────────────────────────────────────────────────────────────────────────────────────
 const walk = (dir, out = []) => { for (const e of readdirSync(new URL(`../${dir}`, import.meta.url))) { if (['node_modules', '.next'].includes(e)) continue; const p = `${dir}/${e}`; (statSync(new URL(`../${p}`, import.meta.url)).isDirectory()) ? walk(p, out) : /\.(js|mjs)$/.test(e) && out.push(p) } return out }
 await ok('public surfaces never mention BUCKETS: robots, sitemap, manifest, the invite page before sign-in, the login line', () => {
@@ -368,7 +444,7 @@ await ok('no secrets or ids in any early-access response: the sources never put 
     assert.ok(!/SERVICE_ROLE|process\.env\.(?!NEXT_PUBLIC_SITE_URL)/.test(c), `${f} reads an env value into a response`)
     assert.ok(!/code_hash/.test(c.replace(/select\([^)]*\)/g, '')), `${f} mentions the hash outside a select`)
   }
-  assert.ok(!/\.email\b/.test(code(read('lib/earlyAccess/admin.js')).replace(/user\?\.email/g, '')), 'the admin module only ever passes an email through maskEmail')
+  assert.ok(!/\.email\b/.test(code(read('lib/earlyAccess/admin.js')).replace(/user\?\.email/g, '').replace(/body\.email/g, '')), 'the admin module only ever passes an email through maskEmail')
   const secretsInStore = code(read('lib/earlyAccess/store.js')); assert.ok(!/console\./.test(secretsInStore), 'the store never logs')
   assert.ok(!/console\.[a-z]+\([^)]*code/.test(code(read('app/early/[code]/page.js'))), 'the page never logs the code')
 })
