@@ -1,5 +1,5 @@
 // POST /api/admin/two-man/preview   { sport, date, players:[id,id] }   -> the Two-Man DUAL CARD (PNG) drawn from the form's current selection. ADMIN ONLY.
-// POST ... { product:'n_man', sport, date, players:[3 to 6 ids], card_name?, units? }   -> HIS N-MAN CARD (lib/cards/nManCard.js), shaped by the same donovanRow, stored nowhere.
+// POST ... { product:'n_man', sport, date, players:[2 to 6 ids], card_name?, units? }   -> HIS N-MAN CARD (lib/cards/nManCard.js), shaped by the same donovanRow, stored nowhere.
 // "So he sees exactly what posts" (Donovan, 2026-10-12). It shapes the row with lib/card/core.js donovanRow (the same function the save uses), draws it with
 // the same renderer the post uses (lib/cards/dualData.js dualOfRow + dualCard.js renderDual), and STORES NOTHING: no card_calls write, no post, no cache.
 // A late selection (a game has started, or the lock has passed) is drawn plainly labelled "LATE" and carries no serial, because that is what it is.

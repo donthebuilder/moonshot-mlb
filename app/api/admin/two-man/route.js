@@ -8,9 +8,12 @@
 //                                           once a leg's game has started it is stored in the LATE lane (never the record, never posted, never public) and needs
 //                                           confirm_late:true (else 409 with needs_confirm). A late entry never touches an on-time one.
 //   POST { sport, date, action:'withdraw', lane?:'late' }   withdraw his open entry (on-time: only before the lock; late: inside its 15-minute typo window)
-//   HIS N-MAN (2026-10-12, "do up a 6 man with a card too"): 3 to 6 players, ALL must land, product 'n_man', the same rules as his Two-Man in every way (on time / lock at save /
+//   HIS N-MAN (2026-10-12, "do up a 6 man with a card too"): 2 to 6 players, ALL must land, product 'n_man', the same rules as his Two-Man in every way (on time / lock at save /
 //   LATE, never over a locked entry, own post card_don_<sport>), 0.5 unit unless `units` (0.25..1) says otherwise. Each window also carries n_entry / n_late_entry; `late.n_rows` his late N-men.
-//   POST { product:'n_man', sport, date, players:[3..6 ids], note, card_name?, units?, confirm_lock?, confirm_late? }   save;   POST { product:'n_man', sport, date, action:'withdraw', lane? }
+//   POST { product:'n_man', sport, date, players:[2..6 ids], note, card_name?, units?, confirm_lock?, confirm_late? }   save;   POST { product:'n_man', sport, date, action:'withdraw', lane? }
+//   2026-10-12 ("2 yes"): the N-man is 2 to 6 players. Two players on the N-man tab are product 'n_man' with leg_count 2 ("ADMIN'S 2-MAN"), the same bet as the Two-Man in the N-man card's layout; the
+//   Two-Man tab still saves a 'two_man'. They are counted separately everywhere (donovan vs donovan_n_man).
+//   Each window also carries `posts` { max: 3, used, entries:[{ key, product, state }] }: his posts are up to 3 a day and sport (lib/card/post.js), the oldest saved first.
 //   Until supabase/migrations/202610121200_card_calls_nman.sql is run a save answers 409 with needs_sql and stores NOTHING; the 2-leg Two-Man is unaffected.
 //   HIS DOUBLE (optional, daily; two players from two different sports, free to show after the lock with his note):
 //   GET  ?product=double&date=YYYY-MM-DD    each sport's window + board for that day, the earlier lock, and his entry if he made one
@@ -25,6 +28,7 @@ import { CARD_SPORTS, CARD_VERSION, DOUBLE_SPORT, LATE_LANE, LATE_EDIT_MIN, NMAN
 import { loadWindows, loadCandidates, loadAnytimePrices } from '../../../../lib/card/sources'
 import { saveDonovan, withdrawDonovan, donovanEntry, lateEntries } from '../../../../lib/card/store'
 import { pickerRow, nhlSeasonOf, etWhen } from '../../../../lib/card/picker'
+import { donovanPostsToday } from '../../../../lib/card/post'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -96,16 +100,22 @@ export async function GET(request) {
   const w = await loadWindows(sport, now, { ahead: AHEAD })
   if (!w.ok) return Response.json({ sport, windows: [], error: w.why }, { headers: { 'Cache-Control': 'no-store' } })
   const live = w.windows.filter(notOver(now))
-  const windows = await Promise.all(live.map(async (win) => ({
-    card_date: win.card_date, label: win.label, games: win.games ?? null, first_start: new Date(win.first_start_ms).toISOString(), first_when: etWhen(new Date(win.first_start_ms).toISOString()),
-    locks_at: new Date(lockAtOf(win.first_start_ms)).toISOString(),
-    // ALWAYS OPEN: `open` is "on time" (the verified entry still possible); a form is offered either way, and a save after it is stored LATE
-    // mode: on_time (before the lock) | lock_now (after the lock, before the first game: a save is verified and locks at that moment) | live (games under
-    // way: a pick whose game has started is LATE, a pick whose game has not is still verified and locks at save)
-    open: onTime(win, now), mode: onTime(win, now) ? 'on_time' : now < win.first_start_ms ? 'lock_now' : 'live',
-    entry: slimEntry(await donovanEntry(db, sport, win.card_date)), late_entry: slimEntry(await donovanEntry(db, sport, win.card_date, 'two_man', CARD_VERSION, LATE_LANE)),
-    n_entry: slimEntry(await donovanEntry(db, sport, win.card_date, 'n_man')), n_late_entry: slimEntry(await donovanEntry(db, sport, win.card_date, 'n_man', CARD_VERSION, LATE_LANE)),
-  })))
+  const windows = await Promise.all(live.map(async (win) => {
+    const rawTwo = await donovanEntry(db, sport, win.card_date)
+    const rawN = await donovanEntry(db, sport, win.card_date, 'n_man')
+    return {
+      card_date: win.card_date, label: win.label, games: win.games ?? null, first_start: new Date(win.first_start_ms).toISOString(), first_when: etWhen(new Date(win.first_start_ms).toISOString()),
+      locks_at: new Date(lockAtOf(win.first_start_ms)).toISOString(),
+      // ALWAYS OPEN: `open` is "on time" (the verified entry still possible); a form is offered either way, and a save after it is stored LATE
+      // mode: on_time (before the lock) | lock_now (after the lock, before the first game: a save is verified and locks at that moment) | live (games under
+      // way: a pick whose game has started is LATE, a pick whose game has not is still verified and locks at save)
+      open: onTime(win, now), mode: onTime(win, now) ? 'on_time' : now < win.first_start_ms ? 'lock_now' : 'live',
+      entry: slimEntry(rawTwo), late_entry: slimEntry(await donovanEntry(db, sport, win.card_date, 'two_man', CARD_VERSION, LATE_LANE)),
+      n_entry: slimEntry(rawN), n_late_entry: slimEntry(await donovanEntry(db, sport, win.card_date, 'n_man', CARD_VERSION, LATE_LANE)),
+      // POSTS TODAY (2026-10-12, up to 3 a day and sport): how many of his entries for this slate have gone out, and which (lib/card/post.js donovanPostsToday). A read failure shows nothing.
+      posts: await donovanPostsToday(db, { sport, day: win.card_date, rows: [rawTwo, rawN].filter(Boolean) }).catch(() => null),
+    }
+  }))
   const late = await lateEntries(db, { sport })
   const nLate = await lateEntries(db, { sport, product: 'n_man' })
   const date = q.get('date')
@@ -153,7 +163,7 @@ export async function POST(request) {
   }
   const sport = String(body.sport || '')
   const date = String(body.date || '')
-  const product = body.product === 'n_man' ? 'n_man' : 'two_man'      // 'two_man' = his Two-Man exactly as before; 'n_man' = his 3-to-6-man
+  const product = body.product === 'n_man' ? 'n_man' : 'two_man'      // 'two_man' = his Two-Man exactly as before; 'n_man' = his 2-to-6-man
   if (!CARD_SPORTS.includes(sport) || !DATE_RE.test(date)) return Response.json({ error: 'Pick a sport and a card date.' }, { status: 400 })
   const now = Date.now()
   const w = await loadWindows(sport, now, { ahead: AHEAD })

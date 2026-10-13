@@ -6,7 +6,7 @@
 // SEE WHO YOU ARE LOOKING AT: every candidate shows his face, name, club, opponent and the game's start (ET, with the day), the market and the stored
 // price, whether the leg and the pair clear the Card's floors (information only; his lane is never blocked), OUR BOARD WORD and the model score; and the
 // two picked men are drawn as the dual card that would post (a preview that stores nothing).
-// THE N-MAN TAB (2026-10-12, "do up a 6 man with a card too"): the same picker, 3 to 6 players (no one twice), the COMBINED price (each leg's best stored price multiplied; a leg with no
+// THE N-MAN TAB (2026-10-12, "do up a 6 man with a card too"): the same picker, 2 to 6 players (no one twice; two players here are the 2-Man in the N-man card's layout), the COMBINED price (each leg's best stored price multiplied; a leg with no
 // price says "no price" and the line says "not all priced"), an optional stake in units (0.25 to 1, 0.5 by default), the same note and card name, a live preview of the N-man card.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
@@ -52,6 +52,19 @@ function PriceLine({ p, compact = false }) {
       {parts.join(' ')}{p.price ? '' : (parts.length ? ' · ' : '') + 'no price'}
       <span style={{ marginLeft: 6, color: p.floor.code === 'ok' ? C.text : C.text3, fontWeight: 700 }}>{FLOOR_WORD(p.floor)}</span>
     </span>
+  )
+}
+
+const POST_STATE = { posted: 'posted', dropped: 'claimed, no names cleared', 'in-card-post': "in the day's card post", 'over-cap': 'saved, not posted (over 3)', 'not-yet': 'not posted yet' }
+const POST_NAME = { two_man: 'Two-Man', n_man: 'N-Man', straight_1: 'Straight', straight_2: 'Straight 2', straight_3: 'Straight 3' }
+/** POSTS TODAY (2026-10-12, up to 3 a day and sport): how many of his entries for this slate have gone out, and which. */
+function PostsToday({ posts }) {
+  return (
+    <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '8px 12px', fontSize: 12, lineHeight: 1.5, marginBottom: 10, color: C.text2 }}>
+      <b style={{ color: C.text, fontFamily: NUM_FONT }}>Posts today: {posts.used} of {posts.max}</b>
+      {posts.entries.map((e) => <span key={e.key} style={{ display: 'block' }}>{POST_NAME[e.key] || e.key}: {POST_STATE[e.state] || e.state}</span>)}
+      <span style={{ display: 'block', color: C.text3 }}>3 posts max a day for each sport, the oldest entry first. An entry past that is saved and shown on the site, and is not posted.</span>
+    </div>
   )
 }
 
@@ -162,7 +175,7 @@ export default function TwoManForm() {
   const tabs = (
     <div role="tablist" aria-label="Product" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
       <button type="button" role="tab" aria-selected={kind === 'two_man'} onClick={() => { setKind('two_man'); setMsg(null) }} style={btn(kind === 'two_man')}>Two-Man</button>
-      <button type="button" role="tab" aria-selected={kind === 'n_man'} onClick={() => { setKind('n_man'); setMsg(null) }} style={btn(kind === 'n_man')}>3 to 6-Man</button>
+      <button type="button" role="tab" aria-selected={kind === 'n_man'} onClick={() => { setKind('n_man'); setMsg(null) }} style={btn(kind === 'n_man')}>2 to 6-Man</button>
       <button type="button" role="tab" aria-selected={kind === 'double'} onClick={() => setKind('double')} style={btn(kind === 'double')}>Double</button>
     </div>
   )
@@ -178,7 +191,8 @@ export default function TwoManForm() {
       {tabs}
       <p style={{ margin: '0 0 12px', fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
         {isN
-          ? <>Three to six players, <b>every one must land</b>, and a note of one to three lines. This is always open. Saved before a game starts it is <b>{adminNMan(Math.max(pick.length, NMAN_MIN))}</b> (verified, in its own record; after the card&apos;s lock it locks the moment you save).</>
+          ? <>Two to six players, <b>every one must land</b>, and a note of one to three lines. This is always open. Saved before a game starts it is <b>{adminNMan(Math.max(pick.length, NMAN_MIN))}</b> (verified, in its own record; after the card&apos;s lock it locks the moment you save).
+            {' '}<span style={{ color: C.text3 }}>A plain Two-Man (the Two-Man tab) stays the primary 2-leg entry; two players here are the same bet saved under the N-man card layout, counted in the N-man record, not the Two-Man&apos;s.</span></>
           : <>Your two players and a note of one to three lines. This is always open. Saved before a game starts it is <b>Admin&apos;s Two-Man</b> (verified, in its own record; after the card&apos;s lock it locks the moment you save).</>}
         {' '}Saved after a game has started it is <span style={LATE_TAG}>LATE</span>: kept out of the record, never posted.
       </p>
@@ -202,6 +216,7 @@ export default function TwoManForm() {
           First game {win.first_when}. {win.mode === 'on_time' ? `Verified: the card locks ${etStamp(win.locks_at)}, an hour before it.` : win.mode === 'lock_now' ? `Verified: saved before the first game starts (locks now). The card's own lock was ${etStamp(win.locks_at)}.` : <>Games are under way. A pick whose game has not started is verified and locks when saved; a pick whose game has started is <span style={LATE_TAG}>LATE</span>.</>}
         </p>
       )}
+      {win?.posts && <PostsToday posts={win.posts} />}
       {lockedOnTime && (
         <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 12px', fontSize: 13, lineHeight: 1.5, marginBottom: 10 }}>
           <b>{lockedOnTime.legs.map((l) => l.name).join(' + ')}</b>
@@ -313,6 +328,11 @@ export default function TwoManForm() {
           {lockNow && !askLate && (
             <p role="note" style={{ margin: '0 0 10px', fontSize: 12, lineHeight: 1.45, color: C.text2 }}>
               Verified: saved before the first game starts (locks now). It counts in your record and cannot be changed after you save. The post goes out only if this card&apos;s post has not already gone.
+            </p>
+          )}
+          {!lateNow && !askLate && win.posts && !entryOf(win) && win.posts.entries.length >= win.posts.max && (
+            <p role="note" style={{ margin: '0 0 10px', fontSize: 12, lineHeight: 1.45, color: C.yellow }}>
+              3 posts max a day: this one will not post. It is still saved, counts in your record and shows on the site.
             </p>
           )}
           {(lateNow || askLate) && (
