@@ -12,6 +12,7 @@ import { Chip, Card, RoleTag } from './ui'
 import StatStrip, { SlashLine } from './StatStrip'
 import { InfoDot } from './Explain'
 import RankCard from './card/RankCard'
+import { gameDayOf } from './card/useStamps'
 import PlayerFace from './PlayerFace'
 import CallStatusBadge from './CallStatusBadge'
 
@@ -211,6 +212,7 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
   return (
       <RankCard accent={accentColor || color} status={status} rankMove={rankMove} pos={clean(p?.handedness || p?.bats, '')} rank={rank} sport="mlb" club={teamOf(p) || null} name={nameOf(p)} opp={oppOf(p) || null}
         compact={compact} wide={wide} kicker={kicker} kickerPills={kickerPills}
+        stampFor={compact && mlbId(p) && gameDayOf(p?.game_time) ? { sport: 'mlb', id: String(mlbId(p)), day: gameDayOf(p?.game_time) } : null}
         role={`${compact ? 'Bats ' : ''}${clean(p?.lineup_spot, '—')}${p?.lineup_confirmed === false ? ' (proj.)' : ''}`}
         face={<PlayerFace sport="mlb" id={mlbId(p)} team={teamOf(p)} name={nameOf(p)} variant="tile" size={compact ? 68 : 84} />}
         score={score.toFixed(0)} scoreWord="MOONSHOT" rankTags={grade ? [`GRADE ${grade}`] : []}

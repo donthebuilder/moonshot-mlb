@@ -47,6 +47,7 @@ const Matchups = dynamic(() => import('./tabs/Matchups'), { loading: TabLoading 
 const HotSticks = dynamic(() => import('./tabs/HotSticks'), { loading: TabLoading })
 const Power = dynamic(() => import('./tabs/Power'), { loading: TabLoading })
 const Watchlist = dynamic(() => import('./tabs/Watchlist'), { loading: TabLoading })
+const Binder = dynamic(() => import('./tabs/Binder'), { loading: TabLoading })   // 2026-10-12: cards earned by the players I follow
 const Longshots = dynamic(() => import('../Longshots'), { loading: TabLoading })
 const StorylinesPage = dynamic(() => import('../StorylinesPage'), { loading: TabLoading })
 const ShotMap = dynamic(() => import('./tabs/ShotMap'), { loading: TabLoading })
@@ -183,6 +184,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'hotsticks' && <HotSticks onOpenPlayer={peekPlayer} />}
             {tab === 'power' && <Power onOpenPlayer={peekPlayer} />}
             {tab === 'watchlist' && <Watchlist onOpenPlayer={peekPlayer} />}
+            {tab === 'binder' && <Binder />}
             {tab === 'storylines' && <StorylinesPage sport="nhl" previewGames={4} eyebrow="LAMP · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.ice} onOpenPlayer={peekPlayer} onOpenGame={openGame} date={date} />}
             {/* MOONSHOT's Odds page, sport="nhl" (2026-10-02, components/lamp/LampOdds.js) */}
             {tab === 'odds' && <LampOdds onOpenPlayer={peekPlayer} />}

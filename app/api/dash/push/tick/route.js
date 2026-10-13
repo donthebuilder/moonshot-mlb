@@ -38,7 +38,7 @@ import { reduceScoreDay } from '../../../../../lib/nhl/reduce'
 import { hasVapid, vapidDetails, vapidProblem } from '../../../../../lib/dash/vapid'
 import { claimBoardWindow, fetchBoard } from '../../../../../lib/dash/board'
 import { byeStarterEventsFrom, franchiseEventsFrom, lineupGapEventsFrom, starterScoreEventsFrom } from '../../../../../lib/dash/franchise'
-import { audienceFrom, boardInfoFrom, deviceWantsSport, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, followNameKey, nflFollowMisses, nhlEventsFrom, nbaEventsFrom, pregameEventsFrom, nhlPregameEventsFrom, nhlInjuryOutEventsFrom, mlbInjuryOutEventsFrom, nflPregameEventsFrom, nbaPregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
+import { cardEarnedEventsFrom, audienceFrom, boardInfoFrom, deviceWantsSport, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, followNameKey, nflFollowMisses, nhlEventsFrom, nbaEventsFrom, pregameEventsFrom, nhlPregameEventsFrom, nhlInjuryOutEventsFrom, mlbInjuryOutEventsFrom, nflPregameEventsFrom, nbaPregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
 import { readInjuries } from '../../../../../lib/injuries/read'
 import { nhlPregameSnap, nflPregameSnap, nbaPregameSnap, priorStartersFrom } from '../../../../../lib/dash/pregameSources'
 import { bundleTitle, bundleBody } from '../../../../../lib/copy/notifications'
@@ -349,7 +349,36 @@ async function nhlEvents(db, audience, stateByUser) {
   if (!unswept?.length) return { events: [], unswept: [] }
   const { data: context } = await db.from('lamp_goal_feed').select('game_id, player_id, goal_n, period, time_in_period, overturned_at')
     .in('game_id', [...new Set(unswept.map((r) => r.game_id))]).is('overturned_at', null)
-  return { events: nhlEventsFrom(unswept, audience, context?.length ? context : unswept), unswept }
+  // THE BINDER (2026-10-12): a followed skater's new goal may have earned him a card (an overtime goal, a hat trick, a 3-point night, a 20-goal season).
+  // The full standing rows of that game are read ONLY when a followed skater is among the unswept goals; momentsForEvent decides, the claim key dedupes.
+  let cardEvents = []
+  const followed = (unswept || []).filter((r) => audience?.nhl?.has(String(r.player_id)))
+  if (followed.length) {
+    const { data: full, error: fullErr } = await db.from('lamp_goal_feed').select('*')
+      .in('game_id', [...new Set(followed.map((r) => r.game_id))]).is('overturned_at', null).not('confirmed_at', 'is', null)
+    if (fullErr) console.error(`[push] cards lamp_goal_feed: ${fullErr.message}`)
+    else cardEvents = cardEarnedEventsFrom('nhl', full || [], audience)
+  }
+  return { events: [...nhlEventsFrom(unswept, audience, context?.length ? context : unswept), ...cardEvents], unswept }
+}
+// THE BINDER, MLB and NFL (2026-10-12): 3+ homers / 3+ touchdowns by a followed player (ELITE and up; see CARD_PUSH_MIN_TIER). Once per full sweep, one small
+// read of today's and yesterday's feed rows (MLB: only the followed hitters' rows), and nothing at all when nobody follows anybody in that sport.
+async function cardEvents(db, audience) {
+  const days = [today(), dayBeforeEt(today())]
+  const out = []
+  if (audience?.mlb?.size) {
+    const { data, error } = await db.from('homer_feed').select('day,player_id,hr_n,name,team,opponent,game_pk,inning,home,role,on_board,board_rank,stats')
+      .in('day', days).in('player_id', [...audience.mlb].slice(0, 300)).limit(500)
+    if (error) console.error(`[push] cards homer_feed: ${error.message}`)
+    else out.push(...cardEarnedEventsFrom('mlb', data || [], audience))
+  }
+  if (audience?.nfl?.size) {
+    const { data, error } = await db.from('nfl_td_feed').select('day,game_id,td_n,team,opponent,quarter,clock,kind,kind_word,yards,passer_name,scorer_name,gsis_id,on_bot,td_board,away_score,home_score')
+      .in('day', days).limit(500)
+    if (error) console.error(`[push] cards nfl_td_feed: ${error.message}`)
+    else out.push(...cardEarnedEventsFrom('nfl', data || [], audience))
+  }
+  return out
 }
 // BUCKETS 30 PIECES (2026-10-03). app/api/buckets/moments writes buckets_feed;
 // this reads the rows nobody has swept (today's and yesterday's game dates).
@@ -748,6 +777,7 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
     ...(full ? await safely('NHL pregame', () => nhlPregameEvents(db, audience)) : []),
     ...(full ? await safely('NFL pregame', () => nflPregameEvents(audience)) : []),
     ...(full ? await safely('NBA pregame', () => nbaPregameEvents(audience)) : []),
+    ...(full ? await safely('cards earned', () => cardEvents(db, audience)) : []),   // the Binder: 3+ homers / 3+ touchdowns by a followed player
     // FRANCHISE needs no audience: these are addressed to the owner of a team,
     // not to whoever follows a player. It also runs on every tick rather than
     // behind a window claim -- a draft clock is ninety seconds long, and there

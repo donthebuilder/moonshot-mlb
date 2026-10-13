@@ -12,6 +12,7 @@ import { loadSlate, loadFinals } from '../../../../lib/totals/sources'
 import { lockedKeys, lockSlate, openRows, gradeRows, slateRows } from '../../../../lib/totals/store'
 import { postTotalsOnce } from '../../../../lib/totals/post'
 import { cardTick } from '../../../../lib/card/tick'
+import { momentAfterTick } from '../../../../lib/posts/momentTick'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -71,5 +72,9 @@ export async function GET(request) {
   }
   // THE CARD (2026-10-10, lib/card/tick.js) rides this cron: grade, lock and post the Card and the Two-Man. No cron of its own.
   try { out.card = await cardTick(db, now) } catch (e) { console.error(`[card] tick failed: ${e?.message || e}`); out.card = { error: String(e?.message || e) } }
+  // MOMENT POSTS (2026-10-12): the day-keyed special cards (a 100-yard game from the published logs, a CALLED pick that cashed at a long price) ride this
+  // card tick too. Off unless MOMENT_POSTS_ON; no cron of its own; never changes the answer (lib/posts/momentTick.js).
+  const moments = await momentAfterTick(null, { sources: ['daily'], db })
+  if (moments) out.moments = moments.daily
   return Response.json(out, { headers: { 'Cache-Control': 'no-store' } })
 }

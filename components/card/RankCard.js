@@ -6,6 +6,8 @@ import { useSportTheme, SportTheme } from '../SportTheme'
 import TeamMark from '../TeamMark'
 import { ExplainStrip } from './CardParts'
 import { RankMoveCell } from '../RankMove'
+import useStamps from './useStamps'
+import { explain as explainTap } from '../../lib/explain'
 
 // THE RANKING CARD, IN THE BASEBALL-CARD LANGUAGE (2026-10-10). Donovan: "whatever has the new baseball cards, that's what I like."
 // One HTML card for every product's ranked list, drawn the way the player card images are drawn (lib/cards/playerCard.js, the FRONT,
@@ -28,13 +30,15 @@ export default function RankCard({
   accent: accentProp = null, status = null, pos = '', rank = null, face = null, sport, club = null, name, opp = null, home = true, role = '',
   score = null, scoreWord = 'SCORE', explain = null, reason = null, chips = null, stats = [], statsNode = null, back = null, foot = null, onClick = null,
   dim = false, extraLine = null, rankTags = [], extraNotes = [], style = null, title = undefined, rankMove = null,
-  compact = false, wide = false, kicker = null, kickerPills = [], chipRows = 2,
+  compact = false, wide = false, kicker = null, kickerPills = [], chipRows = 2, stampFor = null,
 }) {
   const { C, NUM_FONT, accent: themeAccent } = useSportTheme()
   const accent = accentProp || themeAccent
   const called = status === 'called'
   const [flip, setFlip] = useState(false)
   const [info, setInfo] = useState(false)
+  // SITUATION STAMPS (lib/cards/situations.js): fact-only chips ("Division Series", "1 HR from 40"); fetched only when the caller passes stampFor = { sport, id, day }; tap explains
+  const stamps = useStamps(stampFor)
   const n = String(name || '')
   const heat = (pct) => (pct == null ? { c: C.text, hot: false } : pct >= 80 ? { c: accent, hot: true } : pct <= 20 ? { c: C.text3, hot: false } : { c: C.text, hot: false })
   const stop = (fn) => (e) => { e.stopPropagation(); fn() }
@@ -111,6 +115,15 @@ export default function RankCard({
         {extraLine}
       </div>
       {reason && <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.4, marginTop: 6 }}>{reason}</div>}
+      {stamps.length > 0 && (
+        <div data-stamps style={{ display: 'flex', flexWrap: 'wrap', gap: '0 6px', marginTop: 2 }} onClick={(e) => e.stopPropagation()}>
+          {stamps.map((s) => (
+            <button key={s.key} type="button" onClick={stop(() => explainTap(s.label, s.explain))} aria-label={`${s.text}. ${s.explain}`} style={{ display: 'flex', alignItems: 'center', minHeight: 44, padding: 0, border: 0, background: 'transparent', cursor: 'pointer' }}>
+              <span style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, letterSpacing: '.03em', lineHeight: 1.25, color: C.text, background: alpha(C.bg, 0.7), border: `1px solid ${alpha(C.text, 0.22)}`, borderLeft: `3px solid ${accent}`, padding: '3px 8px', textAlign: 'left' }}>{s.text}</span>
+            </button>
+          ))}
+        </div>
+      )}
       {!compact && chips && <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8 }}>{chips}</div>}
     </div>
   )

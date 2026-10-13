@@ -46,6 +46,7 @@ import dynamic from 'next/dynamic'
 // Dashboard pattern. A tab you never open costs nothing.
 import TabLoading from '../TabLoading'
 const Watchlist = dynamic(() => import('./tabs/Watchlist'), { loading: TabLoading })
+const Binder = dynamic(() => import('../binder/Binder'), { loading: TabLoading })   // 2026-10-12: cards earned by the players I follow
 const Games = dynamic(() => import('./tabs/Games'), { loading: TabLoading })
 const Bot = dynamic(() => import('./tabs/Bot'), { loading: TabLoading })
 const NflPlayers = dynamic(() => import('./tabs/NflPlayers'), { loading: TabLoading })
@@ -75,6 +76,7 @@ import NflProps from './NflProps'
 import NflCalls from './NflCalls'
 import Fold from '../Fold'
 import NflTeam from './tabs/Team'
+import { boardPicks } from '../binder/boardPicks'
 import { useTabView } from '../../lib/tabView'
 const OddsBoard = dynamic(() => import('../tabs/OddsBoard'))
 
@@ -394,6 +396,7 @@ export default function NflDashboard({ palettePass = 0 }) {
   const liveSnap = useNflLive(data)
   const slateRef = useRef(null)   // the handler below reads the slate it can't close over
   const slate = useMemo(() => withLive(data, liveSnap), [data, liveSnap])
+  const binderBoard = useMemo(() => boardPicks('nfl', slate?.players), [slate])   // the Binder's empty state names real players from this week's slate
   const cardOpenedRef = useRef(false)
   useEffect(() => {
     slateRef.current = slate
@@ -516,6 +519,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'home' && <Home data={slate} picks={picks} results={nflResults} matchup={matchup} logs={logs} onPlayerClick={openPlayer} setTab={setTab} liveSnap={liveSnap} />}
             {/* MOONSHOT's Players page (2026-09-30): list + the card inline. */}
             {!oddsHold && tab === 'players' && <NflPlayers data={data} logs={logs} matchup={matchup} picks={picks} results={nflResults} odds={odds} />}
+            {tab === 'binder' && <Binder sport="nfl" board={binderBoard} />}
             {tab === 'watchlist' && <Watchlist data={slate} matchup={matchup} logs={logs} picks={picks} onPlayerClick={openPlayer} />}
             {/* TOP TOTALS now ride each game (components/GameTotalLine.js: on the game's header and its slate card); the record stays in the Ledger.
                 The Card is one line, under the slate (it was a block above the first game). */}

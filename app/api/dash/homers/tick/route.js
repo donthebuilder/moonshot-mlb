@@ -87,6 +87,7 @@ import { storiesTick } from '../../../../../lib/stories/record'
 import { mlbNumerologyWrite, mlbNumerologyGrade } from '../../../../../lib/numerology/mlbWriter'
 import { postMlbListOnce } from '../../../../../lib/lists/post'
 import { adminClient } from '../../../../../lib/supabase/admin'
+import { momentAfterTick } from '../../../../../lib/posts/momentTick'
 import { claimSlot as sharedClaimSlot, bytesOf as sharedBytesOf, knownTaken, markTaken } from '../../../../../lib/dash/postClaim'
 import { ordinal } from '../../../../../lib/format'
 import { feedHooks, receiptsHooks, withReceipts } from '../../../../../lib/dash/discordChannels'
@@ -972,7 +973,7 @@ async function receiptTick(db, { day }) {
 }
 
 
-export async function GET(request) {
+async function mlbTick(request) {
   if (!authorized(request)) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   if (await isMaintenanceMode()) return Response.json({ skipped: 'maintenance_mode' })
   const db = service()
@@ -2480,4 +2481,13 @@ export async function GET(request) {
   const th = threadsSnapshot()
   if (th.length) totals.threads = th
   return Response.json(totals)
+}
+
+// MOMENT POSTS + THE POSTSEASON BIG NIGHTS (2026-10-12): the special cards of what just happened (a multi-homer game, a long shot that cashed) and, when a
+// postseason game turns Final, its big nights. Last, after the tick's own work; off unless MOMENT_POSTS_ON; it rides this tick (no cron of its own) and never
+// changes the tick's answer. lib/posts/momentTick.js
+export async function GET(request) {
+  const res = await mlbTick(request)
+  await momentAfterTick(res, { sources: ['mlb'], postseason: true })
+  return res
 }

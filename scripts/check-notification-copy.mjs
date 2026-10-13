@@ -124,6 +124,22 @@ check(HF.postText({ ...ev, role: 'HIT', hr_n: 1, odds_over: null }) === '\u{1F91
 check(HF.postText({ ...ev, role: 'WATCH', board_rank: 9, stats: { season_hr: 30, season_iso: 0.21 } }) === '\u{1F4A5} TEST SAMPLE ALPHA GOES DEEP. (#2 tonight)\n\n#9 on the Moonshot board\n\n30 HR · .210 ISO\n\nNot a top call tonight.', 'MOONSHOT ON THE BOARD homer post is character-identical')
 check(HF.postText({ name: 'Test Sample Alpha', role: '', hr_n: 1 }) === "\u{1F4A5} TEST SAMPLE ALPHA GOES DEEP.\n\nNot on the Moonshot board.", 'MOONSHOT NOT ON THE BOARD homer post ends at "Not on the Moonshot board." (no tagline since 10-09)')
 
+// ── 8b. the card-earned push (the Binder, 2026-10-12): STAR+ only, the tier word and what he did, no call word, no price ──
+{
+  const rows = C.CATALOG.filter((r) => r.key === 'cardearned')
+  check(rows.length >= 4, 'cardearned: a catalog row for each sport / variant', String(rows.length))
+  for (const r of rows) {
+    const o = r.render()
+    check(/\b(STAR|ELITE|LEGEND) card\b/.test(o.title), `cardearned (${r.variant}): the title carries the tier word`, o.title)
+    check(!/\bBASE\b/i.test(`${o.title} ${o.body}`), `cardearned (${r.variant}): a BASE card is never a push`)
+    check(!/CALLED|ON THE BOARD|\+\d{3,}/.test(`${o.title} ${o.body}`), `cardearned (${r.variant}): no call word and no price`, o.body)
+    check(/^Earned: /.test(o.body), `cardearned (${r.variant}): the body says what he earned`, o.body)
+  }
+  const long = C.cards.earned({ name: 'A Very Long Name Indeed Here', tierWord: 'LEGEND', kicker: '4-GOAL GAME', line: '4 GOALS', team: 'TST', opp: 'EXA' })
+  check(cp(long.title) <= C.LIMITS.title && cp(long.body) <= C.LIMITS.body, 'cardearned: a long name still fits the limits', JSON.stringify(long))
+  check(C.cards.earned({ name: 'Test Skater', tierWord: 'STAR', kicker: 'OT GOAL', line: '', team: 'TST', opp: 'EXA' }).body.startsWith('Earned: OT goal'), 'cardearned: OT stays upper-case')
+}
+
 // ── 9. the cut ──
 check(C.categoryAllowed('homer') && C.categoryAllowed('scratched') && C.categoryAllowed('slam') && C.categoryAllowed('frtd'), 'kept categories (and FRANCHISE) are allowed')
 check(!C.categoryAllowed('ondeck', {}) && !C.categoryAllowed('lineup', {}) && !C.categoryAllowed('nflred', {}), 'cut categories are refused')

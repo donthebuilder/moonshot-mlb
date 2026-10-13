@@ -1,4 +1,5 @@
 'use client'
+import TeamCards from '../../binder/TeamCards'
 import { useMemo, useRef } from 'react'
 import TeamPage from '../../team/TeamPage'
 import LampTable from '../LampTable'
@@ -33,6 +34,7 @@ export default function Team({ abbrev, onOpenPlayer, onOpenGame, onOpenTeam = nu
   const live = useRef({})
   live.current = { openPlayer: onOpenPlayer, openTeam }
   const Slots = useMemo(() => ({
+    teamCards: (p) => <TeamCards {...p} />,
     goalieReads: (p) => <TeamGoalies {...p} onOpenPlayer={live.current.openPlayer ? (id) => live.current.openPlayer(id) : null} />,
     injuries: ({ clubs }) => <InjuryOut sport="nhl" clubs={clubs} theme={{ C, NUM_FONT, accent: C.ice }} title="Out" onOpenTeam={(a) => live.current.openTeam?.(a)}
       openPlayer={(e) => (e.player_id && live.current.openPlayer ? () => live.current.openPlayer(e.player_id) : null)} />,
