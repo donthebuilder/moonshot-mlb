@@ -14,7 +14,7 @@ const check = (cond, label, extra = '') => { if (cond) console.log(`ok   ${label
 const cp = (s) => [...String(s)].length
 
 // ── 1. the limits: title <= 26, body <= 48, one line, the news inside 30 characters ──
-const NO_STAT = new Set(['scratched', 'dropout', 'welcome', 'bundle'])
+const NO_STAT = new Set(['scratched', 'dropout', 'welcome', 'bundle', 'nflinj'])
 for (const row of C.CATALOG) {
   if (row.limits === false || !['push', 'system'].includes(row.kind)) continue
   const r = row.render()
@@ -130,14 +130,14 @@ check(HF.postText({ name: 'Test Sample Alpha', role: '', hr_n: 1 }) === "\u{1F4A
   check(rows.length >= 4, 'cardearned: a catalog row for each sport / variant', String(rows.length))
   for (const r of rows) {
     const o = r.render()
-    check(/\b(STAR|ELITE|LEGEND) card\b/.test(o.title), `cardearned (${r.variant}): the title carries the tier word`, o.title)
+    check(/ earned (STAR|ELITE|LEGEND)\b/.test(o.title), `cardearned (${r.variant}): the title has its verb and the tier word`, o.title)
     check(!/\bBASE\b/i.test(`${o.title} ${o.body}`), `cardearned (${r.variant}): a BASE card is never a push`)
     check(!/CALLED|ON THE BOARD|\+\d{3,}/.test(`${o.title} ${o.body}`), `cardearned (${r.variant}): no call word and no price`, o.body)
-    check(/^Earned: /.test(o.body), `cardearned (${r.variant}): the body says what he earned`, o.body)
+    check(/^New card: /.test(o.body), `cardearned (${r.variant}): the body says what the card is`, o.body)
   }
   const long = C.cards.earned({ name: 'A Very Long Name Indeed Here', tierWord: 'LEGEND', kicker: '4-GOAL GAME', line: '4 GOALS', team: 'TST', opp: 'EXA' })
   check(cp(long.title) <= C.LIMITS.title && cp(long.body) <= C.LIMITS.body, 'cardearned: a long name still fits the limits', JSON.stringify(long))
-  check(C.cards.earned({ name: 'Test Skater', tierWord: 'STAR', kicker: 'OT GOAL', line: '', team: 'TST', opp: 'EXA' }).body.startsWith('Earned: OT goal'), 'cardearned: OT stays upper-case')
+  check(C.cards.earned({ name: 'Test Skater', tierWord: 'STAR', kicker: 'OT GOAL', line: '', team: 'TST', opp: 'EXA' }).body.startsWith('New card: OT goal'), 'cardearned: OT stays upper-case')
 }
 
 // ── 9. the cut ──

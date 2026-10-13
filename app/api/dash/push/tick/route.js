@@ -39,6 +39,10 @@ import { hasVapid, vapidDetails, vapidProblem } from '../../../../../lib/dash/va
 import { claimBoardWindow, fetchBoard } from '../../../../../lib/dash/board'
 import { byeStarterEventsFrom, franchiseEventsFrom, lineupGapEventsFrom, starterScoreEventsFrom } from '../../../../../lib/dash/franchise'
 import { cardEarnedEventsFrom, audienceFrom, boardInfoFrom, deviceWantsSport, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, followNameKey, nflFollowMisses, nhlEventsFrom, nbaEventsFrom, pregameEventsFrom, nhlPregameEventsFrom, nhlInjuryOutEventsFrom, mlbInjuryOutEventsFrom, nflPregameEventsFrom, nbaPregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
+import { nflInjuryStatusEventsFrom } from '../../../../../lib/dash/pushRules'
+import { mlbRecapEventsFrom } from '../../../../../lib/dash/pushNightly'
+import { callsGradedEvents, weeklyEvents } from '../../../../../lib/dash/pushNightlyIO'
+import { applyDailyCaps, brakeConfig, pushDayStart, tallyLog } from '../../../../../lib/dash/pushBrake'
 import { readInjuries } from '../../../../../lib/injuries/read'
 import { nhlPregameSnap, nflPregameSnap, nbaPregameSnap, priorStartersFrom } from '../../../../../lib/dash/pregameSources'
 import { bundleTitle, bundleBody } from '../../../../../lib/copy/notifications'
@@ -200,7 +204,7 @@ async function mlbEvents(db, audience) {
   const board = await fetchBoardDay(db)
   const events = mlbEventsFrom(snap, today(), audience, lineupState, board)
   await saveLineupState(db, lineupUpdatesFrom(snap, today(), audience))
-  return events
+  return { events, snap }
 }
 
 // BEFORE FIRST PITCH. Costs a board read, so it is gated three ways: somebody
@@ -239,21 +243,28 @@ async function nhlPregameEvents(db, audience) {
   if (!snap) return []
   const inj = await readInjuries('nhl').catch(() => null)
   const injOuts = nhlInjuryOutEventsFrom(snap, inj, today(), audience)   // a followed skater listed OUT (lib/injuries), category 'scratched'
-  const first = [...nhlPregameEventsFrom(snap, today(), audience), ...injOuts]
-  if (!first.some((e) => e.category === 'starter' && !knownClaimed.keys.has(e.key))) return first
+  const outIds = new Set(injOuts.map((e) => String(e.playerId)))          // listed Out: not counted in the puck-drop heads-up
+  const first = [...nhlPregameEventsFrom(snap, today(), audience, Date.now(), {}, { outIds }), ...injOuts]
+  // the memory of who was confirmed is read when a new starter is about to be claimed, or when a puck drop is about to be (it drops a goalie ESPN replaced)
+  const needsPrior = first.some((e) => (e.category === 'starter' || e.category === 'puckdrop') && !knownClaimed.keys.has(e.key))
+  if (!needsPrior) return first
   const { data, error } = await db.from('dash_push_seen').select('event_key').like('event_key', 'nhl:%:starter:%')
   if (error) { console.error(`[push] prior starters read failed: ${error.message}`); return first }
   const prior = priorStartersFrom((data || []).map((r) => r.event_key), audience.nameOf)
-  return [...nhlPregameEventsFrom(snap, today(), audience, Date.now(), prior), ...injOuts]
+  return [...nhlPregameEventsFrom(snap, today(), audience, Date.now(), prior, { outIds }), ...injOuts]
 }
 // NFL: a followed player ruled Out, a delay, a moved kickoff. His card opens when the slate knows his id.
 async function nflPregameEvents(audience) {
   if (!audience?.nfl?.size) return []
   const snap = await nflPregameSnap(audience)
   if (!snap) return []
-  const first = nflPregameEventsFrom(snap, today(), audience)
-  if (!first.some((e) => e.category === 'scratched' && !knownClaimed.keys.has(e.key))) return first
-  return nflPregameEventsFrom(snap, today(), audience, Date.now(), await tuddyIdsFor(snap, { always: true }))
+  // the injury layer's other statuses (questionable, doubtful) for followed players: ONE read per window (lib/injuries memo), asked only when somebody follows a man
+  const inj = await readInjuries('nfl').catch(() => null)
+  const status = (ids) => nflInjuryStatusEventsFrom(snap, inj, today(), audience, Date.now(), ids)
+  const first = [...nflPregameEventsFrom(snap, today(), audience), ...status(null)]
+  if (!first.some((e) => (e.category === 'scratched' || e.category === 'nflinj') && !knownClaimed.keys.has(e.key))) return first
+  const ids = await tuddyIdsFor(snap, { always: true })
+  return [...nflPregameEventsFrom(snap, today(), audience, Date.now(), ids), ...status(ids)]
 }
 // NBA (BUCKETS): nothing at all until BUCKETS_PUBLIC is on -- no event, so no push deep link to a BUCKETS page.
 async function nbaPregameEvents(audience) {
@@ -756,14 +767,28 @@ async function logOutcomes(db, sub, rows) {
   if (error) console.error(`[push] dash_push_log insert failed: ${error.message}`)
 }
 
+// How many events this device has been sent since 6 am ET, by class (urgent / not): its own dash_push_log, one small select, only for a device that has
+// something to receive. A failed read counts as nothing sent (fail open).
+async function sentToday(db, endpoint) {
+  const { data, error } = await db.from('dash_push_log').select('category,priority')
+    .eq('endpoint_hash', shortId(endpoint)).in('outcome', ['sent', 'bundled']).gte('at', new Date(pushDayStart()).toISOString()).limit(500)
+  if (error) { console.error(`[push] daily cap read failed: ${error.message}`); return { soft: 0, urgent: 0 } }
+  return tallyLog(data)
+}
+
 /** One pass: what happened, who has not been told, tell them. */
 async function sweep(db, subs, stateByUser, audience, { full }) {
   const nothing = { sent: 0, held: 0, events: 0, fresh: 0, dead: [], discord: 0 }
   const redZoneEnabled = await isRedZoneAlertsEnabled()
   const nhl = await nhlEvents(db, audience, stateByUser)
   const nba = await nbaEvents(db, audience, stateByUser)
+  const mlb = await mlbEvents(db, audience)
   const produced = [
-    ...(await mlbEvents(db, audience)),
+    ...mlb.events,
+    // the per-person notes (recap: pure, every sweep; the receipt and the weekly note read more, so the first sweep of a run only). Each carries `owner`.
+    ...mlbRecapEventsFrom(mlb.snap, stateByUser, wants),
+    ...(full ? await safely('calls graded', () => callsGradedEvents({ db, snap: mlb.snap, stateByUser, wantsFn: wants })) : []),
+    ...(full ? await safely('weekly note', () => weeklyEvents({ db, stateByUser, wantsFn: wants })) : []),
     ...(await nflEvents(audience)),
     ...nhl.events,
     ...nba.events,
@@ -839,6 +864,7 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
   await markSwept(db, nhl.unswept)
   await markSweptNba(db, nba.unswept)
 
+  const startedAtMs = Date.now()
   const fresh = new Set(claimed.map((r) => r.event_key))
   const toSend = events.filter((e) => fresh.has(e.key))
   if (!toSend.length) return { ...nothing, events: events.length }
@@ -861,19 +887,30 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
     // which only ever sees settings and never sees whose they are.
     const mine = toSend
       .filter((e) => !e.owner || e.owner === sub.user_id)
-      .filter((e) => wants(state, e))
-      // Device sport choice: only the "everyone" alerts are about no one in
-      // particular, so only they are filtered; followed names always arrive.
-      .filter((e) => !e.everyone || deviceWantsSport(sub.sports, e.sport))
+      .filter((e) => wants(state, e, startedAtMs))
+      // SPORTS ON THIS DEVICE (2026-10-13): a real per-device mute. It used to filter only the "everyone" alerts (one of which is off by default), so the switches
+      // did almost nothing; now a sport switched off here sends nothing to THIS device, followed names included. FRANCHISE and BUCKETS always pass.
+      .filter((e) => deviceWantsSport(sub.sports, e.sport))
       .sort((a, b) => priorityOf(a) - priorityOf(b))
     if (!mine.length) return
 
-    const urgent = mine.filter((e) => laneOf(e) === 'urgent')
-    const actionable = mine.filter((e) => laneOf(e) === 'actionable')
-    const scoreboard = mine.filter((e) => laneOf(e) === 'scoreboard')
+    const outcomes = []   // [{ event, outcome }]
+    // THE DAILY SOFT CAP (2026-10-13, lib/dash/pushBrake.js): non-urgent events stop at 8 a day per device, urgent ones at 15. What it holds is logged `dropped`
+    // ('daily cap'), like a lane drop. The count is this device's own log since 6 am ET; unreadable = fail open (never a silent night).
+    const cfg = brakeConfig()
+    let allowed = mine
+    if (cfg.on) {
+      const capped = applyDailyCaps(mine, await sentToday(db, sub.endpoint), cfg)
+      allowed = capped.send
+      for (const e of capped.held) { held += 1; outcomes.push({ event: e, outcome: 'dropped', detail: 'daily cap' }) }
+    }
+    if (!allowed.length) { await logOutcomes(db, sub, outcomes); return }
+
+    const urgent = allowed.filter((e) => laneOf(e) === 'urgent')
+    const actionable = allowed.filter((e) => laneOf(e) === 'actionable')
+    const scoreboard = allowed.filter((e) => laneOf(e) === 'scoreboard')
 
     const notes = []      // [{ note, events }]
-    const outcomes = []   // [{ event, outcome }]
     if (urgent.length) notes.push({ note: bundle(urgent), events: urgent })
     for (const [lane, list] of [['actionable', actionable], ['scoreboard', scoreboard]]) {
       if (!list.length) continue
