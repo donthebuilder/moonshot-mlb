@@ -474,5 +474,252 @@ process.env.MOMENT_POSTS_ON = 'on'
   delete process.env.MOMENT_POSTS_ON
 }
 
+// ── L. THE NIGHT'S DIGEST (TOP 3 TONIGHT) ───────────────────────────────────────────────────────────────────
+{
+  process.env.MOMENT_POSTS_ON = 'on'
+  const DG = await import('../lib/posts/digestPost.js')
+  const DR = await import('../lib/cards/digestRank.js')
+  const { TEST_MODEL } = await import('../lib/cards/topThreeFixtures.js')
+  const NIGHT = '2026-10-12'
+  const nhlRow = (o = {}) => conf({ day: NIGHT, ...o })
+  const nhl = (o) => MF.nhlEventsFrom([nhlRow(o)])
+  // a hat trick (ELITE) by man 11; OT goals (STAR) by 21 and 22 (22 is later); a 3-point night (STAR) by 31; a 30th goal (STAR) by 41; a plain goal (BASE) by 51
+  const hatN = find(MF.nhlEventsFrom(hatRows({ day: NIGHT })), 'nhl_hat_trick')
+  const otA = find(nhl({ player_id: 21, name: 'Test Winger', period: 4, period_type: 'OT', time_in_period: '02:10', strength: 'ev', game_id: 3, confirmed_at: '2026-10-12T01:00:00Z' }), 'nhl_goal')
+  const otB = find(nhl({ player_id: 22, name: 'Test Center', period: 4, period_type: 'OT', time_in_period: '01:05', strength: 'ev', game_id: 4, confirmed_at: '2026-10-12T02:00:00Z' }), 'nhl_goal')
+  const mil = find(nhl({ player_id: 41, name: 'Test Sniper', season_goals: 30, game_id: 5, goal_n: 1, confirmed_at: '2026-10-12T00:30:00Z' }), 'nhl_season_goal_milestone')
+  const ptsRows = [31, 32, 33].map((id, i) => nhlRow({ player_id: id, name: `Test Point ${id}`, goal_n: 1, game_id: 6, period: i + 1, time_in_period: `0${i + 1}:00`, score_after: `EXA 0 · TST ${i + 1}`, assists: id === 31 ? [{ id: 99, name: 'T. Other', assistsToDate: 2 }] : [{ id: 31, name: 'T. Playmaker', assistsToDate: 4 }] }))
+  const pts = find(MF.nhlEventsFrom(ptsRows).filter((e) => e.who.playerId === '31'), 'nhl_three_points')
+  const baseN = find(nhl({ player_id: 51, name: 'Test Plain', game_id: 7 }), 'nhl_goal')
+  check(hatN && otA && otB && mil && pts && baseN && hatN.tier === 'elite' && otA.tier === 'star' && mil.tier === 'star' && pts.tier === 'star' && baseN.tier === 'base', 'L: the digest test events build (ELITE hat trick, STAR OT goals / 30th goal / 3-point night, BASE goal)')
+
+  // ── ranking ──
+  const top = (events, o) => DR.pickTop(events, o)
+  let t = top([otA, otB, mil, pts, baseN])
+  check(t.map((p) => p.playerId).join(',') === '31,41,22', `L: rank: tier, then the moment's size (3 points 3.0, 30th goal 1.5, OT goal 1.0), then recency (the later OT goal first): ${t.map((p) => p.name).join(', ')}`)
+  t = top([otA, otB, mil, pts, baseN, hatN])
+  check(t[0].playerId === '11' && t.length === 3 && t[1].playerId === '31', 'L: ELITE before STAR; at most three')
+  check(top([baseN, baseN]).length === 0 && !top([otA, baseN]).some((p) => p.playerId === '51'), 'L: BASE is never in a digest')
+  const sameMan = find(nhl({ player_id: 21, name: 'Test Winger', season_goals: 30, game_id: 8, goal_n: 1, period: 4, period_type: 'OT', time_in_period: '01:00', confirmed_at: '2026-10-12T03:00:00Z' }), 'nhl_season_goal_milestone')
+  t = top([otA, sameMan])
+  check(t.length === 1 && t[0].moment === 'nhl_season_goal_milestone', 'L: one line per man (his best moment: the 30th goal over the OT goal)')
+  check(top([otA, otB, mil], { exclude: new Set(['41']) }).map((p) => p.playerId).join(',') === '22,21' && top([otA, otB, mil, pts], { max: 2 }).length === 2, 'L: a man already posted on his own is left out; max is honoured')
+  check(DR.rankPicks([{ slug: 'a', rank: 1, magnitude: 1, at: 5, name: 'A', moment: 'x' }, { slug: 'b', rank: 1, magnitude: 1, at: 5, name: 'A', moment: 'a' }]).map((p) => p.slug).join(',') === 'b,a', 'L: ties are broken by name then moment key (the same input always gives the same order)')
+  const same = JSON.stringify(top([otB, otA, mil, pts].reverse()).map((p) => p.playerId)) === JSON.stringify(top([otA, otB, mil, pts]).map((p) => p.playerId))
+  check(same, 'L: the order does not depend on the order the events arrive in')
+  const yd = (y, id, o = {}) => MF.makeEvent('nfl_100_yards', { ...F.TEST_100, gsis_id: id, name: `Test Back ${id}`, rush_yds: y, day: NIGHT, ...o }, { gameId: 's2026w5', n: 'yd', at: null })
+  const nflTop = DR.pickTop([yd(105, 'a1'), yd(151, 'a2'), yd(212, 'a3'), yd(120, 'a4'), MF.makeEvent('nfl_multi_td', { ...F.TEST_MULTI_TD, day: NIGHT }, { gameId: '800', n: 'td3', at: null })])
+  check(nflTop.map((p) => p.line).join('|') === '212 RUSH YDS|3 TOUCHDOWNS|151 RUSH YDS' || nflTop.map((p) => p.line).join('|') === '212 RUSH YDS|151 RUSH YDS|3 TOUCHDOWNS', `L: NFL: LEGEND 212 yards first, then ELITE (151 yards 1.51 against 3 TDs 3.0: the touchdowns) (${nflTop.map((p) => p.line).join(' | ')})`)
+  check(DR.shortLine(hatN) === 'HAT TRICK · 3 G' && DR.shortLine(otA) === 'OT GOAL' && DR.shortLine(yd(151, 'z')) === '151 RUSH YDS' && DR.shortLine(pts) === '3-POINT NIGHT · 1 G 2 A' && DR.shortLine(mil) === 'GOAL #30' && DR.shortLine(long) === 'LONG SHOT · +1520' && DR.shortLine(mlb) === '3 HOME RUNS' && DR.shortLine(MF.makeEvent('nhl_hat_trick', { ...hatN.row, goals: [...hatN.row.goals, hatN.row.goals[0]] }, { gameId: 1, n: 'ht4', at: null })) === '4-GOAL GAME', 'L: the moment lines are facts: HAT TRICK · 3 G / OT GOAL / 151 RUSH YDS / 3-POINT NIGHT · 1 G 2 A / GOAL #30 / LONG SHOT · +1520 / 3 HOME RUNS / 4-GOAL GAME')
+
+  // ── the words ──
+  check(DR.digestTitle(3) === 'TOP 3 TONIGHT' && DR.digestTitle(2) === 'TOP 2 TONIGHT' && DR.digestTitle(1) === 'TOP PERFORMER TONIGHT' && DR.digestTitle(0) === null && DR.digestTitle(3, { sport: 'nfl' }) === 'TOP 3 TODAY' && DR.digestTitle(3, { postseason: true }) === 'TOP 3 POSTSEASON PERFORMANCES' && DR.digestTitle(9) === 'TOP 3 TONIGHT', 'L: titled by count (TOP 3 / TOP 2 / TOP PERFORMER; NFL says TODAY; the postseason one says POSTSEASON PERFORMANCES)')
+  const three = top([hatN, otA, otB, mil, pts])
+  const tx = DR.digestTexts(three, { sport: 'nhl' })
+  check(/^TOP 3 TONIGHT · NHL\n1\. Test Skater \(TST\): HAT TRICK · 3 G\n2\. /.test(tx.x) && !/https?:\/\//.test(tx.x) && Array.from(tx.x).length <= 280 && !P.BANNED.test(tx.x) && tx.discord === tx.x, `L: the X text is neutral, ranked, no link, fits 280 (${tx.x.replace(/\n/g, ' | ')})`)
+  const longP = (n) => ({ slug: `p${n}`, playerId: `p${n}`, name: `Test Maximilian Featherstonehaugh-Villanueva ${n}`, team: 'TST', rank: 1, tier: 'star', magnitude: 1, at: n, moment: 'x', line: '3-POINT NIGHT · 1 G 2 A' })
+  const lx = DR.digestTexts([longP(1), longP(2), longP(3)], { sport: 'nhl' })
+  check(lx.x === null || Array.from(lx.x).length <= 280, 'L: three very long names: the X text is shortened (clubs dropped) or refused, never over 280')
+  const shortP = [{ ...longP(1), name: 'Test A Longer Name Here Than Usual Surname', line: 'HAT TRICK · 3 G' }, { ...longP(2), name: 'Test B Quite Long Name Surname Hyphen-Name', line: '151 RUSH YDS' }, { ...longP(3), name: 'Test C Another Name Surname Here Please', line: 'OT GOAL' }]
+  const sx = DR.digestTexts(shortP, { sport: 'nhl' })
+  check(sx.x && Array.from(sx.x).length <= 280, 'L: long names that fit only without the club codes keep the names and drop the codes')
+  check(DR.digestTexts([{ ...longP(1), name: 'Test Lock Man', line: 'OT GOAL' }], { sport: 'nhl' }).x !== null && DR.digestTexts([{ ...longP(1), line: 'a lock tonight' }], { sport: 'nhl' }).x === null && DR.digestTexts([{ ...longP(1), line: '100% night' }], { sport: 'nhl' }).discord === null, 'L: a man named Lock is fine; the word lock or a percent sign in a line is refused (nothing is reworded)')
+  check(DR.digestTexts([], { sport: 'nhl' }).x === null, 'L: no picks, no text')
+
+  // ── the league's word on the night ──
+  const g = (o = {}) => ({ id: '1', startMs: NOW - 6 * 3600e3, final: true, off: false, ...o })
+  const S = DG.nightState
+  check(S([g(), g({ id: '2' })]).over && !S([g(), g({ id: '2', final: false })]).over && S([g(), g({ id: '2', off: true, final: false })]).over && !S([g({ off: true, final: false })]).over && !S([]).over && S([g(), g({ id: '2', startMs: NOW - 5 * 3600e3 })]).lastStart === NOW - 5 * 3600e3, 'L: pure: the night is over when every game is Final or off (and one was played); the last start is the latest')
+  check(DG.windowFor('nhl', NOW - 6 * 3600e3, NOW) === 'go' && DG.windowFor('nhl', NOW - 1 * 3600e3, NOW) === 'wait' && DG.windowFor('nhl', NOW - 21 * 3600e3, NOW) === 'stale' && DG.windowFor('nfl', NOW - 3.5 * 3600e3, NOW) === 'wait' && DG.windowFor('nfl', NOW - 4.5 * 3600e3, NOW) === 'go' && DG.windowFor('nhl', null, NOW) === 'go', 'L: pure: not before 2.5 h (NFL 4 h) after the last start, not after 20 h')
+
+  // ── the pass ──
+  const mkd = ({ games = [g()], postseason = false, rows = true, events = [hatN, otA, otB, mil, pts, baseN], xs = {} } = {}) => {
+    const s = senders(xs)
+    return { s, deps: { ...s.d, hasRows: async () => rows, nightGames: async (sport, night) => (night === NIGHT ? { postseason, games } : { postseason: false, games: [] }), events: async () => events } }
+  }
+  const D = (f, m, o = {}) => DG.digestPass(f.db, { sport: 'nhl', now: NOW, deps: m.deps, ...o })
+  const resetD = () => { reset(); DG._resetDigest() }
+  resetD()
+  let f = fakeDb(); let m = mkd()
+  let r = await D(f, m)
+  const row = f.tables.homer_feed_posts[0]
+  check(f.tables.homer_feed_posts.length === 1 && row.kind === 'moment_nhl_top3_20261012' && row.day === NIGHT && /^posted TOP 3 TONIGHT/.test(r.nights?.[0]?.result), `L: the night is over: ONE claim ${row?.kind} on the game's own date, one post`)
+  check(m.s.sent.x.length === 1 && m.s.sent.discord.length === 1 && m.s.sent.members.length === 1 && m.s.sent.x[0].kind === 'moment_nhl_top3_20261012' && m.s.sent.x[0].sport === 'nhl', 'L: ONE X post, ONE sport-channel post, ONE #members post')
+  check(m.s.sent.x[0].mediaId === 'media-1' && m.s.sent.upload === 1 && m.s.sent.discord[0].png && m.s.sent.discord[0].embed.image?.url === 'attachment://card.png' && m.s.sent.members[0].png, 'L: ONE image (the top-three card): uploaded to X, attached to both Discord posts')
+  const emb = m.s.sent.discord[0].embed
+  check(/^TOP 3 TONIGHT · NHL/.test(emb.title) && /\/app#sport=nhl&tab=binder/.test(emb.url || '') && /1\. Test Skater/.test(emb.description) && !/https?:\/\//.test(emb.description) && !/https?:\/\//.test(m.s.sent.x[0].text), 'L: Discord: the embed links the sport\'s binder (Discord links are allowed); X carries no link')
+  check(row.payload.named.join(',') === '11,31,41' && row.payload.count === 3 && row.payload.picks.length === 3 && row.x_post_id === 'tw-1' && row.discord_sent === true && row.payload.members_sent === true && row.payload.x_tag === 'INFO', 'L: the claim row names the three men, records the tweet, the channel sends and the INFO tag')
+  check(m.s.sent.admit.length === 1 && m.s.sent.admit[0].kind === 'moment_nhl_top3_20261012' && m.s.sent.admit[0].repeat === false && m.s.sent.admit[0].sport === 'nhl' && m.s.sent.admit[0].day === '2026-10-12', 'L: it counts as ONE X post, asked of the one gate (admit: pause + the write-up tier cap) with its own kind')
+  check(m.s.sent.logged.length === 1, 'L: the one X post is logged as posted')
+  // later passes and a cold instance: nothing more
+  const r2 = await D(f, m, { now: NOW + 6 * 60e3 })
+  DG._resetDigest(); _resetTakenForTests()
+  const r3 = await D(f, m, { now: NOW + 12 * 60e3 })
+  check(f.tables.homer_feed_posts.length === 1 && m.s.sent.x.length === 1 && m.s.sent.discord.length === 1 && !(r2.nights || []).some((n) => /^posted/.test(n.result)) && !(r3.nights || []).some((n) => /^posted/.test(n.result)), 'L: CLAIM ONCE: the next pass and a cold instance (nothing remembered) post nothing more')
+  // the schedule is not asked again inside 5 minutes
+  const rw = await D(f, m, { now: NOW + 13 * 60e3 }); const rw2 = await D(f, m, { now: NOW + 14 * 60e3 })
+  check(rw2.wait === true, 'L: the league\'s schedule is not asked again inside the 5-minute look')
+  // two instances racing on the same night
+  resetD()
+  { const f2 = fakeDb(); const m2 = mkd()
+    const picks = DR.pickTop([hatN, otA, mil])
+    const send = () => DG.sendDigest(f2.db, { sport: 'nhl', night: NIGHT, kind: 'moment_nhl_top3_20261012', picks, now: NOW }, { ...DG.DIGEST_SENDERS, ...m2.deps })
+    const [a, b] = await Promise.all([send(), send()])
+    check(f2.tables.homer_feed_posts.length === 1 && m2.s.sent.x.length === 1 && m2.s.sent.discord.length === 1 && [a, b].filter((x) => /^posted/.test(x)).length === 1, 'L: CLAIM ONCE: two ticks racing on one night send it once') }
+
+  // ── counts: 2, 1, none ──
+  resetD(); f = fakeDb(); m = mkd({ events: [otA, otB] })
+  await D(f, m)
+  check(/^TOP 2 TONIGHT · NHL\n1\. Test Center/.test(m.s.sent.x[0]?.text || '') && f.tables.homer_feed_posts[0].payload.count === 2, 'L: two names -> "TOP 2 TONIGHT" (no filler)')
+  resetD(); f = fakeDb(); m = mkd({ events: [otA] })
+  await D(f, m)
+  check(/^TOP PERFORMER TONIGHT · NHL\n1\. Test Winger/.test(m.s.sent.x[0]?.text || '') && m.s.sent.discord.length === 1, 'L: one name -> a single "TOP PERFORMER TONIGHT"')
+  resetD(); f = fakeDb(); m = mkd({ events: [baseN, baseN] })
+  r = await D(f, m)
+  check(f.tables.homer_feed_posts.length === 0 && m.s.sent.x.length + m.s.sent.discord.length + m.s.sent.members.length === 0 && /nothing to name/.test(r.nights?.[0]?.result || ''), 'L: nothing but BASE moments -> nothing is claimed or posted')
+  resetD(); f = fakeDb(); m = mkd({ events: [] })
+  await D(f, m)
+  check(f.tables.homer_feed_posts.length === 0 && m.s.sent.x.length === 0, 'L: a night with no moment at all posts nothing')
+
+  // ── dedupe against the men already posted on their own ──
+  resetD(); f = fakeDb(); m = mkd({ events: [hatN, otA, otB, mil, pts] })
+  await MP.postMomentEvents(f.db, [hatN], { now: NOW, deps: m.s.d })
+  check(f.tables.homer_feed_posts.length === 1 && f.tables.homer_feed_posts[0].kind === 'moment_nhl_11_1_ht3' && m.s.sent.x.length === 1, 'L: (setup) the ELITE hat trick is posted on his own first')
+  await D(f, m)
+  const dg = f.tables.homer_feed_posts.find((x) => x.kind === 'moment_nhl_top3_20261012')
+  check(dg && !dg.payload.named.includes('11') && dg.payload.named.join(',') === '31,41,22' && !/Test Skater/.test(m.s.sent.x[1].text), 'L: DEDUPE: a man already posted on his own that night is not repeated in the digest; the next men fill the place')
+  // and the other way round: named in the digest, then his own card comes up
+  resetD(); f = fakeDb(); m = mkd({ events: [hatN, otA] })
+  await D(f, m)
+  const before = f.tables.homer_feed_posts.length
+  const rr = await MP.postMomentEvents(f.db, [hatN], { now: NOW + 60e3, deps: m.s.d })
+  check(f.tables.homer_feed_posts.length === before && rr.skipped.some((x) => /already named in the night's digest/.test(x)) && m.s.sent.x.length === 1, 'L: DEDUPE: a man the digest named is not posted again on his own afterwards')
+  // a man whose own post was never made (no claim) is eligible: the digest names him even though he is ELITE
+  resetD(); f = fakeDb(); m = mkd({ events: [hatN, otA] })
+  await D(f, m)
+  check(/1\. Test Skater/.test(m.s.sent.x[0].text) && /2\. Test Winger/.test(m.s.sent.x[0].text), 'L: an ELITE man who was not posted on his own is named in the digest (first, by tier)')
+
+  // ── the cap ──
+  resetD(); f = fakeDb(); m = mkd({ xs: { admit: () => ({ state: 'capped', reason: 'daily cap (writeup tier)' }) } })
+  await D(f, m)
+  check(m.s.sent.x.length === 0 && m.s.sent.discord.length === 1 && m.s.sent.members.length === 1 && f.tables.homer_feed_posts[0].x_post_id === 'skipped' && /capped/.test(f.tables.homer_feed_posts[0].payload.x_note), 'L: over the cap -> Discord and #members still go, X does not, the row says why (the digest is NOT exempt)')
+  check(XP.tierOf('moment_nhl_top3_20261012') === 'writeup' && !XP.isCapExempt('moment_nhl_top3_20261012') && !XP.isCapExempt('postseason_mlb_top3_20261012') && XP.capAllows('moment_nhl_top3_20261012', 17) && !XP.capAllows('moment_nhl_top3_20261012', 18) && XP.isMomentKind('moment_nhl_top3_20261012') && XP.sportOfKind('moment_nfl_top3_20261011') === 'nfl' && XP.sportOfKind('postseason_mlb_top3_20261012') === 'mlb', 'L: the digest kinds are the counted write-up tier (stop at 18 of 20), never exempt, one post per night (no repeat guard on the kind)')
+  resetD(); f = fakeDb(); m = mkd({ xs: { hasX: false } })
+  await D(f, m)
+  check(m.s.sent.x.length === 0 && m.s.sent.discord.length === 1 && f.tables.homer_feed_posts[0].x_post_id === null, 'L: no X configured -> Discord and #members only')
+  resetD(); f = fakeDb(); m = mkd({ xs: { noMembers: true } })
+  await D(f, m)
+  check(m.s.sent.members.length === 0 && m.s.sent.discord.length === 1 && m.s.sent.x.length === 1, 'L: no #members webhook -> no #members copy')
+
+  // ── an X refusal keeps the claim and never loops ──
+  resetD(); f = fakeDb(); m = mkd({ xs: { xResult: () => ({ ok: false, status: 403, error: 'Forbidden: duplicate content' }) } })
+  const ce = console.error; const errs = []; console.error = (...a) => errs.push(a.join(' '))
+  await D(f, m); DG._resetDigest(); _resetTakenForTests(); await D(f, m, { now: NOW + 6 * 60e3 }); DG._resetDigest(); await D(f, m, { now: NOW + 12 * 60e3 })
+  console.error = ce
+  check(m.s.sent.x.length === 1 && m.s.sent.discord.length === 1 && f.tables.homer_feed_posts.length === 1 && f.tables.homer_feed_posts[0].x_post_id === 'skipped' && errs.some((e) => /X refused/.test(e)), 'L: X refuses -> the Discord copies went, X was tried ONCE, the claim stays closed as skipped, later passes (a cold instance too) send nothing: no loop')
+  // a Discord hiccup with nothing else sent releases the claim only a few times
+  resetD(); f = fakeDb(); m = mkd({ xs: { hasX: false, noMembers: true, discordResult: () => ({ ok: false, status: 503, failed: [{}] }) } })
+  for (let i = 0; i < 8; i++) { DG._resetDigest(); await D(f, m, { now: NOW + i * 6 * 60e3 }) }
+  check(f.calls.delete >= 1 && f.calls.delete <= 3 && m.s.sent.discord.length <= 4, `L: a channel outage with nothing else sent retries only a few times (${m.s.sent.discord.length} tries), then stops`)
+  // no picture: X text only, Discord without the image
+  resetD(); f = fakeDb(); m = mkd({ xs: { noImage: true } })
+  await D(f, m)
+  check(m.s.sent.x.length === 1 && !m.s.sent.x[0].mediaId && m.s.sent.upload === 0 && m.s.sent.discord.every((x) => !x.png && !x.embed.image), 'L: the card does not draw -> X text-only, Discord without the image, the digest still goes')
+
+  // ── WHEN: the league's schedule decides ──
+  resetD(); f = fakeDb(); m = mkd({ games: [g(), g({ id: '2', final: false })] })
+  await D(f, m)
+  check(f.tables.homer_feed_posts.length === 0 && m.s.sent.x.length === 0, 'L: WHEN: one game of the night is still going -> nothing yet')
+  resetD(); f = fakeDb(); m = mkd({ games: [g(), g({ id: '2', final: false, off: true })] })
+  await D(f, m)
+  check(f.tables.homer_feed_posts.length === 1, 'L: WHEN: a postponed game is done for the night (the digest goes when the others are Final)')
+  resetD(); f = fakeDb(); m = mkd({ games: [g({ startMs: NOW - 1 * 3600e3 })] })
+  r = await D(f, m)
+  check(f.tables.homer_feed_posts.length === 0 && /waiting/.test(r.nights?.[0]?.result || ''), 'L: WHEN: not before 2.5 hours after the night\'s last start (a feed that says Final too early never posts a half night)')
+  resetD(); f = fakeDb(); m = mkd({ games: [g({ startMs: NOW - 22 * 3600e3 })] })
+  await D(f, m)
+  check(f.tables.homer_feed_posts.length === 0 && m.s.sent.x.length === 0, 'L: WHEN: a night whose last game started over 20 hours ago is not dumped (the day the switch is turned on, a restart)')
+  resetD(); f = fakeDb(); m = mkd({ games: [] })
+  await D(f, m)
+  check(f.tables.homer_feed_posts.length === 0, 'L: WHEN: no games on the league\'s schedule that date -> nothing')
+  resetD(); f = fakeDb(); m = mkd({ rows: false })
+  await D(f, m)
+  check(f.tables.homer_feed_posts.length === 0, 'L: WHEN: a date the sport has no feed rows on is not even looked up (free on an off day)')
+  resetD(); f = fakeDb(); m = mkd(); m.deps.nightGames = async () => null
+  await D(f, m)
+  check(f.tables.homer_feed_posts.length === 0 && m.s.sent.x.length === 0, 'L: WHEN: the league did not answer -> nothing is guessed from the clock')
+  resetD(); f = fakeDb(); m = mkd({ postseason: true })
+  r = await DG.digestPass(f.db, { sport: 'mlb', now: NOW, deps: m.deps })
+  check(f.tables.homer_feed_posts.length === 0 && /postseason date/.test(r.nights?.[0]?.result || ''), 'L: WHEN: on an MLB postseason date the regular TOP 3 is not posted (the postseason digest is the night\'s one MLB top-three post)')
+  resetD(); f = fakeDb(); m = mkd({ events: [yd(212, 'a3'), yd(151, 'a2'), yd(105, 'a1')], games: [g({ startMs: NOW - 5 * 3600e3 })] })
+  r = await DG.digestPass(f.db, { sport: 'nfl', now: NOW, deps: m.deps })
+  check(/^TOP 3 TODAY · NFL\n1\. Test Back a3 \(TST\): 212 RUSH YDS/.test(m.s.sent.x[0]?.text || '') && f.tables.homer_feed_posts[0]?.kind === 'moment_nfl_top3_20261012', 'L: NFL: one post for the game day, "TOP 3 TODAY", kind moment_nfl_top3_<date>')
+  // NFL: nothing yet (the weekly logs are late) -> looked at again, not given up on for hours
+  resetD(); f = fakeDb(); m = mkd({ events: [], games: [g({ startMs: NOW - 5 * 3600e3 })] })
+  await DG.digestPass(f.db, { sport: 'nfl', now: NOW, deps: m.deps })
+  m.deps.events = async () => [yd(151, 'a2')]
+  await DG.digestPass(f.db, { sport: 'nfl', now: NOW + 6 * 60e3, deps: m.deps })
+  check(f.tables.homer_feed_posts.length === 1 && /1\. Test Back a2/.test(m.s.sent.x[0]?.text || ''), 'L: NFL: when the 100-yard logs arrive after the first look, the digest still goes')
+  resetD(); f = fakeDb(); m = mkd({ events: [baseN] })
+  await D(f, m); m.deps.events = async () => [otA]; await D(f, m, { now: NOW + 6 * 60e3 })
+  check(f.tables.homer_feed_posts.length === 0, 'L: NHL / MLB: a night with nothing to name is closed (not looked at again every 5 minutes)')
+
+  // ── the league's feeds, read through a fake fetch ──
+  { const realFetch = globalThis.fetch
+    const ok = (body) => ({ ok: true, status: 200, json: async () => body })
+    const start = '2026-10-12T23:00:00Z'
+    globalThis.fetch = async (url) => {
+      if (/statsapi\.mlb\.com/.test(url)) return ok({ dates: [{ games: [{ gamePk: 1, gameDate: start, gameType: 'D', status: { abstractGameState: 'Final', detailedState: 'Final' } }, { gamePk: 2, gameDate: start, gameType: 'D', status: { abstractGameState: 'Preview', detailedState: 'Postponed' } }] }] })
+      if (/api-web\.nhle\.com/.test(url)) return ok({ games: [{ id: 2026020001, gameType: 2, startTimeUTC: start, gameState: 'OFF', gameScheduleState: 'OK' }, { id: 2026020002, gameType: 2, startTimeUTC: start, gameState: 'LIVE', gameScheduleState: 'OK' }, { id: 2026020003, gameType: 1, startTimeUTC: start, gameState: 'LIVE', gameScheduleState: 'OK' }, { id: 2026020004, gameType: 2, startTimeUTC: start, gameState: 'FUT', gameScheduleState: 'PPD' }] })
+      if (/espn\.com/.test(url)) return ok({ events: [{ id: '9', date: start, status: { type: { state: 'post', completed: true, name: 'STATUS_FINAL' } }, competitions: [{ competitors: [{ homeAway: 'home', team: { abbreviation: 'AAA' }, score: '1' }, { homeAway: 'away', team: { abbreviation: 'BBB' }, score: '0' }] }] }] })
+      throw new Error(`NETWORK CALL IN A TEST: ${url}`)
+    }
+    try {
+      const mlbG = await DG.nightGames('mlb', NIGHT), nhlG = await DG.nightGames('nhl', NIGHT), nflG = await DG.nightGames('nfl', NIGHT)
+      check(mlbG.postseason === true && mlbG.games.length === 2 && mlbG.games[0].final && mlbG.games[1].off && DG.nightState(mlbG.games).over, 'L: the MLB schedule is read: postseason dates are flagged, a postponed game is "off"')
+      check(nhlG.games.length === 3 && nhlG.games[0].final && !nhlG.games[1].final && nhlG.games[2].off && !DG.nightState(nhlG.games).over, 'L: the NHL scoreboard is read: OFF/FINAL are final, LIVE is not, preseason games are left out, a postponed one is "off"')
+      check(nflG.games.length === 1 && nflG.games[0].final && DG.nightState(nflG.games).over, 'L: the NFL scoreboard is read: state post is final')
+    } finally { globalThis.fetch = realFetch }
+    globalThis.fetch = async () => { throw new Error('offline') }
+    try { check((await DG.nightGames('nhl', NIGHT)) === null && (await DG.nightGames('nfl', NIGHT)) === null && (await DG.nightGames('mlb', NIGHT)) === null && (await DG.nightGames('nba', NIGHT)) === null, 'L: a feed that does not answer is null (nothing guessed)') } finally { globalThis.fetch = realFetch } }
+
+  // ── kill switches, OFF by default, the SQL ──
+  delete process.env.MOMENT_POSTS_ON
+  resetD(); f = fakeDb(); m = mkd()
+  check((await D(f, m)).off === true && f.tables.homer_feed_posts.length === 0 && m.s.sent.x.length === 0, 'L: OFF BY DEFAULT: without MOMENT_POSTS_ON the digest claims and sends nothing')
+  process.env.MOMENT_POSTS_ON = 'on'
+  process.env.MOMENT_POSTS_PAUSE = '1'
+  resetD(); f = fakeDb(); m = mkd()
+  check((await D(f, m)).paused === true && f.tables.homer_feed_posts.length === 0, 'L: MOMENT_POSTS_PAUSE=1 stops the digest')
+  delete process.env.MOMENT_POSTS_PAUSE
+  for (const [list, stops] of [['moment_nhl', true], ['moment_nhl_top3', true], ['moment_top3', true], ['moment_mlb', false], ['moment_mlb_top3', false], ['postseason_mlb', false]]) {
+    process.env.MOMENT_POSTS_PAUSE_KINDS = list
+    resetD(); f = fakeDb(); m = mkd()
+    await D(f, m)
+    check((f.tables.homer_feed_posts.length === 0) === stops, `L: MOMENT_POSTS_PAUSE_KINDS=${list} ${stops ? 'stops' : 'leaves alone'} the NHL digest`)
+  }
+  delete process.env.MOMENT_POSTS_PAUSE_KINDS
+  check(P.kindPaused('moment_nhl_top3_20261012') === false && P.isDigestKind('moment_nhl_top3_20261012') && P.isDigestKind('postseason_mlb_top3_20261012') && !P.isDigestKind('moment_nhl_11_1_ht3') && !P.isDigestKind('moment_nhl_top3_2026') && P.playerSlugOfKind('moment_nhl_11_1_ht3') === '11' && P.playerSlugOfKind('moment_nhl_top3_20261012') === null && P.playerSlugOfKind('moment_nhl_11_1_ht3_upd') === null, 'L: the digest kind is told apart from an event claim (a digest has no player; an update is not a card)')
+  resetD(); f = fakeDb({ failKindCheck: true }); m = mkd()
+  const ce2 = console.error; const errs2 = []; console.error = (...a) => errs2.push(a.join(' '))
+  r = await D(f, m); const rb = await D(f, m, { now: NOW + 6 * 60e3 })
+  console.error = ce2
+  check(m.s.sent.x.length + m.s.sent.discord.length === 0 && errs2.some((e) => /kind not allowed yet \(run supabase\/migrations\/202610121400/.test(e)) && rb.blocked, 'L: the SQL is not run (it should be: the kind pattern is already allowed) -> nothing sent, the log names the file, not asked again for 30 minutes')
+
+  // ── kinds: tags, the table pattern (no new SQL) ──
+  const dk = ['moment_nhl_top3_20261012', 'moment_mlb_top3_20261012', 'moment_nfl_top3_20261011', 'postseason_mlb_top3_20261012']
+  check(dk.every((k) => XS.tagOf(k) === 'INFO' && XS.modeOf(k) === 'event' && XS.kindInfo(k)) && P.digestKindOf({ sport: 'nhl', night: '2026-10-12' }) === dk[0] && P.digestKindOf({ sport: 'mlb', night: '2026-10-12', postseason: true }) === dk[3] && P.digestKindOf({ sport: 'nba', night: '2026-10-12' }) === null && P.digestKindOf({ sport: 'nhl', night: 'today' }) === null, 'L: KIND_TAGS (prefix) tags moment_<sport>_top3_* and postseason_mlb_top3_* INFO, event-driven; the kind builder refuses a bad sport or date')
+  const sql = readFileSync('supabase/migrations/202610121400_homer_feed_moment_kinds.sql', 'utf8')
+  const res = [...sql.matchAll(/\('''(\^[^']+\$)'''/g)].map((x) => new RegExp(x[1]))
+  check(dk.every((k) => res.some((re) => re.test(k))) && XS.untagged().length === 0, 'L: the EXISTING migration (202610121400) already allows every digest kind: NO NEW SQL')
+  const pm = readFileSync('lib/posts/momentPost.js', 'utf8')
+  check(/out\.digest = await \(await import\('\.\/digestPost'\)\)\.digestPass\(db, \{ sport: source, now, deps \}\)/.test(pm) && /\['mlb', 'nfl', 'nhl'\]\.includes\(source\)/.test(pm), 'L: wiring: the digest rides momentPass (the ticks that already run): no new cron, no new polling')
+  check(/export const momentPostsOn/.test(readFileSync('lib/cards/momentPosting.js', 'utf8')) && /truthy\(process\.env\.MOMENT_POSTS_ON\)/.test(readFileSync('lib/cards/momentPosting.js', 'utf8')) && (delete process.env.MOMENT_POSTS_ON, P.momentPostsOn() === false), 'L: MOMENT_POSTS_ON is still OFF by default in code')
+  // the card model the digest draws
+  const { topThreeModel, tileFromPick } = await import('../lib/cards/topThreeData.js')
+  const mdl = topThreeModel({ sport: 'nhl', picks: three, night: NIGHT })
+  check(mdl.title === 'TOP 3 TONIGHT' && mdl.tiles.length === 3 && mdl.tiles[0].holo && !mdl.tiles[1].holo && mdl.tiles[1].shimmer && mdl.brand.name === 'LAMP' && mdl.dayWord === 'Oct 12' && tileFromPick(three[0]).line === 'HAT TRICK · 3 G' && TEST_MODEL('nhl').tiles.length === 3, 'L: the card model: three tiles in rank order, ELITE holo, STAR shimmer, the sport\'s own brand and the game date')
+}
+
 console.log(failed ? `\n${failed} FAILED` : '\nall moment-post checks passed')
 process.exit(failed ? 1 : 0)
