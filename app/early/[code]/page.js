@@ -39,7 +39,7 @@ export default async function EarlyPage({ params }) {
   return (
     <main className={start.page}>
       <header className={start.bar}>
-        <a className={start.brand} href="/" aria-label="DASH Network home">
+        <a className={start.brand} href="/" aria-label="DASH Network home" style={{ minHeight: 44 }}>
           <img src="/icon-192.png" alt="" width="30" height="30" />
           <div><small>DASH NETWORK</small><strong>EARLY ACCESS</strong></div>
         </a>
