@@ -9,6 +9,7 @@ import { aggregate } from '../../../lib/nhl/splits'
 import FollowButton from '../../FollowButton'
 import CardButton from '../../CardButton'
 import CardFlip from '../../player/CardFlip'
+import CardsEarned from '../../player/CardsEarned'
 import { downloadCard, playerUrl, slug, stamp } from '../../../lib/cards/saveCard'
 import StarMemory from '../../watch/StarMemory'
 import PlayerNotes from '../../PlayerNotes'
@@ -399,6 +400,8 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
           )}
         </>
       )}
+      {/* the cards he has earned (his real goals, hat tricks, 3-point nights): at the END of the page, so no row moves; no section when he has none */}
+      {!goalie && <CardsEarned sport="nhl" id={String(p.id)} name={p.name} />}
     </div>
     </SportTheme>
   )

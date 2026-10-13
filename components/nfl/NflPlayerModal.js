@@ -8,6 +8,7 @@ import CardShell from '../CardShell'
 // sport theme CardShell provides. TUDDY keys players by gsis string.
 import { TabBtn, Navigator } from '../card/CardNav'
 import CardFlip from '../player/CardFlip'
+import CardsEarned from '../player/CardsEarned'
 const nflIdOf = (x) => String(x?.player_id ?? '')
 import { C, NUM_FONT, MARKETS, gradeFor } from '../../lib/nfl/theme'
 import PropsGrid from './PropsGrid'
@@ -519,6 +520,9 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         )}
       </>}
       </>}
+
+      {/* the cards he has earned (his real multi-TD and 100-yard games, a long shot that cashed): at the END of the card, no section when he has none */}
+      {!defender && player?.player_id != null && <CardsEarned sport="nfl" id={String(player.player_id)} name={player.name} />}
 
       {onFullProfile && !defender && (
         <button type="button" onClick={() => onFullProfile(player)} style={{ display: 'block', width: '100%', marginTop: 18, background: `${C.green}20`, border: `1px solid ${C.green}70`, color: C.green, borderRadius: 10, minHeight: 44, cursor: 'pointer', fontSize: 12, fontWeight: 900, letterSpacing: '.06em' }}>OPEN HIS FULL FILE →</button>

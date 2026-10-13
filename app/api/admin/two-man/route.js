@@ -41,7 +41,7 @@ async function admin() {
 const boardWhy = (why, date) => (/the board file is for/.test(String(why)) ? `The model's board for ${date} is not published yet; it appears on the day. (${why})` : String(why))
 
 const slimEntry = (r) => (r ? {
-  card_date: r.card_date, sport: r.sport, locks_at: r.locks_at, start_at: r.start_at, note: r.note, lane: r.lane, late: r.lane === LATE_LANE,
+  card_date: r.card_date, sport: r.sport, locks_at: r.locks_at, start_at: r.start_at, note: r.note, card_name: r.legs?.[0]?.card_name || null, lane: r.lane, late: r.lane === LATE_LANE,
   saved_at: r.locked_at || null, edit_until: r.lane === LATE_LANE && r.locked_at ? new Date(Date.parse(r.locked_at) + LATE_EDIT_MIN * 60e3).toISOString() : null,
   legs: r.legs.map((l) => ({ player_id: l.player_id, name: l.name, team: l.team, opp: l.opp, game_id: l.game_id, start_at: l.start_at, sport: l.sport || null, status: l.status || null })),
   result: r.result,
@@ -162,7 +162,7 @@ export async function POST(request) {
   }
   const c = await loadCandidates(sport, win, now, { all: true })
   if (!c.ok) return Response.json({ error: `The board could not be read: ${boardWhy(c.why, date)}` }, { status: 502 })
-  const made = donovanRow({ sport, slate_key: win.slate_key, card_date: date, field: c.cands, playerIds: body.players, note: body.note, now, lockAtMs, version: CARD_VERSION, allowLate: true })
+  const made = donovanRow({ sport, slate_key: win.slate_key, card_date: date, field: c.cands, playerIds: body.players, note: body.note, now, lockAtMs, version: CARD_VERSION, allowLate: true, cardName: body.card_name })
   if (!made.ok) return Response.json({ error: made.error }, { status: 400 })
   // LOCKS AT SAVE is irreversible at once, so it is saved only when he has seen that (the form says so and sends confirm_lock)
   if (made.lockAtSave && body.confirm_lock !== true) return Response.json({ error: 'The lock has passed. This entry is still before your first game, so it is VERIFIED and locks the moment you save: it cannot be changed.', lock_now: true, needs_confirm: true }, { status: 409 })

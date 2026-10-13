@@ -69,7 +69,7 @@ export default function DoubleForm() {
     <div style={{ color: C.text }}>
       <p style={{ margin: '0 0 12px', fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
         Your own Double: one player from each of two different sports, a note of one to three lines, before the <b>earlier</b> of the two locks. Nothing can be
-        changed after it. After the lock it shows on the site as <b>Donovan&apos;s Double</b> with your note, in its own record, never our model&apos;s.
+        changed after it. After the lock it shows on the site as <b>Admin&apos;s Double</b> with your note, in its own record, never our model&apos;s.
       </p>
       <label style={{ display: 'block', fontSize: 12, color: C.text3, margin: '4px 0' }} htmlFor="dbl-date">Game date</label>
       <input id="dbl-date" type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)}
@@ -84,7 +84,7 @@ export default function DoubleForm() {
           {closed && (
             <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 12px', fontSize: 13, lineHeight: 1.5 }}>
               {data.entry
-                ? <><b>{data.entry.legs.map((l) => l.name).join(' + ')}</b><div style={{ whiteSpace: 'pre-wrap', color: C.text2, marginTop: 4 }}>{data.entry.note}</div><div style={{ color: C.text3, marginTop: 4, fontSize: 12 }}>Locked. It shows on the site as Donovan&apos;s Double.</div></>
+                ? <><b>{data.entry.legs.map((l) => l.name).join(' + ')}</b><div style={{ whiteSpace: 'pre-wrap', color: C.text2, marginTop: 4 }}>{data.entry.note}</div><div style={{ color: C.text3, marginTop: 4, fontSize: 12 }}>Locked. It shows on the site as Admin&apos;s Double.</div></>
                 : 'No Double was entered for this day, and the entry is closed.'}
             </div>
           )}

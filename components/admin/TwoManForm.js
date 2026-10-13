@@ -61,6 +61,7 @@ export default function TwoManForm() {
   const [board, setBoard] = useState(null)
   const [pick, setPick] = useState([])
   const [note, setNote] = useState('')
+  const [cardName, setCardName] = useState('')
   const [q, setQ] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
@@ -88,7 +89,7 @@ export default function TwoManForm() {
 
   useEffect(() => {
     if (!date || !win) return
-    setPick(own?.legs?.map((l) => String(l.player_id)) || []); setNote(own?.note || ''); setAskLate(false); setAskLock(false)
+    setPick(own?.legs?.map((l) => String(l.player_id)) || []); setNote(own?.note || ''); setCardName(own?.card_name || ''); setAskLate(false); setAskLock(false)
     let live = true
     setBusy(true); setBoard(null)
     api(`/api/admin/two-man?sport=${sport}&date=${date}`).then((r) => { if (live) { setBoard(r); setBusy(false) } })
@@ -116,7 +117,7 @@ export default function TwoManForm() {
     const t = setTimeout(async () => {
       setPv((o) => ({ ...o, state: 'loading', err: null }))
       try {
-        const r = await fetch('/api/admin/two-man/preview', { method: 'POST', cache: 'no-store', signal: ctl.signal, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sport, date, players: pick }) })
+        const r = await fetch('/api/admin/two-man/preview', { method: 'POST', cache: 'no-store', signal: ctl.signal, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sport, date, players: pick, card_name: cardName }) })
         if (!r.ok) { const j = await r.json().catch(() => ({})); setPv((o) => ({ ...o, state: 'err', err: j.error || `HTTP ${r.status}` })); return }
         const late = r.headers.get('x-entry') === 'late'
         const url = URL.createObjectURL(await r.blob())
@@ -124,12 +125,12 @@ export default function TwoManForm() {
       } catch (e) { if (e?.name !== 'AbortError') setPv((o) => ({ ...o, state: 'err', err: 'The card could not be drawn.' })) }
     }, 400)
     return () => { clearTimeout(t); ctl.abort() }
-  }, [pick, sport, date, win])
+  }, [pick, sport, date, win, cardName])
   useEffect(() => () => { setPv((o) => { if (o.url) URL.revokeObjectURL(o.url); return o }) }, [])
 
   const save = async () => {
     setBusy(true); setMsg(null)
-    const r = await api('/api/admin/two-man', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sport, date, players: pick, note, confirm_late: lateNow || askLate, confirm_lock: lockNow || askLock }) })
+    const r = await api('/api/admin/two-man', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sport, date, players: pick, note, card_name: cardName, confirm_late: lateNow || askLate, confirm_lock: lockNow || askLock }) })
     setBusy(false)
     if (r.ok) {
       setAskLate(false); setAskLock(false)
@@ -158,7 +159,7 @@ export default function TwoManForm() {
     <div style={{ color: C.text }}>
       {tabs}
       <p style={{ margin: '0 0 12px', fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
-        Your two players and a note of one to three lines. This is always open. Saved before a game starts it is <b>Donovan&apos;s Two-Man</b> (verified, in its own record; after the card&apos;s lock it locks the moment you save).
+        Your two players and a note of one to three lines. This is always open. Saved before a game starts it is <b>Admin&apos;s Two-Man</b> (verified, in its own record; after the card&apos;s lock it locks the moment you save).
         Saved after a game has started it is <span style={LATE_TAG}>LATE</span>: kept out of the record, never posted.
       </p>
       <div role="tablist" aria-label="Sport" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
@@ -266,6 +267,10 @@ export default function TwoManForm() {
             </div>
           )}
 
+          <label style={{ display: 'block', fontSize: 12, color: C.text3, margin: '12px 0 4px' }} htmlFor="tm-name">Card name (optional; blank = ADMIN&apos;S TWO-MAN)</label>
+          <input id="tm-name" value={cardName} onChange={(e) => setCardName(e.target.value.replace(/[@#]/g, ''))} maxLength={28} placeholder="Admin's Two-Man" autoComplete="off"
+            style={{ width: '100%', boxSizing: 'border-box', minHeight: 44, padding: '0 12px', borderRadius: 10, border: `1px solid ${C.border2}`, background: 'transparent', color: C.text, fontSize: 16 }} />
+          <div style={{ fontSize: 12, color: C.text3, margin: '2px 0 0' }}>{cardName.length} of 28 · letters, numbers, spaces and basic punctuation; shows on the card, the Discord post and the X text</div>
           <label style={{ display: 'block', fontSize: 12, color: C.text3, margin: '12px 0 4px' }} htmlFor="tm-note">Your note (1 to 3 lines; no links, no hashtags)</label>
           <textarea id="tm-note" value={note} onChange={(e) => setNote(e.target.value)} rows={3} maxLength={data?.note?.chars || 420}
             style={{ width: '100%', boxSizing: 'border-box', padding: 10, borderRadius: 10, border: `1px solid ${C.border2}`, background: 'transparent', color: C.text, fontSize: 16, lineHeight: 1.4, resize: 'vertical' }} />

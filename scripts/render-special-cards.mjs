@@ -35,8 +35,8 @@ const made = []
 const save = async (name, model) => {
   const png = await renderSpecial(model)
   writeFileSync(`${out}/${name}.png`, png)
-  made.push({ name, file: `${out}/${name}.png`, moment: model.moment.key, tier: model.moment.tier, holo: model.moment.holo, real: !model.test })
-  console.log(`${name}.png  ${png.length} bytes  ${model.moment.tier}${model.moment.holo ? ' HOLO' : ''}  ${model.test ? 'TEST' : 'REAL'}`)
+  made.push({ name, file: `${out}/${name}.png`, moment: model.moment.key, tier: model.moment.tier, holo: model.moment.holo, shimmer: model.moment.shimmer, real: !model.test })
+  console.log(`${name}.png  ${png.length} bytes  ${model.moment.tier}${model.moment.holo ? ' HOLO' : model.moment.shimmer ? ' SHIMMER' : ''}  ${model.test ? 'TEST' : 'REAL'}`)
 }
 const testModel = (key, row, o = {}) => buildSpecialModel(key, row, { test: true, ident: {}, ...o })
 
@@ -61,8 +61,8 @@ await save('nhl_goal-overtime-TEST', testModel('nhl_goal', F.TEST_GOAL_OT))
 await save('nhl_goal-holo-forced-TEST', testModel('nhl_goal', F.TEST_GOAL, { holo: true }))
 await save('nhl_three_points-TEST', testModel('nhl_three_points', F.TEST_POINTS))
 await save('mlb_multi_hr-two-nocall-TEST', testModel('mlb_multi_hr', F.TEST_MULTI_HR_2))
-await save('nfl_100_yards-legendary-TEST', testModel('nfl_100_yards', F.TEST_200))
-await save('nhl_hat_trick-legendary-TEST', testModel('nhl_hat_trick', { ...F.TEST_HAT, goals: [...F.TEST_HAT.goals, { ...F.TEST_HAT.goals[2], goal_n: 4, time_in_period: '19:59' }] }))
+await save('nfl_100_yards-legend-TEST', testModel('nfl_100_yards', F.TEST_200))
+await save('nhl_hat_trick-legend-TEST', testModel('nhl_hat_trick', { ...F.TEST_HAT, goals: [...F.TEST_HAT.goals, { ...F.TEST_HAT.goals[2], goal_n: 4, time_in_period: '19:59' }] }))
 
 // the contact sheet: every image at 270 wide, 4 across
 try {
@@ -72,4 +72,4 @@ try {
   await sharp({ create: { width: cols * (W + 12) + 12, height: rows * (H + 12) + 12, channels: 4, background: { r: 12, g: 11, b: 10, alpha: 1 } } }).composite(tiles).png().toFile(`${out}/contact-sheet.png`)
   console.log('contact-sheet.png')
 } catch (e) { console.error(`no contact sheet (${e?.message || e})`) }
-writeFileSync(`${out}/manifest.json`, JSON.stringify(made.map(({ name, moment, tier, holo, real }) => ({ name, moment, tier, holo, real })), null, 2))
+writeFileSync(`${out}/manifest.json`, JSON.stringify(made.map(({ name, moment, tier, holo, shimmer, real }) => ({ name, moment, tier, holo, real })), null, 2))

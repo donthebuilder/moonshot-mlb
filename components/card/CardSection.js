@@ -16,7 +16,7 @@ import { useSportTheme } from '../SportTheme'
 import { useLiveFetch } from '../../lib/useLiveFetch'
 import { TeamTap, GameTap } from '../EntityTap'
 import { playerHref } from '../../lib/routes'
-import { CARD_WORDS, isSameGameRule, MARKETS, SAME_GAME_NOTE, rowPrice, legPriceOf, marketWords, fmtAmerican } from '../../lib/card/core'
+import { ADMIN_TWO_MAN, ADMIN_DOUBLE, CARD_WORDS, isSameGameRule, MARKETS, SAME_GAME_NOTE, rowPrice, legPriceOf, marketWords, fmtAmerican } from '../../lib/card/core'
 import { TYPE } from '../../lib/theme'
 
 const RES = { hit: 'HIT', miss: 'MISS', void: 'VOID', push: 'PUSH' }
@@ -67,10 +67,10 @@ export default function CardSection({ sport, mode = 'slate', Table = DenseTable,
   }, [data])
 
   const columns = useMemo(() => [
-    { key: 'tag', label: '#', w: 34, heat: false, group: 'CALL', fmt: (v, r) => <b title={r.product === 'double' ? (r.lane === 'donovan' ? "Donovan's Double: his own lane and record" : 'The Double: two sports, both must land') : r.product === 'long_shot' ? 'The Long Shot of the day: a plus-money pick, most of these miss' : r.lane === 'donovan' ? "Donovan's Two-Man: his own lane and record" : r.same ? 'The same-game Two-Man: both legs from one game, so they are correlated' : r.product === 'two_man' ? 'The Two-Man: both must land' : `Straight ${v}`}>{v}</b> },
+    { key: 'tag', label: '#', w: 34, heat: false, group: 'CALL', fmt: (v, r) => <b title={r.product === 'double' ? (r.lane === 'donovan' ? `${ADMIN_DOUBLE}: its own lane and record` : 'The Double: two sports, both must land') : r.product === 'long_shot' ? 'The Long Shot of the day: a plus-money pick, most of these miss' : r.lane === 'donovan' ? `${ADMIN_TWO_MAN}: its own lane and record` : r.same ? 'The same-game Two-Man: both legs from one game, so they are correlated' : r.product === 'two_man' ? 'The Two-Man: both must land' : `Straight ${v}`}>{v}</b> },
     { key: 'legs', label: 'Player', w: 190, heat: false, sticky: true, group: 'CALL', fmt: (v, r) => (
       <span style={{ display: 'grid', gap: 3, whiteSpace: 'normal', lineHeight: 1.2 }}>
-        {r.lane === 'donovan' && <span style={{ fontSize: 10, color: accent, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>{r.product === 'double' ? "DONOVAN'S DOUBLE" : "DONOVAN'S TWO-MAN"}</span>}
+        {r.lane === 'donovan' && <span style={{ fontSize: 10, color: accent, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>{r.product === 'double' ? ADMIN_DOUBLE.toUpperCase() : (r.legs?.[0]?.card_name || ADMIN_TWO_MAN).toUpperCase()}</span>}
         {r.product === 'long_shot' && <span style={{ fontSize: 10, color: accent, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>LONG SHOT OF THE DAY</span>}
         {r.product === 'double' && r.lane === 'bot' && <span style={{ fontSize: 10, color: accent, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>THE DOUBLE</span>}
         {r.same && <span style={{ fontSize: 10, color: C.text3 }}>same game</span>}
@@ -90,11 +90,11 @@ export default function CardSection({ sport, mode = 'slate', Table = DenseTable,
   const ready = rows.length > 0
   const nothing = !loading && !error && !ready
   const nS = rows.filter((r) => r.lane === 'bot' && r.product === 'straight').length
-  const summary = ready ? `${nS} straight${nS === 1 ? '' : 's'}${rows.some((r) => r.lane === 'bot' && r.product === 'two_man') ? ' + Two-Man' : ''}${rows.some((r) => r.product === 'long_shot') ? ' + Long Shot' : ''}${rows.some((r) => r.product === 'double') ? ' + Double' : ''}${rows.some((r) => r.lane === 'donovan') ? " + Donovan's" : ''}` : 'locks an hour before the first game'
+  const summary = ready ? `${nS} straight${nS === 1 ? '' : 's'}${rows.some((r) => r.lane === 'bot' && r.product === 'two_man') ? ' + Two-Man' : ''}${rows.some((r) => r.product === 'long_shot') ? ' + Long Shot' : ''}${rows.some((r) => r.product === 'double') ? ' + Double' : ''}${rows.some((r) => r.lane === 'donovan') ? " + Admin's" : ''}` : 'locks an hour before the first game'
 
   if (mode === 'record') {
     const volume = Object.entries(data?.words?.volume || {}).map(([k, ws]) => [(MARKETS[sport]?.[k]?.label || k).toUpperCase(), ws])
-    const lines = [['STRAIGHTS', data?.words?.straight], ...volume, ['TWO-MAN', data?.words?.two_man], ['SAME-GAME TWO-MAN', data?.words?.two_man_same_game], ["DONOVAN'S TWO-MAN", data?.words?.donovan], ['LONG SHOT OF THE DAY', data?.words?.long_shot], ['THE DOUBLE', data?.words?.double], ["DONOVAN'S DOUBLE", data?.words?.donovan_double], ['TRACKED, NOT ON THE CARD · STRAIGHTS', data?.words?.tracked_straight], ['TRACKED, NOT ON THE CARD · TWO-MAN', data?.words?.tracked_two_man]].filter(([, ws]) => ws?.length)
+    const lines = [['STRAIGHTS', data?.words?.straight], ...volume, ['TWO-MAN', data?.words?.two_man], ['SAME-GAME TWO-MAN', data?.words?.two_man_same_game], [ADMIN_TWO_MAN.toUpperCase(), data?.words?.donovan], ['LONG SHOT OF THE DAY', data?.words?.long_shot], ['THE DOUBLE', data?.words?.double], [ADMIN_DOUBLE.toUpperCase(), data?.words?.donovan_double], ['TRACKED, NOT ON THE CARD · STRAIGHTS', data?.words?.tracked_straight], ['TRACKED, NOT ON THE CARD · TWO-MAN', data?.words?.tracked_two_man]].filter(([, ws]) => ws?.length)
     if (!lines.length) return null
     return (
       <section aria-label="The card record" data-card-record={sport} style={{ margin: '4px 0 12px' }}>
@@ -128,7 +128,7 @@ export default function CardSection({ sport, mode = 'slate', Table = DenseTable,
           {ready && (
             <Table rows={rows} columns={columns} statusOf={(r) => r.status} heatMode="primary" bare maxRows={5} maxHeight={9999}
               initialSort={null}
-              caption={`${data.date}${rows[0]?.start ? ` · first game ${hm(rows[0].start)}` : ''}. Ties go to the higher model rate, then the earlier start, then the player id. Donovan's picks appear once their entry has closed.${rows.some((r) => r.same) ? ` ${SAME_GAME_NOTE}` : ''}`} />
+              caption={`${data.date}${rows[0]?.start ? ` · first game ${hm(rows[0].start)}` : ''}. Ties go to the higher model rate, then the earlier start, then the player id. The admin's picks appear once their entry has closed.${rows.some((r) => r.same) ? ` ${SAME_GAME_NOTE}` : ''}`} />
           )}
           {/* MEMBERS FIRST (lib/card/reveal.js): the server holds the bot's Two-Man and straights #2-#3 until a row of the Card is graded; this line says so, once */}
           {ready && data?.held?.line && <div data-card-held={sport} style={{ color: C.text3, fontSize: 12, lineHeight: 1.45, marginTop: 8 }}>{data.held.line}</div>}
