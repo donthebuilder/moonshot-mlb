@@ -7,7 +7,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import LensRow, { LensAnswer } from '../LensRow'
-import RankedBoard from './RankedBoard'
+import RankedBoard, { CARD_TYPES } from './RankedBoard'
+import ShareCardButton from '../card/ShareCardButton'
+import { shareUrl, slug, stamp } from '../../lib/cards/saveCard'
 import Runs from './Runs'
 import StealBoard from './StealBoard'
 import GapBoard from './GapBoard'
@@ -620,7 +622,8 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
           components/LensRow.js for why that divider could never do the job it
           was being asked to do. */}
       {phoneRank && boards && (
-        <BoardFilters state={state} total={players.length} shown={filtered.length} compact beside={phoneBeside} lead={phoneLead} ledger={rankings ? 'mlb' : null} />
+        <BoardFilters state={state} total={players.length} shown={filtered.length} compact beside={phoneBeside} lead={phoneLead} ledger={rankings ? 'mlb' : null}
+          share={rankings && players.length > 0 && CARD_TYPES.has(viewKey) ? <ShareCardButton sport="mlb" what="this board" url={shareUrl({ kind: 'ranked', sport: 'mlb', type: viewKey })} filename={`board-${slug(viewKey)}_${stamp(slateDate)}.png`} /> : null} />
       )}
       {boards && !phoneRank && (
         // ── ONE ROW, NOT TWO (2026-09-14, MOONSHOT batch 3) ────────────────

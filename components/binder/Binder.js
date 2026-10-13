@@ -9,16 +9,19 @@
 // names three real players from today's board. Phone first: the first screen is the strip and the LEGEND / ELITE tiles; long sections preview two rows and say "+N more".
 import { useEffect, useMemo, useState } from 'react'
 import PageHeader from '../PageHeader'
+import AlertsEntry from '../AlertsEntry'
 import { useSportTheme } from '../SportTheme'
 import { useFollowing } from '../../lib/dash/follow'
 import { useHashFilter } from '../../lib/filterHash'
-import { BRAND, playerHref, teamHref, gameHref, isHiddenSport } from '../../lib/routes'
+import { BRAND, playerHref, teamHref, gameHref } from '../../lib/routes'
+import { useVisibleSports } from '../../lib/useVisibleSports'
 import { etToday } from '../../lib/freshness'
 import CardSheet, { specialUrl } from '../player/CardSheet'
 import { RARITY_COPY, SEEN_KEY, cardKey, followKeysOf, onlyWatched, filterCards, groupByRarity, progress, playersOf, parseSeen, isNew, markSeen, emptyState, mergeCards, rarestFirst } from '../../lib/cards/binder'
-import { CARD_SPORTS } from '../../lib/card/core'
+import { CARD_SPORTS, PREVIEW_CARD_SPORTS } from '../../lib/card/core'
 
-const SPORTS = ['mlb', 'nhl', 'nfl'].filter((s) => CARD_SPORTS.includes(s) && !isHiddenSport(s))
+// every sport that has cards, in order; BUCKETS (a PREVIEW sport) is listed only for a visitor its gate lets in (useVisibleSports), or on its own page
+const BINDER_SPORTS = ['mlb', 'nhl', 'nfl', 'nba'].filter((s) => CARD_SPORTS.includes(s) || PREVIEW_CARD_SPORTS.includes(s))
 const RARITIES = ['legend', 'elite', 'star', 'base']
 const PREVIEW = 6          // two rows of three tiles
 const BASE_PREVIEW = 6
@@ -66,6 +69,8 @@ export default function Binder({ sport = 'mlb', board = [] }) {
   const [seenAtOpen, setSeenAtOpen] = useState(undefined)
   const [today, setToday] = useState(null)
   const fol = useFollowing(null)
+  const visible = useVisibleSports()
+  const SPORTS = useMemo(() => BINDER_SPORTS.filter((s) => s === sport || visible.includes(s)), [sport, visible.join()]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const view = viewRaw === 'all' ? 'all' : 'my'
   const sportF = sportRaw === 'all' ? 'all' : SPORTS.includes(sportRaw) ? sportRaw : (SPORTS.includes(sport) ? sport : SPORTS[0])
@@ -201,6 +206,9 @@ export default function Binder({ sport = 'mlb', board = [] }) {
             : 'Players you follow with the star. A card is kept for each game a player earned one, his rarest. Every card is drawn from a real game.'}
         </p>
       ) : null}
+      {/* ALERTS, FROM THE BINDER (2026-10-13): collectors get a note when a player they follow earns a card; the switch is one tap from here. It sits at the END so the
+          first row of the binder is exactly where it was (no extra scroll on a phone). */}
+      <AlertsEntry C={C} accent={accent} NUM_FONT={NUM_FONT} />
       {open ? <CardSheet c={open} onClose={() => setOpen(null)} /> : null}
     </div>
   )

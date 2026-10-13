@@ -213,4 +213,41 @@ await ok('EARLY ACCESS: no poster / push / member path imports early access or t
   assert.equal(wire.length, 0, 'nothing reached the wire')                    // ...and nothing is posted
 })
 
+// ── PARITY PASS (2026-10-12): the NBA card parts, the lane writer and the odds flag add no public surface ─────────────────────────────
+await ok('PARITY: every card route that can reach a BUCKETS surface asks the BUCKETS gate first (image, recent, binder, earned, special, stamps) and keeps it off the shared CDN', () => {
+  for (const r of ['image', 'recent', 'binder', 'earned', 'special', 'stamps']) {
+    const c = code(read(`app/api/card/${r}/route.js`))
+    assert.match(c, /bucketsGuard/, `app/api/card/${r} must ask bucketsGuard before it serves anything about BUCKETS`)
+    assert.match(c, /private,/, `app/api/card/${r}: a BUCKETS answer is private`)
+  }
+  // the routes that never name BUCKETS stay exactly as they were: no gate import to forget
+  for (const r of ['day', 'dual', 'slab', 'nman', 'share']) assert.ok(!/hasPreviewCards|NBA_MOMENTS/.test(code(read(`app/api/card/${r}/route.js`))), `app/api/card/${r} must not reach the preview parts`)
+  assert.match(code(read('app/api/buckets/card/route.js')), /bucketsRoute\(/)
+})
+await ok('PARITY: the PUBLIC card lists never carry NBA: CARD_SPORTS, the public registry, MOMENT_KEYS, the momentEvents rows, the post/push builders', async () => {
+  const CORE = await import('../lib/card/core.js'); const REG = await import('../lib/cards/registry.js'); const MOM = await import('../lib/cards/moments.js'); const EV = await import('../lib/cards/momentEvents.js')
+  assert.ok(!CORE.CARD_SPORTS.includes('nba')); assert.equal(REG.hasCards('nba'), false); assert.ok(!REG.cardSports().includes('nba'))
+  assert.ok(!MOM.MOMENT_KEYS.some((k) => /^nba/.test(k)))
+  assert.deepEqual(EV.momentsForEvent({ sport: 'nba', rows: [{ game_id: 1, player_id: 2, name: 'TEST', points: 41 }], minTier: 'base' }), [])
+  // no module that posts or pushes imports the NBA moment table or the preview planner
+  const bad = walk('lib').concat(walk('app/api')).filter((f) => !/^lib\/cards\/(moments|specialData|momentEvents)\.js$|^lib\/card\/(nbaPreview|sources|core)\.js$|^app\/api\/(card|buckets)\//.test(f)).filter((f) => /NBA_MOMENTS|nbaGameLines|planNbaPreview|loadNbaPreview/.test(code(read(f))))
+  assert.deepEqual(bad, [], `a module outside the gated card routes reaches the NBA card parts: ${bad.join(', ')}`)
+})
+await ok('PARITY: the lane-night writer touches nothing while hidden (a database that throws on any use), and early access does not open it', async () => {
+  const LT = await import('../lib/numerology/nbaTick.js')
+  const games = [{ id: 'g1', seasonType: 2, state: 'pre', start: new Date(Date.now() + 3600e3).toISOString(), away: { abbrev: 'AAA' }, home: { abbrev: 'BBB' } }]
+  shut()
+  assert.deepEqual(await LT.recordNbaLanes(deadDb, { date: '2026-11-21', games }), { skipped: 'hidden' })
+  assert.deepEqual(await LT.gradeNbaLanes(deadDb, { game: games[0], day: '2026-11-21', box: [] }), { skipped: 'hidden' })
+  assert.ok(!/earlyAccess|features|bucketsAccess|bucketsGuard/.test(code(read('lib/numerology/nbaTick.js'))), 'the writer asks the public switch only')
+  assert.match(code(read('app/api/buckets/tick/route.js')), /recordNbaLanes\(/)
+})
+await ok('PARITY: NBA odds capture is its own flag, default OFF, and opens no surface (the odds tables stay service-only; the readers are gated)', async () => {
+  const SN = await import('../lib/odds/snap.js')
+  delete process.env.NBA_ODDS_CAPTURE
+  assert.equal(SN.nbaOddsCapture(), false); assert.ok(!SN.activeLeagues(false, SN.nbaOddsCapture()).includes('NBA'))
+  for (const r of ['odds/latest', 'totals', 'stories']) assert.match(code(read(`app/api/${r}/route.js`)), /bucketsGuard/, `app/api/${r} stays gated for nba`)
+  assert.ok(!/NBA_ODDS_CAPTURE/.test(code(read('lib/openSwitch.js'))), 'the capture flag is not an open switch')
+})
+
 console.log(`\n${n} groups ok`)

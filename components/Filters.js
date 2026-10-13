@@ -119,7 +119,7 @@ export function PillRow({ label, hint, value, options, onChange, flag, tall = fa
 }
 
 // ── joined segments, for binary/tri-state toggles ───────────────────────────
-export function Segmented({ value, options, onChange, label }) {
+export function Segmented({ value, options, onChange, label, tall = false }) {
   const on = useOn()
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
@@ -130,7 +130,7 @@ export function Segmented({ value, options, onChange, label }) {
           const s = active ? on : STATE.off()
           return (
             <button key={o.key} onClick={() => onChange(o.key)} title={o.title} style={{
-              padding: '6px 11px', fontSize: 10, cursor: 'pointer', border: 'none',
+              padding: tall ? '0 9px' : '6px 11px', fontSize: tall ? 12 : 10, cursor: 'pointer', border: 'none', ...(tall ? { minHeight: 44, whiteSpace: 'nowrap' } : null),
               borderLeft: i ? `1px solid ${C.border}` : 'none',
               background: active ? alpha(s.color, 0.14) : 'transparent',
               color: s.color, fontWeight: s.fontWeight,

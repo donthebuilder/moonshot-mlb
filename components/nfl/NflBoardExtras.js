@@ -33,9 +33,9 @@ import { tagOptions, hasTag, chipText, TAG_WORD } from '../../lib/nfl/tags'
 // other markets) did not, built once and used by both.
 
 /** List | Cards switch, MOONSHOT's words. */
-export function ViewSwitch({ value, onChange }) {
+export function ViewSwitch({ value, onChange, tall = false }) {
   return (
-    <Segmented value={value} onChange={onChange}
+    <Segmented tall={tall} value={value} onChange={onChange}
       options={[{ key: 'list', label: '☰ List', title: 'One sortable table: click a header, shift-click for a tiebreaker' }, { key: 'cards', label: '▦ Cards', title: 'The card board' }]} />
   )
 }
@@ -57,7 +57,7 @@ export function BoardHead({ title, count, sub, view, setView, action = null }) {
           </div>
           {sub && <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, marginTop: 3, lineHeight: 1.45 }}>{sub}</div>}
         </div>
-        {action ? <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{action}<ViewSwitch value={view} onChange={setView} /></div> : <ViewSwitch value={view} onChange={setView} />}
+        {action ? <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><ViewSwitch value={view} onChange={setView} />{action}</div> : <ViewSwitch value={view} onChange={setView} />}
       </div>
       <div style={{ height: 2, marginBottom: 10, borderRadius: 1, background: `linear-gradient(90deg, ${C.green}, ${alpha(C.green, 0.25)} 45%, transparent)` }} />
     </>

@@ -10,8 +10,8 @@ import { panelPairs, panelSubs, gameSections } from '../../lib/game/sections'
 import { GameFilterRail, SlateStrip, GamePanelPills, PanelAnchor, GameFrame, PrevNextGame } from '../slate/SlateParts'
 import GameOffDef, { Kicker } from './GameOffDef'
 import { GameHeader, KeyPlayers, MatchupScoreboard, ImportantStats } from './GameSections'
-import CardButton from '../CardButton'
-import { downloadCard, shareUrl, slug, stamp, gameDay } from '../../lib/cards/saveCard'
+import ShareCardButton from '../card/ShareCardButton'
+import { shareUrl, slug, stamp, gameDay } from '../../lib/cards/saveCard'
 import { tdStatusFor } from '../../lib/nfl/tdStatus'
 import { DefenseFile } from './DefenseSections'
 import { tdPool } from './tabs/Touchdowns'
@@ -266,7 +266,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
               {/* 1. THE GAME, ONCE: the matchup, the kickoff, the dial, and this game's own total */}
               <div style={{ padding: '12px 14px 12px' }}>
                 <GameHeader game={g} when={kickWhen(g)} air={airText(g)} xtd={x} heat={heatOf(g)} past={Boolean(g.completed)} onOpenTeam={onOpenTeam}
-                  action={<CardButton sport="nfl" label="Download this game as an image" style={{ margin: '-12px 0' }} onDownload={() => downloadCard(shareUrl({ kind: 'game', sport: 'nfl', game: g.game_id }), `game-${slug(g.away)}-${slug(g.home)}_${stamp(gameDay(g.kickoff))}.png`)} />}
+                  action={<ShareCardButton sport="nfl" what="this game" style={{ margin: '-12px 0' }} url={shareUrl({ kind: 'game', sport: 'nfl', game: g.game_id })} filename={`game-${slug(g.away)}-${slug(g.home)}_${stamp(gameDay(g.kickoff))}.png`} />}
                   outLine={(() => { const oc = outCounts([g.away, g.home]); return oc?.out ? `${oc.out} out` : null })()} />
                 <GameTotalLine sport="nfl" row={gameTotals?.[String(g.game_id)]} style={{ marginTop: 8 }} />
               </div>

@@ -6,7 +6,7 @@ import './_no-injury-net.mjs'   // the injury layer's own fetch must not land in
 import fs from 'node:fs'
 import assert from 'node:assert/strict'
 import {
-  PLAYS_BY_GAMES, PLAY_CAP, FULL_SLATE, PLUS_MONEY, MIN_LONG_SHOTS, MARKETS, SLOTS, STAKE, CARD_RULE, CARD_VERSION, CARD_VERSIONS, SAME_GAME_NOTE, DOUBLE_SPORT,
+  CARD_SPORTS, PLAYS_BY_GAMES, PLAY_CAP, FULL_SLATE, PLUS_MONEY, MIN_LONG_SHOTS, MARKETS, SLOTS, STAKE, CARD_RULE, CARD_VERSION, CARD_VERSIONS, SAME_GAME_NOTE, DOUBLE_SPORT,
   playsFor, planStraights, lockPlan, planWindow, percentileOf, leadStraight, pickTwoManFor, pickTwoManSameGame, pickLongShot, longShotRow, pickDouble, doubleRow,
   donovanDoubleRow, legWord, productResult, gradeCardRow, recordOf, recordsOf, recordWords, rowPrice, legPriceOf, lockAtOf, inPlusMoney, resultKey, fieldOf, nflWindowsOf,
 } from '../lib/card/core.js'
@@ -85,7 +85,8 @@ await t('NFL slots: anytime TD | receiving yards over | rushing yards over; MLB:
   assert.equal(fall.picks[1].market, 'hrr', 'a HIT candidate with no stored line is not usable: the slot falls to hits + runs + RBI')
   assert.equal(fall.picks[2].market, 'anytime', 'slot 3 is a second home run')
   assert.equal(marketKeys('mlb'), 'anytime,hit,hrr'); assert.equal(marketKeys('nhl'), 'anytime,sog'); assert.equal(marketKeys('nfl'), 'anytime,rec_yds,rush_yds')
-  assert.equal(MARKETS.nba, undefined, 'NBA is not built (BUCKETS hidden)')
+  // BUCKETS (PREVIEW ONLY, 2026-10-12): its five over markets are in the map so the preview can pick, but it is not a Card sport (nothing is locked or posted)
+  assert.equal(Object.keys(MARKETS.nba).join(), 'pts,reb,ast,3pm,pra'); assert.ok(!CARD_SPORTS.includes('nba'))
 })
 function marketKeys(s) { return Object.keys(MARKETS[s]).join(',') }
 

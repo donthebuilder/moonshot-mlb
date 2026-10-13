@@ -20,6 +20,8 @@ import Picks from './Picks'
 import { tdStatusFor } from '../../../lib/nfl/tdStatus'
 import { useGameCalls } from '../GameCalls'
 import { useIsPhone } from '../../MobileFold'
+import ShareCardButton from '../../card/ShareCardButton'
+import { shareUrl, stamp } from '../../../lib/cards/saveCard'
 
 const MARKETS = HUB_MARKETS   // lib/nfl/boardMarkets.js: the seven scored markets + 2+ TD (our own new model)
 
@@ -159,6 +161,8 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
           <button type="button" onClick={() => setOpts((v) => !v)} aria-expanded={opts} style={{ flex: '0 0 auto', minHeight: 44, padding: '0 14px', borderRadius: 999, cursor: 'pointer', fontSize: TYPE.body, fontWeight: 900, fontFamily: NUM_FONT, whiteSpace: 'nowrap', border: `1px solid ${opts || query || team !== 'all' && team || game ? C.green : C.border}`, background: opts ? alpha(C.green, 0.14) : 'transparent', color: opts ? C.green : C.text3 }}>▤ Filters{(query || (team && team !== 'all') || game) ? ' ·' : ''}</button>
           <LedgerChip sport="nfl" />
           <WatchChip sport="nfl" />
+          {/* 📸 the Anytime TD ranking as a picture: in this control row so it is there without opening Filters (Touchdowns keeps it for a desktop) */}
+          {market === 'TD' && view === 'board' && slate?.games?.length ? <ShareCardButton icon sport="nfl" what="this ranking" style={{ marginLeft: 'auto' }} url={shareUrl({ kind: 'ranked', sport: 'nfl' })} filename={`rankings-anytime-td_${stamp((slate.games || []).map((g) => g.kickoff).filter(Boolean).sort()[0])}.png`} /> : null}
           <div style={{ flex: '1 1 100%', minWidth: 0 }}><PillRow value={market} options={marketOptions} onChange={setMarket} /></div>
         </div>
         {opts && (

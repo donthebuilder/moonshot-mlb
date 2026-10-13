@@ -27,7 +27,8 @@ import { faceUrl } from '../PlayerFace'
 import NflExplain from './NflExplain'
 import { statLabel, statFmt } from '../../lib/nfl/statLabels'
 import { quoteFor, fmtOdds } from '../../lib/nfl/oddsMatch'
-import { downloadCard, shareUrl, slug, stamp } from '../../lib/cards/saveCard'
+import ShareCardButton from '../card/ShareCardButton'
+import { shareUrl, slug, stamp } from '../../lib/cards/saveCard'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
 import StarMemory from '../watch/StarMemory'
 import MultiLine from '../ledger/MultiLine'
@@ -372,10 +373,8 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
           }}>{watchlist.isPinned(player.player_id) ? '★' : '☆'}</button>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {Number.isFinite(s0) && player?.player_id != null && <CardFlip sport="nfl" id={String(player.player_id)} name={player.name} />}
-          <button onClick={() => downloadCard(shareUrl({ kind: 'pick', sport: 'nfl', id: player.player_id, market }), `pick-${slug(market, 'pick')}-${slug(player.name, 'pick')}_${stamp('')}.png`)}
-            title="Download his pick card as a picture, ready to post"
-            aria-label="Download pick card as image"
-            style={{ background: 'transparent', border: `1px solid ${C.border2}`, color: C.text2, borderRadius: 7, fontSize: 13, lineHeight: 1, cursor: 'pointer', minHeight: 44, minWidth: 44 }}>📸</button>
+          {/* 📸 his pick card as a picture, ready to post: beside the flip Card button */}
+          <ShareCardButton sport="nfl" what="his pick card" url={shareUrl({ kind: 'pick', sport: 'nfl', id: player.player_id, market })} filename={`pick-${slug(market, 'pick')}-${slug(player.name, 'pick')}_${stamp('')}.png`} />
           {onNavigate && <Navigator peers={peers} cur={player} onNavigate={onNavigate} idOf={nflIdOf} noun="player" />}
         </div>
       </div>
