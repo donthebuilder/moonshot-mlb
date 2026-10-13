@@ -2,17 +2,19 @@
 // momentTick.js, the migration, the KIND_TAGS rows.
 //   node --no-warnings --import ./scripts/_esm-resolve.mjs scripts/check-moment-posts.mjs
 // ALL DATA IS TEST DATA: players are "Test ...", the database is a fake in memory, every sender is a stub (nothing is sent, no fetch leaves this process).
-//   A  the tier policy table (LEGEND/ELITE X + Discord + #members, STAR Discord only and X below 12, BASE never)
+//   A  the tier policy table (LEGEND/ELITE X + Discord + #members; STAR is NOT posted on its own, it rides the night's digest; BASE never)
 //   B  claim once (two passes, two racing instances), the event key in the claim kind, two events of one man are two posts
 //   C  an X refusal keeps the claim and never loops; a Discord hiccup with nothing else sent releases the claim a few times only
-//   D  the cap: moment kinds are the counted write-up tier, not exempt; STAR waits for the day's X count
+//   D  the cap: moment kinds are the counted write-up tier, not exempt; a STAR card is not posted on its own
 //   E  the repeat guard never suppresses a different event; kill switches (off by default, pause, per-kind pause)
 //   F  the SQL is not run: nothing is sent, the log names the file, the failure is cached 30 minutes
 //   G  the overturned goal: ONE update (reply + channel), never a delete, never twice; CORRECTIONS_OFF
-//   H  postseason thresholds, one post per player per game, the night's limit, the game log wait, the fresh window
+//   H  postseason thresholds, the night's postseason digest (one post, the top three big nights), the game log wait, the fresh window
 //   I  BASE is never posted; the text sanitiser; no link on X; banned words; a player named Lock
 //   J  KIND_TAGS tags every new kind; the migration matches the plain .txt and accepts exactly the kinds the code claims
 //   K  wiring: the four ticks call the one hook, no new cron
+//   L  THE NIGHT'S DIGEST (TOP 3 TONIGHT): rank, dedupe against ELITE posted on their own, 1/2/3 names, claim once, an X refusal never loops, the cap (ONE post), the
+//      night-over window from the league's schedule, kill switches, KIND_TAGS + migration cover the kinds, the text rules, never BASE, no SQL
 import { readFileSync, existsSync } from 'node:fs'
 
 let failed = 0
@@ -40,7 +42,7 @@ const reset = () => { _resetTakenForTests(); _resetXFail(); MP._resetMomentPost(
 // ── a fake homer_feed_posts / lamp_goal_feed in memory ───────────────────────────────────────────────────
 function fakeDb({ posts = [], goals = [], failKindCheck = false } = {}) {
   const calls = { upsert: 0, update: 0, delete: 0, deletedKinds: [] }
-  const tables = { homer_feed_posts: posts, lamp_goal_feed: goals }
+  const tables = { homer_feed_posts: posts, lamp_goal_feed: goals, homer_feed: [], nfl_td_feed: [] }
   const match = (r, f) => f.every(([op, col, v]) => {
     const x = r[col]
     if (op === 'eq') return String(x) === String(v)
@@ -52,7 +54,7 @@ function fakeDb({ posts = [], goals = [], failKindCheck = false } = {}) {
   const query = (name) => {
     const f = []
     const q = {
-      select: () => q, limit: () => q,
+      select: () => q, limit: () => q, order: () => q,
       eq: (c, v) => (f.push(['eq', c, v]), q), gte: (c, v) => (f.push(['gte', c, v]), q), in: (c, v) => (f.push(['in', c, v]), q), like: (c, v) => (f.push(['like', c, v]), q),
       then: (res, rej) => Promise.resolve({ data: tables[name].filter((r) => match(r, f)).map((r) => ({ ...r })), error: null }).then(res, rej),
     }
@@ -89,8 +91,9 @@ function senders(o = {}) {
     membersWebhook: () => (o.noMembers ? '' : MEM),
     admit: async (db, a) => { sent.admit.push(a); return o.admit ? o.admit(a) : { state: 'go' } },
     logPosted: (a) => sent.logged.push(a),
-    xUsed: async () => (o.xUsed === undefined ? 5 : o.xUsed),
     render: async (e) => (o.noImage ? { model: null, png: null } : { model: { name: e.who.name }, png: Buffer.from('PNG-TEST') }),
+    loadModel: async (o) => ({ brand: { league: String(o.sport || '').toUpperCase() }, tiles: o.picks.map((p) => ({ name: p.name })), picks: o.picks }),
+    image: async () => (o.noImage ? { model: null, png: null } : { model: null, png: Buffer.from('PNG-TEST') }),
     clock: () => Date.now(),
   }
   return { d, sent, HOOK, MEM }
@@ -118,12 +121,14 @@ check(hat.tier === 'elite' && ot.tier === 'star' && base.tier === 'base' && mlb.
 {
   const L = P.policyFor('legend', { xUsed: 15 }), E = P.policyFor('elite', { xUsed: 15 })
   check(L.x && L.discord && L.members && E.x && E.discord && E.members, 'A: LEGEND and ELITE -> X + Discord sport channel + #members')
-  const s0 = P.policyFor('star', { xUsed: 0 }), s11 = P.policyFor('star', { xUsed: 11 }), s12 = P.policyFor('star', { xUsed: 12 }), sN = P.policyFor('star', { xUsed: null })
-  check(s0.discord && !s0.members && s0.x && s11.x && !s12.x && !sN.x, 'A: STAR -> Discord only; X only while fewer than 12 X posts are out; an unknown count never guesses')
+  const s0 = P.policyFor('star', { xUsed: 0 })
+  check(!s0.x && !s0.discord && !s0.members && /digest/.test(s0.why) && !P.postable('star') && P.postable('elite') && P.postable('legend') && P.inDigest('star') && P.inDigest('elite'), 'A: STAR -> NOT posted on its own (it is named in the night\'s digest); ELITE and LEGEND still are')
   const b = P.policyFor('base', { xUsed: 0 })
-  check(!b.x && !b.discord && !b.members && !P.postable('base') && P.postable('star'), 'A: BASE -> never posted anywhere')
+  check(!b.x && !b.discord && !b.members && !P.postable('base') && !P.inDigest('base'), 'A: BASE -> never posted anywhere, and never in a digest')
+  const dp = P.digestPolicy()
+  check(dp.x && dp.discord && dp.members && !P.digestPolicy({ hasX: false }).x && !P.digestPolicy({ hasMembers: false }).members && P.DIGEST_MAX === 3, 'A: the digest goes to X + the sport channel + #members (as ELITE does), three names at most')
   check(!P.policyFor('legend', { hasX: false }).x && !P.policyFor('elite', { hasMembers: false }).members, 'A: no X configured -> no X; no #members webhook -> no #members')
-  check(P.STAR_X_BELOW === 12 && P.MAX_PER_PASS <= 3 && P.POSTSEASON_MAX_PER_NIGHT === 3, 'A: the numbers are in the one config (STAR 12, 3 a pass, 3 a postseason night)')
+  check(P.MAX_PER_PASS <= 3 && P.POSTSEASON_MAX_PER_NIGHT === 3 && P.DIGEST_EVAL_MS === 300e3 && P.DIGEST_FRESH_MS === 20 * 3600e3, 'A: the numbers are in the one config (3 a pass, 3 names a digest, the digest looks every 5 minutes and posts a night within 20 hours of its last start)')
 }
 
 // ── B. claim once; the event is in the kind ─────────────────────────────────────────────────────────────
@@ -188,21 +193,11 @@ process.env.MOMENT_POSTS_ON = 'on'
   check(r.posted.length === 1 && s.sent.x.length === 0 && s.sent.discord.length === 1 && tables.homer_feed_posts[0].x_post_id === 'skipped' && /capped/.test(tables.homer_feed_posts[0].payload.x_note), 'D: over the cap -> Discord still goes, X does not, the row says why')
   check(s.sent.admit.length === 1 && s.sent.admit[0].kind.startsWith('moment_nhl_') && s.sent.admit[0].repeat === false, 'D: the X post asks the one gate (admit) with its own kind')
   reset()
-  const f2 = fakeDb(); const s2 = senders({ xUsed: 12 })
-  await MP.postMomentEvents(f2.db, [ot], { now: NOW, deps: s2.d })
-  check(s2.sent.x.length === 0 && s2.sent.discord.length === 1 && s2.sent.members.length === 0 && f2.tables.homer_feed_posts[0].x_post_id === null, 'D: a STAR card with 12 X posts out goes to Discord only (no X, no #members)')
+  const f2 = fakeDb(); const s2 = senders()
+  const r2 = await MP.postMomentEvents(f2.db, [ot], { now: NOW, deps: s2.d })
+  check(r2.posted.length === 0 && f2.tables.homer_feed_posts.length === 0 && s2.sent.x.length + s2.sent.discord.length + s2.sent.members.length === 0 && r2.skipped.length === 0, 'D: a STAR card is not claimed or posted on its own, whatever the day\'s X count (it rides the digest)')
   reset()
-  const f3 = fakeDb(); const s3 = senders({ xUsed: 3 })
-  await MP.postMomentEvents(f3.db, [ot], { now: NOW, deps: s3.d })
-  check(s3.sent.x.length === 1 && s3.sent.members.length === 0, 'D: the same STAR card with 3 out goes to X too')
-  // X counts up inside a pass: with 11 out, the second STAR card finds 12 and stays off X
-  reset()
-  const f4 = fakeDb(); const s4 = senders({ xUsed: 11 })
-  const ot2 = find(MF.nhlEventsFrom([conf({ goal_n: 2, period: 4, period_type: 'OT', time_in_period: '03:10', strength: 'ev', status: 'board', game_id: 9 })]), 'nhl_goal')
-  await MP.postMomentEvents(f4.db, [ot, ot2], { now: NOW, deps: s4.d })
-  check(s4.sent.x.length === 1 && s4.sent.discord.length === 2, 'D: within one pass the X count rises: the first STAR reaches X, the second (12 out) is Discord only')
-  reset()
-  const f5 = fakeDb(); const s5 = senders({ xUsed: 0 })
+  const f5 = fakeDb(); const s5 = senders()
   const many = [hat, MF.makeEvent('mlb_multi_hr', mlb.row, { gameId: 701, n: 'hr3', at: null }), MF.makeEvent('mlb_multi_hr', mlb.row, { gameId: 702, n: 'hr3', at: null }), MF.makeEvent('mlb_multi_hr', mlb.row, { gameId: 703, n: 'hr3', at: null }), MF.makeEvent('mlb_multi_hr', mlb.row, { gameId: 704, n: 'hr3', at: null })]
   const rm = await MP.postMomentEvents(f5.db, many, { now: NOW, deps: s5.d })
   check(rm.posted.length === P.MAX_PER_PASS && f5.tables.homer_feed_posts.length === P.MAX_PER_PASS, `D: a backlog never dumps: one pass posts at most ${P.MAX_PER_PASS}`)
@@ -300,50 +295,81 @@ process.env.MOMENT_POSTS_ON = 'on'
   const box = { teams: { home: { players: { ID1: player(1, 'Test A', hit({ homeRuns: 2, hits: 3, rbi: 4 })), ID2: player(2, 'Test B', hit({ hits: 3 })), ID3: player(3, 'Test C', pit('7.0', 9, 0)), ID4: player(4, 'Test D', hit({ hits: 1 })) } }, away: { players: { ID5: player(5, 'Test E', hit({ homeRuns: 1 })), ID6: player(6, 'Test F', hit({ rbi: 4 })) } } } }
   const nights = PS.bigNights(box)
   check(nights.map((n) => n.name).join(',') === 'Test A,Test C,Test E,Test F,Test B' && nights.every((n) => n.name !== 'Test D'), `H: a game's big nights, most notable first (${nights.map((n) => n.name).join(', ')})`)
-  // the live pass, with a fake schedule, box score and MLB game log
-  const sched = (extra = {}) => [{ gamePk: 900001, officialDate: '2026-10-12', season: '2026', gameDate: new Date(NOW - 3 * 3600e3).toISOString(), status: { abstractGameState: 'Final', detailedState: 'Final' }, ...extra }]
+  // the live pass, with a fake schedule, box scores and MLB game logs
+  const raw = (pk, extra = {}) => ({ gamePk: pk, officialDate: '2026-10-12', season: '2026', gameDate: new Date(NOW - 3 * 3600e3).toISOString(), status: { abstractGameState: 'Final', detailedState: 'Final' }, ...extra })
+  const sched = (extra = {}) => [raw(900001, extra), raw(900002, extra)]
+  const box2 = { teams: { home: { players: { ID7: player(7, 'Test G', hit({ homeRuns: 1, hits: 2, rbi: 1 })) } }, away: { players: {} } } }
   const modelFor = (id, name, group, pk, over = {}) => ({ ok: true, model: {
-    id, name, group, team: 'TST', teamName: 'Test Club', season: '2026', games: 4, roundTag: 'ALDS', total: { hr: '3', rbi: '5', avg: '.300', ip: '10.0', era: '1.50', k: '20', whip: '1.00', wl: '1-0', h: '8', obp: '.400', slg: '.600' },
+    id, name, group, team: 'TST', teamName: 'Test Club', season: '2026', games: 4, roundTag: 'ALDS', face: '', logo: '', logoPlate: false, tone: null, total: { hr: '3', rbi: '5', avg: '.300', ip: '10.0', era: '1.50', k: '20', whip: '1.00', wl: '1-0', h: '8', obp: '.400', slg: '.600' },
     last: { date: '2026-10-12', dayWord: 'Mon Oct 12', opp: 'Test Opp', isHome: true, round: 'ALDS', gamePk: pk, ip: '7.0', counts: group === 'pitching' ? { outs: 21, strikeOuts: 9, earnedRuns: 0 } : { homeRuns: 2, hits: 3, rbi: 4, atBats: 4, doubles: 0, triples: 0 } },
     back: { career: null }, ...over,
   } })
-  const mk = ({ schedule = sched(), models = {}, xs = {}, boxes = { 900001: box } } = {}) => {
+  const gameOf = { 1: 900001, 2: 900001, 3: 900001, 4: 900001, 5: 900001, 6: 900001, 7: 900002 }
+  const mk = ({ schedule = sched(), models = {}, xs = {}, boxes = { 900001: box, 900002: box2 } } = {}) => {
     const s = senders(xs)
     return { s, deps: { ...s.d, postseasonOn: async () => true, schedule: async () => schedule, boxscore: async (pk) => boxes[pk] || null,
-      loadPlayer: async ({ id, group }) => models[id] || modelFor(id, `Test ${id}`, group, 900001),
-      image: async () => ({ model: null, png: Buffer.from('PNG-TEST') }) } }
+      loadPlayer: async ({ id, group }) => models[id] || modelFor(id, `Test ${id}`, group, gameOf[id]) } }
   }
+  const emptyBox = { teams: { home: { players: {} }, away: { players: {} } } }
+  check(PS.postseasonNights(sched()).length === 1 && PS.postseasonNights(sched())[0].games.length === 2 && PS.postseasonNights([raw(1), raw(2, { officialDate: '2026-10-11' })]).length === 2, 'H: a night is a game date: two games on one date are one night')
   reset()
   let f = fakeDb(); let m = mk()
   let r = await PS.postseasonPass(f.db, { now: NOW, deps: m.deps })
   const kinds = f.tables.homer_feed_posts.map((x) => x.kind)
-  check(r.posted?.length === 3 && kinds.length === 3 && kinds.every((k) => /^postseason_mlb_900001_\d+$/.test(k)), `H: a Final postseason game posts its big nights, at most 3 a night (${kinds.join(', ')})`)
-  check(m.s.sent.x.length === 3 && m.s.sent.discord.length === 3 && m.s.sent.members.length === 0, 'H: each goes to X and the MLB channel, never #members')
-  check(m.s.sent.x.every((x) => !/https?:\/\//.test(x.text) && Array.from(x.text).length <= 280 && !P.BANNED.test(x.text)), 'H: the X text is neutral, has no link and fits 280')
-  check(['1', '3', '5'].every((id) => kinds.some((k) => k.endsWith(`_${id}`))), 'H: the most notable go first (A, C, E); F and B are over the night\'s limit')
+  check(kinds.length === 1 && kinds[0] === 'postseason_mlb_top3_20261012' && r.nights?.[0]?.result?.startsWith('posted TOP 3 POSTSEASON PERFORMANCES'), `H: the night posts ONE digest, claimed as ${kinds.join(', ')} (not one claim per player)`)
+  check(m.s.sent.x.length === 1 && m.s.sent.discord.length === 1 && m.s.sent.members.length === 1 && m.s.sent.upload === 1 && m.s.sent.x[0].mediaId === 'media-1', 'H: ONE X post with the one card image, ONE MLB channel post, ONE #members post')
+  const hx = m.s.sent.x[0].text
+  check(/^TOP 3 POSTSEASON PERFORMANCES · MLB\n1\. Test A \(TST\): 3-FOR-4 · 2 HR · 4 RBI\n2\. Test C \(TST\): 7\.0 IP · 0 ER · 9 K/.test(hx) && !/https?:\/\//.test(hx) && Array.from(hx).length <= 280 && !P.BANNED.test(hx), `H: the X text is neutral, titled, ranked, no link, fits 280 (${hx.replace(/\n/g, ' | ')})`)
+  check(/2\. Test C/.test(hx) && /3\. Test G/.test(hx) && !/Test E|Test F|Test B/.test(hx), 'H: the three best of the WHOLE night across games (A 34, C 27.5, then G 16 from the second game), not the first game\'s')
+  check(f.tables.homer_feed_posts[0].payload.named.join(',') === '1,3,7' && f.tables.homer_feed_posts[0].payload.count === 3 && f.tables.homer_feed_posts[0].x_post_id === 'tw-1', 'H: the claim row names the three players (the repeat record) and the tweet')
+  check(m.s.sent.admit.length === 1 && m.s.sent.admit[0].kind === 'postseason_mlb_top3_20261012' && m.s.sent.admit[0].repeat === false, 'H: it counts as ONE post through the one X gate (write-up tier)')
   const again = await PS.postseasonPass(f.db, { now: NOW + 60e3, deps: m.deps })
   PS._resetPostseasonPost(); _resetTakenForTests()
   const again2 = await PS.postseasonPass(f.db, { now: NOW + 120e3, deps: m.deps })
-  check(f.tables.homer_feed_posts.length === 3 && m.s.sent.x.length === 3 && (again.posted || []).length === 0 && (again2.posted || []).length === 0, 'H: once per player per game, and the night\'s limit holds on a later tick and on a cold instance')
-  // the game log has not caught up: wait, post nothing
+  check(f.tables.homer_feed_posts.length === 1 && m.s.sent.x.length === 1 && !(again.nights || []).length && !(again2.nights || []).some((n) => /^posted/.test(n.result)), 'H: once a night: a later tick and a cold instance post nothing more')
+  // one game of the night is still going: nothing yet
+  reset(); f = fakeDb(); m = mk({ schedule: [raw(900001), raw(900002, { status: { abstractGameState: 'Live', detailedState: 'In Progress' } })] })
+  r = await PS.postseasonPass(f.db, { now: NOW, deps: m.deps })
+  check(f.tables.homer_feed_posts.length === 0 && m.s.sent.x.length === 0, 'H: the digest waits for the LAST game of the night (every game Final)')
+  // a postponed game does not hold the night
+  reset(); f = fakeDb(); m = mk({ schedule: [raw(900001), raw(900002, { status: { abstractGameState: 'Preview', detailedState: 'Postponed' } })] })
+  await PS.postseasonPass(f.db, { now: NOW, deps: m.deps })
+  check(f.tables.homer_feed_posts.length === 1, 'H: a postponed game is done for the night: it does not hold the digest')
+  // one big night: titled by count
+  reset(); f = fakeDb(); m = mk({ boxes: { 900001: { teams: { home: { players: { ID1: player(1, 'Test A', hit({ homeRuns: 1 })) } }, away: { players: {} } } }, 900002: emptyBox } })
+  await PS.postseasonPass(f.db, { now: NOW, deps: m.deps })
+  check(f.tables.homer_feed_posts.length === 1 && /^TOP POSTSEASON PERFORMANCE · MLB\n1\. Test A/.test(m.s.sent.x[0]?.text || ''), 'H: one big night is posted as one (titled by count)')
+  // no big night at all: nothing
+  reset(); f = fakeDb(); m = mk({ boxes: { 900001: emptyBox, 900002: emptyBox } })
+  await PS.postseasonPass(f.db, { now: NOW, deps: m.deps })
+  check(f.tables.homer_feed_posts.length === 0 && m.s.sent.x.length === 0, 'H: a night with no big night posts nothing')
+  // the game log has not caught up for the best man: wait, then go without him
   reset(); f = fakeDb(); m = mk({ models: { 1: modelFor('1', 'Test 1', 'hitting', 899999) } })
+  for (let i = 0; i < 5; i++) await PS.postseasonPass(f.db, { now: NOW + i * 60e3, deps: m.deps })
+  check(f.tables.homer_feed_posts.length === 0 && m.s.sent.x.length === 0, 'H: a player whose MLB game log has not caught up with the Final is waited for (nothing claimed, nothing said)')
+  for (let i = 5; i < 30; i++) await PS.postseasonPass(f.db, { now: NOW + i * 60e3, deps: m.deps })
+  check(f.tables.homer_feed_posts.length === 1 && !/Test A\b/.test(m.s.sent.x[0]?.text || '') && /1\. Test C/.test(m.s.sent.x[0]?.text || ''), 'H: after the wait runs out the digest goes without him (the next best fills the place)')
+  // too old / too early / not the postseason / off / paused
+  reset(); f = fakeDb(); m = mk({ schedule: sched({ gameDate: new Date(NOW - 21 * 3600e3).toISOString() }) })
+  await PS.postseasonPass(f.db, { now: NOW, deps: m.deps })
+  check(f.tables.homer_feed_posts.length === 0, 'H: a night whose last game started over 20 hours ago is not posted (no backlog dump)')
+  reset(); f = fakeDb(); m = mk({ schedule: sched({ gameDate: new Date(NOW - 1 * 3600e3).toISOString() }) })
   r = await PS.postseasonPass(f.db, { now: NOW, deps: m.deps })
-  check(!f.tables.homer_feed_posts.some((x) => x.kind.endsWith('_1')) && r.skipped.some((x) => /^wait/.test(x)), 'H: a player whose MLB game log has not caught up with the Final is waited for (nothing claimed, nothing said)')
-  // not Final / too old / not the postseason / off
-  reset(); f = fakeDb(); m = mk({ schedule: sched({ status: { abstractGameState: 'Live', detailedState: 'In Progress' } }) })
-  r = await PS.postseasonPass(f.db, { now: NOW, deps: m.deps })
-  check(f.tables.homer_feed_posts.length === 0 && m.s.sent.x.length === 0, 'H: a game that is not Final posts nothing')
-  reset(); f = fakeDb(); m = mk({ schedule: sched({ gameDate: new Date(NOW - 9 * 3600e3).toISOString() }) })
-  r = await PS.postseasonPass(f.db, { now: NOW, deps: m.deps })
-  check(f.tables.homer_feed_posts.length === 0, 'H: a game that started over 8 hours ago is not posted (no backlog dump)')
+  check(f.tables.homer_feed_posts.length === 0 && /waiting/.test(r.nights?.[0]?.result || ''), 'H: not before the post-game window (a feed that says Final too early never posts a half night)')
   reset(); f = fakeDb(); m = mk(); m.deps.postseasonOn = async () => false
   check((await PS.postseasonPass(f.db, { now: NOW, deps: m.deps })).skipped === 'not the postseason' && f.tables.homer_feed_posts.length === 0, 'H: outside the postseason the pass reads nothing and posts nothing')
   delete process.env.MOMENT_POSTS_ON
   reset(); f = fakeDb(); m = mk()
   check((await PS.postseasonPass(f.db, { now: NOW, deps: m.deps })).off === true && f.tables.homer_feed_posts.length === 0, 'H: off by default')
-  process.env.MOMENT_POSTS_ON = 'on'; process.env.MOMENT_POSTS_PAUSE_KINDS = 'postseason_mlb'
-  reset(); f = fakeDb(); m = mk()
-  check(f.tables.homer_feed_posts.length === 0 && (await PS.postseasonPass(f.db, { now: NOW, deps: m.deps })).paused === 'postseason_mlb' && f.tables.homer_feed_posts.length === 0, 'H: the per-kind pause stops the postseason posts')
+  process.env.MOMENT_POSTS_ON = 'on'
+  for (const list of ['postseason_mlb', 'moment_top3', 'postseason_mlb_top3']) {
+    process.env.MOMENT_POSTS_PAUSE_KINDS = list
+    reset(); f = fakeDb(); m = mk()
+    check(Boolean((await PS.postseasonPass(f.db, { now: NOW, deps: m.deps })).paused) && f.tables.homer_feed_posts.length === 0, `H: MOMENT_POSTS_PAUSE_KINDS=${list} stops the postseason digest`)
+  }
+  process.env.MOMENT_POSTS_PAUSE_KINDS = 'moment_nhl,moment_nhl_top3'
+  reset(); f = fakeDb(); m = mk(); await PS.postseasonPass(f.db, { now: NOW, deps: m.deps })
+  check(f.tables.homer_feed_posts.length === 1, 'H: pausing the NHL families leaves the postseason digest alone')
   delete process.env.MOMENT_POSTS_PAUSE_KINDS
   // the SQL is not run
   reset(); f = fakeDb({ failKindCheck: true }); m = mk()
@@ -351,16 +377,16 @@ process.env.MOMENT_POSTS_ON = 'on'
   r = await PS.postseasonPass(f.db, { now: NOW, deps: m.deps }); const r2 = await PS.postseasonPass(f.db, { now: NOW + 60e3, deps: m.deps })
   console.error = ce
   check(m.s.sent.x.length === 0 && m.s.sent.discord.length === 0 && errs.some((e) => /kind not allowed yet \(run supabase/.test(e)) && r2.blocked, 'H: the SQL not run -> nothing sent, the log names the file, not asked again for 30 minutes')
-  // X refuses a postseason post: the claim stays, no loop
+  // X refuses the digest: the claim stays, no loop
   reset(); f = fakeDb(); m = mk({ xs: { xResult: () => ({ ok: false, status: 403, error: 'forbidden' }) } })
   const ce2 = console.error; console.error = () => {}
   await PS.postseasonPass(f.db, { now: NOW, deps: m.deps }); PS._resetPostseasonPost(); _resetTakenForTests(); await PS.postseasonPass(f.db, { now: NOW + 60e3, deps: m.deps })
   console.error = ce2
-  check(m.s.sent.x.length === 3 && f.tables.homer_feed_posts.length === 3 && f.tables.homer_feed_posts.every((x) => x.x_post_id === 'skipped'), 'H: X refuses -> each claim stays closed as skipped, X tried once per player, no loop')
+  check(m.s.sent.x.length === 1 && f.tables.homer_feed_posts.length === 1 && f.tables.homer_feed_posts[0].x_post_id === 'skipped' && m.s.sent.discord.length === 1, 'H: X refuses -> the claim stays closed as skipped, X tried once, Discord went, no loop (a cold instance too)')
   // the picture fails: X text only, Discord without the image
   reset(); f = fakeDb(); m = mk(); m.deps.image = async () => ({ model: null, png: null })
   await PS.postseasonPass(f.db, { now: NOW, deps: m.deps })
-  check(m.s.sent.x.length === 3 && m.s.sent.upload === 0 && m.s.sent.x.every((x) => !x.mediaId) && m.s.sent.discord.every((x) => !x.png && !x.embed.image), 'H: a card that does not draw posts X text-only and Discord without the image')
+  check(m.s.sent.x.length === 1 && m.s.sent.upload === 0 && !m.s.sent.x[0].mediaId && m.s.sent.discord.every((x) => !x.png && !x.embed.image), 'H: a card that does not draw posts X text-only and Discord without the image')
 }
 
 // ── I. BASE never; the text ───────────────────────────────────────────────────────────────────────────
@@ -383,7 +409,7 @@ process.env.MOMENT_POSTS_ON = 'on'
   check(P.xTextFor('x'.repeat(300), null, []) === null, 'I: text over 280 is refused, never cut mid-word')
   // a run with a banned line drops the post without sending, keeps the claim
   reset()
-  const bad = MF.makeEvent('nhl_goal', testFeedRow({ game_type: 2, period: 4, period_type: 'OT', time_in_period: '02:10', score_after: 'EXA 1 \u00b7 TST 2 (100%)' }), { gameId: 5, n: 'g1', at: null })
+  const bad = MF.makeEvent('long_shot_cashed', { ...F.TEST_LONG_SHOT, market: 'anytime goal 100%' }, { gameId: '20260102', n: 'ls', at: null })
   const fb = fakeDb(); const sb = senders()
   const rb = await MP.postMomentEvents(fb.db, [bad], { now: NOW, deps: sb.d })
   check(sb.sent.x.length + sb.sent.discord.length === 0 && fb.tables.homer_feed_posts[0]?.payload?.dropped === 'no clean text' && rb.skipped.some((x) => /no clean text/.test(x)), 'I: a line with a banned word is dropped, nothing sent, the claim recorded (no retry)')
@@ -403,12 +429,12 @@ process.env.MOMENT_POSTS_ON = 'on'
 
 // ── J. KIND_TAGS, the migration ───────────────────────────────────────────────────────────────────────
 {
-  const sampleKinds = [...P.MOMENT_FAMILIES, 'moment_nhl_11_1_ht3', 'moment_mlb_900_700_hr3', 'moment_nfl_000038124_s2026w5_yd', 'moment_nhl_11_1_ht3_upd', 'postseason_mlb_849831_660271']
+  const sampleKinds = [...P.MOMENT_FAMILIES, 'moment_nhl_11_1_ht3', 'moment_mlb_900_700_hr3', 'moment_nfl_000038124_s2026w5_yd', 'moment_nhl_11_1_ht3_upd', 'postseason_mlb_849831_660271', 'moment_nhl_top3_20261012', 'moment_nfl_top3_20261011', 'moment_mlb_top3_20261012', 'postseason_mlb_top3_20261012']
   check(sampleKinds.every((k) => XS.tagOf(k) === 'INFO' && XS.modeOf(k) === 'event'), 'J: KIND_TAGS tags every new kind (the four families and every claim kind) INFO, event-driven')
   check(XS.untagged().length === 0 && P.MOMENT_FAMILIES.every((k) => XS.KIND_TAGS[k]), 'J: untagged() is still empty')
   const mp = XS.mayPostNow({ kind: 'moment_nhl_11_1_ht3', now: NOW, sport: 'nhl' }), ps = XS.mayPostNow({ kind: 'postseason_mlb_900001_1', now: NOW })
   check(mp.ok && ps.ok && mp.tag === 'INFO', 'J: the scheduler lets a tagged moment kind through (events ignore windows)')
-  const src = ['lib/posts/momentPost.js', 'lib/posts/postseasonPost.js', 'lib/cards/momentPosting.js'].map((f) => readFileSync(f, 'utf8')).join('\n')
+  const src = ['lib/posts/momentPost.js', 'lib/posts/postseasonPost.js', 'lib/cards/momentPosting.js', 'lib/posts/digestPost.js'].map((f) => readFileSync(f, 'utf8')).join('\n')
   const lits = [...src.matchAll(/['`](moment|postseason)_(?:mlb|nfl|nhl)\b/g)].map((m) => m[0].slice(1))
   check(lits.every((l) => XS.kindInfo(l)), `J: every kind literal in the posting code is in the table (${[...new Set(lits)].join(', ')})`)
   // kinds the code generates, against the migration's patterns
@@ -416,7 +442,7 @@ process.env.MOMENT_POSTS_ON = 'on'
   const regexes = [...sql.matchAll(/\('''(\^[^']+\$)'''/g)].map((m) => new RegExp(m[1]))
   const exact = [...sql.matchAll(/\('''([a-z_]+)''',\s+'kind = /g)].map((m) => m[1])
   const allowed = (k) => exact.includes(k) || regexes.some((re) => re.test(k))
-  const gen = [...[hat, ot, mlb, long, yards, star].map((e) => P.eventKeyOf({ sport: e.sport, playerId: e.who.playerId, gameId: e.gameId, n: e.n }).kind), P.eventKeyOf({ sport: 'nfl', playerId: '00-0033873', gameId: '401872991', n: 'td2' }).kind, `${P.eventKeyOf({ sport: 'nhl', playerId: 8478402, gameId: 2025020123, n: 'ht3' }).kind}_upd`, P.postseasonKeyOf({ gamePk: 849831, playerId: 660271 }).kind]
+  const gen = [...[hat, ot, mlb, long, yards, star].map((e) => P.eventKeyOf({ sport: e.sport, playerId: e.who.playerId, gameId: e.gameId, n: e.n }).kind), P.eventKeyOf({ sport: 'nfl', playerId: '00-0033873', gameId: '401872991', n: 'td2' }).kind, `${P.eventKeyOf({ sport: 'nhl', playerId: 8478402, gameId: 2025020123, n: 'ht3' }).kind}_upd`, P.digestKindOf({ sport: 'nhl', night: '2026-10-12' }), P.digestKindOf({ sport: 'nfl', night: '2026-10-12' }), P.digestKindOf({ sport: 'mlb', night: '2026-10-12' }), P.digestKindOf({ sport: 'mlb', night: '2026-10-12', postseason: true })]
   check(gen.every(allowed) && exact.length === 4 && regexes.length === 2, `J: the migration allows every kind the code claims (${gen.length} sampled) and the four family names`)
   check(!allowed('moment_nba_1_2_x') && !allowed('card_nhl') && !allowed('moment_nhl_X_1') && !allowed('postseason_nfl_1_2'), 'J: and nothing else (BUCKETS has no moment kind)')
   check(/regexp_replace\(d, ' NOT VALID\$', ''\)/.test(sql) && /\) not valid'/.test(sql) && /position\(r\.probe in d\) = 0/.test(sql) && /raise exception 'homer_feed_posts_kind_check not found/.test(sql), 'J: the migration strips a NOT VALID suffix, skips kinds already present, adds NOT VALID and stops if the constraint is missing (like 202610101100 / 202610121100)')
