@@ -4,13 +4,14 @@
 // that builds the PNG), shows it is working while it does, and never blocks the page. A hidden product
 // (BUCKETS until it opens, lib/routes.js isHiddenSport) has no button at all.
 import { useState } from 'react'
-import { isHiddenSport } from '../lib/routes'
+import { useSportOpen } from '../lib/useVisibleSports'
 import { useSportTheme } from './SportTheme'
 
 export default function CardButton({ sport, onDownload, label = 'Download this as an image', style = null }) {
   const { C, accent } = useSportTheme()
   const [busy, setBusy] = useState(false)
-  if (isHiddenSport(sport)) return null
+  const open = useSportOpen(sport)
+  if (open !== true) return null
   const go = async (e) => {
     e.stopPropagation()
     if (busy) return

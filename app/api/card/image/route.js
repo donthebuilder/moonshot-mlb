@@ -4,7 +4,7 @@
 // when the sport has no cards (BUCKETS / nba has none, hidden or not), the id is not on a card window, or the data is not real; 400 for a
 // malformed id / date; 502 when the render fails. Public data: every number is already on the site's boards.
 import { adminClient } from '../../../../lib/supabase/admin'
-import { hasCards } from '../../../../lib/cards/registry'
+import { hasCards, hasPreviewCards } from '../../../../lib/cards/registry'
 import { playerCardImage } from '../../../../lib/cards/cardImage'
 
 export const runtime = 'nodejs'
@@ -17,13 +17,21 @@ const json = (body, status, cache = 'no-store') => Response.json(body, { status,
 export async function GET(request) {
   const q = new URL(request.url).searchParams
   const sport = String(q.get('sport') || '').toLowerCase()
-  if (!hasCards(sport)) return json({ error: 'NOT FOUND', detail: 'no cards for that sport' }, 404, 'public, max-age=300')
+  // BUCKETS (nba) is a PREVIEW sport: its card answers only a visitor the BUCKETS gate lets in (admin, early access, or everyone once it is public); anyone else gets
+  // exactly the 404 every sport without cards gets, so the route says nothing about it
+  let preview = false
+  if (hasPreviewCards(sport)) {
+    const { bucketsGuard, bucketsPublic } = await import('../../../../lib/nba/gate')
+    if (await bucketsGuard()) return json({ error: 'NOT FOUND', detail: 'no cards for that sport' }, 404, 'no-store')   // not cached: the same URL answers a signed-in holder
+    preview = !bucketsPublic()
+  } else if (!hasCards(sport)) return json({ error: 'NOT FOUND', detail: 'no cards for that sport' }, 404, 'public, max-age=300')
   const side = q.get('side') === 'back' ? 'back' : 'front'
   const w = Number(q.get('w'))
   const width = WIDTHS.includes(w) ? w : 1080
   let db = null
   try { db = adminClient() } catch { db = null }       // no database = no stored price: the card still draws, the price slot does not
-  const r = await playerCardImage({ sport, id: String(q.get('id') || ''), side, date: q.get('date') || null, width, db })
-  if (!r.ok) return json({ error: r.status === 404 ? 'NOT FOUND' : r.status === 400 ? 'BAD REQUEST' : 'CARD DELAYED', detail: r.why }, r.status, r.status === 404 ? 'public, max-age=60' : 'no-store')
-  return new Response(r.png, { status: 200, headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } })
+  const r = await playerCardImage({ sport, id: String(q.get('id') || ''), side, date: q.get('date') || null, width, db, allowPreview: hasPreviewCards(sport) })
+  if (!r.ok) return json({ error: r.status === 404 ? 'NOT FOUND' : r.status === 400 ? 'BAD REQUEST' : 'CARD DELAYED', detail: r.why }, r.status, r.status === 404 && !preview ? 'public, max-age=60' : 'no-store')
+  // a preview card is one visitor's: never on the shared CDN
+  return new Response(r.png, { status: 200, headers: { 'Content-Type': 'image/png', 'Cache-Control': preview ? 'private, no-store' : 'public, s-maxage=300, stale-while-revalidate=600' } })
 }

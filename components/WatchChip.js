@@ -6,11 +6,13 @@
 // keeps its height. Sits right after LedgerChip and wears the same type. The sport's own watchlist tab comes
 // from the registry (WATCH_TAB, lib/routes.js).
 import { useSportTheme } from './SportTheme'
-import { isHiddenSport, watchHash } from '../lib/routes'
+import { watchHash } from '../lib/routes'
+import { useSportOpen } from '../lib/useVisibleSports'
 
 export default function WatchChip({ sport, style = null }) {
   const { C, NUM_FONT } = useSportTheme()
-  if (isHiddenSport(sport)) return null   // BUCKETS has no public surface until it opens
+  const open = useSportOpen(sport)
+  if (open !== true) return null   // BUCKETS: only for a visitor its gate lets in (admin, early access, or once it is public)
   return (
     <a href={watchHash(sport)} aria-label="Your watchlist" title="Your watchlist: the players you starred"
       style={{

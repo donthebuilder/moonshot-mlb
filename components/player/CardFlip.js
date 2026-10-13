@@ -11,8 +11,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useSportTheme } from '../SportTheme'
-import { isHiddenSport } from '../../lib/routes'
-import { CARD_SPORTS, POSTSEASON_SPORTS } from '../../lib/card/core'
+import { useSportOpen } from '../../lib/useVisibleSports'
+import { CARD_SPORTS, PREVIEW_CARD_SPORTS, POSTSEASON_SPORTS } from '../../lib/card/core'
 import { shareUrl, downloadCard, slug } from '../../lib/cards/saveCard'
 
 const SIDES = ['front', 'back']
@@ -123,7 +123,9 @@ export function CardSheet({ sport, id, name, date, onClose, initialEdition = 'se
 export default function CardFlip({ sport, id, name, date = null, style = null, label = 'Card' }) {
   const { C, accent } = useSportTheme()
   const [open, setOpen] = useState(false)
-  if (!CARD_SPORTS.includes(String(sport)) || isHiddenSport(sport) || id == null || id === '') return null
+  // BUCKETS' card is a PREVIEW (lib/card/core.js PREVIEW_CARD_SPORTS): the chip shows only once the BUCKETS gate has let this visitor in (admin, early access, public)
+  const allowed = useSportOpen(sport) === true
+  if (!(CARD_SPORTS.includes(String(sport)) || PREVIEW_CARD_SPORTS.includes(String(sport))) || !allowed || id == null || id === '') return null
   return (
     <>
       <button type="button" onClick={(e) => { e.stopPropagation(); setOpen(true) }} aria-haspopup="dialog" aria-expanded={open}

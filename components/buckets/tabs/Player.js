@@ -11,6 +11,8 @@ import InTheLedger from '../../ledger/InTheLedger'
 import PlayerNotes from '../../PlayerNotes'
 import FollowButton from '../../FollowButton'
 import CardButton from '../../CardButton'
+import CardFlip from '../../player/CardFlip'
+import CardsEarned from '../../player/CardsEarned'
 import { downloadCard, shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
 import StarMemory from '../../watch/StarMemory'
 import CallStatusBadge from '../../CallStatusBadge'
@@ -259,7 +261,11 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
                 <Kicker>THE LINE · PER GAME</Kicker>
                 {/* 📸 his card as a PNG (fix15): the board's word, score and night rank, PTS / REB / AST a game, projected points, his last five.
                     On the line, not in the sticky header (no room beside Watch at 360 without wrapping his name). */}
-                <CardButton sport="nba" label="Download his card as an image" onDownload={() => downloadCard(shareUrl({ kind: 'pick', sport: 'nba', id: card.id, market: 'pts', date: board?.date || null }), `${slug(card.name, 'player')}_${stamp(board?.date)}.png`)} />
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  {/* his BASEBALL-CARD (front and back), a PREVIEW sport: shown only to a visitor BUCKETS' gate lets in, and only for a player on tonight's board (lib/card/core.js PREVIEW_CARD_SPORTS) */}
+                  {row && <CardFlip sport="nba" id={String(card.id)} name={card.name} />}
+                  <CardButton sport="nba" label="Download his card as an image" onDownload={() => downloadCard(shareUrl({ kind: 'pick', sport: 'nba', id: card.id, market: 'pts', date: board?.date || null }), `${slug(card.name, 'player')}_${stamp(board?.date)}.png`)} />
+                </span>
               </div>
               {stale && <p style={{ margin: '0 0 8px', fontSize: 12, color: C.text3, lineHeight: 1.5 }}>The new season has no regular-season games yet, so this is last season’s line ({seasonWord}).</p>}
               {lineRows.length > 0
@@ -279,6 +285,8 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
             <InTheLedger sport="nba" id={pid} name={card.name} jersey={card.jersey} birthDate={card.birthDate} next={next} date={dateNow} />
             <HisNumbers name={card.name} jersey={card.jersey} birthDate={card.birthDate} next={next} nextWord="point" date={dateNow} theme={C} accent={C.purple} numFont={NUM_FONT} />
             <PlayerNotes playerId={pid} scope="nba" accent={C.purple} />
+            {/* CARDS EARNED, at the END of the page (the first useful row never moves): his 30-point / 40-point / double-double / triple-double / 10-threes cards from his GRADED regular-season rows; no section until he has one */}
+            <CardsEarned sport="nba" id={pid} name={card.name} />
           </>
         )}
 

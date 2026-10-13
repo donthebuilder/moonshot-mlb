@@ -16,7 +16,7 @@ import { STATUS_WORD } from '../../lib/callStatus'
 import { matchLanes, displayLanes } from '../../lib/numerology/lanes'
 import HelpTip from '../HelpTip'
 import { ledgerHash } from '../../lib/ledger/views'
-import { isHiddenSport } from '../../lib/routes'
+import { useSportOpen } from '../../lib/useVisibleSports'
 
 const SHOW = 5
 const day = (d) => new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
@@ -33,8 +33,9 @@ export default function InTheLedger({ sport, id, name = '', jersey = null, birth
   const [open, setOpen] = useState(false)
   const [all, setAll] = useState(false)
   const key = id != null ? String(id) : ''
+  const open = useSportOpen(sport) === true   // BUCKETS: only once its gate has let this visitor in (admin, early access, public)
   useEffect(() => {
-    if (!key || isHiddenSport(sport)) return undefined
+    if (!key || !open) return undefined
     let live = true
     setState('loading'); setD(null); setAll(false)
     fetch(`/api/ledger/player?sport=${encodeURIComponent(sport)}&id=${encodeURIComponent(key)}`)
@@ -42,9 +43,9 @@ export default function InTheLedger({ sport, id, name = '', jersey = null, birth
       .then((j) => { if (live) { setD(j); setState('ok') } })
       .catch(() => { if (live) setState('error') })
     return () => { live = false }
-  }, [sport, key])
+  }, [sport, key, open])
   const lanes = useMemo(() => (name && date ? displayLanes(matchLanes({ name, jersey: num(jersey), birthDate, next: num(next), team: null, opp: null }, { date })) : []), [name, jersey, birthDate, next, date])
-  if (!key || isHiddenSport(sport)) return null
+  if (!key || !open) return null
   // a delay is said once, quietly; the card never waits on it
   if (state === 'error') return null
 

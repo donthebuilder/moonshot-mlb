@@ -18,16 +18,16 @@ import { clubLines } from '../lib/team/statLines.js'
 let fail = 0
 const ok = (name, fn) => { try { fn(); console.log(`ok   ${name}`) } catch (e) { fail += 1; console.log(`FAIL ${name}: ${e.message}`) } }
 const CLUBS = NBA_TEAMS.map((t) => t[0])
-const SECTIONS = ['roster', 'schedule', 'stats', 'splits', 'calls', 'matchup']
+const SECTIONS = ['roster', 'schedule', 'stats', 'splits', 'calls', 'matchup', 'cards']   // Cards is the client-fed slot (components/binder/TeamCards.js): it loads its own list, and says so when the club has none
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8')
 
-ok('registry: NBA lists six sections, Players first', () => { assert.deepEqual(sectionsOf('nba').map((s) => s.id), SECTIONS); assert.equal(firstSection('nba'), 'roster'); assert.equal(NBA_CLUBS.length, 30) })
+ok('registry: NBA lists seven sections, Players first', () => { assert.deepEqual(sectionsOf('nba').map((s) => s.id), SECTIONS); assert.equal(firstSection('nba'), 'roster'); assert.equal(NBA_CLUBS.length, 30) })
 ok('every NBA club builds with the real files absent: header name + logo, six named empty states, neutral wording', () => {
   for (const c of CLUBS) {
     const v = buildNbaTeam({ team: c })
     assert.ok(v.header.name && v.header.known && /^https:\/\/a\.espncdn\.com\/i\/teamlogos\/nba\//.test(v.header.logo), `${c}: header`)
     assert.deepEqual(v.sections.map((s) => s.id), SECTIONS)
-    for (const s of v.sections) { assert.equal(s.state, 'empty', `${c}/${s.id}`); assert.ok(s.empty.title && s.empty.note); assert.deepEqual(s.blocks, []) }
+    for (const s of v.sections.filter((x) => x.id !== 'cards')) { assert.equal(s.state, 'empty', `${c}/${s.id}`); assert.ok(s.empty.title && s.empty.note); assert.deepEqual(s.blocks, []) }
     assert.deepEqual(neutralProblems(viewStrings(v)), [], `${c}: wording`)
   }
   assert.equal(buildNbaTeam({ team: 'ZZZ' }).header.known, false)
@@ -177,13 +177,13 @@ if (ix > 0) {
     try {
       const [p, d] = [await j(`${base}/api/buckets/team?team=${c}`), await j(`${base}/api/buckets/teamdeep?team=${c}`)]
       const v = buildNbaTeam({ team: c, payload: p, deep: d, board: null })
-      assert.ok(v.header.name && v.header.logo); assert.equal(v.sections.length, 6); assert.deepEqual(neutralProblems(viewStrings(v)), [], `${c}: wording`)
+      assert.ok(v.header.name && v.header.logo); assert.equal(v.sections.length, 7); assert.deepEqual(neutralProblems(viewStrings(v)), [], `${c}: wording`)
       const empties = v.sections.filter((s) => s.state !== 'ok').map((s) => `${s.id}(${s.empty?.title})`)
       filled += 6 - empties.length
       console.log(`ok   live ${c}: ${6 - empties.length}/6${empties.length ? ` empty: ${empties.join(', ')}` : ''}${p && d ? '' : ' [a feed was down]'}`)
     } catch (e) { fail += 1; console.log(`FAIL live ${c}: ${e.message}`) }
   }
-  console.log(`live: ${filled} of ${CLUBS.length * 6} sections filled`)
+  console.log(`live: ${filled} of ${CLUBS.length * 7} sections filled`)
 } else console.log('(live check skipped: pass --base with the server running BUCKETS_PUBLIC=on)')
 
 console.log(fail ? `\n${fail} FAILED` : '\nall NBA team-page checks passed')
