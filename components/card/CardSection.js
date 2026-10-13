@@ -52,7 +52,7 @@ export default function CardSection({ sport, mode = 'slate', Table = DenseTable,
     const prices = data?.prices || {}
     const out = []
     const sameGame = (r) => isSameGameRule(r.rule)
-    const label = { straight: (r) => `S${r.slot}`, two_man: (r) => (r.lane === 'donovan' ? 'D2' : sameGame(r) ? 'SG' : '2M'), n_man: (r) => `D${r.legs.length}`, long_shot: () => 'LS', double: (r) => (r.lane === 'donovan' ? 'DD' : 'DB') }
+    const label = { straight: (r) => `S${r.slot}`, two_man: (r) => (r.lane === 'donovan' ? 'D2' : sameGame(r) ? 'SG' : '2M'), n_man: (r) => (r.legs.length === 2 ? 'N2' : `D${r.legs.length}`),      // a 2-leg N-man is not the Two-Man (D2): its own tag, long_shot: () => 'LS', double: (r) => (r.lane === 'donovan' ? 'DD' : 'DB') }
     const order = (r) => (r.lane === 'bot' ? 0 : 20) + ({ straight: r.slot, two_man: 5, n_man: 6, long_shot: 7, double: 8 }[r.product] ?? 9)
     for (const r of data?.rows || []) {
       const legPrices = r.legs.map((l) => legPriceOf(l, prices[String(l.player_id)] || null))

@@ -36,8 +36,8 @@ const BASE = { sport: 'nhl', slate_key: 'k', card_date: '2026-10-10', field: FIE
 const NM = (o = {}) => donovanRow({ ...BASE, product: 'n_man', playerIds: SIX, ...o })
 
 // ── 1. CLASSIFICATION ─────────────────────────────────────────────────────────
-await t('CLASSIFY: 3 to 6 distinct players on tonight\'s board = an n_man row (leg_count = the legs, slot 1, 0.5 unit, its own rule); 2 stays the Two-Man; 1, 7, a repeat, a stranger, a bad product are refused', () => {
-  for (const n of [3, 4, 5, 6]) {
+await t('CLASSIFY: 2 to 6 distinct players on tonight\'s board = an n_man row (leg_count = the legs, slot 1, 0.5 unit, its own rule; 2 legs on the N-man tab is "ADMIN\'S 2-MAN", still product n_man, never the Two-Man); 1, 7, a repeat, a stranger, a bad product are refused', () => {
+  for (const n of [2, 3, 4, 5, 6]) {
     const r = NM({ playerIds: SIX.slice(0, n) })
     assert.equal(r.ok, true, `${n} legs`)
     assert.equal(r.row.product, 'n_man'); assert.equal(r.row.leg_count, n); assert.equal(r.row.legs.length, n); assert.equal(r.row.slot, 1)
@@ -46,9 +46,11 @@ await t('CLASSIFY: 3 to 6 distinct players on tonight\'s board = an n_man row (l
     assert.equal(new Date(r.row.locks_at).getTime(), LOCK_AT, 'frozen at the card\'s lock')
     assert.equal(r.row.start_at, new Date(Math.min(...r.row.legs.map((l) => Date.parse(l.start_at)))).toISOString(), 'start = the earliest leg\'s start')
   }
-  assert.equal(NMAN_MIN, 3); assert.equal(NMAN_MAX, 6)
-  assert.equal(NM({ playerIds: ['p1', 'p3'] }).ok, false, 'two players are the Two-Man, not an n_man')
-  assert.match(NM({ playerIds: ['p1', 'p3'] }).error, /3 to 6/)
+  assert.equal(NMAN_MIN, 2); assert.equal(NMAN_MAX, 6)
+  const two = NM({ playerIds: ['p1', 'p3'] })      // 2026-10-12 ("2 yes"): two players on the N-man tab are a 2-leg n_man, a distinct product from the Two-Man
+  assert.equal(two.ok, true); assert.equal(two.row.product, 'n_man'); assert.equal(two.row.leg_count, 2); assert.equal(twoManTitle(two.row), "ADMIN'S 2-MAN"); assert.notEqual(twoManTitle(two.row), twoManTitle(donovanRow({ ...BASE, playerIds: ['p1', 'p3'] }).row))
+  assert.equal(donovanRow({ ...BASE, playerIds: ['p1', 'p3'] }).row.product, 'two_man', 'the Two-Man tab still saves a two_man')
+  assert.match(NM({ playerIds: ['p1'] }).error, /2 to 6/)
   assert.equal(NM({ playerIds: ['p1'] }).ok, false)
   assert.equal(NM({ playerIds: [...SIX, 'p2'] }).ok, false, 'seven')
   assert.equal(NM({ playerIds: ['p1', 'p3', 'p1'] }).ok, false, 'never the same player twice'); assert.match(NM({ playerIds: ['p1', 'p3', 'p1'] }).error, /twice/)
