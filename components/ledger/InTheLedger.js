@@ -33,9 +33,9 @@ export default function InTheLedger({ sport, id, name = '', jersey = null, birth
   const [open, setOpen] = useState(false)
   const [all, setAll] = useState(false)
   const key = id != null ? String(id) : ''
-  const open = useSportOpen(sport) === true   // BUCKETS: only once its gate has let this visitor in (admin, early access, public)
+  const allowed = useSportOpen(sport) === true   // BUCKETS: only once its gate has let this visitor in (admin, early access, public)
   useEffect(() => {
-    if (!key || !open) return undefined
+    if (!key || !allowed) return undefined
     let live = true
     setState('loading'); setD(null); setAll(false)
     fetch(`/api/ledger/player?sport=${encodeURIComponent(sport)}&id=${encodeURIComponent(key)}`)
@@ -43,9 +43,9 @@ export default function InTheLedger({ sport, id, name = '', jersey = null, birth
       .then((j) => { if (live) { setD(j); setState('ok') } })
       .catch(() => { if (live) setState('error') })
     return () => { live = false }
-  }, [sport, key, open])
+  }, [sport, key, allowed])
   const lanes = useMemo(() => (name && date ? displayLanes(matchLanes({ name, jersey: num(jersey), birthDate, next: num(next), team: null, opp: null }, { date })) : []), [name, jersey, birthDate, next, date])
-  if (!key || !open) return null
+  if (!key || !allowed) return null
   // a delay is said once, quietly; the card never waits on it
   if (state === 'error') return null
 
