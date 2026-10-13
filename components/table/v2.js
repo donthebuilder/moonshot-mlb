@@ -246,6 +246,10 @@ export function v2Css(C, ac, NUM_FONT) {
     .dtv2 .pc-chip img { display: block; }
     /* the site's touch rule gives every button a 32px floor; here the 44px target is the ::after hit box (.tap-link), the layout box stays the text's */
     .dtv2 .pc .tap-link { min-height: 0 !important; min-width: 0 !important; padding: 0 !important; line-height: inherit; }
+    /* a chip's tap box is 9px (10px sideways) of invisible padding, handed back as negative margin: the logo (14px) is a 32px target, the layout does not move */
+    .dtv2 .pc-chip .tap-link { padding: 9px 10px !important; margin: -9px -10px !important; }
+    /* the rank move's 32px tap box needs a rank column of at least that width; a table with a fixed name cell lets the auto layout squeeze it (landscape, 844px) */
+    @media (min-width: 641px) { .dtv2-pc td.rank, .dtv2-pc th.rank { min-width: 36px; } }
     @media (max-width: 640px) {
       .dtv2-pc td { height: 58px; }
       .dtv2.dtv2-pc td.name, .dtv2.dtv2-pc th.name { width: 164px !important; min-width: 164px !important; max-width: 164px !important; }
