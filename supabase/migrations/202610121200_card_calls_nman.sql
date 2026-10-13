@@ -10,6 +10,7 @@
 -- Graded ALL-OR-NOTHING by the app (lib/card/core.js productResult): every leg hit = hit; any leg void (did not play) = void, the stake comes back; else miss.
 --
 -- WHAT THIS CHANGES (and nothing else):
+--   0. card_calls_leg_count_check   the ORIGINAL column check of 202610101000 (leg_count in (1,2)) is widened to leg_count between 1 and 6 (found by name AND by definition)
 --   1. card_calls_product_ck   product may be 'n_man'
 --   2. card_calls_shape_ck     + (product = 'n_man' and leg_count between 2 and 6 and slot = 1)   (the straight / two_man / double / long_shot shapes are unchanged)
 --   3. card_calls_lane_ck      an n_man row is never the bot's; the bot's other products and his two_man / double are exactly as before
@@ -18,6 +19,27 @@
 -- (his N-man posts through the same card_don_<sport> kinds) are untouched. Rows already in the table are never changed.
 -- RUN BEFORE THE CODE THAT NEEDS IT. Until it is run the app refuses an n_man save with a clear message and stores nothing; his 2-leg Two-Man works as always.
 -- Idempotent: safe to run twice. No role switching.
+
+-- 0. the column check on leg_count alone (202610101000: `leg_count integer not null check (leg_count in (1,2))`, auto-named card_calls_leg_count_check). It would reject a 3-leg row
+--    whatever the shape check says. Dropped by NAME and by DEFINITION (a check that mentions leg_count but neither the product nor the legs array), then re-added widened.
+do $$
+declare c record;
+begin
+  for c in
+    select conname, pg_get_constraintdef(oid) as def
+      from pg_constraint
+     where conrelid = 'public.card_calls'::regclass and contype = 'c'
+       and (conname = 'card_calls_leg_count_check'
+            or (pg_get_constraintdef(oid) like '%leg_count%' and pg_get_constraintdef(oid) not like '%product%' and pg_get_constraintdef(oid) not like '%jsonb%'))
+  loop
+    if c.def not like '%<= 6%' and c.def not like '%6)%' then
+      execute format('alter table public.card_calls drop constraint %I', c.conname);
+    end if;
+  end loop;
+  if not exists (select 1 from pg_constraint where conrelid = 'public.card_calls'::regclass and conname = 'card_calls_leg_count_check') then
+    alter table public.card_calls add constraint card_calls_leg_count_check check (leg_count between 1 and 6);
+  end if;
+end $$;
 
 -- 1-3. the three constraints, replaced by name only when they do not mention n_man yet
 do $$
@@ -151,6 +173,8 @@ create trigger card_calls_guard before insert or update or delete on public.card
   for each row execute function public.card_calls_guard();
 
 -- PROBES (run after, each as its own run):
+--   select conname, pg_get_constraintdef(oid) from pg_constraint where conrelid = 'public.card_calls'::regclass and contype = 'c' and pg_get_constraintdef(oid) like '%leg_count%' order by conname;
+--     -- expect card_calls_leg_count_check = CHECK (((leg_count >= 1) AND (leg_count <= 6))) (or BETWEEN) and no leftover (leg_count = ANY ('{1,2}')) check
 --   select conname, pg_get_constraintdef(oid) from pg_constraint where conrelid = 'public.card_calls'::regclass and conname in ('card_calls_product_ck','card_calls_shape_ck','card_calls_lane_ck') order by conname;
 --     -- expect three rows; each definition mentions 'n_man'
 --   select position('product in (''two_man'', ''n_man'')' in pg_get_functiondef('public.card_calls_guard'::regproc)) > 0 as n_man_lock_at_save_installed;   -- expect true

@@ -436,5 +436,48 @@ await t('THE MIGRATION: n_man in the product / shape / lane checks, the guard\'s
   if (fs.existsSync(txt)) assert.equal(fs.readFileSync(txt, 'utf8'), sql, 'the .txt is the migration, byte for byte')
 })
 
+await t('EVERY leg_count CHECK on card_calls is widened: the earlier migrations are scanned, and the new one relaxes each (the original column check leg_count in (1,2) blocked a 3-leg row on 2026-10-12)', () => {
+  const dir = new URL('../supabase/migrations/', import.meta.url)
+  const earlier = fs.readdirSync(dir).filter((f) => /^2026\d+_.*\.sql$/.test(f) && f < '202610121200').map((f) => [f, fs.readFileSync(new URL(f, dir), 'utf8').replace(/--.*$/gm, '')])
+  const mine = fs.readFileSync(new URL('202610121200_card_calls_nman.sql', dir), 'utf8').replace(/--.*$/gm, '')
+  const found = []
+  for (const [f, sql] of earlier) {
+    if (!/card_calls\b/.test(sql)) continue
+    // a column check on leg_count alone, or a named / table check that mentions leg_count
+    for (const m of sql.matchAll(/leg_count\s+integer[^,\n]*check\s*\(([^)]*\))/gi)) found.push({ f, kind: 'column', def: m[1] })
+    for (const m of sql.matchAll(/constraint\s+(\w+)\s+check\s*\(([\s\S]*?)\);/gi)) if (/leg_count/.test(m[2]) && !/jsonb/.test(m[2])) found.push({ f, kind: 'named', name: m[1], def: m[2] })
+    for (const m of sql.matchAll(/\n\s*check\s*\(([^;]*?leg_count[^;]*?)\),?\n/gi)) if (!/jsonb/.test(m[1])) found.push({ f, kind: 'table', def: m[1] })
+  }
+  assert.ok(found.some((x) => x.kind === 'column' && /leg_count in \(1,2\)/i.test(x.def)), 'the scan finds the original column check')
+  for (const x of found) {
+    if (x.kind === 'column') assert.ok(/card_calls_leg_count_check/.test(mine) && /leg_count between 1 and 6/.test(mine) && /drop constraint %I/.test(mine), `${x.f}: the column check on leg_count is dropped and re-added widened`)
+    else if (x.kind === 'named') assert.ok(new RegExp(`${x.name}`).test(mine) && /n_man/.test(mine), `${x.f}: ${x.name} is relaxed by the new migration`)
+    else assert.ok(/like '%leg_count%'/.test(mine) || /leg_count/.test(mine), `${x.f}: a table check on leg_count is covered`)
+  }
+  // by definition too, in case the name differs
+  assert.ok(/pg_get_constraintdef\(oid\) like '%leg_count%'/.test(mine), 'found by definition as well as by name')
+  // the other column checks of the first migration do not block an n_man row
+  const first = fs.readFileSync(new URL('202610101000_card_calls.sql', dir), 'utf8')
+  assert.ok(/slot\s+integer\s+not null check \(slot between 1 and 3\)/.test(first), 'slot 1..3: an n_man row is slot 1')
+  assert.ok(/stake\s+numeric\s+not null check \(stake > 0\)/.test(first) && /char_length\(note\) <= 600/.test(first) && /locks_at <= start_at/.test(first), 'stake > 0, note <= 600 chars, locks_at <= start_at: all hold for an n_man row')
+  assert.ok(/check \(note is null or lane = 'donovan'\)/.test(first) && /card_calls_note_lane_ck[\s\S]*donovan_late/.test(fs.readFileSync(new URL('202610121100_card_calls_late.sql', dir), 'utf8')), 'the note rule allows donovan and donovan_late')
+})
+
+await t('THE LANE CHECK THROUGH THE TABLE: the bot can never have an n_man row; 3..6 legs pass after the migration; 7 legs and 0..1-slot violations are refused; before it, 3 legs are refused', async () => {
+  const clock = { now: LOCK_AT - 60e3 }
+  const row = NM({ now: clock.now }).row
+  const botRow = { ...row, lane: 'bot', note: null }
+  const db = fakeDb(clock)
+  const r = await db.from('card_calls').upsert([botRow])
+  assert.match(r.error.message, /card_calls_lane_ck/); assert.equal(db.rows.length, 0)
+  const seven = { ...row, legs: [...row.legs, row.legs[0]], leg_count: 7 }
+  assert.match((await fakeDb(clock).from('card_calls').upsert([seven])).error.message, /card_calls_shape_ck/)
+  const slot2 = { ...row, slot: 2 }
+  assert.match((await fakeDb(clock).from('card_calls').upsert([slot2])).error.message, /shape_ck/)
+  const three = NM({ now: clock.now, playerIds: ['p1', 'p3', 'p4'] }).row
+  assert.equal((await fakeDb(clock).from('card_calls').upsert([three])).error, null)
+  assert.match((await fakeDb(clock, { nman: false }).from('card_calls').upsert([three])).error.message, /check constraint/)
+})
+
 console.log(failed ? `\n${failed} FAILED` : '\nall ok')
 process.exit(failed ? 1 : 0)
