@@ -330,7 +330,7 @@ const stateDb = ({ seed = [], failClaim = false } = {}) => {
 const { _resetTakenForTests: resetTaken } = await import('../lib/dash/postClaim.js')
 const tweets = () => calls.filter((c) => c.url.endsWith('/2/tweets')).map((c) => JSON.parse(c.body))
 
-await t('POST: his N-man posts through card_don_<sport> once a day (X + the free channel, the card as the picture), never a started game, never before his lock, never twice; the card post still names the Two-Man', async () => {
+await t('POST: his N-man posts through card_don_<sport>_n_man once a day (X + the free channel, the card as the picture), never a started game, never before his lock, never twice; the card post still names the Two-Man', async () => {
   const NOWJ = Date.now()
   const iso = (ms) => new Date(ms).toISOString()
   const DAY = '2026-10-12'
@@ -345,14 +345,16 @@ await t('POST: his N-man posts through card_don_<sport> once a day (X + the free
   assert.match(r1, /^posted/, r1)
   assert.ok(tw.text.includes("ADMIN'S 6-MAN: Player p1 + Player p3") && tw.text.includes(NOTE)); assert.ok(!/https?:\/\/|\block|guarantee|\bdue\b/i.test(tw.text))
   assert.equal(tw.media?.media_ids?.length, 1, 'the card rides the X post'); assert.ok(calls.some((c) => c.url === FREE && c.body instanceof FormData), 'and the free channel')
-  const claim = s1.rowsT.find((r) => r.kind === CARD_KIND.don('nhl'))
-  assert.ok(claim && claim.day === DAY && claim.payload.product === 'n_man', 'one claim row (day, card_don_nhl) marks it an n_man post'); assert.equal(asked, 1)
+  const claim = s1.rowsT.find((r) => r.kind === CARD_KIND.donEntry('nhl', 'n_man'))
+  assert.ok(claim && claim.day === DAY && claim.payload.product === 'n_man', 'one claim row (day, card_don_nhl_n_man) marks it an n_man post'); assert.equal(asked, 1)
   calls.length = 0
-  assert.equal(await postDonovanNMan(s1.db, { sport: 'nhl', day: DAY, rows: [mk()], now: NOWJ + 600e3, image, problems }), 'already-posted (this sport-day slot is taken: the Two-Man\'s own post, or this one)'); assert.equal(calls.length, 0)
+  assert.equal(await postDonovanNMan(s1.db, { sport: 'nhl', day: DAY, rows: [mk()], now: NOWJ + 600e3, image, problems }), 'already-posted'); assert.equal(calls.length, 0)
   // the claim made by his N-man does NOT stop the card post from naming his Two-Man (donovanPostClaimed ignores an n_man claim)
   const { donovanPostClaimed } = await import('../lib/card/post.js')
   assert.equal(await donovanPostClaimed(s1.db, 'nhl', DAY), false)
-  assert.equal(await donovanPostClaimed(stateDb({ seed: [{ day: DAY, kind: 'card_don_nhl', payload: { picks: [] } }] }).db, 'nhl', DAY), true, 'a Two-Man claim still does')
+  assert.equal(await donovanPostClaimed(stateDb({ seed: [{ day: DAY, kind: 'card_don_nhl', payload: { picks: [] } }] }).db, 'nhl', DAY), true, 'an old-kind Two-Man claim still does')
+  assert.equal(await donovanPostClaimed(stateDb({ seed: [{ day: DAY, kind: 'card_don_nhl_two_man', payload: {} }] }).db, 'nhl', DAY), true, 'so does the Two-Man\'s own suffixed claim')
+  assert.equal(await donovanPostClaimed(stateDb({ seed: [{ day: DAY, kind: 'card_don_nhl', payload: { product: 'n_man' } }] }).db, 'nhl', DAY), false, 'an old-kind claim made by the N-man does not')
   // LATE, started, not locked yet, no entry, a name with a definite no
   setEnv(XENV); calls.length = 0; resetTaken()
   const s6 = stateDb()
@@ -387,7 +389,7 @@ await t('THE CARD\'S OTHER POSTS DO NOT SEE IT: the free result ignores an ungra
   assert.ok(a.text); assert.equal(b.text, a.text, 'the free result is the same with or without his ungraded N-man')
   const tick = fs.readFileSync(new URL('../lib/card/tick.js', import.meta.url), 'utf8')
   assert.ok(/Date\.parse\(r\.locks_at\) <= now && r\.product !== 'n_man'/.test(tick), 'THE DAY skips it')
-  assert.ok(/postDonovanNMan\(db/.test(tick), 'the tick posts it')
+  assert.ok(/postDonovanEntries\(db/.test(tick), 'the tick posts it (with his other entries)')
   assert.ok(!/n_man/.test(fs.readFileSync(new URL('../lib/card/text.js', import.meta.url), 'utf8').slice(0, fs.readFileSync(new URL('../lib/card/text.js', import.meta.url), 'utf8').indexOf('HIS N-MAN ON X')).replace(/\/\/.*$/gm, '').replace(/and r\.product !== 'n_man'|r\.product !== 'n_man'/g, '')), 'no other text builder names n_man')
 })
 
