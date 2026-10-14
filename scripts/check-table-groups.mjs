@@ -44,6 +44,7 @@ function literals(src) {
 }
 const found = {}
 for (const f of files) {
+  if (f === 'lib/parity.js') continue   // the parity matrix: rows have key + label but are features, not table columns
   const src = readFileSync(f, 'utf8')
   if (!TABLE.test(src)) continue
   const bad = literals(src).filter((l) => l.ungrouped)

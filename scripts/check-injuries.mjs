@@ -257,7 +257,7 @@ await ok('no new cron, no new push category, BUCKETS stays behind its gate', () 
   assert.match(route, /bucketsGuard/); assert.match(route, /sport === 'nba'/)
   const rules = fs.readFileSync(new URL('../lib/dash/pushRules.js', import.meta.url), 'utf8')
   const added = rules.slice(rules.indexOf('INJURY-LAYER SCRATCHES'))
-  assert.ok(!/category: '(?!scratched)/.test(added))
+  assert.ok(!/category: '(?!scratched|nhlinj)/.test(added))
 })
 await ok('words: slate / game count line says "N out" or nothing, never "0 out"', () => {
   assert.equal(WD.outCount([], ST.BLOCKS), ''); assert.equal(WD.outCount([{ status: 'QUESTIONABLE' }], ST.BLOCKS), '')

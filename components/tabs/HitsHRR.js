@@ -146,7 +146,7 @@ const MARKET_LENSES = [
   { key: 'hrr',     label: 'HRR',     color: C.orange },
   { key: 'contact', label: 'Contact', color: C.orange },
   // 2+ HR (2026-10-13): the twin of TUDDY's 2+ TD and LAMP's 2+ goals boards; last, so the lenses before it keep their places
-  { key: 'hr2',     label: '2+ HR',   color: C.orange },
+  { key: 'hr2',     label: '2+ HR',   color: C.orange, group: 'Market' },
 ]
 const ANGLE_LENSES = [
   { key: 'weakspot',    label: 'Weak Spot',    color: C.orange },

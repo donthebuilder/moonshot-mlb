@@ -36,16 +36,17 @@ for (const [bad, what] of [
   ['Chiefs 3-0. Raiders 3-0. First time these two meet both unbeaten this late.', 'a missing range refused'],
   ['Chiefs 3-0. Raiders 3-0 since 1999. Take the over.', 'betting language refused'],
 ]) ok(!checkDraft(bad, kc).ok, what)
-// THE BOT ON HIM (clean pregame record, through 09-30), against Cowork's hand counts
+// THE BOT ON HIM (lock-rule record, through 09-30). Counts re-derived 2026-10-14 from the locked rows
+// (commit 8874fd3: a row counts only if stamped before first pitch); the old hand counts predate that rule.
 const bot = await botOnHimAll('2026-09-30')
 const tatis = bot.players['665487'], alonso = bot.players['624413']
-ok(tatis?.roles.HIT?.all.g === 6 && tatis.roles.HIT.all.hr === 2 && tatis.roles.HIT.all.did === 6, 'Tatis as a HIT pick: 6 games, 2 HR, 6/6 on the job')
-ok(tatis?.roles.HIT?.vsL.g === 1 && tatis.roles.HIT.vsL.hr === 1, 'Tatis as a HIT pick vs LHP: 1 game, 1 HR')
-ok(botBadges(tatis).map((b) => b.text).join('|') === '6/6 as a Hit pick|3 of 6 as a Hit pick', 'Tatis badges: PERFECT 6/6, DOUBLED 3 of 6')
+ok(tatis?.roles.HIT?.all.g === 3 && tatis.roles.HIT.all.hr === 1 && tatis.roles.HIT.all.did === 3, 'Tatis as a HIT pick: 3 games, 1 HR, 3/3 on the job')
+ok(tatis?.roles.HIT?.vsL.g === 0 && tatis.roles.HIT.vsR.g === 3 && tatis.roles.HIT.vsR.hr === 1, 'Tatis as a HIT pick: no locked game vs LHP, 3 games 1 HR vs RHP')
+ok(botBadges(tatis).map((b) => b.text).join('|') === '3/3 as a Hit pick', 'Tatis badges: PERFECT 3/3 (the doubled badge drops, 1 of 3)')
 const bf = botFactsFor(bot, ['624413', '806146'], '2026-10-01', '2026-09-30')
 const al = bf.find((x) => x.family === 'bot_called'), lo = bf.find((x) => x.family === 'bot_blind_spot')
-ok(al && al.called.g === 13 && al.called.hrG === 8 && al.called.hr === 10, 'Alonso called: 13 games, homered in 8 (10 HR)')
-ok(lo && lo.not.g === 16 && lo.not.hrG === 5, 'Lombard never called: 16 games, homered in 5')
+ok(al && al.called.g === 11 && al.called.hrG === 7 && al.called.hr === 9, 'Alonso called: 11 games, homered in 7 (9 HR)')
+ok(lo && lo.not.g === 12 && lo.not.hrG === 4, 'Lombard never called: 12 games, homered in 4')
 for (const x of bf) for (const d of templateDrafts(x)) { const c = checkDraft(d, x); ok(c.ok, `bot template passes: ${x.id} -- ${c.why.join('; ')} -- ${d}`) }
 console.log(`${pass}/${pass + fail} checks`)
 process.exit(fail ? 1 : 0)
