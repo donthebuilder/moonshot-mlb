@@ -32,7 +32,6 @@ import { STATUS_WORD } from '../../lib/callStatus'
 import PlayerFace from '../PlayerFace'
 import CallStatusBadge from '../CallStatusBadge'
 import PlayerNameCell, { PC_GEOM } from './PlayerNameCell'
-import { oppFromGame, oppWords } from '../../lib/nameFit'
 import { RankMoveCell } from '../RankMove'
 import InjuryChip from '../injuries/InjuryChip'
 import { ShowMoreButton } from '../ListPreview'
@@ -612,20 +611,7 @@ export function renderV2(ctx) {
                       const mk = <TeamMark sport={sportKey} abbr={String(clubV)} variant="logo" px={phone ? 14 : 16} />
                       chips.push({ key: 'club', prio: 1, phoneOnly: true, fixedW: phone ? 14 : 16, node: openClub ? <Tap onClick={openClub} title={String(clubV)}>{mk}</Tap> : mk })
                     }
-                    // the opponent: an opp / game column (a sub-only one included); "EDM@LAK" is read from his club's side
-                    const oppC = columns.find((x) => x !== nameC && !x.action && x !== posC && (x.subOnly || /^(opp|oppTxt|vs|game)$/.test(x.key)) && !isBlank(r[x.key]))
-                    if (oppC) {
-                      const fo = oppC.fmt ? oppC.fmt(r[oppC.key], r) : null
-                      const raw = String(typeof fo === 'string' ? fo : r[oppC.key])
-                      const gm = oppFromGame(raw, rowTeam)
-                      const code = gm ? gm.opp : ((/^@?\s*([A-Z]{2,4})$/.exec(raw.trim()) || [])[1] || null)
-                      const homeSide = gm ? !gm.away : /^@/.test(raw.trim()) ? false : (typeof rawRow.home === 'boolean' ? rawRow.home : undefined)
-                      const words = gm ? `${gm.away ? '@ ' : 'vs '}${gm.opp}` : oppWords(raw, homeSide)
-                      if (words) {
-                        const openOpp = oppC.link ? oppC.link(rawRow) : (onOpenTeam && code ? () => onOpenTeam(code) : null)
-                        chips.push({ key: 'opp', prio: 3, text: words, node: <span className="pc-opp">{openOpp ? <Tap onClick={openOpp} title={raw}>{words}</Tap> : words}</span> })
-                      }
-                    }
+                    // no opponent chip (Donovan, 2026-10-14: "dont even show the opp, it takes too much space" -- the matchup is on every page already)
                     // the call word: the caller's own status (callStatus), CALLED in the product's accent; a desktop table with a Status column of its own lets the column say it
                     const hasStatusCol = columns.some((x) => x._status || x.statusCol)
                     if (called) chips.push({ key: 'call', prio: 0, phoneOnly: hasStatusCol, text: 'CALLED', node: <CallStatusBadge status="called" accent={ac} variant="text" style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.06em' }} /> })
