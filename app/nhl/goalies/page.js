@@ -4,7 +4,11 @@
 // Goalies tabs (lib/nhl/readers.js).
 import StaticPage, { kicker, table, th, td, more, playerHref, teamHref, linkStyle, tapLink } from '../../../components/lamp/StaticPage'
 import LeaderList from '../../../components/lamp/LeaderList'
+import GoalieGiveUps from '../../../components/lamp/GoalieGiveUps'
 import { readLeaders, readRosters } from '../../../lib/nhl/readers'
+import { readGoalieGiveUps } from '../../../lib/nhl/goalieZones'
+import { giveUps, chooseGiveUps, GIVEUP_FLOOR } from '../../../lib/nhl/goalieGiveUps'
+import { whichSeason } from '../../../lib/nhl/whichSeason'
 import { fmtDay, fmt2, fmtPct3 } from '../../../lib/nhl/format'
 import { pageTitle } from '../../../lib/routes'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
@@ -27,6 +31,13 @@ export default async function Page() {
   const gl = leaders?.goalies || {}
   const goalies = (rosters?.players || []).filter((p) => p.group === 'goalies')
     .sort((a, b) => a.team.localeCompare(b.team) || a.name.localeCompare(b.name))
+  // WHO SCORES ON A GOALIE (2026-10-13): this season's table once enough goalies have faced enough goals, else the last full
+  // season's, named. Hidden until the SQL has run or when the read fails: never a guess in its place.
+  const who = (id) => { const g = goalies.find((x) => String(x.id) === String(id)); return g ? { name: g.name, team: g.team } : null }
+  const cur = await whichSeason().then((s) => s.current ?? s.id, () => null)
+  const curTable = cur ? giveUps(await readGoalieGiveUps(cur).catch(() => null), who) : null
+  const prevTable = cur && !(curTable?.state === 'ok' && curTable.enough >= GIVEUP_FLOOR.rows) ? giveUps(await readGoalieGiveUps(cur - 10001).catch(() => null), who) : null
+  const giveUpView = chooseGiveUps(curTable, prevTable)
   return (
     <StaticPage here="/nhl/goalies" eyebrow={`LAMP · NHL GOALIES${leaders?.seasonLabel ? ` · ${leaders.seasonLabel}` : ''}`} h1="NHL goalies"
       lede="The league’s goalie leaders — wins, save percentage, goals-against average and shutouts, regular season — and every goalie on a current roster, camp invites included."
@@ -37,6 +48,7 @@ export default async function Page() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '4px 22px' }}>
         {GOALIE.map(([k, title, fmt]) => <LeaderList key={k} title={title} rows={gl[k]} fmt={fmt} />)}
       </div>
+      <GoalieGiveUps view={giveUpView} />
       {goalies.length ? (
         <section aria-label="Every goalie on a roster">
           <h2 style={kicker}>EVERY GOALIE ON A ROSTER · {goalies.length}</h2>
