@@ -175,7 +175,7 @@ await t('the preview route is not linked from anywhere (app, components, lib, sc
       if (f === 'node_modules' || f.startsWith('.')) continue
       const p = `${dir}/${f}`
       if (statSync(p).isDirectory()) { walk(p); continue }
-      if (!/\.(js|jsx|mjs)$/.test(f) || p.includes('check-collect-card') || p.endsWith('app/api/card/collect/route.js')) continue
+      if (!/\.(js|jsx|mjs)$/.test(f) || p.includes('check-collect-card')) continue
       if (readFileSync(p, 'utf8').includes('/api/card/collect')) hits.push(p)
     }
   }
