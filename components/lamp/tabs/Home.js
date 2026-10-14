@@ -23,6 +23,7 @@ import { NHL_NAV } from '../../../lib/nhl/routes'
 import HotNumbers from '../../numerology/HotNumbers'
 import { MatchLogos } from '../../TeamMark'
 import NhlTonight from '../../tonight/NhlTonight'
+import ChampionshipFold from '../../ChampionshipFold'
 
 // 🏒 TONIGHT — LAMP's front page. Three things and no more (spec §6: the
 // home page is not a data wall): tonight's games, where the league stands,
@@ -248,6 +249,8 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
 
         </div>
       </Fold>
+      {/* STANLEY CUP ODDS (2026-10-13): MOONSHOT's October fold for the NHL (components/PennantRace.js). Not drawn until the bot has published the file. */}
+      <ChampionshipFold sport="nhl" />
       <SourceLine>Scores: NHL score/{'{date}'} via /api/lamp/scores. Standings: NHL standings/now via /api/lamp/standings.</SourceLine>
       </>}
     </div>

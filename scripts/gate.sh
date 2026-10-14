@@ -20,6 +20,7 @@ echo "gate: reports in $OUT"
 if [ -z "$BASE" ]; then
   echo "--- build";  npm run build > "$OUT/build.log" 2>&1 || { tail -30 "$OUT/build.log"; echo "GATE FAIL: build"; exit 1; }
   echo "--- routes"; node scripts/check-routes.mjs || { echo "GATE FAIL: check-routes"; exit 1; }
+  echo "--- championship odds"; node scripts/check-championship.mjs || { echo "GATE FAIL: check-championship"; exit 1; }
   echo "--- odds/numerology aliases"; node scripts/check-odds-alias.mjs || { echo "GATE FAIL: check-odds-alias"; exit 1; }
   echo "--- parity"; node scripts/check-parity.mjs > "$OUT/parity.log" 2>&1 || { grep -E "^FAIL|^parity" "$OUT/parity.log"; echo "GATE FAIL: check-parity"; exit 1; }
   echo "--- scales"; node scripts/check-scales.mjs > "$OUT/scales.log" 2>&1 || { tail -20 "$OUT/scales.log"; echo "GATE FAIL: check-scales"; exit 1; }

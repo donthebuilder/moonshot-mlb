@@ -13,6 +13,7 @@ import BucketsHeadline from '../BucketsHeadline'
 import BucketWatch from '../BucketWatch'
 import { EmptyState, DelayedBanner, Loading, Kicker, NavBtn, LastSeasonNote, fmtDay, fmtTip } from '../ui'
 import NbaTonight from '../../tonight/NbaTonight'
+import ChampionshipFold from '../../ChampionshipFold'
 
 // 🌙 TONIGHT -- the NBA night in one page, rebuilt 2026-10-03 on the shared
 // opener (Donovan: "the nba home seems to be missing a lot of components"):
@@ -93,6 +94,9 @@ export default function Home({ today, date, setTab, onOpenPlayer, onOpenGame, on
         )}
         <div style={{ marginTop: 8 }}><NavBtn onClick={() => setTab('leaders')}>Every leader →</NavBtn></div>
       </section>
+
+      {/* TITLE ODDS (2026-10-13): MOONSHOT's October fold for BUCKETS (components/PennantRace.js). Not drawn until the bot has published the file; BUCKETS itself stays hidden until BUCKETS_PUBLIC=on. */}
+      <ChampionshipFold sport="nba" />
     </div>
   )
 }
