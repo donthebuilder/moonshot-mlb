@@ -8,6 +8,7 @@ import { useLampGame } from '../../../lib/nhl/useLamp'
 import { nhlLogo, nhlTeam } from '../../../lib/nhl/teams'
 import { strengthTag } from '../ScoreTable'
 import LampTable from '../LampTable'
+import NhlH2H from '../../h2h/NhlH2H'
 import GoalieQuality from '../GoalieQuality'
 import GoalieWeakSpots from '../GoalieWeakSpots'
 import GameRink from '../GameRink'
@@ -279,6 +280,9 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
         </section>
       )}
       </>
+    ),
+    clubs: () => (
+      <NhlH2H a={g.away.abbrev} b={g.home.abbrev} open={Boolean(onOpenGame)} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} />
     ),
     series: () => (
       <>

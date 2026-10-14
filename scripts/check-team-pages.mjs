@@ -23,7 +23,7 @@ const ok = (name, fn) => { try { fn(); console.log(`ok   ${name}`) } catch (e) {
 
 // ── the registry ────────────────────────────────────────────────────────────
 ok('registry: NHL lists the eight sections, in order, first = roster', () => {
-  assert.deepEqual(sectionsOf('nhl').map((s) => s.id), ['roster', 'schedule', 'stats', 'calls', 'matchup', 'trends', 'goalies', 'special', 'cards'])
+  assert.deepEqual(sectionsOf('nhl').map((s) => s.id), ['roster', 'schedule', 'stats', 'calls', 'matchup', 'trends', 'goalies', 'special', 'h2h', 'cards'])
   assert.equal(firstSection('nhl'), 'roster')
   for (const s of sectionsOf('nhl')) { assert.ok(SECTION_IDS.includes(s.id), s.id); assert.ok(s.label && s.needs, `${s.id} needs a label and a named data source`) }
 })
@@ -124,6 +124,7 @@ ok('every NHL club builds with the real files absent: a header with name + logo,
     assert.ok(v.header.eyebrow.startsWith('LAMP · TEAM ·'), `${c}: eyebrow`)
     assert.deepEqual(v.sections.map((s) => s.id), sectionsOf('nhl').map((s) => s.id), `${c}: section order`)
     for (const s of v.sections) {
+      if (s.id === 'h2h') { assert.equal(s.state, 'ok', `${c}/h2h`); assert.equal(s.blocks[0].slot, 'h2h'); continue }   // the Head to head section is a slot (components/h2h/HeadToHead.js) that loads /api/h2h itself
       if (s.id === 'cards') { assert.equal(s.state, 'ok', `${c}/cards`); assert.equal(s.blocks[0].slot, 'teamCards'); continue }   // the Cards section is a slot (components/binder/TeamCards.js): always ok, reads /api/card/recent itself
       assert.equal(s.state, 'empty', `${c}/${s.id}`)
       assert.ok(s.empty.title && s.empty.note, `${c}/${s.id}: names what is missing`)
@@ -135,14 +136,14 @@ ok('every NHL club builds with the real files absent: a header with name + logo,
 ok('an unknown club code is a header with no name, never a crash', () => {
   const v = buildNhlTeam({ team: 'ZZZ' })
   assert.equal(v.header.known, false); assert.equal(v.header.logo, null)
-  assert.equal(v.sections.length, 9)
+  assert.equal(v.sections.length, 10)
 })
 ok('every club fills all eight sections from a TEST payload; each carries its season and sample; wording is neutral', () => {
   for (const c of CLUBS) {
     const v = buildNhlTeam({ team: c, payload: mkPayload(c), deep: mkDeep(c), board: board(c), form: null })
     for (const s of v.sections) {
       assert.equal(s.state, 'ok', `${c}/${s.id} should be ok (${s.empty?.title})`)
-      if (s.id === 'cards') continue
+      if (s.id === 'cards' || s.id === 'h2h') continue
       assert.ok(s.blocks.length > 0)
       if (s.id !== 'matchup') assert.match(s.window, new RegExp(SEASON.replace('-', '\\-')), `${c}/${s.id}: window names the season: ${s.window}`)
       if (['roster', 'schedule', 'stats', 'trends'].includes(s.id)) assert.match(s.window, /\d+ (games?|players? with a line)/, `${c}/${s.id}: window carries the sample: ${s.window}`)
@@ -346,7 +347,7 @@ if (baseIx > 0) {
       const [payload, deep] = [await get(`/api/lamp/team?team=${c}`), await get(`/api/lamp/teamdeep?team=${c}`)]
       const v = buildNhlTeam({ team: c, payload, deep, board, form })
       assert.ok(v.header.name && v.header.logo, `${c}: header`)
-      assert.equal(v.sections.length, 9)
+      assert.equal(v.sections.length, 10)
       assert.deepEqual(neutralProblems(viewStrings(v)), [], `${c}: wording`)
       okSections += v.sections.filter((s) => s.state === 'ok').length
       const empties = v.sections.filter((s) => s.state !== 'ok').map((s) => s.id)

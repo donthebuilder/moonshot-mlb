@@ -1,5 +1,6 @@
 'use client'
 import TeamCards from '../../binder/TeamCards'
+import HeadToHead from '../../h2h/HeadToHead'
 import { useMemo, useRef } from 'react'
 import TeamPage from '../../team/TeamPage'
 import LampTable from '../LampTable'
@@ -32,9 +33,10 @@ export default function Team({ abbrev, onOpenPlayer, onOpenGame, onOpenTeam = nu
   const view = useMemo(() => (club ? buildNhlTeam({ team: club.abbrev, payload: t, deep, board, form }) : null), [club, t, deep, board, form])
   // the slot components are stable (a new function each render would remount them); they read the latest handlers from a ref
   const live = useRef({})
-  live.current = { openPlayer: onOpenPlayer, openTeam }
+  live.current = { openPlayer: onOpenPlayer, openTeam, openGame: onOpenGame }
   const Slots = useMemo(() => ({
     teamCards: (p) => <TeamCards {...p} />,
+    h2h: ({ sport, team }) => <HeadToHead sport={sport} a={team} heading={false} ui={{ Table: LampTable, EmptyState: EmptyState, Kicker: Kicker }} theme={{ C, NUM_FONT, accent: C.ice }} nav={{ onOpenTeam: (a) => live.current.openTeam?.(a), onOpenGame: (id, d) => live.current.openGame?.(id, d) }} />,
     goalieReads: (p) => <TeamGoalies {...p} onOpenPlayer={live.current.openPlayer ? (id) => live.current.openPlayer(id) : null} />,
     injuries: ({ clubs }) => <InjuryOut sport="nhl" clubs={clubs} theme={{ C, NUM_FONT, accent: C.ice }} title="Out" onOpenTeam={(a) => live.current.openTeam?.(a)}
       openPlayer={(e) => (e.player_id && live.current.openPlayer ? () => live.current.openPlayer(e.player_id) : null)} />,

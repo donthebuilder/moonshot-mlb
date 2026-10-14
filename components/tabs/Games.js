@@ -11,6 +11,8 @@ import { dateText, playerId, mlbId, hrScore } from '../../lib/player'
 import { boardOrder } from '../../lib/boardOrder'
 import { hr9Color, hr9Fill, hr9Pct, hr9Title } from '../../lib/hr9'
 import { PanelTitle, Empty, btnStyle } from '../ui'
+import MlbH2H from '../h2h/MlbH2H'
+import { teamKey } from '../../lib/mlbTeams'
 import PlayerCard from '../PlayerCard'
 import { PICK_GRID_CSS } from '../card/RankCard'
 import GameStrip from '../GameStrip'
@@ -1677,6 +1679,14 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                             <>
                         <div id={`gp-h2h-${g.game_pk}`} style={{ borderTop: `1px solid ${C.border}`, marginTop: 14, paddingTop: 12 }}>
                           <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} results={results} odds={odds} onPlayerClick={onPlayerClick} section="h2h" />
+                        </div>
+                            </>
+                          ),
+                          clubs: () => (
+                            <>
+                        {/* THE CLUBS' HEAD TO HEAD (2026-10-13, lib/h2h): the two clubs' record, margin, total and meetings over three seasons; reads only when this game is open */}
+                        <div id={`gp-clubs-${g.game_pk}`} style={{ borderTop: `1px solid ${C.border}`, marginTop: 14, paddingTop: 12 }}>
+                          <MlbH2H a={teamKey(g.away)} b={teamKey(g.home)} />
                         </div>
                             </>
                           ),

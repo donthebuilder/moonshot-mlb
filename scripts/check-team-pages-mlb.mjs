@@ -21,7 +21,7 @@ import { STATUS_WORD } from '../lib/callStatus.js'
 let fail = 0
 const ok = (name, fn) => { try { fn(); console.log(`ok   ${name}`) } catch (e) { fail += 1; console.log(`FAIL ${name}: ${e.message}`) } }
 const CLUBS = Object.keys(MLB_TEAMS)
-const SECTIONS = ['roster', 'schedule', 'stats', 'splits', 'calls', 'matchup', 'cards']
+const SECTIONS = ['roster', 'schedule', 'stats', 'splits', 'calls', 'matchup', 'h2h', 'cards']
 
 ok('registry: MLB lists six sections, Hitters first, Splits one chip', () => {
   assert.deepEqual(sectionsOf('mlb').map((s) => s.id), SECTIONS)
@@ -33,7 +33,7 @@ ok('every MLB club builds with the real files absent: header name + logo, six ho
     const v = buildMlbTeam({ team: c })
     assert.ok(v.header.name && v.header.known && /^https:\/\/a\.espncdn\.com/.test(v.header.logo), `${c}: header`)
     assert.deepEqual(v.sections.map((s) => s.id), SECTIONS)
-    for (const s of v.sections) { if (s.id === 'cards') { assert.equal(s.state, 'ok'); continue } assert.equal(s.state, 'empty', `${c}/${s.id}`); assert.ok(s.empty.title && s.empty.note); assert.deepEqual(s.blocks, []) }
+    for (const s of v.sections) { if (s.id === 'cards' || s.id === 'h2h') { assert.equal(s.state, 'ok'); continue } /* slots load their own data */ assert.equal(s.state, 'empty', `${c}/${s.id}`); assert.ok(s.empty.title && s.empty.note); assert.deepEqual(s.blocks, []) }
     assert.deepEqual(neutralProblems(viewStrings(v)), [], `${c}: wording`)
   }
   assert.equal(buildMlbTeam({ team: 'ZZZ' }).header.known, false)
@@ -110,7 +110,7 @@ ok('every club fills all six sections from TEST payloads; season and sample on e
     const v = all(c)
     for (const s of v.sections) {
       assert.equal(s.state, 'ok', `${c}/${s.id}: ${s.empty?.title} ${s.empty?.note}`)
-      if (s.id === 'cards') continue
+      if (s.id === 'cards' || s.id === 'h2h') continue
       if (s.id !== 'matchup') assert.match(s.window, /2026/, `${c}/${s.id}: ${s.window}`)
       for (const b of s.blocks) if (b.type === 'table') for (const col of b.columns) assert.ok(col.group, `${c}/${s.id}/${b.id}: ${col.key} needs a group`)
     }

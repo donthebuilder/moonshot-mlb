@@ -14,6 +14,7 @@ import { FactTiles } from '../matchup/MatchupParts'
 import { GameBoard, NavBtn, AllGamesTable, spotOf, pct1, restWord } from './tabs/Board'
 import LampProjected from './LampProjected'
 import LampWeakSpots from './LampWeakSpots'
+import NhlH2H from '../h2h/NhlH2H'
 import NhlWriteupBlock from './NhlWriteupBlock'
 import InjuryOut from '../injuries/InjuryOut'
 import { useOutCounts } from '../injuries/InjuryLayer'
@@ -271,6 +272,12 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
                         onOpenTeam={onOpenTeam} />
                     )
                   })()}
+                </PanelAnchor>
+          ),
+          // THE CLUBS' HEAD TO HEAD (2026-10-13, lib/h2h): record, margin, total and meetings of the two clubs over three seasons
+          clubs: () => (
+                <PanelAnchor id="clubs" gamePk={g.game.id} style={{ marginTop: 14 }}>
+                  <NhlH2H a={away} b={home} onOpenTeam={onOpenTeam} />
                 </PanelAnchor>
           ),
         }
