@@ -20,6 +20,7 @@ import { useOutCounts } from '../injuries/InjuryLayer'
 import { nameKey } from '../../lib/injuries/lookup'
 import BoardTopBar from '../BoardTopBar'
 import { LampCards } from './LampCard'
+import { expectedClause } from '../../lib/expectedLine'
 import { STATUS_WORD } from '../../lib/callStatus'
 import { EmptyState, DelayedBanner, Loading, StaleSeasonNote, fmtPuckDrop, zoneAbbrev, shiftDay, fmtDay } from './ui'
 import TeamMark from '../TeamMark'
@@ -140,7 +141,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
       lead: <span title={g.locked ? 'The board locked before puck drop' : g.setting ? 'Setting: the calls can still change until puck drop' : 'A preview until the board locks'}>{g.locked ? '🔒' : '◻'}</span>,
       status: st === 'live' ? { kind: 'live', text: g.game.statusLine || 'LIVE' } : st === 'final' ? { kind: 'final', text: 'FINAL' } : { kind: 'time', text: timeOf(g) },
       extra: (() => {
-        const oc = outCounts([g.game.away.abbrev, g.game.home.abbrev]); const base = <span>{XG_WORDS}{oc?.out ? ` · ${oc.out} out` : ''}</span>
+        const oc = outCounts([g.game.away.abbrev, g.game.home.abbrev]); const base = <span>{expectedClause(XG_WORDS, [[g.game.away.abbrev, g.proj?.away?.goals], [g.game.home.abbrev, g.proj?.home?.goals]])}{oc?.out ? ` · ${oc.out} out` : ''}</span>
         const tr = totalRowFor(gameTotals, g.game.id)
         return tr ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>{base}<GameTotalMark row={tr} /></span> : base
       })(),

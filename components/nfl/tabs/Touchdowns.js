@@ -18,6 +18,7 @@ import { SportTheme } from '../../SportTheme'
 import ShareCardButton from '../../card/ShareCardButton'
 import { shareUrl, stamp } from '../../../lib/cards/saveCard'
 import RankCard from '../../card/RankCard'
+import { stampArg, gameDayOf } from '../../card/useStamps'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { ActiveFilters, FilterBar, FilterPill, PositionNote, PositionEmpty } from '../../Filters'
 import usePositionFilter from '../../../lib/usePositionFilter'
@@ -101,7 +102,7 @@ import { nflShareRows } from '../../../lib/nfl/usageShares'
 // addition). The score bar and anatomy sliver went: the badge carries the
 // score, the strip carries what built it.
 const nflRankId = (p) => p?.player_id
-export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, pool, watchlist, status = null, rankMove = null, two = null }) {
+export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, pool, watchlist, status = null, rankMove = null, two = null, kickoff = null, place = 0 }) {
   const [openScore, setOpenScore] = useState(false)
   const score = p.scores?.[MARKET]
   const g = gradeFor(score)
@@ -127,6 +128,7 @@ export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, poo
   return (
     <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
       <RankCard accent={C.green} status={status} rankMove={rankMove} pos={p.position || ''} rank={rank} sport="nfl" club={p.team} name={p.name} opp={p.opp} role={roleLabel(p)}
+        stampFor={stampArg('nfl', p.player_id, gameDayOf(kickoff), place)}
         face={<PlayerFace sport="nfl" espnId={p?.espn_id} team={p?.team} name={p?.name} size={84} />}
         score={Number.isFinite(score) ? Math.round(score) : '—'} scoreWord="TUDDY" rankTags={[`GRADE ${g.label}`]}
         explain="The anytime-TD score, 0–100 — a rank against the whole league, not a percentage. The boxes below are the components doing the most work in it."
@@ -368,7 +370,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
             ? <NflBoardList games={data?.games} players={capped} market={MARKET} rankOf={rankOf} rankMv={rankMv} weights={weights} odds={odds} phone={phone} onPlayerClick={openFromBoard} statusOf={statusOf} base={base} pool={rows} watchlist={watchlist} lastNight={cln} tags={drawer.tagsView} twoOf={twoOf} />
             : <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
                 {capped.map((p, i) => (
-                  <Card key={p.player_id} p={p} rank={rankOf.get(String(p.player_id)) ?? i + 1} matchup={matchup} odds={odds} status={statusOf ? statusOf(p) : null}
+                  <Card key={p.player_id} p={p} place={i} kickoff={kickoffFor(data?.games, p)} rank={rankOf.get(String(p.player_id)) ?? i + 1} matchup={matchup} odds={odds} status={statusOf ? statusOf(p) : null}
                         onPlayerClick={openFromBoard} weights={weights} base={base} pool={rows} watchlist={watchlist} rankMove={rankMv.cell(p.player_id)} two={twoOf.get(String(p.player_id))} />
                 ))}
               </div>}

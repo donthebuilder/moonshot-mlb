@@ -12,6 +12,9 @@ import Rail from './Rail'
 import { MatchLogos } from './TeamMark'
 import { localTime } from '../lib/localTime'
 import { GameTotalMark, totalRowFor, useGameTotals } from './GameTotalLine'
+import { useClubHr } from '../lib/clubHr'
+import { gameExpHr } from '../lib/teamHr'
+import { expectedClause } from '../lib/expectedLine'
 
 // Game selector strip — the PropFinder pattern.
 //
@@ -121,6 +124,7 @@ const isPast = (t) => !!t && new Date(t) < new Date(Date.now() - 3 * 60 * 60 * 1
 
 export default function GameStrip({ games, activeGame, onSelect, mode, onPairPick, pairIds, sortBy = 'time', live = null, targets = [], onTarget = null, nested = false, onPlayerClick = null }) {
   const gameTotals = useGameTotals('mlb')   // a top-3 game wears 'total #n' (components/GameTotalLine.js)
+  const clubHr = useClubHr()   // the league table the TEAM model reads (lib/teamHr.js); null until it arrives, then the cards name each club's expected HR
   // 🔗 CROSS-GAME PAIR BUILDING (2026-08-09, Donovan: "from this view I
   // should be able to visually pair a TOP pick or HR pick / alt pick from
   // each game"). The chips below become tappable legs: tap one here, tap
@@ -269,6 +273,9 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
         // always the league's numeric one — a loose match would silently
         // pair nothing on exactly the nights this is for.
         liveG: live?.get ? live.get(String(g.game_pk)) || null : null,
+        // THE EXPECTED NUMBER (BUCKETS' slate card is the template): each club's expected HR from the TEAM model (lib/teamHr.js gameExpHr), the number the Park board and
+        // the Slate total already print. Null without the league table: the card then says nothing rather than a number built on a guess.
+        exp: (() => { const e = clubHr ? gameExpHr(gp, clubHr) : null; return e && g.away && g.home ? { away: e.sides[String(g.away).toUpperCase()], home: e.sides[String(g.home).toUpperCase()] } : null })(),
       }
     })
     const slateMed = med(built.map((c) => c.gs))
@@ -301,7 +308,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
       lowk: (a, b) => a.lowK - b.lowK,
     }
     return SORTERS[sortBy] ? [...withRank].sort(SORTERS[sortBy]) : withRank
-  }, [games, sortBy, live])
+  }, [games, sortBy, live, clubHr])
 
   if (!cards.length) return null
 
@@ -450,7 +457,8 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
                 }}>{c.wx.text}</span>
               ) : null
               const tr = totalRowFor(gameTotals, c.pk)
-              return tr ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>{wx}<GameTotalMark row={tr} /></span> : wx
+              const xhr = c.exp ? <span title="Expected home runs for each club, from the team model (club HR rate x the other side's arms x park x air). A count, not a pick.">{expectedClause('expected HR', [[awayAbbr, c.exp.away], [homeAbbr, c.exp.home]])}</span> : null
+              return xhr || tr ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>{wx}{xhr}{tr ? <GameTotalMark row={tr} /> : null}</span> : wx
             })(),
             score: c.liveG ? { away: awayAbbr, home: homeAbbr, awayScore: c.liveG.awayScore, homeScore: c.liveG.homeScore, live: c.liveG.state === 'Live' } : null,
             chips: [['TOP', c.topPick, C.yellow, "MOONSHOT's TOP pick in this game"],
