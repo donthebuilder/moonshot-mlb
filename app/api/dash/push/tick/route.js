@@ -39,7 +39,7 @@ import { hasVapid, vapidDetails, vapidProblem } from '../../../../../lib/dash/va
 import { claimBoardWindow, fetchBoard } from '../../../../../lib/dash/board'
 import { byeStarterEventsFrom, franchiseEventsFrom, lineupGapEventsFrom, starterScoreEventsFrom } from '../../../../../lib/dash/franchise'
 import { cardEarnedEventsFrom, audienceFrom, boardInfoFrom, deviceWantsSport, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, followNameKey, nflFollowMisses, nhlEventsFrom, nbaEventsFrom, pregameEventsFrom, nhlPregameEventsFrom, nhlInjuryOutEventsFrom, mlbInjuryOutEventsFrom, nflPregameEventsFrom, nbaPregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
-import { nflInjuryStatusEventsFrom } from '../../../../../lib/dash/pushRules'
+import { nflInjuryStatusEventsFrom, nhlInjuryStatusEventsFrom } from '../../../../../lib/dash/pushRules'
 import { mlbRecapEventsFrom } from '../../../../../lib/dash/pushNightly'
 import { callsGradedEvents, weeklyEvents } from '../../../../../lib/dash/pushNightlyIO'
 import { applyDailyCaps, brakeConfig, pushDayStart, tallyLog } from '../../../../../lib/dash/pushBrake'
@@ -244,6 +244,8 @@ async function nhlPregameEvents(db, audience) {
   const inj = await readInjuries('nhl').catch(() => null)
   const injOuts = nhlInjuryOutEventsFrom(snap, inj, today(), audience)   // a followed skater listed OUT (lib/injuries), category 'scratched'
   const outIds = new Set(injOuts.map((e) => String(e.playerId)))          // listed Out: not counted in the puck-drop heads-up
+  const injStatus = nhlInjuryStatusEventsFrom(snap, inj, today(), audience)  // a followed skater listed day-to-day (nhlinj), the NHL twin of nflinj
+  injOuts.push(...injStatus)
   const first = [...nhlPregameEventsFrom(snap, today(), audience, Date.now(), {}, { outIds }), ...injOuts]
   // the memory of who was confirmed is read when a new starter is about to be claimed, or when a puck drop is about to be (it drops a goalie ESPN replaced)
   const needsPrior = first.some((e) => (e.category === 'starter' || e.category === 'puckdrop') && !knownClaimed.keys.has(e.key))
@@ -277,7 +279,7 @@ async function nbaPregameEvents(audience) {
 // game (NOTIF-6): inactive, or a name the follow key still can't join. Said
 // once per player per day per instance, so a Sunday is a handful of lines.
 const missLogged = new Set()
-async function nflEvents(audience) {
+async function nflEvents(audience, stateByUser) {
   const snap = await fetchNflLive({ force: true }).catch(() => null)
   for (const m of nflFollowMisses(snap, audience)) {
     const k = `${today()}|${m.key}`
@@ -285,7 +287,10 @@ async function nflEvents(audience) {
     missLogged.add(k)
     console.warn(`[push] NFL follow "${m.key}" (${m.team}) has no line in game ${m.game_id}, 4th quarter -- inactive, or a name that does not join; a TD would not alert`)
   }
-  const [board, ids] = await Promise.all([tuddyBoardFor(snap), tuddyIdsFor(snap)])
+  // nflcalled (2026-10-13): the TUDDY board is also read when somebody has "Any CALLED touchdown" on and a touchdown has been scored (still one read per ten minutes).
+  const calledTds = Object.values(stateByUser || {}).some((st) => st?.dash_alerts_v1?.events?.nflcalled === true)
+    && (snap?.lines?.values ? [...snap.lines.values()] : []).some((l) => Number(l?.receiving_tds) + Number(l?.rushing_tds) >= 1)
+  const [board, ids] = await Promise.all([tuddyBoardFor(snap, { calledTds }), tuddyIdsFor(snap)])
   return nflEventsFrom(snap, today(), audience, board, ids)
 }
 
@@ -319,8 +324,8 @@ async function tuddyIdsFor(snap, { always = false } = {}) {
 // (lib/callStatus): Map<followNameKey(name), { name, rank, of, status }>.
 // Any failure returns null, which means "no board event", never a guessed one.
 let _boardCache = { at: 0, map: null }
-async function tuddyBoardFor(snap) {
-  const hot = (snap?.games || []).some((g) => g?.state === 'in' && g?.redZone === true && g?.possession)
+async function tuddyBoardFor(snap, { calledTds = false } = {}) {
+  const hot = calledTds || (snap?.games || []).some((g) => g?.state === 'in' && g?.redZone === true && g?.possession)
   if (!hot) return null
   if (Date.now() - _boardCache.at < 10 * 60 * 1000) return _boardCache.map
   try {
@@ -789,7 +794,7 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
     ...mlbRecapEventsFrom(mlb.snap, stateByUser, wants),
     ...(full ? await safely('calls graded', () => callsGradedEvents({ db, snap: mlb.snap, stateByUser, wantsFn: wants })) : []),
     ...(full ? await safely('weekly note', () => weeklyEvents({ db, stateByUser, wantsFn: wants })) : []),
-    ...(await nflEvents(audience)),
+    ...(await nflEvents(audience, stateByUser)),
     ...nhl.events,
     ...nba.events,
     // Every sweep, not gated behind `full` -- see starterScoreEventsFrom's own

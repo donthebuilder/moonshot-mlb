@@ -10,6 +10,7 @@
 //   4  the defaults footgun (nflred / nba30) and "saved settings win" (old keys carry over, the new key beats them)
 //   5  Off, per-player mute (Pause tonight was removed 2026-10-13: a stale pausedUntil is ignored), the per-device sport filter
 //   6  the new pushes: lineups are in, puck drop, NFL injury status, calls graded, weekly: audience, dedupe key, defaults, presets, plan, catalog
+//   6g push parity outside MLB (2026-10-13): nflcalled / nflmulti / nflfinal, nhlmulti / nhlfinal / nhlinj, BUCKETS switches in the panel for a viewer who can see them
 //   7  the card on the notification, the welcome line, the panel words
 import assert from 'node:assert/strict'
 
@@ -352,8 +353,103 @@ const barEvents = (lines, games = [game(100)]) => reach(PR.mlbEventsFrom({ games
   check(NEW.every((k) => p(k) === (k === 'barcleared')), 'a new account: ONLY bar cleared of the seven is on', NEW.map((k) => `${k}:${p(k)}`).join())
   check(AL.CATEGORIES.filter((c) => c.scope === 'personal' && c.push && AL.PRESETS[0].on.includes(c.key)).every((c) => c.group !== undefined), 'every Essentials category has a group the panel can draw')
   const groups = new Set(AL.CATEGORIES.map((c) => c.group))
-  check(['All', 'Moonshot', 'Tuddy', 'Lamp', 'Cards', 'Franchise'].every((g) => groups.has(g)) && groups.size === 6, 'groups: the panel draws exactly these six', [...groups].join())
+  check(['All', 'Moonshot', 'Tuddy', 'Lamp', 'Cards', 'Franchise', 'Buckets'].every((g) => groups.has(g)) && groups.size === 7, 'groups: the panel draws exactly these seven (Buckets only for a viewer who can see BUCKETS, see 6g)', [...groups].join())
   check(['scratched', 'gameoff'].every((k) => AL.CATEGORIES.find((c) => c.key === k).group === 'All'), 'scratched and gameoff sit under ALL SPORTS (they fire for every sport)')
+}
+
+// ── 6g. PUSH PARITY OUTSIDE MLB (2026-10-13, parity audit gap 1) ─────────────────────────────────────────────────
+// NFL: nflcalled, nflmulti, nflfinal. NHL: nhlmulti, nhlfinal, nhlinj. BUCKETS: nba30 / nbacalled in the panel for a viewer who can see it. Test data only.
+{
+  const NEWP = ['nflcalled', 'nflmulti', 'nflfinal', 'nhlmulti', 'nhlfinal', 'nhlinj']
+  const BK = ['nba30', 'nbacalled']
+  const preset = (k) => AL.PRESETS.find((p) => p.key === k).on
+  check([...NEWP, ...BK].every((k) => AL.ALL_CATEGORIES.some((c) => c.key === k && c.push) && k in CP.PUSH_PLAN && CP.PUSH_PLAN[k].keep && CP.CATEGORY_COPY[k] && AL.CATEGORIES.some((c) => c.key === k)), 'each parity category has an alerts.js entry, a kept PUSH_PLAN row, panel words, and is offered')
+  check([...NEWP, ...BK].every((k) => CP.CATALOG.some((r) => r.key === k)), 'each parity category has a catalog row (so the copy lint covers it)')
+  // OFF until chosen, everywhere: the server default, the panel default, Essentials
+  const fresh = { dash_follow_v1: Object.fromEntries([['nfl:t', { sport: 'nfl', id: 't', name: 'Test Runner', team: 'TST' }], ['nhl:9', { sport: 'nhl', id: '9', name: 'Test Skater', team: 'TST' }], ['nba:7', { sport: 'nba', id: '7', name: 'Test Guard', team: 'TST' }]]) }
+  const probe = (cat, sport, extra = {}) => PR.wants(fresh, { category: cat, sport, playerName: 'Test Runner', playerId: sport === 'nhl' ? '9' : sport === 'nba' ? '7' : undefined, ...extra })
+  check(NEWP.every((k) => probe(k, k.startsWith('nfl') ? 'nfl' : 'nhl') === false) && BK.every((k) => probe(k, 'nba') === false), 'a new account hears none of them (default OFF)')
+  check([...NEWP, ...BK].every((k) => !preset('essentials').includes(k)), 'Essentials has none of them')
+  check(['nflmulti', 'nhlmulti', 'nhlinj'].every((k) => preset('closely').includes(k)) && !['nflcalled', 'nflfinal', 'nhlfinal', ...BK].some((k) => preset('closely').includes(k)), 'Following closely: the multi-TD, multi-goal and NHL injury notes; no finals, no CALLED-for-everyone, no BUCKETS')
+  check(['nflmulti', 'nflfinal', 'nhlmulti', 'nhlfinal', 'nhlinj'].every((k) => preset('everything').includes(k)) && !['nflcalled', 'nhlcalled', ...BK].some((k) => preset('everything').includes(k)), 'Everything: every personal one; never an "everyone" alert, and never BUCKETS (opening it switches nothing on)')
+  // their word wins once chosen
+  const chosen = (k, sport, extra) => PR.wants({ ...fresh, dash_alerts_v1: { events: { [k]: true } } }, { category: k, sport, playerName: 'Test Runner', ...extra })
+  check(chosen('nflmulti', 'nfl') && chosen('nflfinal', 'nfl', { playerNames: ['Test Runner'] }) && chosen('nhlinj', 'nhl', { playerId: '9' }), 'switched on, the follower hears it')
+  check(!chosen('nflmulti', 'nfl', { playerName: 'Somebody Else' }), '...and only for a name he follows')
+  check(chosen('nflcalled', 'nfl', { everyone: true, playerName: 'Somebody Else' }) && !PR.wants(fresh, { category: 'nflcalled', sport: 'nfl', everyone: true }), 'nflcalled: needs its switch, then reaches a follower for any CALLED scorer')
+
+  // ── the cap and the lanes ──
+  const prio = { nhlinj: 1, nflfinal: 3, nhlfinal: 3, nflmulti: 2, nhlmulti: 2 }
+  check(!Object.keys(prio).some((k) => BR.isUrgentClass({ category: k, priority: prio[k] })), 'the personal parity notes are NOT urgent: each counts against the daily soft cap')
+  check(BR.isUrgentClass({ category: 'nflcalled', priority: 4 }) && BR.isUrgentClass({ category: 'nhlcalled', priority: 4 }), 'nflcalled rides the urgent class like nhlcalled (a CALLED touchdown), and is off by default')
+  const mkE = (category, i) => ({ category, key: `k${i}`, priority: prio[category] })
+  const capped = BR.applyDailyCaps(['nflmulti', 'nhlmulti', 'nflfinal', 'nhlfinal', 'nflmulti', 'nhlmulti', 'nflfinal', 'nhlfinal', 'nflmulti', 'nhlmulti'].map(mkE), { soft: 0, urgent: 0 }, BR.brakeConfig({}))
+  check(capped.send.length === 8 && capped.held.length === 2, 'ten of them in a day: 8 sent, 2 held by the soft cap')
+  check(Object.keys(prio).every((k) => PR.laneOf({ category: k, priority: prio[k] }) === 'urgent'), 'once-per-game notes ride the lane that is never dropped (the cap is their brake)')
+
+  // ── NFL: a multi-TD game, and any CALLED touchdown ──
+  const aNfl = { nfl: new Set([PR.followNameKey('Test Runner'), PR.followNameKey('Test Passer')]), teamOf: new Map([[PR.followNameKey('Test Runner'), 'TST'], [PR.followNameKey('Test Passer'), 'TST']]) }
+  const gNfl = { game_id: 'G1', state: 'in', period: 3, home: 'EXA', away: 'TST', home_score: 14, away_score: 17, kickoff: '2026-10-11T17:00:00Z' }
+  const lineBy = (over) => ({ game_id: 'G1', name: 'Test Runner', team: 'TST', ...over })
+  const snapNfl = (...ls) => ({ games: [gNfl], lines: new Map(ls.map((l, i) => [`l${i}`, l])) })
+  const cat = (evs, c) => evs.filter((e) => e.category === c)
+  const one = cat(PR.nflEventsFrom(snapNfl(lineBy({ rushing_tds: 1, receiving_tds: 1 })), '2026-10-11', aNfl), 'nflmulti')
+  check(one.length === 1 && one[0].priority === 2 && /Test Runner has 2 TDs/.test(one[0].title) && /^2 TDs · Q3/.test(one[0].body), 'two scoring touchdowns: one nflmulti note', `${one[0]?.title} | ${one[0]?.body}`)
+  const three = cat(PR.nflEventsFrom(snapNfl(lineBy({ rushing_tds: 2, receiving_tds: 1 })), '2026-10-11', aNfl), 'nflmulti')
+  check(three.length === 1 && three[0].key === one[0].key, 'a third touchdown is the SAME key (claimed once in dash_push_seen: no second note)')
+  check(cat(PR.nflEventsFrom(snapNfl(lineBy({ rushing_tds: 1 })), '2026-10-11', aNfl), 'nflmulti').length === 0, 'one touchdown: no multi note')
+  const qb = cat(PR.nflEventsFrom(snapNfl(lineBy({ name: 'Test Passer', passing_tds: 3 })), '2026-10-11', aNfl), 'nflmulti')
+  check(qb.length === 1 && /3 TD passes/.test(qb[0].body) && cat(PR.nflEventsFrom(snapNfl(lineBy({ name: 'Test Passer', passing_tds: 2 })), '2026-10-11', aNfl), 'nflmulti').length === 0, 'a quarterback: three thrown, not two')
+  check(cat(PR.nflEventsFrom(snapNfl(lineBy({ name: 'Nobody Followed', rushing_tds: 2 })), '2026-10-11', aNfl), 'nflmulti').length === 0, 'a man nobody follows: no multi note')
+  const boardC = new Map([[PR.followNameKey('Other Man'), { status: 'called', rank: 2 }], [PR.followNameKey('Board Man'), { status: 'board', rank: 8 }]])
+  const calledEv = cat(PR.nflEventsFrom(snapNfl(lineBy({ name: 'Other Man', rushing_tds: 1 }), lineBy({ name: 'Board Man', rushing_tds: 1 })), '2026-10-11', aNfl, boardC), 'nflcalled')
+  check(calledEv.length === 1 && calledEv[0].everyone === true && calledEv[0].priority === 4 && /^CALLED/.test(calledEv[0].body) && /:called$/.test(calledEv[0].key), 'nflcalled: only the CALLED scorer, "everyone", its own :called key, the word CALLED', calledEv.map((e) => e.body).join('|'))
+  check(cat(PR.nflEventsFrom(snapNfl(lineBy({ name: 'Other Man', rushing_tds: 1 })), '2026-10-11', aNfl, null), 'nflcalled').length === 0 && cat(PR.nflEventsFrom(snapNfl(lineBy({ name: 'Other Man', rushing_tds: 0 })), '2026-10-11', aNfl, boardC), 'nflcalled').length === 0, 'no board, or no touchdown: no nflcalled (never a guess)')
+  const followedCalled = PR.nflEventsFrom(snapNfl(lineBy({ name: 'Test Runner', rushing_tds: 1 })), '2026-10-11', aNfl, new Map([[PR.followNameKey('Test Runner'), { status: 'called', rank: 1 }]]))
+  check(cat(followedCalled, 'nfltd').length === 1 && cat(followedCalled, 'nflcalled').length === 1 && cat(followedCalled, 'nfltd')[0].key !== cat(followedCalled, 'nflcalled')[0].key, 'a followed CALLED scorer: his own nfltd (P0) and the nflcalled stay two different keys')
+
+  // ── NFL: the final score ──
+  const NOWF = Date.parse('2026-10-11T21:30:00Z')
+  const snapF = (g) => ({ ok: true, asOf: NOWF, games: [{ game_id: 'G1', away: 'TST', home: 'EXA', kickoff: '2026-10-11T17:00:00Z', plannedKickoff: '2026-10-11T17:00:00Z', state: 'post', away_score: 17, home_score: 20, ...g }], outs: [] })
+  const fin = cat(PR.nflPregameEventsFrom(snapF(), '2026-10-11', aNfl, NOWF), 'nflfinal')
+  check(fin.length === 1 && fin[0].priority === 3 && fin[0].title === '\u{1F3C1} EXA 20, TST 17 F' && fin[0].body === '2 of your players' && fin[0].key === 'nfl:2026-10-11:G1:final', 'nflfinal: score leader first, one note, a stable claim key', `${fin[0]?.title} | ${fin[0]?.body}`)
+  check(cat(PR.nflPregameEventsFrom(snapF({ kickoff: '2026-10-08T17:00:00Z' }), '2026-10-11', aNfl, NOWF), 'nflfinal').length === 0, 'a final from days ago is not news (no backfill on deploy)')
+  check(cat(PR.nflPregameEventsFrom(snapF({ state: 'in' }), '2026-10-11', aNfl, NOWF), 'nflfinal').length === 0 && cat(PR.nflPregameEventsFrom(snapF({ home_score: null }), '2026-10-11', aNfl, NOWF), 'nflfinal').length === 0, 'a game still on, or with no score: nothing')
+  check(cat(PR.nflPregameEventsFrom(snapF({ status_name: 'STATUS_POSTPONED', away_score: 0, home_score: 0 }), '2026-10-11', aNfl, NOWF), 'nflfinal').length === 0 && cat(PR.nflPregameEventsFrom(snapF({ status_name: 'STATUS_POSTPONED' }), '2026-10-11', aNfl, NOWF), 'gameoff').length === 1, 'a postponed game (ESPN files it as post) is the game-off push, never a final')
+  check(cat(PR.nflPregameEventsFrom(snapF({ away: 'AAA', home: 'BBB' }), '2026-10-11', aNfl, NOWF), 'nflfinal').length === 0, 'a game with nobody you follow: nothing')
+
+  // ── NHL: a second goal, the final, day-to-day ──
+  const goalRow = (n, over = {}) => ({ game_id: 7, player_id: '9', name: 'Test Skater', day: '2026-10-11', goal_n: n, status: 'off', confirmed_at: 't', overturned_at: null, push_sent: false, game_type: 2, period: 2, period_type: 'REG', strength: 'ev', score_after: 'TST 3 · EXA 2', ...over })
+  const audN = { nhl: new Set(['9']), nameOf: new Map([['9', 'Test Skater']]), teamOfId: new Map([['nhl:9', 'TST']]) }
+  const multi = (rows, a = audN) => PR.nhlEventsFrom(rows, a, rows).filter((e) => e.category === 'nhlmulti')
+  const m2 = multi([goalRow(1), goalRow(2)])
+  check(m2.length === 1 && m2[0].priority === 2 && m2[0].title === '\u{1F6A8} Test Skater has 2 goals' && m2[0].body === 'P2 · TST 3, EXA 2', 'nhlmulti: his second goal, one note, with the period and the score', `${m2[0]?.title} | ${m2[0]?.body}`)
+  const m3 = multi([goalRow(2), goalRow(3)])
+  check(m3.length === 1 && m3[0].key === m2[0].key, 'his 2nd and 3rd arriving in one sweep: still ONE nhlmulti, the same key as before')
+  check(multi([goalRow(1)]).length === 0 && multi([goalRow(2, { player_id: '55' })]).length === 0 && multi([goalRow(2, { overturned_at: 't' })]).length === 0 && multi([goalRow(2, { game_type: 1 })]).length === 0, 'one goal, an unfollowed man, an overturned goal, preseason: no multi note')
+  const gNhl = (over = {}) => ({ id: 7, gameType: 2, date: '2026-10-11', startUtc: '2026-10-11T23:00:00Z', state: 'final', rawState: 'OFF', scheduleState: 'OK', away: { abbrev: 'TST', score: 3 }, home: { abbrev: 'EXA', score: 2 }, outcome: 'REG', ...over })
+  const NOWN = Date.parse('2026-10-12T02:10:00Z')
+  const snapN = (g) => ({ ok: true, asOf: NOWN, games: [g], starters: {} })
+  const nf = cat(PR.nhlPregameEventsFrom(snapN(gNhl()), '2026-10-11', audN, NOWN), 'nhlfinal')
+  check(nf.length === 1 && nf[0].title === '\u{1F3C1} TST 3, EXA 2 F' && nf[0].key === 'nhl:2026-10-11:7:final' && nf[0].priority === 3, 'nhlfinal: the score, leader first, one note', `${nf[0]?.title}`)
+  const nfot = cat(PR.nhlPregameEventsFrom(snapN(gNhl({ outcome: 'OT', away: { abbrev: 'TST', score: 3 }, home: { abbrev: 'EXA', score: 4 } })), '2026-10-11', audN, NOWN), 'nhlfinal')
+  check(nfot[0]?.title === '\u{1F3C1} EXA 4, TST 3 F/OT', 'an overtime finish says so: F/OT', nfot[0]?.title)
+  check(cat(PR.nhlPregameEventsFrom(snapN(gNhl({ startUtc: '2026-10-08T23:00:00Z' })), '2026-10-11', audN, NOWN), 'nhlfinal').length === 0 && cat(PR.nhlPregameEventsFrom(snapN(gNhl({ state: 'live', rawState: 'LIVE' })), '2026-10-11', audN, NOWN), 'nhlfinal').length === 0 && cat(PR.nhlPregameEventsFrom(snapN(gNhl({ gameType: 1 })), '2026-10-11', audN, NOWN), 'nhlfinal').length === 0, 'an old final, a game still on, a preseason final: nothing')
+  const inj = (status, over = {}) => ({ ok: true, asOf: NOWN, entries: [{ sport: 'nhl', team: 'TST', player_id: '9', name: 'Test Skater', status, updatedAt: '2026-10-11T20:00:00Z', ...over }] })
+  const gPre = gNhl({ state: 'pre', rawState: 'FUT', startUtc: '2026-10-12T23:00:00Z', away: { abbrev: 'TST' }, home: { abbrev: 'EXA' } })
+  const ij = PR.nhlInjuryStatusEventsFrom(snapN(gPre), inj('DAY_TO_DAY'), '2026-10-12', audN, NOWN)
+  check(ij.length === 1 && ij[0].category === 'nhlinj' && ij[0].priority === 1 && /is day-to-day$/.test(ij[0].title) && /:inj:DAY_TO_DAY$/.test(ij[0].key), 'nhlinj: a followed skater listed day-to-day, one note keyed by the word', `${ij[0]?.title}`)
+  check(PR.nhlInjuryStatusEventsFrom(snapN(gPre), inj('OUT'), '2026-10-12', audN, NOWN).length === 0 && PR.nhlInjuryStatusEventsFrom(snapN(gPre), inj('DAY_TO_DAY', { updatedAt: '2026-10-01T00:00:00Z' }), '2026-10-12', audN, NOWN).length === 0 && PR.nhlInjuryStatusEventsFrom(snapN(gPre), { ...inj('DAY_TO_DAY'), stale: true }, '2026-10-12', audN, NOWN).length === 0, 'Out is the scratch push (not this one); an old line and a stale snapshot make nothing')
+
+  // ── BUCKETS in the panel: only for a viewer who can see it ──
+  const fs = await import('node:fs')
+  const panel = fs.readFileSync(new URL('../components/AlertsPanel.js', import.meta.url), 'utf8')
+  check(/useCanSee\('nba'\)/.test(panel) && /const cats = CATEGORIES\.filter\(\(c\) => nbaOpen \|\| c\.sport !== 'nba'\)/.test(panel) && /if \(!mine\.length\) return null/.test(panel), 'the panel hides the BUCKETS group and its switches unless BUCKETS is open to the viewer')
+  check(!/CATEGORIES\.filter/.test(panel.replace(/const cats = CATEGORIES\.filter[^\n]*/, '')), 'every panel list goes through the filtered `cats`, never CATEGORIES directly')
+  check(AL.CATEGORIES.filter((c) => c.group === 'Buckets').every((c) => c.sport === 'nba') && AL.CATEGORIES.filter((c) => c.sport === 'nba').length === 2, 'the only basketball switches are nba30 and nbacalled, both in the Buckets group')
+  check(PR.wants({ ...fresh, dash_alerts_v1: { events: { nba30: true } } }, { category: 'nba30', sport: 'nba', playerId: '7' }) && !PR.wants({ ...fresh, dash_alerts_v1: { events: { nbacalled: false } } }, { category: 'nbacalled', sport: 'nba', everyone: true }), 'nba30 reaches a follower who switched it on; nbacalled stays off until chosen')
+  const tick = fs.readFileSync(new URL('../app/api/dash/push/tick/route.js', import.meta.url), 'utf8')
+  check(/if \(!bucketsPublic\(\)\) return \{ events: \[\], unswept: \[\] \}/.test(tick) && /if \(!bucketsPublic\(\) \|\| !audience\?\.nba\?\.size\) return \[\]/.test(tick), 'the sender still produces no BUCKETS event until BUCKETS is public')
 }
 
 // ── 7. WORDS: the welcome line, the panel, homer parity, the card ────────────
