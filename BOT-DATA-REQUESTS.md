@@ -995,3 +995,30 @@ actually called** — so whether the import succeeds or falls back to its stub
 changes nothing. Real pair history is built entirely separately by
 `pair_history_cache.py`. Safe to ignore or delete the dead import whenever
 someone wants to.
+
+---
+
+## TUDDY load speed: split `nfl_matchup.json` per tab (asked 2026-10-13)
+
+**Why.** `nfl_matchup.json` is read on nearly every TUDDY tab (about 890 KB decoded, ~100 KB on the wire), and a cold visit to
+`/app#sport=nfl` pays for all of it. Four keys are about 75% of the file:
+
+| key | decoded size |
+|---|---|
+| `field` | ~276 KB |
+| `dvp` | ~246 KB |
+| `route_value` | ~101 KB |
+| `snaps` | ~70 KB |
+
+The rest (roles, coverage_*, red_zone, tendencies, pass_game, qb_pressure, def/player_explosive, the label keys) is about
+120 KB. Sizes measured on the published file, 2026-10-13.
+
+**Ask (bot repo, `bots/nfl/`).** Keep `nfl_matchup.json` exactly as it is today until the site has moved over (no breaking
+change), and additionally publish `nfl_matchup_field.json`, `nfl_matchup_dvp.json`, `nfl_matchup_route_value.json` and
+`nfl_matchup_snaps.json` (same content, one key each; repeat `season`, `chart_season`, `block_seasons`, `alt_season` in each so
+a file stands alone), and the same four under the `nfl_next_` prefix for next week. Add the names to publish_data.sh's
+PUBLISH_FILES like the other nfl_ files. Once they are live the site reads the slim `nfl_matchup.json` everywhere and each big
+key from its own file in the tab that draws it (a site batch, per tab), and only then can the bot drop those four keys from
+`nfl_matchup.json`.
+
+**Not asked:** `nfl_logs.json` `splits` stays whole (Donovan, 2026-10-13: do not split it).

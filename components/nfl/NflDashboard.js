@@ -170,9 +170,14 @@ export default function NflDashboard({ palettePass = 0 }) {
   const [oddsRaw, setOddsRaw] = useState(null)
   const odds = liveOdds(oddsRaw)
   const [oddsStatus, setOddsStatus] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [coreLoading, setLoading] = useState(true)
+  // LOGS FILL IN AFTER (2026-10-13, TUDDY speed): nfl_logs.json is the heaviest read (1.35 MB) and only Home's header tile and
+  // headline cards touch it there, both already blank ('—' / no card) while it is null. So Home paints when the other five
+  // reads land; every other tab still waits for logs, as before.
+  const [logsPending, setLogsPending] = useState(true)
   const [modal, setModal] = useState(null)      // { player, market }
   const [refreshKey, setRefreshKey] = useState(0)
+  const loading = coreLoading || (logsPending && tab !== 'home')
   // THIS WEEK / NEXT WEEK (2026-09-18) -- MOONSHOT's own today/tomorrow state,
   // worded for football. 'next' swaps the four week-scoped payloads for the
   // bot's look-ahead build (lib/nfl/dataSource.js); the graded record, the
@@ -341,12 +346,12 @@ export default function NflDashboard({ palettePass = 0 }) {
 
   useEffect(() => {
     let alive = true
-    if (refreshKey === 0) setLoading(true)
+    if (refreshKey === 0) { setLoading(true); setLogsPending(true) }
+    fetchNfl(nflLogPaths(weekMode)).then((j) => { if (alive) setLogs(j) }).catch(() => {}).finally(() => { if (alive) setLogsPending(false) })
     Promise.allSettled([
       fetchNfl(nflSlatePaths(weekMode), nflSlateLooksReal).then((j) => { if (alive) setData(j) }),
       fetchNfl(nflMetaPaths()).then((j) => { if (alive) setMeta(j) }),
       fetchNfl(nflMatchupPaths(weekMode), nflMatchupLooksReal).then((j) => { if (alive) setMatchup(j) }),
-      fetchNfl(nflLogPaths(weekMode)).then((j) => { if (alive) setLogs(j) }),
       fetchNfl(nflPicksPaths(weekMode), nflPicksLooksReal).then((j) => { if (alive) setPicks(j) }),
       // No validator: an absent results file is the normal state before
       // kickoff, and there is no committed snapshot to lose a race against.

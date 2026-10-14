@@ -10,7 +10,7 @@ import PlayerFace from '../../PlayerFace'
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
 import NflYourPlayers from '../NflYourPlayers'
-import { useResultsArchive, seasonTotals, grandTotal } from '../../../lib/nfl/resultsArchive'
+import { useResultsDigest, seasonTotals, grandTotal } from '../../../lib/nfl/resultsArchive'
 import { ledgerTotals } from '../../../lib/nfl/myPicks'
 import TeamMark from '../../TeamMark'  // the shared club mark (R1: was FRANCHISE's roster badge)
 import TeamPower from '../TeamPower'
@@ -271,7 +271,7 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
   // "graded x% over N nights"; TUDDY's had a player-pool count in that slot,
   // which nobody bets on. Season to date from the harvested weekly files,
   // and your own week against the bot from the device-local ledger.
-  const { archive, keys } = useResultsArchive(results, data?.season)
+  const { archive, keys } = useResultsDigest(results, data?.season)
   const record = grandTotal(seasonTotals(keys.map((k) => archive[k])))
   // THE RECORD, SAID PLAINLY (2026-09-29, queue batch 7): the big number is
   // every market's rungs blended, each graded against its OWN bar -- so the
