@@ -25,6 +25,10 @@ import { bucketsPublic } from '../../lib/nba/gate'
 import { autopostState, FACTS_CONFIG } from '../../lib/facts/engine'
 import { AutopostSwitch, DeleteFactPost } from '../../components/admin/FactsControls'
 import { readShadows, readVsBook, readValueNhl, readValueNfl, readValueMlb } from '../../lib/shadowRecord'
+import { readClv } from '../../lib/odds/clvRead'
+import { CLV_MIN_N } from '../../lib/odds/clv'
+import { MY_BOOK } from '../../lib/odds/myBook'
+import { bookName } from '../../lib/odds/shop'
 import { VERSIONS as NHL_VERSIONS } from '../../lib/nhl/versions'
 import { getFromX } from '../../lib/dash/xPost'
 import { writeupsAutopost } from '../../lib/writeups/post'
@@ -142,6 +146,13 @@ const cachedValue = unstable_cache(async () => {
   return { ...v, live: lean(v.live), goalpos: lean(v.goalpos), nfl: f.error ? { error: f.error } : lean(f.live), mlb: m.error ? { error: m.error } : lean(m.live) }
 }, ['admin-value-v3'], { revalidate: 600 })
 
+// CLOSING LINE VALUE at my book (lib/odds/clv.js): prices only, nothing graded on results
+const cachedClv = unstable_cache(async () => {
+  const db = service(); if (!db) return null
+  const [mlb, nfl, nhl] = await Promise.all(['mlb', 'nfl', 'nhl'].map((s) => readClv(db, { sport: s }).catch((e) => ({ error: e?.message }))))
+  return { mlb, nfl, nhl }
+}, ['admin-clv-v1'], { revalidate: 600 })
+
 function Line({ k, v, src }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '2px 12px', padding: '10px 0', borderTop: '1px solid var(--line)' }}>
@@ -175,6 +186,7 @@ export default async function AdminPage() {
   const shadows = await cachedShadows().catch((e) => [{ key: 'x', label: 'Shadow models', error: e?.message }])
   const vsBook = await cachedVsBook().catch((e) => ({ error: e?.message }))
   const value = await cachedValue().catch((e) => ({ error: e?.message }))
+  const clv = await cachedClv().catch((e) => ({ error: e?.message }))
   const pct = (l) => (l?.n ? `${l.pct}% ±${l.pm} (${l.hit}/${l.n})` : 'no graded calls yet')
   const today = easternToday()
   // THE GAME WRITE-UPS (lib/writeups): the switch, the last few days' posts, the tier, the backtest
@@ -344,6 +356,16 @@ export default async function AdminPage() {
           return <div key={k}>
             <Line k={`${sport} · value call · ${label}`} v={edge(t.value)} src={`${value.version}: per game, the board/called player the model ranks ${value.rule.minGap}+ above the book's lock price (${value.rule.minPriced}+ priced) · ${t.value.n ? `${t.value.hit}/${t.value.n} ±${t.value.pm}${t.dCalls != null ? `, ${t.dCalls} of ${t.withCall} calls defencemen` : ''}, ` : ''}${t.games} priced games · hit rate vs the median book's implied chance (vig in) · flat 1u ROI at the median book${t.value.n ? ` (best book ${t.value.roiBest > 0 ? '+' : ''}${t.value.roiBest}%)` : ''}`} />
             <Line k="  … its CALLED picks, same games" v={edge(t.called)} src={`the chalk the value call is meant to fix${t.called.n ? ` · ${t.called.hit}/${t.called.n} ±${t.called.pm}` : ''}`} />
+          </div>
+        }) : null}
+        {clv?.error ? <Line k="CLV" v="—" src={`unavailable: ${clv.error}`} /> : clv ? [['mlb', 'MOONSHOT HR'], ['nfl', 'TUDDY TD'], ['nhl', 'LAMP goal']].map(([k, sport]) => {
+          const t = clv[k]
+          if (t?.error) return <Line key={k} k={`${sport} · CLV · ${bookName(MY_BOOK)}`} v="—" src={`unavailable: ${t.error}`} />
+          const f = (s) => (s.n ? (s.shown ? `${s.mean > 0 ? '+' : ''}${s.mean} pp` : `n=${s.n}, needs ${CLV_MIN_N}`) : 'no pairs yet')
+          return <div key={k}>
+            <Line k={`${sport} · CLV · ${bookName(MY_BOOK)} lock → close`} v={f(t.lock.vsBook)} src={`break-even points the book's own price moved after the lock read (+ = it shortened, you beat the close) · ${t.lock.vsBook.n} bets${t.lock.vsBook.shown ? ` ±${t.lock.vsBook.se} · ${t.lock.vsBook.beat}% shortened` : ''} · prices only, says nothing about results`} />
+            <Line k="  … against the market's closing fair price" v={f(t.lock.vsFair)} src={`the lock price vs the whole market's no-vig close · ${t.lock.vsFair.n} bets${t.lock.vsFair.shown ? ` ±${t.lock.vsFair.se} · ${t.lock.vsFair.beat}% beat it` : ''}`} />
+            <Line k="  … morning read → close" v={f(t.list.vsBook)} src={`the day's first price vs the close · ${t.list.vsBook.n} bets${t.list.vsBook.shown ? ` ±${t.list.vsBook.se}` : ''}`} />
           </div>
         }) : null}
         <Line k="MLB · HR pick shadow (M0)" v="bot repo" src="python3 bots/eval_shadow_picks.py --fetch (hr_pick_top_score #1 vs the real HR pick, from por_rows)" />
