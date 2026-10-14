@@ -28,13 +28,13 @@ const c = await collectModel('nhl_hat_trick', hat, { test: true })
 await t('the frame is exactly 2.5 : 3.5 (1000 x 1400), unlike the special card\'s 4:5', () => {
   assert.equal(W / H, 2.5 / 3.5); assert.equal(RATIO, 5 / 7); assert.notEqual(W / H, 1080 / 1350)
 })
-await t('finish density: BASE 0, STAR 2, ELITE <= 9, LEGEND <= 10, and each tier has more than the one below', () => {
+await t('finish density: BASE 0, STAR 3 (frame, one sheen, badge), ELITE <= 12, LEGEND <= 12, and each tier has more than the one below', () => {
   for (const tier of TIERS) assert.ok(collectLayers(tier).length <= MAX_DENSITY[tier], tier)
-  assert.equal(collectLayers('base').length, 0); assert.equal(collectLayers('star').length, 2)
+  assert.equal(collectLayers('base').length, 0); assert.equal(collectLayers('star').length, 3)
   assert.ok(collectLayers('elite').length > collectLayers('star').length && collectLayers('legend').length > collectLayers('star').length)
   assert.ok(collectLayers('legend').includes('corner-ornaments') && !collectLayers('elite').includes('corner-ornaments'))
-  assert.equal(collectLayers('star').filter((l) => /strip|ring/.test(l)).length, 1, 'STAR: ONE foil strip')
-  assert.equal(collectLayers('star').filter((l) => /sheen/.test(l)).length, 1, 'STAR: ONE sheen band')
+  assert.equal(collectLayers('star').filter((l) => /frame/.test(l)).length, 1, 'STAR: ONE foil frame')
+  assert.equal(collectLayers('star').filter((l) => /sheen/.test(l)).length, 1, 'STAR: ONE sheen band'); assert.ok(collectLayers('star').includes('badge') && collectLayers('elite').includes('badge') && collectLayers('legend').includes('badge') && !collectLayers('base').includes('badge'))
 })
 await t('the border geometry is in the table for every tier (inset and radius), LEGEND the widest', () => {
   for (const tier of TIERS) assert.ok(LOOK[tier].inset >= 28 && LOOK[tier].radius >= 30)
