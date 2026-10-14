@@ -26,7 +26,8 @@ import { C as MLB_C, NUM_FONT as MLB_NUM } from '../../lib/theme'
 import { oddsAdapter } from '../../lib/odds/adapters'
 import { nameOf, teamOf, oppOf, n, clean } from '../../lib/player'
 import { fmtOdds, impliedPct } from '../../lib/odds'
-import { shortBook, bookSpread } from '../../lib/odds/shop'
+import { shortBook, bookSpread, bookName } from '../../lib/odds/shop'
+import { myBookGap, MY_BOOK, GAP_PP } from '../../lib/odds/myBook'
 import { SPORT_ACCENT } from '../../lib/sportAccent'
 import DenseTable from '../DenseTable'
 import { btnStyle } from '../ui'
@@ -46,6 +47,7 @@ export function shopRows(players, odds, A = oddsAdapter('mlb')) {
       const q = quotes[mk]
       if (!q) return
       const sp = bookSpread(q)
+      const mb = myBookGap(q)   // my book against the field, same line (lib/odds/myBook.js)
       const books = sp.books
       if (books.length) hasByBook = true
       const line = n(q.line, NaN)
@@ -76,6 +78,7 @@ export function shopRows(players, odds, A = oddsAdapter('mlb')) {
         lineChanged: Boolean(q.movement?.line_changed),
         openOver: q.movement?.opening_over != null && Number.isFinite(Number(q.movement.opening_over)) ? Number(q.movement.opening_over) : null,
         fairOver: Number.isFinite(Number(q.fair_over)) && Number(q.fair_over) !== 0 ? Number(q.fair_over) : null,
+        mineOver: mb ? mb.mine : null, mineGap: mb ? mb.gap : null, mineVerdict: mb ? mb.verdict : null, mineLineOff: mb ? mb.lineOff : false, mineField: mb ? mb.field : null, mineN: mb ? mb.fieldN : 0,
         hold, rate, edge, edgeWorst, cost: edge != null && edgeWorst != null ? Math.round(10 * (edge - edgeWorst)) / 10 : null, frozen: Boolean(q.frozen),
       })
     })
@@ -89,7 +92,7 @@ export default function OddsDiscrepancies({ players = [], odds = null, onPlayerC
   const NUM_FONT = numFont || MLB_NUM
   const MARKETS = A.markets.map((m) => [m.key, m.label, m.std])
   const [market, setMarket] = useState('all')
-  const [only, setOnly] = useState('any')   // any | price | line | plus
+  const [only, setOnly] = useState('any')   // any | price | line | plus | mine | minebad
   const [minSpread, setMinSpread] = useState(0)
   const { rows, hasByBook } = useMemo(() => shopRows(players, odds, A), [players, odds, A])
   const bookCols = useMemo(() => {
@@ -102,6 +105,8 @@ export default function OddsDiscrepancies({ players = [], odds = null, onPlayerC
     if (only === 'price') r = r.filter((x) => x.spread != null && x.spread > 0)
     if (only === 'line') r = r.filter((x) => x.split)
     if (only === 'plus') r = r.filter((x) => x.best != null && x.best > 0)
+    if (only === 'mine') r = r.filter((x) => x.mineGap != null && x.mineGap >= GAP_PP)
+    if (only === 'minebad') r = r.filter((x) => x.mineGap != null && x.mineGap <= -GAP_PP)
     if (minSpread > 0) r = r.filter((x) => (x.spread ?? 0) >= minSpread)
     return r
   }, [rows, market, only, minSpread])
@@ -110,9 +115,13 @@ export default function OddsDiscrepancies({ players = [], odds = null, onPlayerC
     price: rows.filter((x) => x.spread > 0).length,
     line: rows.filter((x) => x.split).length,
     widest: [...rows].sort((a, b) => (b.spread ?? -1) - (a.spread ?? -1))[0] || null,
+    mineBetter: rows.filter((x) => x.mineGap != null && x.mineGap >= GAP_PP).length,
+    mineWorse: rows.filter((x) => x.mineGap != null && x.mineGap <= -GAP_PP).length,
+    hasMine: rows.some((x) => x.mineOver != null),
     moved: rows.filter((x) => x.lineChanged || (x.moveOpen != null && Math.abs(x.moveOpen) >= 1.5)).length,
   }), [rows])
   const ACCENT = SPORT_ACCENT[A.sport] || C.orange
+  const MINE = shortBook(MY_BOOK), MINE_NAME = bookName(MY_BOOK)
 
   const chip = (on) => ({ ...btnStyle(C.orange, on), padding: '6px 12px', fontSize: 12 })
 
@@ -144,6 +153,11 @@ export default function OddsDiscrepancies({ players = [], odds = null, onPlayerC
         <button onClick={() => setOnly(only === 'price' ? 'any' : 'price')} style={chip(only === 'price')} title="Same line, different price at two books">Price gaps</button>
         <button onClick={() => setOnly(only === 'line' ? 'any' : 'line')} style={chip(only === 'line')} title="The books are on different bars">Line splits</button>
         <button onClick={() => setOnly(only === 'plus' ? 'any' : 'plus')} style={chip(only === 'plus')} title="Best available price is plus money">Plus money</button>
+        {counts.hasMine && <>
+          <span style={{ width: 6 }} />
+          <button onClick={() => setOnly(only === 'mine' ? 'any' : 'mine')} style={chip(only === 'mine')} title={`${MINE_NAME} pays ${GAP_PP}+ break-even points more than the other books, same line`}>{MINE} pays more ({counts.mineBetter})</button>
+          <button onClick={() => setOnly(only === 'minebad' ? 'any' : 'minebad')} style={chip(only === 'minebad')} title={`${MINE_NAME} pays ${GAP_PP}+ points less than the other books, same line`}>{MINE} pays less ({counts.mineWorse})</button>
+        </>}
         <span style={{ width: 6 }} />
         <span style={{ fontSize: 8, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>Min spread</span>
         {[0, 1, 2, 4].map((v) => <button key={v} onClick={() => setMinSpread(v)} style={chip(minSpread === v)}>{v ? `${v}pp` : 'any'}</button>)}
@@ -178,6 +192,21 @@ export default function OddsDiscrepancies({ players = [], odds = null, onPlayerC
                 )
               },
             })),
+            ...(counts.hasMine ? [
+              { key: 'mineGap', label: `${MINE} vs FIELD`, w: 74, dp: 1, group: 'My book',
+                title: `${MINE_NAME}'s price against the median of the other books at the same line, in break-even points. Plus = ${MINE_NAME} pays more. Blank when fewer than 2 other books share the line. A price comparison only: it says nothing about whether the bet wins.`,
+                fmt: (v, r) => {
+                  if (r?.mineOver == null) return <span style={{ color: C.text3 }}>—</span>
+                  if (r.mineLineOff) return <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.yellow }}>≠ line</span>
+                  if (v == null) return <span style={{ color: C.text3 }}>{r.mineN} other</span>
+                  return (
+                    <span style={{ display: 'inline-block', lineHeight: 1.15, fontFamily: NUM_FONT }}>
+                      <b style={{ color: r.mineVerdict === 'better' ? ACCENT : r.mineVerdict === 'worse' ? C.text3 : C.text2 }}>{v > 0 ? '+' : ''}{v.toFixed(1)}</b>
+                      <span style={{ display: 'block', fontSize: 10, color: C.text3 }}>{fmtOdds(r.mineOver)} v {fmtOdds(r.mineField)}</span>
+                    </span>
+                  )
+                } },
+            ] : []),
             { key: 'best', label: 'BEST', w: 66, heat: false, group: 'Where they disagree',
               title: 'The best price at the consensus line, and the book that has it. Lit in the accent when another book is paying less.',
               fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : (
@@ -214,7 +243,7 @@ export default function OddsDiscrepancies({ players = [], odds = null, onPlayerC
             { key: 'frozen', label: '❄', w: 30, flag: true, mark: '❄', title: 'Pregame price, frozen at first pitch.' },
           ]}
           onRowClick={(r) => r?._p && onPlayerClick?.(r._p)}
-          initialSort={hasByBook ? 'spread' : 'edge'}
+          initialSort={counts.hasMine ? 'mineGap' : hasByBook ? 'spread' : 'edge'}
           maxHeight={560}
           caption="Click a header to sort, a row to open his card. Green is the best price at the consensus line; a small @ under a book's price means that book is on a different bar."
         />
