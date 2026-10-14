@@ -509,7 +509,7 @@ process.env.MOMENT_POSTS_ON = 'on'
   check(same, 'L: the order does not depend on the order the events arrive in')
   const yd = (y, id, o = {}) => MF.makeEvent('nfl_100_yards', { ...F.TEST_100, gsis_id: id, name: `Test Back ${id}`, rush_yds: y, day: NIGHT, ...o }, { gameId: 's2026w5', n: 'yd', at: null })
   const nflTop = DR.pickTop([yd(105, 'a1'), yd(151, 'a2'), yd(212, 'a3'), yd(120, 'a4'), MF.makeEvent('nfl_multi_td', { ...F.TEST_MULTI_TD, day: NIGHT }, { gameId: '800', n: 'td3', at: null })])
-  check(nflTop.map((p) => p.line).join('|') === '212 RUSH YDS|3 TOUCHDOWNS|151 RUSH YDS' || nflTop.map((p) => p.line).join('|') === '212 RUSH YDS|151 RUSH YDS|3 TOUCHDOWNS', `L: NFL: LEGEND 212 yards first, then ELITE (151 yards 1.51 against 3 TDs 3.0: the touchdowns) (${nflTop.map((p) => p.line).join(' | ')})`)
+  check(nflTop.map((p) => p.line).join('|') === '212 RUSH YDS|3 TOUCHDOWNS|151 RUSH YDS', `L: NFL: LEGEND 212 yards first, then ELITE (151 yards against 3 TDs: the touchdowns) (${nflTop.map((p) => p.line).join(' | ')})`)
   check(DR.shortLine(hatN) === 'HAT TRICK · 3 G' && DR.shortLine(otA) === 'OT GOAL' && DR.shortLine(yd(151, 'z')) === '151 RUSH YDS' && DR.shortLine(pts) === '3-POINT NIGHT · 1 G 2 A' && DR.shortLine(mil) === 'GOAL #30' && DR.shortLine(long) === 'LONG SHOT · +1520' && DR.shortLine(mlb) === '3 HOME RUNS' && DR.shortLine(MF.makeEvent('nhl_hat_trick', { ...hatN.row, goals: [...hatN.row.goals, hatN.row.goals[0]] }, { gameId: 1, n: 'ht4', at: null })) === '4-GOAL GAME', 'L: the moment lines are facts: HAT TRICK · 3 G / OT GOAL / 151 RUSH YDS / 3-POINT NIGHT · 1 G 2 A / GOAL #30 / LONG SHOT · +1520 / 3 HOME RUNS / 4-GOAL GAME')
 
   // ── the words ──

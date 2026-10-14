@@ -7,6 +7,8 @@
 //   3. every tile's text was MEASURED with the real font files and fits its box: the name (slant reserved) and the moment line at a size >= 32, the matchup line;
 //      a name is cut with an ellipsis only when it is 30+ characters long;
 //   4. tiles never overlap and the three tiles + header + footer fit the frame (the geometry sums, not just the picture);
+//   6. the digest's words and order (lib/cards/digestRank.js): one name = TOP PERFORMER, NFL = TODAY, ties go to the main count over yards, the MLB postseason digest
+//      replaces the regular one.
 //   5. the tier is drawn as rarity only: LEGEND / ELITE holo, STAR shimmer, and no word on the card is a result word (no CALLED / lock / due / percent).
 import { mkdirSync, writeFileSync } from 'node:fs'
 import sharp from 'sharp'
@@ -76,6 +78,34 @@ console.log('rarity only')
   ok(/ELITE · HOLO/.test(words) && /STAR · SHIMMER/.test(words) && !/CALLED|ON THE BOARD|\block\b|\bdue\b|guarantee|%/i.test(words), `the card words: ${words.slice(0, 200)}`)
   const lw = strip(topThreeDesign(F.TEST_MODEL('nfl', [F.TEST_LEGEND]), '')).join(' | ')
   ok(/LEGEND · HOLO/.test(lw), 'a LEGEND tile says LEGEND · HOLO')
+}
+console.log('digest words and order')
+{
+  const DR = await import('../lib/cards/digestRank.js')
+  const T = DR.digestTitle
+  ok(T(1) === 'TOP PERFORMER TONIGHT' && T(1, { sport: 'mlb' }) === 'TOP PERFORMER TONIGHT' && T(1, { sport: 'nhl' }) === 'TOP PERFORMER TONIGHT', 'a night with ONE qualifying player is TOP PERFORMER TONIGHT, not a top three')
+  ok(T(2) === 'TOP 2 TONIGHT' && T(3) === 'TOP 3 TONIGHT' && T(3, { sport: 'mlb' }) === 'TOP 3 TONIGHT' && T(0) === null, 'two and three names, none = no title')
+  ok(T(3, { sport: 'nfl' }) === 'TOP 3 TODAY' && T(2, { sport: 'nfl' }) === 'TOP 2 TODAY' && T(1, { sport: 'nfl' }) === 'TOP PERFORMER TODAY', 'the NFL digest is TOP 3 TODAY (a game day)')
+  ok(T(3, { sport: 'mlb', postseason: true }) === 'TOP 3 POSTSEASON PERFORMANCES', 'the MLB postseason digest keeps its own title')
+  ok(SETS['three-nfl'].title === 'TOP 3 TODAY' && SETS['three-nhl'].title === 'TOP 3 TONIGHT' && SETS['one'].title === 'TOP PERFORMER TONIGHT', `the card model titles: ${SETS['three-nfl'].title} / ${SETS['three-nhl'].title} / ${SETS['one'].title}`)
+  // ties: at the same tier the main count (TDs / goals / HRs) outranks yards, whatever the yardage
+  const pick = (moment, row, who, tier = 'elite') => DR.pickOf({ moment, tier, row, day: '2026-10-12', who: { playerId: who, name: `Test ${who}`, team: 'TST' } })
+  const yards = (y, who) => pick('nfl_100_yards', { rush_yds: y, rec_yds: 0 }, who)
+  const tds = (n, who) => pick('nfl_multi_td', { tds: Array.from({ length: n }, (_, i) => ({ i })) }, who)
+  const hrs = (n, who) => pick('mlb_multi_hr', { hrs: Array.from({ length: n }, (_, i) => ({ i })) }, who)
+  const goals = (n, who) => pick('nhl_hat_trick', { goals: Array.from({ length: n }, (_, i) => ({ i })) }, who)
+  const order = (list) => DR.rankPicks(list, { max: 9 }).map((p) => p.playerId).join(',')
+  ok(order([yards(212, 'y'), tds(2, 't')]) === 't,y', 'NFL: 2 TDs outrank 212 yards at the same tier')
+  ok(order([yards(400, 'y'), tds(2, 't')]) === 't,y', 'NFL: 2 TDs outrank even 400 yards')
+  ok(order([yards(151, 'a'), yards(212, 'b'), yards(100, 'c')]) === 'b,a,c', 'among yardage games more yards still ranks first')
+  ok(order([tds(2, 'a'), tds(3, 'b')]) === 'b,a' && order([hrs(2, 'a'), hrs(3, 'b')]) === 'b,a' && order([goals(3, 'a'), goals(4, 'b')]) === 'b,a', 'among count games the bigger count ranks first (TDs, HRs, goals)')
+  ok(DR.magnitudeOf({ moment: 'nfl_100_yards', row: { rush_yds: 100 } }) === 1 && DR.magnitudeOf({ moment: 'nfl_100_yards', row: { rush_yds: 9999 } }) < 2, 'yardage starts at 1.0 (its entry level) and stays under the smallest count (2)')
+  const lg = pick('nfl_100_yards', { rush_yds: 212, rec_yds: 0 }, 'l', 'legend')
+  ok(order([tds(3, 't'), lg]) === 'l,t', 'tier still comes before the count: a LEGEND yardage game outranks an ELITE touchdown game')
+  // the MLB postseason digest replaces the regular top three: one digest kind per MLB postseason date
+  const { digestKindOf } = await import('../lib/cards/momentPosting.js')
+  const reg = digestKindOf({ sport: 'mlb', night: '2026-10-12' }), ps = digestKindOf({ sport: 'mlb', night: '2026-10-12', postseason: true })
+  ok(reg === 'moment_mlb_top3_20261012' && ps === 'postseason_mlb_top3_20261012', `the two MLB digest kinds are distinct (${reg} / ${ps}); digestPass posts only the postseason one on a postseason date (check-moment-posts L)`)
 }
 console.log(fails ? `\n${fails} ERROR(S)` : '\nall top-three card checks passed')
 process.exit(fails ? 1 : 0)

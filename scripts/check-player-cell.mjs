@@ -12,7 +12,7 @@
 //   - chips: the call word (prio 0) is never dropped; the opponent's text goes before the position; nothing wraps
 //   - the opponent reads "@ UTA" / "vs BOS"; a bare code with no known side stays bare (never a guessed "vs")
 // PART 2, with --base: for each live table that draws the cell, at 390 / 360 / 430 (phone) and 1280 (desktop):
-//   - every body row is the SAME height (one value), 58 on a phone and 52 on a desktop
+//   - every body row is the SAME height (one value), 58 on a phone and 52 on a desktop (compactPhoneRow, the LAMP watchlist: 52 on a phone too)
 //   - no name is clipped (its text box fits its lines), no chip line wraps or overflows, nothing sticks out of the name cell
 //   - the face is decorative (alt=""), lazy, async, has width and height
 //   - the name is a button, the cell is at least 44px tall, and at most MAX_FACES images are in the DOM per table
@@ -103,7 +103,7 @@ const req = createRequire(`${process.cwd()}/package.json`)
 const { chromium } = req('playwright-core')
 const BROWSERS = [arg('--browser'), '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser', '/usr/bin/google-chrome', '/usr/bin/chromium'].filter(Boolean)
 const executablePath = BROWSERS.find((p) => existsSync(p))
-const PAGES = (arg('--pages') || '/app#sport=nhl&tab=fullboard,/app#sport=nfl&tab=research,/app#sport=nba&tab=fullboard,/app#sport=nhl&tab=watchlist,/app#sport=nfl&tab=watchlist').split(',')
+const PAGES = (arg('--pages') || '/app#sport=mlb&tab=fullboard,/app#sport=nhl&tab=fullboard,/app#sport=nfl&tab=research,/app#sport=nba&tab=fullboard,/app#sport=nhl&tab=watchlist,/app#sport=nfl&tab=watchlist').split(',')
 const VPS = [[390, 844, 58], [360, 780, 58], [430, 932, 58], [1280, 900, 52]]
 const MAX_FACES = 260
 const browser = await chromium.launch({ executablePath })
@@ -130,7 +130,7 @@ for (const path of PAGES) {
         const heights = [...new Set(rows.map((r) => Math.round(r.getBoundingClientRect().height)))]
         const problems = []
         if (heights.length !== 1) problems.push(`row heights differ: ${heights.join(',')}`)
-        else if (heights[0] !== rowH) problems.push(`row height ${heights[0]}, want ${rowH}`)
+        else if (heights[0] !== (root.classList.contains('dtv2-pc52') ? Math.min(rowH, 52) : rowH)) problems.push(`row height ${heights[0]}, want ${root.classList.contains('dtv2-pc52') ? Math.min(rowH, 52) : rowH}`)
         let clipped = 0, wrapped = 0, outside = 0, small = 0, notBtn = 0
         const imgs = root.querySelectorAll('.pc-face img')
         rows.forEach((tr) => {

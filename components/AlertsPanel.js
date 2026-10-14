@@ -50,11 +50,10 @@ const GROUPS = [
 // sorts on when more happens in one minute than a lock screen should carry,
 // so the order on this page is the order things actually survive in.
 // "6:00 AM ET" for the end of a pause
-const untilWords = (ms) => { try { return `${new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }).format(new Date(ms))} ET` } catch { return '6:00 AM ET' } }
 const byPriority = (a, b) => (a.priority - b.priority) || a.label.localeCompare(b.label)
 
 export default function AlertsPanel({ styles }) {
-  const { prefs, setMaster, setCategory, setPreset, setPause } = useAlertPrefs()
+  const { prefs, setMaster, setCategory, setPreset } = useAlertPrefs()
   const account = useDashAccount()
   // BUCKETS is hidden until it opens (or this visitor holds an early-access grant): its basketball word stays out of the panel until then.
   const nbaOpen = useCanSee('nba') === true
@@ -147,7 +146,6 @@ export default function AlertsPanel({ styles }) {
     : pushable && account.signedIn && !closedSite ? { state: 'partial', word: 'On while the site is open' }
     : { state: 'on', word: pushable && closedSite ? 'On ✓ · even with the site closed' : 'On ✓ · while the site is open' }
 
-  const paused = Number(prefs.pausedUntil) > Date.now()
   const active = presetOf(prefs.events)
   const onCount = CATEGORIES.filter((c) => c.push && prefs.events[c.key]).length
   // What a preset includes, by product ("MOONSHOT 6 · TUDDY 3 · LAMP 1").
@@ -222,14 +220,6 @@ export default function AlertsPanel({ styles }) {
           ? 'Switched on one at a time. Pick a preset above to start over.'
           : PRESETS.find((p) => p.key === active)?.detail}
       </p>
-
-      {/* PAUSE TONIGHT (2026-10-13): nothing is sent until 6 am Eastern. It is saved with the switches (the sender reads it), so it holds on every device. */}
-      <div className={styles.presetRow}>
-        <button type="button" aria-pressed={paused} className={paused ? `${styles.presetBtn} ${styles.presetBtnOn}` : styles.presetBtn} onClick={() => setPause(!paused)}>
-          <b>{paused ? 'Paused ✓' : 'Pause tonight'}</b>
-          <small>{paused ? `Quiet until ${untilWords(prefs.pausedUntil)}. Tap to resume.` : 'Quiet until 6 am Eastern, then back to normal.'}</small>
-        </button>
-      </div>
 
       {/* SPORTS ON THIS DEVICE (2026-10-13): a real mute for this browser. A sport switched off here sends this device nothing, followed players included. */}
       <div className={styles.presetRow} role="group" aria-label="Sports on this device">

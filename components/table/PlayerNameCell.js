@@ -49,7 +49,7 @@ export function makeMeasure(family) {
  * @param {import('react').ReactNode} [p.mark]  the spotlight mark, before the name
  */
 export default function PlayerNameCell({ name, face = null, chips = [], phone, numFont, onOpen = null, mark = null, sizes = null }) {
-  const fit = fitName(name, { room: pcRoom(phone), measure: makeMeasure(null), sizes: sizes || (phone ? [12, 11] : [13, 12]), maxLines: 2 })
+  const fit = fitName(name, { room: pcRoom(phone) - (mark ? 12 : 0), measure: makeMeasure(null), sizes: sizes || (phone ? [12, 11] : [13, 12]), maxLines: 2 })
   const g = phone ? PC_GEOM.phone : PC_GEOM.desk
   const room = pcRoom(phone)
   const mono = makeMeasure(numFont)

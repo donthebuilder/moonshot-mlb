@@ -5,10 +5,10 @@
 //
 // WHAT THIS PROVES
 //   1  bar cleared: three pushes + a final line became ONE push per hitter per night (the highest bar); never a push for a 0-for night
-//   2  the nightly recap: once per person, only when something cleared, only after THEIR games are final, respects mute / pause / the switch
+//   2  the nightly recap: once per person, only when something cleared, only after THEIR games are final, respects mute / the switch
 //   3  the daily soft cap: 8 non-urgent, urgent exempt with its own 15; the clock is 6 am ET; the kill switch
 //   4  the defaults footgun (nflred / nba30) and "saved settings win" (old keys carry over, the new key beats them)
-//   5  Off, Pause tonight, per-player mute, the per-device sport filter
+//   5  Off, per-player mute (Pause tonight was removed 2026-10-13: a stale pausedUntil is ignored), the per-device sport filter
 //   6  the new pushes: lineups are in, puck drop, NFL injury status, calls graded, weekly: audience, dedupe key, defaults, presets, plan, catalog
 //   7  the card on the notification, the welcome line, the panel words
 import assert from 'node:assert/strict'
@@ -97,8 +97,8 @@ const barEvents = (lines, games = [game(100)]) => reach(PR.mlbEventsFrom({ games
   const other = { games: [finalG, game(400, { state: 'Live', homeId: 110, awayId: 111 })], lines }
   check(NI.mlbRecapEventsFrom(other, users, wantsAll, NOW).length === 1, 'a live game of a club he does not follow does not hold it')
   check(NI.mlbRecapEventsFrom(snap, { u1: stateOf([1, 2, 3, 4], { recap: true }, { 1: { mute: true }, 3: { mute: true } }) }, wantsAll, NOW).length === 0, 'muted men are not counted (only 2 left, 0 cleared: nothing to say)')
-  const paused = { dash_follow_v1: follow([1, 3]), dash_alerts_v1: { events: { recap: true }, pausedUntil: NOW + 3600e3 } }
-  check(NI.mlbRecapEventsFrom(snap, { u1: paused }, wantsAll, NOW).length === 0, 'Pause tonight: no recap')
+  const stale = { dash_follow_v1: follow([1, 3]), dash_alerts_v1: { events: { recap: true }, pausedUntil: NOW + 3600e3 } }
+  check(NI.mlbRecapEventsFrom(snap, { u1: stale }, wantsAll, NOW).length === 1, 'a stale pausedUntil from the removed Pause tonight does nothing: the recap still goes')
   const two = { u1: stateOf([1, 3], { recap: true }), u2: stateOf([1, 2], { recap: true }) }
   const evs = NI.mlbRecapEventsFrom(snap, two, wantsAll, NOW)
   check(evs.length === 2 && evs.find((e) => e.owner === 'u2').body === '1 cleared, 1 did not', 'each person gets THEIR own count', evs.map((e) => e.body).join(' / '))
@@ -160,7 +160,7 @@ const barEvents = (lines, games = [game(100)]) => reach(PR.mlbEventsFrom({ games
   mem.delete('dash_alerts_v1')
 }
 
-// ── 5. OFF, PAUSE TONIGHT, MUTE, THE SPORT FILTER ────────────────────────────
+// ── 5. OFF, MUTE, THE SPORT FILTER ────────────────────────────
 {
   AL.setAlertPreset('essentials')
   check(AL.presetOf(AL.alertPrefs().events) === 'essentials', 'Essentials is Essentials')
@@ -172,21 +172,14 @@ const barEvents = (lines, games = [game(100)]) => reach(PR.mlbEventsFrom({ games
   for (const c of ['homer', 'barcleared', 'scratched', 'cardearned', 'gameoff']) check(!PR.wants(offState, { category: c, sport: 'mlb', playerId: '1' }), `Off: ${c} reaches no phone`)
   AL.setAlertPreset('essentials')
 
-  // pause tonight
-  const t0 = Date.parse('2026-10-09T22:00:00Z')                                       // 6pm ET Friday
-  check(new Date(BR.next6amET(t0)).toISOString() === '2026-10-10T10:00:00.000Z', 'Pause tonight at 6 pm ET lasts until the next 6 am ET (tomorrow 10:00 UTC)', new Date(BR.next6amET(t0)).toISOString())
-  check(new Date(BR.next6amET(Date.parse('2026-10-10T05:00:00Z'))).toISOString() === '2026-10-10T10:00:00.000Z', 'at 1 am ET it lasts until 6 am the SAME morning')
-  check(new Date(BR.next6amET(Date.parse('2026-11-01T04:30:00Z'))).toISOString() === '2026-11-01T11:00:00.000Z', 'across the autumn clock change 6 am ET is 11:00 UTC (EST)', new Date(BR.next6amET(Date.parse('2026-11-01T04:30:00Z'))).toISOString())
+  // Pause tonight is gone (2026-10-13): no code path exists for it, and a pausedUntil an old save still carries is ignored
+  check(BR.next6amET === undefined && BR.isPaused === undefined && AL.setAlertPause === undefined, 'no pause code left in the brake or the panel')
+  const t0 = Date.parse('2026-10-09T22:00:00Z')
   const hr = { category: 'homer', sport: 'mlb', playerId: '1', priority: 0 }
-  const live = { dash_follow_v1: follow([1]), dash_alerts_v1: { events: {}, pausedUntil: t0 + 3600e3 } }
-  check(PR.wants(live, hr, t0 + 30 * 60e3) === false && PR.wants(live, hr, t0 + 2 * 3600e3) === true, 'paused: nothing (not even a homer) until the pause ends; then back to normal')
-  check(!PR.wants(live, { category: 'frdraft', owner: 'u', sport: 'fantasy', priority: 0 }, t0 + 60e3), 'paused: owned events wait too')
+  const stale5 = { dash_follow_v1: follow([1]), dash_alerts_v1: { events: {}, pausedUntil: t0 + 3600e3 } }
+  check(PR.wants(stale5, hr, t0 + 30 * 60e3) === true, 'a stale pausedUntil does not hold a homer')
   AL.setAlertMaster(true)
-  AL.setAlertPause(true)
-  const pp = AL.alertPrefs()
-  check(pp.pausedUntil > Date.now() && AL.alertWanted(pp, { kind: 'hr', pri: 0 }, false) === false, 'the page honours the pause too (in-app toasts)')
-  AL.setAlertPause(false)
-  check(AL.alertPrefs().pausedUntil === 0 && AL.alertWanted(AL.alertPrefs(), { kind: 'hr', pri: 0 }, false) === true, 'Resume ends it')
+  check(AL.alertWanted(AL.alertPrefs(), { kind: 'hr', pri: 0 }, false) === true && !('pausedUntil' in AL.alertPrefs()), 'the page has no pause either (in-app toasts)')
   AL.setAlertMaster(false)
 
   // per-player mute

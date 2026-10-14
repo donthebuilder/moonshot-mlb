@@ -7,7 +7,7 @@ import { useDashAccount } from '../lib/dash/sync'
 import { installHintText } from '../lib/copy/notifications'
 
 // ALERTS, SMALL (2026-10-13; permission and settings UX). The one body shared by the "Get alerts for the players you follow?" sheet (components/AlertsAsk.js) and the
-// Alerts line on the watchlist and the binder (components/AlertsEntry.js): the preset (Essentials / Following closely / Off), Pause tonight, and the one-tap
+// Alerts line on the watchlist and the binder (components/AlertsEntry.js): the preset (Essentials / Following closely / Off) and the one-tap
 // "turn on for this device". The full list of switches lives on the front door (/#alerts); this is the short way to the same settings, not a second copy of them.
 // Phone first: every control is 44px tall, the text is 12px or more, nothing is hover-only.
 
@@ -21,13 +21,12 @@ const WORDS = {
 }
 
 export default function AlertsQuick({ C, accent, NUM_FONT, onDone = null, framed = false }) {
-  const { prefs, setMaster, setPreset, setPause } = useAlertPrefs()
+  const { prefs, setMaster, setPreset } = useAlertPrefs()
   const account = useDashAccount()
   const device = useDeviceAlerts(prefs.on)
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState('')
   const active = presetOf(prefs.events)
-  const paused = Number(prefs.pausedUntil) > Date.now()
   const btn = (on) => ({
     minHeight: 44, padding: '8px 12px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
     border: `1px solid ${on ? accent : C.border}`, background: on ? `color-mix(in srgb, ${accent} 14%, transparent)` : C.bg2, color: on ? accent : C.text2,
@@ -62,9 +61,6 @@ export default function AlertsQuick({ C, accent, NUM_FONT, onDone = null, framed
           )
         })}
       </div>
-      <button type="button" aria-pressed={paused} onClick={() => setPause(!paused)} style={{ ...btn(paused), marginTop: 6, width: '100%', fontFamily: NUM_FONT, fontWeight: 800 }}>
-        {paused ? 'Paused until 6 am ET. Tap to resume.' : 'Pause tonight (quiet until 6 am ET)'}
-      </button>
       {device.state === 'blocked' || device.state === 'unsupported' || device.state === 'ios' ? (
         <p style={{ margin: '8px 0 0', color: C.text2, fontSize: 12, lineHeight: 1.45 }}>{device.state === 'ios' ? installHintText() : WORDS[device.state]}</p>
       ) : null}

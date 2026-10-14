@@ -137,6 +137,8 @@ export default function DenseTable({
   // nameCell: 'player' draws the shared player name cell (components/table/PlayerNameCell.js, 2026-10-13): face, name that fits, one
   // chip line, one row height. One prop per table; absent, the name cell is what it always was.
   nameCell = null,
+  // compactPhoneRow: with nameCell 'player', a PHONE row is 52px (the desktop height) instead of 58px, so a short list (the LAMP watchlist) shows 7 rows. The face keeps 36px; the tap target stays 44px.
+  compactPhoneRow = false,
   // THE ONE SKIN (components/table/v2.js; the 'classic' skin and ?skin= were
   // deleted 2026-10-11, Wave 4 -- a ?skin= in an old link is simply ignored).
   //   statusOf  (row) -> 'called'|'board'|'off'|null, from the caller's one
@@ -410,6 +412,6 @@ export default function DenseTable({
     heatMode, ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
     explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
     truncated, maxRows, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
-    capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam: teamNav, injuryLayer, nameCell,
+    capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam: teamNav, injuryLayer, nameCell, compactPhoneRow,
   })
 }

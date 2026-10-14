@@ -548,6 +548,9 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             ...categoryColumns(type, { omit: catOmit }).map((c) => (rankings && CAT_GROUP[c.key.replace(/^cat_/, '')] ? { ...c, group: BOARD_GROUPS[CAT_GROUP[c.key.replace(/^cat_/, '')]] } : c)),
           ], { onWatch, dhOn: dh.size > 0 }), rankings), colsView)}
           onRowClick={onPlayerClick}
+          // THE PLAYER NAME CELL on Rankings (2026-10-13, Donovan: player rows): face, a name that fits, one line of chips, one row height (58px phone / 52px desktop)
+          // via the shared components/table/PlayerNameCell.js; the other boards keep their own cell.
+          {...(rankings ? { nameCell: 'player', faceOf: (r) => (r._raw?.player_id ? { sport: 'mlb', id: String(r._raw.player_id), name: r.name } : null) } : null)}
           initialSort={whyOn ? { key: 'rank', dir: 'asc' } : type === 'hr' ? 'raw' : null}
           sortUrlKey={rankings ? 'sort' : null}
           // the v2 skin's status stamp: the one rule (lib/callStatus), the bot's designation + his board place

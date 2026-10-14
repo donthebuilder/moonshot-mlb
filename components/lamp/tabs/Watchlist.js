@@ -132,7 +132,7 @@ export default function Watchlist({ onOpenPlayer }) {
               ? <LampCards market="GOAL" onOpen={onOpenPlayer} items={rows.filter((x) => x.r && x.g).map((x, i) => ({ key: String(x.f.id), r: x.r, g: x.g, rank: x.r.rank ?? i + 1, facts: {} }))} />
               : <div style={{ color: C.text3, fontSize: 13, lineHeight: 1.5 }}>None of the skaters you watch is on tonight's board, so there is no card to show. The list view keeps them.</div>
           ) : (
-            <LampTable nameCell="player" faceOf={(r) => { const season = r._x?.g?.game?.season ?? board?.games?.[0]?.game?.season; return { sport: 'nhl', photo: season && r.team && r.team !== '—' ? nhlMug(season, r.team, r.id) : null, name: r.name } }} {...table} onRowClick={(row) => onOpenPlayer?.(row.id)}
+            <LampTable nameCell="player" compactPhoneRow faceOf={(r) => { const season = r._x?.g?.game?.season ?? board?.games?.[0]?.game?.season; return { sport: 'nhl', photo: season && r.team && r.team !== '—' ? nhlMug(season, r.team, r.id) : null, name: r.name } }} {...table} onRowClick={(row) => onOpenPlayer?.(row.id)}
               caption="The skaters you watch, on tonight's board. # is his place in his game; the status word is the board's own. A skater whose club is not playing tonight stays on your list and reads NO GAME. Tap a row for his page." />
           )}
         </>

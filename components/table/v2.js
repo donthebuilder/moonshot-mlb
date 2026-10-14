@@ -237,8 +237,10 @@ export function v2Css(C, ac, NUM_FONT) {
     .dtv2 .pc { display: flex; align-items: center; gap: 8px; min-width: 0; }
     .dtv2 .pc-face { flex: none; display: inline-flex; margin: 2px; }
     .dtv2 .pc-body { display: flex; flex-direction: column; justify-content: center; gap: 3px; min-width: 0; flex: 1 1 auto; }
-    .dtv2 .pc-name { display: block; min-width: 0; font-weight: 600; line-height: 1.12; color: ${C.text}; }
-    .dtv2 .pc-name .tap-link { display: block; max-width: 100%; text-align: left; }
+    /* flex, so the spotlight mark (a 9px glyph, 12px with its margin: PlayerNameCell takes it off the name's room) sits BESIDE the name, not on a line of its own */
+    .dtv2 .pc-name { display: flex; align-items: baseline; min-width: 0; font-weight: 600; line-height: 1.12; color: ${C.text}; }
+    .dtv2 .pc-name .tap-link { display: block; flex: 1 1 auto; min-width: 0; max-width: 100%; text-align: left; }
+    .dtv2 .pc-name > .pc-nm { flex: 1 1 auto; min-width: 0; }
     .dtv2 .pc-nm { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
     .dtv2 .pc-name[data-fit="surname"] .pc-nm { overflow-wrap: anywhere; }
     .dtv2 .pc-chips { display: flex; align-items: center; flex-wrap: nowrap; gap: 5px; min-height: 13px; font: 800 10px/1.3 ${NUM_FONT}; letter-spacing: .04em; color: ${C.text3}; white-space: nowrap; }
@@ -252,6 +254,7 @@ export function v2Css(C, ac, NUM_FONT) {
     @media (min-width: 641px) { .dtv2-pc td.rank, .dtv2-pc th.rank { min-width: 36px; } }
     @media (max-width: 640px) {
       .dtv2-pc td { height: 58px; }
+      .dtv2.dtv2-pc52 td { height: 52px; }   /* compactPhoneRow: 52px on a phone too (LAMP watchlist) */
       .dtv2.dtv2-pc td.name, .dtv2.dtv2-pc th.name { width: 164px !important; min-width: 164px !important; max-width: 164px !important; }
       .dtv2.dtv2-pc td.pcell { padding: 0 6px !important; }
       .dtv2 .pc { gap: 7px; }
@@ -277,7 +280,7 @@ export function renderV2(ctx) {
     explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
     truncated, maxRows, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
     capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam = null, injuryLayer = null,
-    adding = false, setAdding = () => {}, tierSig = null, phone = false, nameCell = null,
+    adding = false, setAdding = () => {}, tierSig = null, phone = false, nameCell = null, compactPhoneRow = false,
   } = ctx
   const ordered = noGroups ? rawColumns.map((c) => ({ ...c, group: null })) : orderByGroup(rawColumns)
   // THE STATUS STAMP (plan step 4): when the caller can say each row's status,
@@ -761,7 +764,7 @@ export function renderV2(ctx) {
   const isInitial = JSON.stringify(sort) === JSON.stringify(initialStack())
 
   return (
-    <div className={`dtv2${tight ? ' dtv2-tight' : ''}${pcell ? ' dtv2-pc' : ''}`}>
+    <div className={`dtv2${tight ? ' dtv2-tight' : ''}${pcell ? ' dtv2-pc' : ''}${pcell && compactPhoneRow ? ' dtv2-pc52' : ''}`}>
       <style>{v2Css(C, ac, NUM_FONT)}</style>
       <ExplainBanner label={explain?.label} text={explain?.text} onClose={() => setExplain(null)}
         scoreTerms={scoreTerms} caveat={caveat} accent={accent || ac} art={explain?.art} answers={explain?.answers} />
