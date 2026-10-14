@@ -14,6 +14,7 @@ import { GAME_ID_RE } from '../../../lib/nba/ids'
 import GameLedgerLine from '../../ledger/GameLedgerLine'
 import GameTotalLine, { useGameTotals } from '../../GameTotalLine'
 import BucketsTable from '../BucketsTable'
+import NbaH2H from '../../h2h/NbaH2H'
 import ShotChart from '../ShotChart'
 import BucketsTeamExpected from '../BucketsTeamExpected'
 import NbaWriteupBlock from '../NbaWriteupBlock'
@@ -66,6 +67,7 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
       </div>
     ) : null),
     expected: () => <GameExpected id={id} date={gameDay(data.date)} onOpenTeam={onOpenTeam} />,
+    clubs: () => <NbaH2H a={away.abbrev} b={home.abbrev} onOpenTeam={onOpenTeam} />,
     ledger: () => <GameLedgerLine sport="nba" gameId={id} day={gameDay(data.date)} />,
     writeup: () => <NbaWriteupBlock gameId={id} date={gameDay(data.date)} onOpenPlayer={onOpenPlayer} />,
     calls: () => <GameCalls id={id} date={gameDay(data.date)} onOpenPlayer={onOpenPlayer} />,

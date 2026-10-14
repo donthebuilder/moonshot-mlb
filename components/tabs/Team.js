@@ -1,5 +1,6 @@
 'use client'
 import TeamCards from '../binder/TeamCards'
+import HeadToHead from '../h2h/HeadToHead'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { teamKey, isKnownTeam } from '../../lib/mlbTeams'
@@ -53,6 +54,7 @@ export default function Team({ players = [], onPlayerClick, onOpenGame, onOpenBo
   const live = useRef({})
   const slots = useMemo(() => ({
     teamCards: (p) => <TeamCards {...p} />,
+    h2h: ({ sport, team }) => <HeadToHead sport={sport} a={team} heading={false} ui={{ Table: DenseTable, EmptyState: Empty, Kicker: Kick }} theme={{ C, NUM_FONT, accent: C.orange }} nav={{ onOpenTeam: (a) => live.current.openTeam?.(a), onOpenGame: (id, d) => live.current.openGame?.(id, d) }} />,
     injuries: ({ clubs }) => <InjuryOut sport="mlb" clubs={clubs} theme={{ C, NUM_FONT, accent: C.orange }} title="Out" onOpenTeam={(a) => live.current.openTeam?.(a)}
       openPlayer={(e) => (live.current.openPlayer && live.current.has(e.player_id) ? () => live.current.openPlayer(e.player_id) : null)} />,
   }), [])
@@ -74,7 +76,7 @@ export default function Team({ players = [], onPlayerClick, onOpenGame, onOpenBo
     onOpenPitcher: pitcherNav,
   }
   const theme = { C, NUM_FONT, accent: C.orange }
-  live.current = { openTeam: nav.onOpenTeam, openPlayer: nav.onOpenPlayer, has: (id) => Boolean(rawOf(id)) }
+  live.current = { openGame: nav.onOpenGame, openTeam: nav.onOpenTeam, openPlayer: nav.onOpenPlayer, has: (id) => Boolean(rawOf(id)) }
   return (
     <TeamPage
       view={view} theme={theme}

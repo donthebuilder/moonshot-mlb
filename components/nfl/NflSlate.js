@@ -20,6 +20,7 @@ import { tdCallStatus } from '../../lib/callStatus'
 import { withNflFullSet } from '../../lib/nfl/boardColumns'
 import GameTotalLine, { GameTotalMark, totalRowFor, useGameTotals } from '../GameTotalLine'
 import NflTable from './NflTable'
+import NflH2H from '../h2h/NflH2H'
 import { useGameCalls } from './GameCalls'
 import WriteupBlock from './WriteupBlock'
 import GameLedgerLine from '../ledger/GameLedgerLine'
@@ -260,6 +261,12 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
                         onOpenTeam={onOpenTeam} />
                     )
                   })()}
+                </PanelAnchor>
+          ),
+          // 7. THE CLUBS' HEAD TO HEAD (2026-10-13, lib/h2h): record, margin, total and meetings of the two clubs over three seasons
+          clubs: () => (
+                <PanelAnchor id="clubs" gamePk={g.game_id} style={{ marginTop: 14 }}>
+                  <NflH2H a={g.away} b={g.home} onOpenTeam={onOpenTeam} />
                 </PanelAnchor>
           ),
         }

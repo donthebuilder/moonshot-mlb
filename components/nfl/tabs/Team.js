@@ -1,5 +1,6 @@
 'use client'
 import TeamCards from '../../binder/TeamCards'
+import HeadToHead from '../../h2h/HeadToHead'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../../../lib/nfl/theme'
 import { NFL_TEAMS } from '../../../lib/nfl/teams'
@@ -65,6 +66,7 @@ export default function Team({ data, picks = null, matchup = null, logs = null, 
   const live = useRef({})
   const slots = useMemo(() => ({
     teamCards: (p) => <TeamCards {...p} />,
+    h2h: ({ sport, team }) => <HeadToHead sport={sport} a={team} heading={false} ui={{ Table: NflTable, EmptyState: Empty, Kicker: Kick }} theme={{ C, NUM_FONT, accent: C.green }} nav={{ onOpenTeam: (a) => live.current.openTeam?.(a), onOpenGame: (id, d) => live.current.openGame?.(id, d) }} />,
     defense: TeamDefenders,
     injuries: ({ clubs }) => <InjuryOut sport="nfl" clubs={clubs} theme={{ C, NUM_FONT, accent: C.green }} title="Out this week" onOpenTeam={(a) => live.current.openTeam?.(a)}
       openPlayer={(e) => (live.current.openPlayer && live.current.has(e.player_id) ? () => live.current.openPlayer(e.player_id) : null)} />,
@@ -78,7 +80,7 @@ export default function Team({ data, picks = null, matchup = null, logs = null, 
     return p || { player_id: id, name: s?.name || matchup?.red_zone?.[id]?.name || '', team: code }
   }
   const nav = { onOpenPlayer: onOpenPlayer ? (id) => onOpenPlayer(player(id)) : null, onOpenGame, onOpenTeam: (abbr) => { const a = String(abbr || '').toUpperCase(); if (!a || !NAME[a] || a === code) return; if (teamNav) teamNav(a); else setCode(a) } }
-  live.current = { openTeam: nav.onOpenTeam, openPlayer: nav.onOpenPlayer, has: (id) => (data?.players || []).some((x) => x.player_id === id) }
+  live.current = { openGame: nav.onOpenGame, openTeam: nav.onOpenTeam, openPlayer: nav.onOpenPlayer, has: (id) => (data?.players || []).some((x) => x.player_id === id) }
   return (
     <TeamPage
       view={view} theme={{ C, NUM_FONT, accent: C.green }}

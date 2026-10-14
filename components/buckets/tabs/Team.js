@@ -11,6 +11,7 @@ import BucketsTable from '../BucketsTable'
 import ShotChart from '../ShotChart'
 import InjuryOut from '../../injuries/InjuryOut'
 import TeamCards from '../../binder/TeamCards'
+import HeadToHead from '../../h2h/HeadToHead'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, BackBtn } from '../ui'
 
 // 🏀 BUCKETS' TEAM PAGE, on the shared team page (2026-10-10; NBA is the long-term flagship, so it gets the same depth as the
@@ -31,9 +32,10 @@ export default function Team({ abbrev, onBack, backLabel = 'Teams', onOpenPlayer
   const view = useMemo(() => (known ? buildNbaTeam({ team: known.abbrev, payload, deep, board, shots: shots.length > 0 }) : null), [known, payload, deep, board, shots])
   // the two modules are one stable component each (a new function every render would remount them); they read the latest props from a ref
   const live = useRef({})
-  live.current = { known, shots, onOpenPlayer, onOpenTeam: onOpenTeam || teamNav }
+  live.current = { known, shots, onOpenPlayer, onOpenGame, onOpenTeam: onOpenTeam || teamNav }
   const slots = useMemo(() => ({
     teamCards: (p) => <TeamCards {...p} />,
+    h2h: ({ sport, team }) => <HeadToHead sport={sport} a={team} heading={false} ui={{ Table: BucketsTable, EmptyState: EmptyState, Kicker: Kicker }} theme={{ C, NUM_FONT, accent: C.purple }} nav={{ onOpenTeam: (a) => live.current.onOpenTeam?.(a), onOpenGame: (id, d) => live.current.onOpenGame?.(id, d) }} />,
     injuries: ({ clubs }) => <InjuryOut sport="nba" clubs={clubs} theme={{ C, NUM_FONT, accent: C.purple }} title="Out" onOpenTeam={(a) => live.current.onOpenTeam?.(a)} openPlayer={(e) => (live.current.onOpenPlayer && e.player_id ? () => live.current.onOpenPlayer(e.player_id) : null)} />,
     shots: () => <ShotChart shots={live.current.shots} filters={['result', 'type']} title={`${live.current.known?.nick}, every field-goal attempt on file`} source="Every field-goal attempt on file for the club, from ESPN play-by-play." />,
   }), [])
