@@ -22,6 +22,7 @@ import { straightLine } from '../../lib/record/callsLanded'
 import { appHref } from '../../lib/routes'
 import { ladderKind, LADDER_SPORTS } from '../../lib/record/ladderSports'
 import { marketLadderFrom, marketSentence, marketOneLine, marketScope, marketCells } from '../../lib/record/ladder'
+import { scoreBandsFrom, bandCells, bandsScope, bandsNote } from '../../lib/record/scoreBands'
 import { ladderFrom, ladderRows, ladderCells, ladderSentence, ladderOneLine, ladderScope, ladderScopeShort, versionRows, POOLED_LABEL, BASE_LABEL, priceNote } from '../../lib/record/ladder'
 
 const THEMES = {
@@ -344,4 +345,61 @@ export function LadderFromApi({ sport = 'nhl', versions = false, odds = false, c
       {versions ? <VersionsInner ladder={ladder} /> : null}
     </Themed>
   )
+}
+
+// ── THE SCORE BANDS (2026-10-13) ───────────────────────────────────────────────────────────────────────────────
+// LAMP score band x scored rate, and the 90+ split by the call. Counts from lib/record/scoreBands.js (the calibration
+// reader's rows, regular season); the words for the call are lib/callStatus STATUS_WORD's, built there. n, the 95% range
+// and a plain small-sample note ride with every rate. Below the fold of the record page, not above it.
+function BandsInner({ bands }) {
+  const { C, NUM_FONT, accent } = useSportTheme()
+  const th = { padding: '0 0 4px', font: `800 11px/1.2 ${NUM_FONT}`, letterSpacing: '.06em', color: C.text3, textAlign: 'right', fontWeight: 800 }
+  const td = { padding: '6px 0', borderTop: `1px solid ${C.border2}`, textAlign: 'right', verticalAlign: 'middle', fontFamily: NUM_FONT }
+  const line = (r, lead) => {
+    const c = bandCells(r)
+    return (
+      <tr key={r.key}>
+        <th scope="row" style={{ ...td, textAlign: 'left', fontWeight: 400, fontFamily: 'inherit', paddingRight: 8 }}>
+          <span style={{ fontSize: 12.5, color: lead ? accent : C.text, fontWeight: 800 }}>{r.label}</span>
+        </th>
+        <td style={{ ...td, fontSize: 12, color: C.text2, whiteSpace: 'nowrap' }}>{c.of}</td>
+        <td style={{ ...td, paddingLeft: 8 }}><b style={{ fontSize: 14, color: lead ? accent : C.text, fontWeight: 900 }}>{c.rate}</b></td>
+        <td style={{ ...td, fontSize: 11, color: C.text3, paddingLeft: 8, whiteSpace: 'nowrap' }}>{c.range}{c.small ? <span style={{ display: 'block', letterSpacing: '.04em' }}>small sample</span> : null}</td>
+      </tr>
+    )
+  }
+  const group = (text) => <tr key={text}><th scope="colgroup" colSpan={4} style={{ ...th, textAlign: 'left', padding: '8px 0 3px', letterSpacing: '.1em' }}>{text}</th></tr>
+  return (
+    <section aria-label="Scored rate by LAMP score band" style={{ margin: '4px 0 14px' }}>
+      <div style={kicker(C, NUM_FONT, accent)}>LAMP SCORE BANDS</div>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' }}>
+        <caption style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
+          Goal scorers by LAMP score band, and the 90+ skaters split by whether they were CALLED. Each row gives the skaters who scored of the skaters counted, the rate and its 95% range.
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col" style={{ ...th, textAlign: 'left' }}>Group</th>
+            <th scope="col" style={th}>Scored</th>
+            <th scope="col" style={th}>Rate</th>
+            <th scope="col" style={th}>95% range</th>
+          </tr>
+        </thead>
+        <tbody>
+          {group('BY SCORE')}
+          {bands.bands.filter((r) => r.n > 0).map((r) => line(r, r.key === '90+'))}
+          {group('THE 90+, BY THE CALL')}
+          {bands.split.filter((r) => r.n > 0).map((r) => line(r, r.key === 'called90'))}
+        </tbody>
+      </table>
+      <p style={{ margin: '6px 0 0', fontSize: 11.5, lineHeight: 1.45, color: C.text3 }}>{bandsScope(bands)} {bandsNote(bands)}</p>
+    </section>
+  )
+}
+
+/** LAMP score band x scored rate (regular season). Renders nothing until the calibration body carries the bands. */
+export function LadderScoreBands({ sport = 'nhl' }) {
+  const { data } = useLiveFetch(`/api/calibration?sport=${sport}`)
+  const bands = useMemo(() => scoreBandsFrom(data), [data])
+  if (!bands) return null
+  return <Themed sport={sport}><BandsInner bands={bands} /></Themed>
 }

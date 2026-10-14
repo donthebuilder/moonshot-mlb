@@ -15,7 +15,7 @@ import { bandClaim } from '../../bands/BandTable'
 import { bandTint } from '../../ScoreBands'
 import { wilson } from '../../../lib/interval'
 import RecordPage from '../../record/RecordPage'
-import { LadderFromApi } from '../../record/LadderBlock'
+import { LadderFromApi, LadderScoreBands } from '../../record/LadderBlock'
 import { nhlRecordModel } from '../../../lib/record/page'
 
 // 🏒 THE RECORD, MOONSHOT'S RESULTS FRAME (2026-09-30, Donovan: "upgrade the
@@ -64,7 +64,7 @@ export default function Results({ onOpenPlayer }) {
         numFont={NUM_FONT}
       />
 
-      <RecordPage record={record} Table={LampTable} top={<><CalledWeekStrip sport="nhl" /><LadderFromApi sport="nhl" versions odds /></>} calls={<><CalledByTeam sport="nhl" Table={LampTable} title="Called goal picks by club" /><CalibrationTable sport="nhl" Table={LampTable} /><CallHistory sport="nhl" Table={LampTable} onOpenPlayer={onOpenPlayer} title="Every goal call, its price, its result" /></>} receiptsLabel="every night, every call, the bands" receipts={(<>
+      <RecordPage record={record} Table={LampTable} top={<><CalledWeekStrip sport="nhl" /><LadderFromApi sport="nhl" versions odds /></>} calls={<><LadderScoreBands sport="nhl" /><CalledByTeam sport="nhl" Table={LampTable} title="Called goal picks by club" /><CalibrationTable sport="nhl" Table={LampTable} /><CallHistory sport="nhl" Table={LampTable} onOpenPlayer={onOpenPlayer} title="Every goal call, its price, its result" /></>} receiptsLabel="every night, every call, the bands" receipts={(<>
       <ModeBar modes={MODES} mode={mode} setMode={setMode} />
 
       <WhatThis maxWidth={760}>

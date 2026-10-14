@@ -32,6 +32,7 @@ const CACHE = flag('--cache') || path.join(os.tmpdir(), 'learn-cache')
 fs.mkdirSync(OUT, { recursive: true }); fs.mkdirSync(CACHE, { recursive: true })
 const reps = Number(flag('--reps')) || 300
 
+const SB = await import('../lib/record/scoreBands.js'); const { bandCells } = SB
 const { LEARN_SPORTS } = await import('../lib/learn/sports.js')
 const { buildReport, renderMarkdown, publicEntry } = await import('../lib/learn/report.js')
 const S = LEARN_SPORTS[sport]
@@ -69,6 +70,7 @@ const upTo = (rows) => (sport !== 'nfl' && weekArg && /^\d{4}-\d{2}-\d{2}$/.test
 // ── per sport ───────────────────────────────────────────────────────────────
 const byMarket = {}
 const notes = []
+let bandsOut = null   // NHL: LAMP score band x scored rate (lib/record/scoreBands.js), the same rows the ladder cross-check uses
 if (sport === 'nhl') {
   const { nhlRows } = await import('../lib/learn/rows/nhl.js')
   const { ALL_VERSIONS, MODEL_VERSION } = await import('../lib/nhl/goalModel.js')
@@ -84,6 +86,10 @@ if (sport === 'nhl') {
   for (const r of byMarket.GOAL) if (r.produced !== null) { mine[r.status] ||= [0, 0]; mine[r.status][1] += 1; if (r.produced) mine[r.status][0] += 1 }
   const same = lad && ['called', 'board', 'off'].every((k) => lad.rungs[k].n === (mine[k]?.[1] || 0) && lad.rungs[k].hits === (mine[k]?.[0] || 0))
   notes.push(`ladder cross-check (lib/record/ladder.js on the same rows): ${same ? 'MATCH' : 'MISMATCH'} ${JSON.stringify({ ladder: lad && Object.fromEntries(Object.entries(lad.rungs).map(([k, v]) => [k, `${v.hits}/${v.n}`])), loop: Object.fromEntries(Object.entries(mine).map(([k, v]) => [k, `${v[0]}/${v[1]}`])) })}`)
+  // THE SCORE BANDS (2026-10-13): the same graded regular-season rows, by LAMP score band and 90+ x the stored call
+  const { scoreBandsFromRecords, bandsScope, bandsNote } = SB
+  bandsOut = scoreBandsFromRecords(goal.filter((r) => !weekArg || r.game_date <= weekArg).map(toRecord))
+  if (bandsOut) bandsOut.print = { scope: bandsScope(bandsOut), note: bandsNote(bandsOut) }
   S.liveVersion = MODEL_VERSION
   for (const m of markets.filter((x) => x.key !== 'GOAL')) {
     const rows = await paged(() => sb.from('lamp_prop_log').select(goalSel.replace('goals,', 'value,')).eq('market', m.key).not('graded_at', 'is', null).eq('game_type', 2).order('game_date').order('game_id').order('player_id'))
@@ -161,10 +167,14 @@ const isoWeek = (ymd) => { const d = new Date(`${ymd}T12:00:00Z`); const t = new
 const week = sport === 'nfl' ? `2026-w${String(weekArg || reps_[0]?.units || '').padStart(2, '0')}` : isoWeek(asOf || new Date().toISOString().slice(0, 10))
 const generatedAt = new Date().toISOString()
 let md = renderMarkdown(reps_, { sport, week, generatedAt })
+if (bandsOut) {
+  const row = (r) => { const c = bandCells(r); return `| ${r.label} | ${c.of} | ${c.rate} | ${c.range}${c.small ? ' (small sample)' : ''} |` }
+  md += `\n## LAMP score bands (GOAL, regular season)\n\n| Group | Scored | Rate | 95% range |\n|---|---|---|---|\n${bandsOut.bands.map(row).join('\n')}\n| *the 90+, by the call* | | | |\n${bandsOut.split.map(row).join('\n')}\n\n${bandsOut.print.scope}\n\n${bandsOut.print.note}\n`
+}
 if (notes.length) md += `\n## Run notes\n\n${notes.map((n) => `- ${n}`).join('\n')}\n`
 fs.writeFileSync(path.join(OUT, `${sport}-${week}.md`), md)
 const slim = (cmp) => ({ nA: cmp.nA, nB: cmp.nB, units: cmp.units, floor: cmp.floor, features: cmp.features.map((f) => ({ feature: f.feature, direction: f.direction, auc: f.auc, aucRange: f.aucRange, effect: f.effect, effectRange: f.effectRange, medA: f.medA, medB: f.medB, nA: f.nA, nB: f.nB, stable: f.stable, fdrPass: f.fdrPass, claim: f.claim, why: f.why })) })
-const json = { sport, week, generatedAt, asOf, notes, markets: reps_.map((r) => ({ market: r.market, label: r.label, units: r.units, from: r.from, asOf: r.asOf, rows: r.rows, lateExcluded: r.lateExcluded, counts: r.counts, recent: r.recent, weekly: r.gotAway.weekly, boardNoCall: { called: r.boardNoCall.called, board: r.boardNoCall.board, off: r.boardNoCall.off, readout: r.boardNoCall.readout, floor: r.boardNoCall.floor, within: slim(r.boardNoCall.within) }, separators: { c1_gotAway_vs_called: slim(r.gotAway.c1), c2_gotAway_vs_notCalledMiss: slim(r.gotAway.c2), c3_calledHit_vs_calledMiss: slim(r.gotAway.c3) }, candidates: r.candidates && { tried: r.candidates.tried, units: r.candidates.units, proposals: r.candidates.proposals.map((p) => ({ feature: p.feature, direction: p.direction, status: p.status, testUnits: p.testUnits, meanLift: p.meanLift, liftRange: p.liftRange, pBonferroni: p.pBonferroni, halves: p.halves, signShare: p.signShare, topKLift: p.topKLift })), shadow: r.candidates.shadow } })) }
+const json = { sport, week, generatedAt, asOf, notes, scoreBands: bandsOut && (({ print, ...b }) => b)(bandsOut), markets: reps_.map((r) => ({ market: r.market, label: r.label, units: r.units, from: r.from, asOf: r.asOf, rows: r.rows, lateExcluded: r.lateExcluded, counts: r.counts, recent: r.recent, weekly: r.gotAway.weekly, boardNoCall: { called: r.boardNoCall.called, board: r.boardNoCall.board, off: r.boardNoCall.off, readout: r.boardNoCall.readout, floor: r.boardNoCall.floor, within: slim(r.boardNoCall.within) }, separators: { c1_gotAway_vs_called: slim(r.gotAway.c1), c2_gotAway_vs_notCalledMiss: slim(r.gotAway.c2), c3_calledHit_vs_calledMiss: slim(r.gotAway.c3) }, candidates: r.candidates && { tried: r.candidates.tried, units: r.candidates.units, proposals: r.candidates.proposals.map((p) => ({ feature: p.feature, direction: p.direction, status: p.status, testUnits: p.testUnits, meanLift: p.meanLift, liftRange: p.liftRange, pBonferroni: p.pBonferroni, halves: p.halves, signShare: p.signShare, topKLift: p.topKLift })), shadow: r.candidates.shadow } })) }
 fs.writeFileSync(path.join(OUT, `${sport}-${week}.json`), `${JSON.stringify(json, null, 1)}\n`)
 
 if (has('--publish')) {
@@ -185,6 +195,12 @@ for (const r of reps_) {
   const ready = r.candidates?.proposals.filter((p) => p.status === 'ready') || []
   const watch = r.candidates?.proposals.filter((p) => p.status === 'watch') || []
   console.log(`   candidates: ${r.candidates?.tried ?? 0} tried | ready ${ready.length} | watch ${watch.length} | ${r.candidates ? `held-out units ${r.candidates.proposals[0]?.testUnits ?? 0}` : ''}`)
+}
+if (bandsOut) {
+  const cell = (r) => `${r.label} ${bandCells(r).of} (${bandCells(r).rate})${r.small ? ' small sample' : ''}`
+  console.log(`NHL GOAL score bands: ${bandsOut.bands.map(cell).join(' | ')}`)
+  console.log(`   the 90+ by the call: ${bandsOut.split.map(cell).join(' | ')}`)
+  console.log(`   ${bandsOut.print.note}`)
 }
 console.log(`wrote ${path.join(OUT, `${sport}-${week}.md`)} and .json${has('--publish') ? ' + lib/learn/published.json' : ''}`)
 for (const n of notes) console.log(`note: ${n}`)
