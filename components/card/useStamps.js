@@ -8,10 +8,15 @@ const inflight = new Map()
 
 /** The game's own date from its start time: MLB / NHL / NFL start between noon and about 1:40am ET, so the venue date is the ET date four hours earlier. '' when unknown. */
 export function gameDayOf(iso) {
-  const t = Date.parse(String(iso || ''))
+  const t = typeof iso === 'number' ? iso : Date.parse(String(iso || ''))
   if (!Number.isFinite(t)) return ''
   try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(t - 4 * 3600e3)) } catch { return '' }
 }
+
+/** How many ranked cards of one list ask for stamps (the first screenful; a list of fifty asks for nine). `i` is the card's place in the list as drawn. */
+export const STAMP_ROWS = 9
+/** The `stampFor` a ranked card passes RankCard: its place in the list, the player's id and the game's own day. null (no request) past the first STAMP_ROWS or without an id or a day. */
+export const stampArg = (sport, id, day, i = 0) => (id != null && id !== '' && day && i < STAMP_ROWS ? { sport, id: String(id), day } : null)
 
 export default function useStamps(stampFor) {
   const sport = stampFor?.sport, id = stampFor?.id, day = stampFor?.day

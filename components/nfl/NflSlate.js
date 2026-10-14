@@ -26,7 +26,8 @@ import GameLedgerLine from '../ledger/GameLedgerLine'
 import { easternDate } from '../../lib/data'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
 import { localDayTime } from '../../lib/localTime'
-import { slateTotals, TD_WORD } from '../../lib/nfl/teamTdModel'
+import { slateTotals, TD_WORD, TD_WORD_SHORT } from '../../lib/nfl/teamTdModel'
+import { expectedClause } from '../../lib/expectedLine'
 import InjuryOut from '../injuries/InjuryOut'
 import { useOutCounts } from '../injuries/InjuryLayer'
 import { nameKey } from '../../lib/injuries/lookup'
@@ -159,7 +160,9 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
       band: x == null ? null : top && g.game_id === top.game_id ? { icon: '🌋', word: 'MAIN EVENT' } : heat >= 0.8 ? { icon: '🔥', word: '' } : heat <= 0.2 ? { icon: '🧊', word: '' } : null,
       status: live ? { kind: 'live', text: g.detail || 'LIVE' } : g.completed ? { kind: 'final', text: 'FINAL' } : { kind: 'time', text: kickText(g) },
       extra: (() => {
-        const oc = outCounts([g.away, g.home]); const line = [airText(g), oc?.out ? `${oc.out} out` : null].filter(Boolean).join(' · ')
+        const oc = outCounts([g.away, g.home]); const tm = totals[g.game_id]
+        // the TEAM model's expected touchdowns for each club (lib/nfl/teamTdModel.js, the number on the dial), said on the card as BUCKETS' slate card says its points
+        const line = [tm ? expectedClause(TD_WORD_SHORT.toLowerCase(), [[g.away, tm.awayTd], [g.home, tm.homeTd]]) : null, airText(g), oc?.out ? `${oc.out} out` : null].filter(Boolean).join(' · ')
         const tr = gameTotals?.[String(g.game_id)]
         const tot = totalRowFor(gameTotals, g.game_id) ? <GameTotalMark row={tr} /> : null
         return line || tot ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>{line}{tot}</span> : null

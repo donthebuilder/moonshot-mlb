@@ -13,6 +13,7 @@ import FollowButton from '../FollowButton'
 import StarMemory from '../watch/StarMemory'
 import { SportTheme } from '../SportTheme'
 import RankCard from '../card/RankCard'
+import { stampArg, gameDayOf } from '../card/useStamps'
 import { canonPos } from '../../lib/positions'
 import { nhlShareRows } from '../../lib/nhl/boardColumns'
 
@@ -88,7 +89,7 @@ const Fact = ({ k, v }) => (v == null || v === '' ? null : (
  * Follow (LAMP's watchlist) where MOONSHOT has Add to Slip + the star. The face
  * and the why line are LAMP's own additions.
  */
-export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen, rankMove = null }) {
+export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen, rankMove = null, place = 0 }) {
   const called = r.status === 'called'
   const opp = g.game.home.abbrev === r.team ? g.game.away.abbrev : g.game.home.abbrev
   const sog = market === 'SOG'
@@ -109,6 +110,7 @@ export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen, rank
   return (
     <SportTheme theme={C} accent={C.ice} numFont={NUM_FONT}>
       <RankCard accent={C.ice} status={r.status} rankMove={rankMove} pos={canonPos('nhl', r.pos)} rank={rank} sport="nhl" club={r.team} name={r.name} opp={opp}
+        stampFor={stampArg('nhl', r.playerId, gameDayOf(g.game.startUtc), place)}
         face={<PlayerFace sport="nhl" variant="tile" photo={nhlMug(g.game.season, r.team, r.playerId)} team={null} name="" size={84} theme={C} />}
         score={Math.round(r.score ?? 0)} scoreWord="LAMP" explain={SCORE_NOTE[market] || SCORE_NOTE.GOAL}
         reason={r.why && !stats.length ? r.why : null}
@@ -136,7 +138,7 @@ export function LampCards({ items, market, onOpen, preview = null }) {
   return (
     <div>
       <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
-        {shown.map(({ key, ...it }) => <LampCard key={key} {...it} market={market} onOpen={onOpen} />)}
+        {shown.map(({ key, ...it }, i) => <LampCard key={key} {...it} place={i} market={market} onOpen={onOpen} />)}
       </div>
       {items.length > shown.length && (
         <button type="button" onClick={() => setAll(true)} style={{ marginTop: 10, minHeight: 44, padding: '0 16px', borderRadius: 999, border: `1px solid ${C.border2}`, background: 'transparent', color: C.ice, font: `800 11px/1 ${NUM_FONT}`, cursor: 'pointer' }}>

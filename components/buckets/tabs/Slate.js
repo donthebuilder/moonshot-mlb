@@ -122,7 +122,7 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
         {/* THIS GAME'S TOTAL (2026-10-10): the Top Totals row the lock stored for it */}
         <GameTotalLine sport="nba" row={gameTotals?.[String(g.id)]} />
         {/* the game's calls as the prop cards (components/buckets/BucketsCard) */}
-        {calls.length > 0 && <BucketsCards market={m} onOpen={onOpenPlayer} rows={[...calls].sort((a, b) => b.score - a.score)} />}
+        {calls.length > 0 && <BucketsCards market={m} day={data?.date || date || ''} onOpen={onOpenPlayer} rows={[...calls].sort((a, b) => b.score - a.score)} />}
         {rows.length > 0
           ? <BucketsTable rows={rows} columns={boardColumns(m, { onOpenTeam, onOpenGame, withGame: false, withXpts: true })} statusOf={(r) => r.status}
               onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} nameCell="player" faceOf={faceOf} dimRow={(r) => r.status === 'off'}

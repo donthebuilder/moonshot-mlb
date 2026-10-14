@@ -306,7 +306,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
       {pf.active && m !== ALL && rows.length > 0 && !noStarters && <PositionNote control={pf.control} shown={rows.length} total={pool.length} />}
       {pf.active && m !== ALL && rows.length === 0 && data && games.length > 0 && !noStarters && <PositionEmpty control={pf.control} othersActive={chips.length + drawerChips.length - 1 > 0 || heldTop > 0} onClearAll={clearAll} />}
       {rows.length > 0 && !noStarters && layout === 'cards' && (
-        <BucketsCards market={mk} onOpen={onOpenPlayer} rankOf={(r) => cardRank.get(r._id || `${r.gameId}-${r.playerId}`)} rows={[...rows].filter((r) => r.score != null && Number.isFinite(Number(r.score))).sort((a, b) => b.score - a.score).map((r) => ({ ...r, rankMove: rankMv.cell(r._id) }))} />
+        <BucketsCards market={mk} day={shown || ''} onOpen={onOpenPlayer} rankOf={(r) => cardRank.get(r._id || `${r.gameId}-${r.playerId}`)} rows={[...rows].filter((r) => r.score != null && Number.isFinite(Number(r.score))).sort((a, b) => b.score - a.score).map((r) => ({ ...r, rankMove: rankMv.cell(r._id) }))} />
       )}
       {rows.length > 0 && !noStarters && layout === 'table' && (
         <BucketsTable sets rows={rows.map((r) => ({ ...r, ...(cln.on ? { cln: cln.cell(r.playerId) } : null), rankMove: rankMv.cell(r._id) }))} columns={withLastNight(boardColumns(m, { onOpenTeam, onOpenGame, withXpts: true, whyCol: whyColumn({ textOf: (r) => (r.status === 'off' && r.reason ? r.reason : plainWhy(r, m)?.short || ''), itemOf: (r) => whyItemFor(r, m, r.nightRank), open: openWhy, theme: C, numFont: NUM_FONT, w: 165, tidy: true }) }), cln)} statusOf={(r) => r.status}

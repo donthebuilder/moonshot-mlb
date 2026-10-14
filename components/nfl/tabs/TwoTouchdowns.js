@@ -8,6 +8,7 @@ import PlayerFace from '../../PlayerFace'
 import { baselineFor } from '../../../lib/nfl/tdPool'
 import { SportTheme } from '../../SportTheme'
 import RankCard from '../../card/RankCard'
+import { stampArg, gameDayOf } from '../../card/useStamps'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { ActiveFilters, FilterBar, FilterPill, PositionNote, PositionEmpty } from '../../Filters'
 import usePositionFilter from '../../../lib/usePositionFilter'
@@ -41,7 +42,7 @@ function TapNote({ label, text, style, children }) {
 /** The inputs behind a row, as one sentence a tap can show. */
 export const twoInputsText = (p) => (p?.two?.parts || []).map((x) => `${x.label} ${Math.round(x.pct)}`).join(' · ') || 'No inputs published for him.'
 
-function TwoCard({ p, rank, watchlist, status, onPlayerClick, weights, base, pool, rankMove }) {
+function TwoCard({ p, rank, watchlist, status, onPlayerClick, weights, base, pool, rankMove, kickoff = null, place = 0 }) {
   const score = p.scores?.[MARKET]
   const g = gradeFor(score)
   const why = boardReason(p, weights, base, MARKET, pool)
@@ -52,6 +53,7 @@ function TwoCard({ p, rank, watchlist, status, onPlayerClick, weights, base, poo
   return (
     <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
       <RankCard accent={C.green} status={status} rankMove={rankMove} pos={p.position || ''} rank={rank} sport="nfl" club={p.team} name={p.name} opp={p.opp} role={roleLabel(p)}
+        stampFor={stampArg('nfl', p.player_id, gameDayOf(kickoff), place)}
         face={<PlayerFace sport="nfl" espnId={p?.espn_id} team={p?.team} name={p?.name} size={84} />}
         score={Number.isFinite(score) ? Math.round(score) : '—'} scoreWord="2+ TD" rankTags={[`GRADE ${g.label}`]}
         explain={`The two-score ranking, 0–100: a rank among this week's players, not a percentage. ${TWO_NOTE}`}
@@ -149,7 +151,7 @@ export default function TwoTouchdowns({ data, matchup, odds, onPlayerClick, odds
             ? <NflBoardList games={data?.games} players={capped} market={MARKET} rankOf={rankOf} rankMv={rankMv} weights={weights} odds={null} phone={phone} onPlayerClick={openFromBoard} statusOf={statusOf} base={base} pool={rows} watchlist={watchlist} />
             : <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
                 {capped.map((p, i) => (
-                  <TwoCard key={p.player_id} p={p} rank={rankOf.get(String(p.player_id)) ?? i + 1} status={statusOf(p)} onPlayerClick={openFromBoard} weights={weights} base={base} pool={rows} watchlist={watchlist} rankMove={rankMv.cell(p.player_id)} />
+                  <TwoCard key={p.player_id} p={p} place={i} kickoff={kickoffFor(data?.games, p)} rank={rankOf.get(String(p.player_id)) ?? i + 1} status={statusOf(p)} onPlayerClick={openFromBoard} weights={weights} base={base} pool={rows} watchlist={watchlist} rankMove={rankMv.cell(p.player_id)} />
                 ))}
               </div>}
           {hidden > 0 && <div style={{ marginTop: 14 }}><FilterPill onClick={() => setAll(true)} count={hidden}>Show the rest</FilterPill></div>}
