@@ -29,7 +29,7 @@ export async function GET(request) {
     const loaded = await loadSpecial({ key, id: String(q.get('id') || ''), db })
     if (!loaded.ok) return json({ error: loaded.status === 404 ? 'NOT FOUND' : loaded.status === 400 ? 'BAD REQUEST' : 'CARD DELAYED', detail: loaded.why }, loaded.status || 502)
     const { collectModel } = await import('../../../../lib/cards/collect/collectData')
-    const c = await collectModel(key, loaded.row, { styleOnly: Boolean(tierAsked) })
+    const c = await collectModel(key, loaded.row, { styleOnly: Boolean(tierAsked), tier: tierAsked || undefined })
     if (!c) return json({ error: 'NOT FOUND', detail: 'that moment did not happen (no tier earned)' }, 404)
     // a look preview of the tier it actually earned is not a "style preview"
     if (tierAsked === c.earned) c.model.collect.styleOnly = false

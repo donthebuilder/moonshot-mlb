@@ -8,6 +8,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { nhlGameLines } from '../lib/cards/moments.js'
 import { collectModel } from '../lib/cards/collect/collectData.js'
 import { renderCollect } from '../lib/cards/collect/collectCard.js'
+import { faceBrightness } from '../lib/cards/collect/faceCheck.js'
 import * as F from '../lib/cards/specialFixtures.js'
 
 const args = process.argv.slice(2)
@@ -42,12 +43,13 @@ const testLegend = { ...F.TEST_HAT, goals: [...F.TEST_HAT.goals, { ...F.TEST_HAT
 
 const made = []
 const save = async (file, key, row, tier, o = {}) => {
-  const c = await collectModel(key, row, o)
+  const c = await collectModel(key, row, { ...o, tier })
   if (!c) throw new Error(`no card for ${file}`)
   const png = await renderCollect(c.model, { tier })
   writeFileSync(`${out}/${file}.png`, png)
-  made.push({ file, tier, earned: c.earned, cardId: c.id.cardId, portrait: c.model.collect.portrait, test: Boolean(o.test), styleOnly: tier !== c.earned })
-  console.log(`${file}.png  ${png.length}B  tier=${tier} earned=${c.earned} id=${c.id.cardId} portrait=${c.model.collect.portrait.placeholder ? `PLACEHOLDER (${c.model.collect.portrait.reason})` : `${c.model.collect.portrait.provider} ${c.model.collect.portrait.width}x${c.model.collect.portrait.height}`}`)
+  const face = await faceBrightness(c.model, tier, png, c.model.rawUri)
+  made.push({ file, tier, earned: c.earned, cardId: c.id.cardId, variant: c.model.collect.variant, portrait: c.model.collect.portrait, face, test: Boolean(o.test), styleOnly: tier !== c.earned })
+  console.log(`${file}.png  ${png.length}B  tier=${tier} earned=${c.earned} id=${c.id.cardId} view=${c.model.collect.variant.view.light}/${c.model.collect.variant.view.zoom} face ${face ? `raw ${face.raw} -> card ${face.card} (x${face.ratio})` : 'n/a'} portrait=${c.model.collect.portrait.placeholder ? `PLACEHOLDER (${c.model.collect.portrait.reason})` : `${c.model.collect.portrait.provider} ${c.model.collect.portrait.width}x${c.model.collect.portrait.height}`}`)
 }
 for (const tier of ['base', 'star', 'elite', 'legend']) await save(`real-${tier}-${name.split(' ').at(-1).toLowerCase()}`, 'nhl_hat_trick', real, tier, { styleOnly: tier !== 'elite' })
 await save('TEST-legend-4-goals', 'nhl_hat_trick', testLegend, 'legend', { test: true })

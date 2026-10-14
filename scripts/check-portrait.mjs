@@ -4,7 +4,7 @@
 //   node --no-warnings --import ./scripts/proto-cards/_loader.mjs scripts/check-portrait.mjs [--live]
 import assert from 'node:assert/strict'
 import sharp from 'sharp'
-import { resolvePortrait, nameMatches, placeholderFor, ADAPTERS, MIN_BYTES } from '../lib/cards/portrait/index.js'
+import { resolvePortrait, nameMatches, placeholderFor, ADAPTERS, MIN_BYTES, kindsOf } from '../lib/cards/portrait/index.js'
 import { auditMetadata } from '../lib/cards/portrait/metadata.js'
 import { enhancePortrait, PROFILES } from '../lib/cards/portrait/enhance.js'
 
@@ -117,21 +117,22 @@ await t('METADATA GATE: an adapter source whose file carries a credit tag is a p
 })
 await t('EVERY ADAPTER SOURCE URL is allowed by its own gate and none of them is an NHL action shot (Getty)', () => {
   assert.equal(ADAPTERS.nhl.urlOk('https://assets.nhle.com/mugs/actionshots/1296x729/8480801.jpg', ref), false)
-  assert.equal(ADAPTERS.nhl.action, undefined); assert.equal(ADAPTERS.nfl.action, undefined)
-  assert.ok(ADAPTERS.mlb.action.urlOk(ADAPTERS.mlb.action.plan({ playerId: '660271' }).imageUrl, { playerId: '660271' }))
-  assert.equal(ADAPTERS.mlb.action.urlOk('https://img.mlbstatic.com/mlb-photos/image/upload/w_900/v1/people/1/action/vertical/current', { playerId: '660271' }), false)
+  assert.equal(ADAPTERS.nhl.kinds, undefined); assert.equal(ADAPTERS.nfl.kinds, undefined)
+  for (const k of ['action', 'hero', 'studio']) assert.ok(ADAPTERS.mlb.kinds[k].urlOk(ADAPTERS.mlb.kinds[k].plan({ playerId: '660271' }).imageUrl, { playerId: '660271' }), k)
+  assert.equal(ADAPTERS.mlb.kinds.action.urlOk('https://img.mlbstatic.com/mlb-photos/image/upload/w_900/v1/people/1/action/vertical/current', { playerId: '660271' }), false)
+  assert.equal(ADAPTERS.mlb.kinds.hero.urlOk('https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto,w_930,h_760,q_auto:best/v1/people/1/action/hero/current', { playerId: '660271' }), false)
 })
 await t('BRIGHTENER: the picture gets lighter, nothing new clips, size and transparency are untouched, and every source has a tuned profile', async () => {
-  assert.deepEqual(Object.keys(PROFILES).sort(), ['espn_nfl', 'mlb_action', 'mlb_silo', 'nhl_mug'])
+  assert.deepEqual(Object.keys(PROFILES).sort(), ['espn_nfl', 'mlb_action', 'mlb_hero', 'mlb_silo', 'mlb_studio', 'nhl_mug'])
   const dark = await sharp({ create: { width: 336, height: 336, channels: 4, background: { r: 70, g: 52, b: 46, alpha: 1 }, noise: { type: 'gaussian', mean: 55, sigma: 40 } } })
     .composite([{ input: Buffer.from('<svg width="336" height="336"><rect width="336" height="60" fill="none"/><circle cx="0" cy="0" r="90" fill="#000"/></svg>'), blend: 'dest-out' }]).png().toBuffer()
   for (const name of Object.keys(PROFILES)) {
     const e = await enhancePortrait(dark, name)
-    assert.ok(e, name); assert.ok(e.stats.after > e.stats.before + (name === 'mlb_action' ? 0 : 4), `${name}: ${e.stats.before} -> ${e.stats.after}`)
+    assert.ok(e, name); assert.ok(e.stats.after > e.stats.before + (/action|hero|studio/.test(name) ? 0 : 4), `${name}: ${e.stats.before} -> ${e.stats.after}`)
     assert.ok(e.stats.clipAfter <= e.stats.clipBefore + 0.01, `${name} clip ${e.stats.clipBefore} -> ${e.stats.clipAfter}`)
     const m = await sharp(e.bytes).metadata()
     assert.deepEqual([m.width, m.height], [336, 336], name)
-    if (name !== 'mlb_action') assert.equal(m.hasAlpha, true, name)
+    if (!/action|hero|studio/.test(name)) assert.equal(m.hasAlpha, true, name)
     // the transparent corner stays transparent (no halo, no fill)
     const px = await sharp(e.bytes).ensureAlpha().raw().toBuffer()
     assert.equal(px[3], 0, `${name}: corner alpha`)
@@ -165,6 +166,17 @@ await t('MLB ACTION: asked for, it is used full-bleed after the same id + club c
   // the wrong club is a placeholder for BOTH modes: identity is checked before any picture
   const moved = { json: async () => ({ people: [{ id: 660271, fullName: 'Test Ohtani', currentTeam: { name: 'San Francisco Giants' } }] }), image: async () => ({ status: 200, contentType: 'image/jpeg', bytes: act }) }
   assert.match((await resolvePortrait(mlb, { get: moved, cache: false, mode: 'action' })).reason, /club mismatch/)
+  // every extra kind is fetched, gated and branded the same way; the studio kind also reports its backdrop colour
+  for (const k of ['hero', 'studio']) {
+    const r = await resolvePortrait(mlb, { get: get({ status: 200, contentType: 'image/jpeg', bytes: act }), cache: false, mode: k })
+    assert.equal(r.ok, true, k); assert.equal(r.mode, k); assert.equal(r.fullBleed, k === 'hero'); assert.equal(r.layout, k === 'hero' ? 'bleed' : 'studio')
+    assert.ok(r.face && r.face.x1 > r.face.x0, `${k} face box`)
+    if (k === 'studio') assert.equal(r.bg.length, 3)
+    const badGet = { json: async () => who, image: async (u) => (u.includes(k === 'studio' ? '/headshot/67/' : '/action/') ? { status: 200, contentType: 'image/jpeg', bytes: dirty } : { status: 200, contentType: 'image/png', bytes: png() }) }
+    const bad = await resolvePortrait(mlb, { get: badGet, cache: false, mode: k })
+    assert.equal(bad.mode, 'headshot'); assert.equal(bad.fellBackFrom[0].mode, k)
+  }
+  assert.deepEqual(kindsOf('mlb'), ['headshot', 'action', 'hero', 'studio']); assert.deepEqual(kindsOf('nhl'), ['headshot']); assert.deepEqual(kindsOf('nfl'), ['headshot']); assert.deepEqual(kindsOf('nba'), [])
   // NHL / NFL have no action photograph: asking for one gives the headshot
   assert.equal((await go(ref, fake())).mode, 'headshot')
 })
@@ -179,7 +191,7 @@ if (process.argv.includes('--live')) {
     { sport: 'nfl', playerId: '00-0033873', team: 'KC', name: 'Patrick Mahomes' },
     { sport: 'nfl', playerId: '00-0033873', team: 'BUF', name: 'Patrick Mahomes' }, // wrong club: must be refused
   ]
-  live.push({ sport: 'mlb', playerId: '660271', team: 'LAD', name: 'Shohei Ohtani', mode: 'action' }, { sport: 'mlb', playerId: '700250', team: 'NYY', name: 'Ben Rice', mode: 'action' })
+  live.push({ sport: 'mlb', playerId: '660271', team: 'LAD', name: 'Shohei Ohtani', mode: 'action' }, { sport: 'mlb', playerId: '700250', team: 'NYY', name: 'Ben Rice', mode: 'action' }, { sport: 'mlb', playerId: '828599', team: 'HOU', name: 'Lucas Spence', mode: 'hero' }, { sport: 'mlb', playerId: '828599', team: 'HOU', name: 'Lucas Spence', mode: 'studio' })
   for (const r of live) {
     const out = await resolvePortrait(r, { cache: false, mode: r.mode || 'headshot' })
     console.log(`LIVE ${r.sport} ${r.playerId} ${r.team} ${r.mode || 'headshot'}: ${out.ok ? `OK ${out.provider} ${out.mode} ${out.width}x${out.height} ${out.bytes}B brightness ${out.enhanced?.before}->${out.enhanced?.after} clip ${(out.enhanced?.clipBefore * 100).toFixed(2)}->${(out.enhanced?.clipAfter * 100).toFixed(2)}% metadata clean(${out.metadata.format},${out.metadata.segments} segments) ${out.sourceUrl}` : `PLACEHOLDER (${out.reason})`}`)

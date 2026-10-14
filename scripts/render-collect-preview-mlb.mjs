@@ -7,6 +7,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { mlbGameLines } from '../lib/cards/moments.js'
 import { collectModel } from '../lib/cards/collect/collectData.js'
 import { renderCollect } from '../lib/cards/collect/collectCard.js'
+import { faceBrightness } from '../lib/cards/collect/faceCheck.js'
 
 const args = process.argv.slice(2)
 const flag = (n, d) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d }
@@ -32,12 +33,13 @@ async function realRow(pk, pid) {
 
 const made = []
 const save = async (file, row, tier, o = {}) => {
-  const c = await collectModel('mlb_multi_hr', row, o)
+  const c = await collectModel('mlb_multi_hr', row, { ...o, tier })
   const png = await renderCollect(c.model, { tier })
   writeFileSync(`${out}/${file}.png`, png)
   const p = c.model.collect.portrait
-  made.push({ file, tier, earned: c.earned, cardId: c.id.cardId, portrait: p })
-  console.log(`${file}.png ${png.length}B tier=${tier} earned=${c.earned} id=${c.id.cardId} portrait=${p.placeholder ? `PLACEHOLDER (${p.reason})` : `${p.provider} ${p.mode} ${p.width}x${p.height} brightness ${p.enhanced?.before}->${p.enhanced?.after}${p.fellBackFrom ? ` fellBackFrom=${JSON.stringify(p.fellBackFrom)}` : ''}`}`)
+  const face = await faceBrightness(c.model, tier, png, c.model.rawUri)
+  made.push({ file, tier, earned: c.earned, cardId: c.id.cardId, kind: p.mode, variant: c.model.collect.variant, portrait: p, face })
+  console.log(`${file}.png ${png.length}B tier=${tier} earned=${c.earned} id=${c.id.cardId} kind=${p.mode} face ${face ? `raw ${face.raw} -> card ${face.card} (x${face.ratio})` : 'n/a'} portrait=${p.placeholder ? `PLACEHOLDER (${p.reason})` : `${p.provider} ${p.mode} ${p.width}x${p.height} brightness ${p.enhanced?.before}->${p.enhanced?.after}${p.fellBackFrom ? ` fellBackFrom=${JSON.stringify(p.fellBackFrom)}` : ''}`}`)
   return c
 }
 

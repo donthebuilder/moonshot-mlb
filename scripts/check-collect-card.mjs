@@ -6,7 +6,9 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { W, H, RATIO, LOOK, MAX_DENSITY, collectLayers, collectDesign, renderCollect } from '../lib/cards/collect/collectCard.js'
-import { collectModel } from '../lib/cards/collect/collectData.js'
+import { collectModel, variantFor } from '../lib/cards/collect/collectData.js'
+import { faceBrightness } from '../lib/cards/collect/faceCheck.js'
+import { enhancePortrait } from '../lib/cards/portrait/enhance.js'
 import { lintType } from '../lib/cards/cardKit.js'
 import { TIERS } from '../lib/cards/moments.js'
 import * as F from '../lib/cards/specialFixtures.js'
@@ -28,7 +30,7 @@ const c = await collectModel('nhl_hat_trick', hat, { test: true })
 await t('the frame is exactly 2.5 : 3.5 (1000 x 1400), unlike the special card\'s 4:5', () => {
   assert.equal(W / H, 2.5 / 3.5); assert.equal(RATIO, 5 / 7); assert.notEqual(W / H, 1080 / 1350)
 })
-await t('finish density: BASE 0, STAR 3 (frame, one sheen, badge), ELITE <= 12, LEGEND <= 12, and each tier has more than the one below', () => {
+await t('finish density: BASE 0, STAR 3 (frame, one sheen, badge), ELITE <= 11, LEGEND <= 12, and each tier has more than the one below', () => {
   for (const tier of TIERS) assert.ok(collectLayers(tier).length <= MAX_DENSITY[tier], tier)
   assert.equal(collectLayers('base').length, 0); assert.equal(collectLayers('star').length, 3)
   assert.ok(collectLayers('elite').length > collectLayers('star').length && collectLayers('legend').length > collectLayers('star').length)
@@ -93,6 +95,48 @@ await t('an MLB card (TEST row) renders in all four tiers, with a full-bleed act
     const withPhoto = { ...mlb.model, face: `data:image/jpeg;base64,${photo.toString('base64')}`, portraitMode: 'action', placeholder: null }
     assert.deepEqual(lintType(collectDesign(withPhoto, '', { tier })), [], tier)
     assert.ok((await renderCollect(withPhoto, { tier })).length > 1000, `action ${tier}`)
+  }
+})
+await t('VARIETY: the same card id and tier always give the same photograph and view; the four tiers of one MLB card show four different kinds, and NHL / NFL (one photo) four different views', () => {
+  const a = variantFor({ sport: 'mlb', cardId: 'DN-AAAAAAAAAAAA', tier: 'elite' })
+  assert.deepEqual(a, variantFor({ sport: 'mlb', cardId: 'DN-AAAAAAAAAAAA', tier: 'elite' }))
+  for (const id of ['DN-AAAAAAAAAAAA', 'DN-6EFE5ABF4D6F', 'DN-0123456789AB', 'DN-FFFFFFFFFFFF']) {
+    assert.equal(new Set(TIERS.map((tier) => variantFor({ sport: 'mlb', cardId: id, tier }).kind)).size, 4, `mlb kinds ${id}`)
+    for (const sport of ['nhl', 'nfl', 'mlb']) assert.equal(new Set(TIERS.map((tier) => JSON.stringify(variantFor({ sport, cardId: id, tier }).view))).size, 4, `${sport} views ${id}`)
+    assert.deepEqual(new Set(TIERS.map((tier) => variantFor({ sport: 'nhl', cardId: id, tier }).kind)), new Set(['headshot']))
+  }
+  // another card id starts the rotation somewhere else (not every card begins with the same picture)
+  const firsts = new Set(Array.from({ length: 24 }, (_, i) => variantFor({ sport: 'mlb', cardId: `DN-${i}`, tier: 'base' }).kind))
+  assert.ok(firsts.size >= 3)
+})
+await t('NO TIER DARKENS THE FACE: for every layout (cut-out, full-bleed, studio) and every tier, the face box of the finished card is at least 97% as bright as the raw photo', async () => {
+  const sharp = (await import('sharp')).default
+  const mk = async (w, h, alphaOn) => {
+    const base = await sharp({ create: { width: w, height: h, channels: 3, background: { r: 96, g: 78, b: 68 }, noise: { type: 'gaussian', mean: 100, sigma: 22 } } }).removeAlpha().ensureAlpha().png().toBuffer()
+    return base
+  }
+  const layouts = [
+    { layout: 'cutout', mode: 'headshot', w: 336, h: 336, face: { x0: 0.36, y0: 0.24, x1: 0.64, y1: 0.52 }, profile: 'nhl_mug' },
+    { layout: 'cutout', mode: 'headshot', w: 600, h: 436, face: { x0: 0.4, y0: 0.14, x1: 0.62, y1: 0.46 }, profile: 'espn_nfl' },
+    { layout: 'bleed', mode: 'action', w: 900, h: 1350, face: { x0: 0.3, y0: 0.02, x1: 0.78, y1: 0.3 }, profile: 'mlb_action' },
+    { layout: 'bleed', mode: 'hero', w: 930, h: 760, face: { x0: 0.3, y0: 0, x1: 0.8, y1: 0.45 }, profile: 'mlb_hero' },
+    { layout: 'studio', mode: 'studio', w: 600, h: 901, face: { x0: 0.3, y0: 0.3, x1: 0.7, y1: 0.7 }, profile: 'mlb_studio' },
+  ]
+  for (const L of layouts) {
+    const raw = await mk(L.w, L.h)
+    const enh = await enhancePortrait(raw, L.profile)
+    const mime = enh.contentType
+    for (const tier of TIERS) {
+      for (const sport of ['nhl', 'mlb']) {
+        const base = await collectModel(sport === 'nhl' ? 'nhl_hat_trick' : 'mlb_multi_hr', sport === 'nhl' ? hat : F.TEST_MULTI_HR, { test: true, tier })
+        const model = { ...base.model, face: `data:${mime};base64,${enh.bytes.toString('base64')}`, rawUri: `data:image/png;base64,${raw.toString('base64')}`, placeholder: null, portraitLayout: L.layout, portraitMode: L.mode, portraitFace: L.face, portraitBg: L.layout === 'studio' ? [100, 100, 100] : null, view: variantFor({ sport, cardId: base.id.cardId, tier }).view }
+        model.collect = { ...model.collect, portrait: { width: L.w, height: L.h } }
+        const png = await renderCollect(model, { tier })
+        const fb = await faceBrightness(model, tier, png, model.rawUri)
+        assert.ok(fb, `${L.mode}/${tier}: measured`)
+        assert.ok(fb.ratio >= 0.97, `${L.layout}/${L.mode}/${sport}/${tier}: face ${fb.raw} -> ${fb.card} (x${fb.ratio})`)
+      }
+    }
   }
 })
 await t('the preview route is not linked from anywhere (app, components, lib, scripts other than the previews)', () => {
