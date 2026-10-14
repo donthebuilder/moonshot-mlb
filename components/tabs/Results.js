@@ -13,6 +13,7 @@ import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { hr9Color } from '../../lib/hr9'
 import { verdictInk } from '../../lib/scales'
 import { gradedResultsUrl } from '../../lib/dataSource'
+import { sharedFetch } from '../../lib/sharedRead'
 import { dedupeGraded } from '../../lib/graded'
 import { n, clean } from '../../lib/player'
 import { PanelTitle, Empty, Card, WhatThis } from '../ui'
@@ -797,7 +798,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
     if (day === 'live') { setDayData(null); setDayState('idle'); return }
     let alive = true
     setDayState('loading'); setDayData(null)
-    fetch(gradedResultsUrl(day))
+    sharedFetch(gradedResultsUrl(day))
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => { if (alive) { setDayData(j); setDayState(j ? 'done' : 'missing') } })
       .catch(() => { if (alive) setDayState('error') })

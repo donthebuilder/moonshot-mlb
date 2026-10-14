@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { dataUrl } from '../lib/dataSource'
+import { sharedFetch } from '../lib/sharedRead'
 import { nameOf, playerId, surname, arr, n } from '../lib/player'
 import { dedupeGraded } from '../lib/graded'
 import { WhatThis } from './ui'
@@ -49,7 +50,7 @@ export default function PartnerWatch({ players = [], pairHistorySummary, onPlaye
   const [yday, setYday] = useState(null)
   useEffect(() => {
     const d = new Date(Date.now() - 864e5).toLocaleDateString('en-CA')
-    fetch(bust(dataUrl(`current/graded_results_${d}.json`)))
+    sharedFetch(bust(dataUrl(`current/graded_results_${d}.json`)))
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
         if (!j) return

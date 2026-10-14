@@ -19,6 +19,7 @@ import { pregameLedger } from '../lib/pregameLedger'
 import { writeAlignArchive, readAlignArchive, shiftDateKey, usePeople } from '../lib/alignments'
 import { listLedgerNights, readLedgerNight } from '../lib/ledgerArchive'
 import { gradedResultsUrl } from '../lib/dataSource'
+import { sharedFetch } from '../lib/sharedRead'
 import NamePatterns from './NamePatterns'
 import { dayRootOf, lifePathOf } from '../lib/numerology/core'
 import DayNumbers from './numerology/DayNumbers'
@@ -446,7 +447,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
     if (!research || !night) { setNightData(null); setNightState('idle'); return undefined }
     let alive = true
     setNightState('loading'); setNightData(null)
-    fetch(gradedResultsUrl(night), { cache: 'no-store' })
+    sharedFetch(gradedResultsUrl(night), { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => { if (alive) { setNightData(j || null); setNightState(j ? 'done' : 'empty') } })
       .catch(() => { if (alive) setNightState('empty') })

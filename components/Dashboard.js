@@ -18,6 +18,7 @@ import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows
 import { stampSave, unstampSave, seedFromOldLedger } from '../lib/watchNights'
 import { boardPicks } from './binder/boardPicks'
 import { slatePaths, resultsPaths, runMetaPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, evalReportPaths, oddsPaths, gradedResultsUrl, setSlateMode } from '../lib/dataSource'
+import { sharedFetch } from '../lib/sharedRead'
 import { nameOf, teamOf, oppOf, clean, playerId, obj } from '../lib/player'
 import { fetchLiveSlate, setLiveSlateDay } from '../lib/liveSlate'
 import { Empty } from './ui'
@@ -892,7 +893,7 @@ export default function Dashboard({ palettePass = 0 }) {
     if (datedAsked.current === want) return
     datedAsked.current = want
     let alive = true
-    fetch(gradedResultsUrl(slateDate), { cache: 'no-store' })
+    sharedFetch(gradedResultsUrl(slateDate), { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => { if (alive) setDatedResults(j || null) })
       .catch(() => { if (alive) setDatedResults(null) })
