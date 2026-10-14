@@ -17,7 +17,9 @@ if (existsSync(envFile)) {
 }
 const { adminClient } = await import('../lib/supabase/admin.js')
 const db = adminClient()
-const anon = adminClient({ anon: true })
+// the REAL anon key (adminClient({anon:true}) returns the service client whenever the service key is set, which made this probe call issue_card as the service role)
+const { createClient } = (await import('module')).createRequire(import.meta.url)('@supabase/supabase-js')
+const anon = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 if (!db) { console.error('NOT CONFIGURED: no service client'); process.exit(2) }
 
 let failed = 0
