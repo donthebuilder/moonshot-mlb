@@ -25,7 +25,7 @@ const LEDGER_SRC = { mlb: ['components/HomerLedger.js', 'lib/sports/mlb/ledger.j
 function ledgerHas(sport, key) {
   const src = LEDGER_SRC[sport].map(read).join('\n')
   if (key === 'first') return /\n\s+first: \{/.test(src)
-  return new RegExp(`\\n\\s+(?:/\\*[\\s\\S]*?\\*/\\s*)*${key}: \\(`).test(src)
+  return new RegExp(`\\n\\s+(?:/\\*[\\s\\S]*?\\*/\\s*)*${key}: (?:\\(|[^\\n]*\\? \\()`).test(src)
 }
 function backed(check, sport) {
   if (check.all) return check.all.every((c) => backed(c, sport))
