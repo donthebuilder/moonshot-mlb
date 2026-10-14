@@ -78,7 +78,7 @@ export function shopRows(players, odds, A = oddsAdapter('mlb')) {
         lineChanged: Boolean(q.movement?.line_changed),
         openOver: q.movement?.opening_over != null && Number.isFinite(Number(q.movement.opening_over)) ? Number(q.movement.opening_over) : null,
         fairOver: Number.isFinite(Number(q.fair_over)) && Number(q.fair_over) !== 0 ? Number(q.fair_over) : null,
-        mineOver: mb ? mb.mine : null, mineGap: mb ? mb.gap : null, mineVerdict: mb ? mb.verdict : null, mineLineOff: mb ? mb.lineOff : false, mineField: mb ? mb.field : null, mineN: mb ? mb.fieldN : 0,
+        mineOver: mb ? mb.mine : null, mineGap: mb ? mb.gap : null, mineVerdict: mb ? mb.verdict : null, mineLineOff: mb ? mb.lineOff : false, mineField: mb ? mb.field : null, mineN: mb ? mb.fieldN : 0, mineEv: mb ? mb.ev : null,
         hold, rate, edge, edgeWorst, cost: edge != null && edgeWorst != null ? Math.round(10 * (edge - edgeWorst)) / 10 : null, frozen: Boolean(q.frozen),
       })
     })
@@ -206,6 +206,11 @@ export default function OddsDiscrepancies({ players = [], odds = null, onPlayerC
                     </span>
                   )
                 } },
+            ] : []),
+            ...(counts.hasMine ? [
+              { key: 'mineEv', label: `${MINE} EV%`, w: 62, dp: 1, group: 'My book',
+                title: `Expected return per $1 at ${MINE_NAME}'s price if the market's own no-vig chance is right (not a model chance). Plus = ${MINE_NAME} pays more than the market's fair price.`,
+                fmt: (v) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <b style={{ fontFamily: NUM_FONT, color: v >= 2 ? ACCENT : C.text2 }}>{v > 0 ? '+' : ''}{v.toFixed(1)}%</b>) },
             ] : []),
             { key: 'best', label: 'BEST', w: 66, heat: false, group: 'Where they disagree',
               title: 'The best price at the consensus line, and the book that has it. Lit in the accent when another book is paying less.',
