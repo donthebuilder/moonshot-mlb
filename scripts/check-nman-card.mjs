@@ -13,6 +13,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { stressSet } from './proto-cards/nManStressFixtures.mjs'
 import { renderNMan, nManDesign, fitLegName, fitTitle, pillOf, fit1, gridOf, NMAN_LAYOUT as L } from '../lib/cards/nManCard.js'
+import { outcomeWord as outcomeWordOf } from '../lib/cards/outcome.js'
 import { lintType, MIN_TYPE, assets } from '../lib/cards/cardKit.js'
 import { initMetrics, textWidth, FIT_LOG, metricsReady } from '../lib/cards/fit.js'
 
@@ -116,6 +117,26 @@ for (const v of stressSet()) {
   // the plate\'s right column (the combined price) stays inside the plate
   const plate = await ink(png, 26 + L.SIDE + 3, plateBottom - L.COMBO_H + 3, 26 + L.FRAME_W - L.SIDE - 3, plateBottom - 3, 170)
   check(plate.maxX < 26 + L.FRAME_W - L.SIDE - 20, `${tag}: the plate's text stays inside the plate (rightmost ink x=${plate.maxX})`)
+}
+
+// ── THE POST'S CARD (hidePrice, 2026-10-13): the card ATTACHED TO A POST carries no combined price, no per-leg price and no unit; the site route's card (no option) is unchanged ──
+const textsOf = (n, out = []) => { if (n == null || n === false) return out; if (typeof n === 'string' || typeof n === 'number') { out.push(String(n)); return out } if (Array.isArray(n)) { n.forEach((c) => textsOf(c, out)); return out } if (typeof n === 'object' && n.props) { if (typeof n.type === 'function') { try { textsOf(n.type(n.props), out) } catch { textsOf(n.props.children, out) } } else textsOf(n.props.children, out) } return out }
+const PRICEY = /[+\u2212-]\d{3,4}\b|\bunits?\b|combined price|best prices|multiplied|\bbest\b|not all priced|no price|stored price|\bbooks?\b/i
+for (const v of stressSet().filter((x) => x.d.graded)) {
+  const tag = `${v.id} [post card]`
+  const plain = textsOf(nManDesign(v.d, null, '')).join(' | ')
+  const hid = textsOf(nManDesign(v.d, null, '', { hidePrice: true })).join(' | ')
+  check(PRICEY.test(plain), `${tag}: the site card still shows its price words (unchanged look)`)
+  check(!PRICEY.test(hid), `${tag}: no price, unit or combined-price word anywhere on the post card${PRICEY.test(hid) ? ` (found: ${hid.match(PRICEY)[0]})` : ''}`)
+  check(hid.includes(`${v.d.graded.landed} of ${v.d.graded.of}`) && /every leg must land/.test(hid) && new RegExp(outcomeWordOf(v.d.graded.result)).test(hid), `${tag}: the post card says the legs hit, the rule without a unit, and the ticket word`)
+  check(lintType(nManDesign(v.d, null, '', { hidePrice: true })).length === 0, `${tag}: no text under the ${MIN_TYPE}px floor`)
+  const png = await renderNMan(v.d, { width: 1080, hidePrice: true })
+  const meta = await sharp(png).metadata()
+  check(meta.width === 1080 && meta.height === 1350, `${tag}: renders 1080x1350`)
+  const plateBottom = 26 + L.HEADER_H + (L.TITLE_H + 28) + L.GAP + L.GRID_H + L.GAP + L.COMBO_H
+  const plate = await ink(png, 26 + L.SIDE + 3, plateBottom - L.COMBO_H + 3, 26 + L.FRAME_W - L.SIDE - 3, plateBottom - 3, 170)
+  check(plate.maxX < 26 + L.FRAME_W - L.SIDE - 20, `${tag}: the plate's text stays inside the plate (rightmost ink x=${plate.maxX})`)
+  if (OUT) fs.writeFileSync(path.join(OUT, `${v.id}-post.png`), png)
 }
 
 console.log(failed ? `\n${failed} FAILED` : `\nOK: the N-man card sizing (${stressSet().length} stress variants)${OUT ? `; PNGs in ${OUT}` : ''}`)
