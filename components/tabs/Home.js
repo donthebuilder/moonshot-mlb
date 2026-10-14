@@ -55,6 +55,7 @@ import { onLiveRefresh } from '../../lib/liveRefresh'
 import MlbTonight from '../tonight/MlbTonight'
 import { TeamTap } from '../EntityTap'
 import { localTime } from '../../lib/localTime'
+import { sharedFetch } from '../../lib/sharedRead'
 
 // An Eastern calendar day n days from today (YYYY-MM-DD), on etToday's clock.
 const etShift = (n) => { const d = new Date(`${etToday()}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
@@ -477,7 +478,7 @@ export default function Home({
   const [fence, setFence] = useState(null)
   useEffect(() => {
     let alive = true
-    fetch(`${dataUrl('current/fence_board.json')}?t=${Date.now()}`)
+    sharedFetch(`${dataUrl('current/fence_board.json')}?t=${Date.now()}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => { if (alive) setFence(j) })
       .catch(() => {})

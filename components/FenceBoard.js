@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { dataUrl } from '../lib/dataSource'
+import { sharedFetch } from '../lib/sharedRead'
 
 const bust = (u) => `${u}${u.includes('?') ? '&' : '?'}t=${Date.now()}`
 import { fetchWalls, pullWallFor } from '../lib/walls'
@@ -36,7 +37,7 @@ export default function FenceBoard({ onPlayerClick, players = [] }) {
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
-    fetch(bust(dataUrl('current/fence_board.json')))
+    sharedFetch(bust(dataUrl('current/fence_board.json')))
       .then((r) => (r.ok ? r.json() : null)).then(setBoard).catch(() => {})
     fetchWalls().then(setWalls).catch(() => {})
   }, [])
