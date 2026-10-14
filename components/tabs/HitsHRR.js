@@ -24,6 +24,7 @@ import { useHashFilter } from '../../lib/filterHash'
 import { COLUMN_VIEWS, columnViewKey } from '../../lib/boardColumns'
 import HowToRead from '../HowToRead'
 import { hrRank } from '../../lib/scoring'
+import { twoHrScores, withTwoHr, TWO_HR_NOTE } from '../../lib/mlb/twoHrScore'
 // HitterHeat (the heat-painted 'top 15 profile' tables) left this page 2026-09-06 -- Donovan:
 // "I don't like those ones." The cards below carry the same names.
 import { hrScore, mlbId, nameOf, playerId, teamOf } from '../../lib/player'
@@ -36,7 +37,7 @@ import { pickRate, lockedCallsLine } from '../../lib/record/lockedRecord'
 // BoardFilters.js's own SCORE_FOR_TYPE understands. weakspot/aligned/
 // matchupedge/blank aren't single-score rankings, so they fall through to
 // null and the Score slider simply doesn't render for them.
-const SCORE_TYPE_FOR_VIEW = { top: 'top', hr: 'hr', hit: 'hit', hrr: 'hrr', contact: 'contact' }
+const SCORE_TYPE_FOR_VIEW = { top: 'top', hr: 'hr', hit: 'hit', hrr: 'hrr', contact: 'contact' }   // hr2 (2+ HR) has no slider: its number is a rank, not a score band
 
 // 📊 BOARDS — the nine ranked lenses, plus the power page and the streak page
 // they share a roof with.
@@ -116,6 +117,7 @@ const ANSWERS = {
   hit: 'who to back for a 1+ hit prop.',
   hrr: 'who to back for 2+ hits+runs+RBI.',
   contact: 'who to back for 2+ total bases.',
+  hr2: 'who can hit two home runs tonight: our own two-homer ranking, a new model that never changes the HR score. No 2+ HR prices are published, so the board shows none.',
   weakspot: 'which hitters are standing in a slot tonight’s starter has already been beaten in.',
   aligned: 'which hitters have the weak spot, the pitch match and power firing at once.',
   matchupedge: 'which hitters get to face the exact pitches they punish.',
@@ -143,6 +145,8 @@ const MARKET_LENSES = [
   { key: 'hit',     label: 'Hits',    color: C.orange },
   { key: 'hrr',     label: 'HRR',     color: C.orange },
   { key: 'contact', label: 'Contact', color: C.orange },
+  // 2+ HR (2026-10-13): the twin of TUDDY's 2+ TD and LAMP's 2+ goals boards; last, so the lenses before it keep their places
+  { key: 'hr2',     label: '2+ HR',   color: C.orange },
 ]
 const ANGLE_LENSES = [
   { key: 'weakspot',    label: 'Weak Spot',    color: C.orange },
@@ -189,6 +193,11 @@ const PROOF = (rec) => ({
     color: C.orange,
     head: 'Two singles clear it — which is why the power scores are wrong here',
     body: `TWO BASES IS THE ODD BAR ON THIS SITE, and it is the key to reading this board: it can be cleared without any power at all. A double does it, and so do two singles. Sluggers strike out; the men who pile up bases two at a time are contact hitters. So a total-bases play is a frequency bet wearing a power bet’s clothes, and the power boards are the wrong place to shop for it. Walks aren’t counted, so a pick who walked twice is scored a failure. ${rec?.picks?.CONTACT ? `On the ${rec.source}, CONTACT picks cleared 2+ bases ${pickRate(rec.picks.CONTACT)}, against ${rec.picks.CONTACT.base?.toFixed(1)}% for every hitter on the board.` : ''}`,
+  },
+  hr2: {
+    color: C.orange,
+    head: '2+ HR: a new ranking, not part of the HR score',
+    body: `${TWO_HR_NOTE} A 0-100 rank among tonight’s hitters, never a probability: the HR score, home runs per plate appearance (50+ PA), ISO, recent barrel rate, tonight’s starter’s HR/9, the park’s HR factor and his lineup slot’s plate appearances, each turned into a rank among tonight’s hitters and averaged with fixed weights (a first cut, not fitted to results). ON THE BOARD is the top third of this list. It is computed here from the slate file; no 2+ HR price is published and no result is recorded for it yet, so it carries no hit rate.`,
   },
   weakspot: {
     color: C.orange,
@@ -475,7 +484,14 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
   // CALLED LAST NIGHT (2026-10-10): the previous slate's calls and results; a filter in the sheet, a section under the board
   const cln = useCalledLastLens('mlb', slateDate, null, { enabled: rankings && Boolean(slateDate) })
   // POSITION (2026-10-10): Rankings only; the pills and pos= ride the shared filter (components/BoardFilters.js)
-  const filterState = useBoardFilter(players, SCORE_TYPE_FOR_VIEW[viewKey] || null, cln, { positions: rankings })
+  // 2+ HR (2026-10-13): scored over the WHOLE slate (so a filter never changes a number), then attached to the rows the filter and the table read
+  const hr2On = viewKey === 'hr2'
+  const slatePool = allPlayers.length ? allPlayers : players
+  const hr2Scores = useMemo(() => (hr2On ? twoHrScores(slatePool, playerId) : null), [hr2On, slatePool])
+  const hr2Players = useMemo(() => (hr2On ? withTwoHr(players, hr2Scores, playerId) : null), [hr2On, players, hr2Scores])
+  const hr2Slate = useMemo(() => (hr2On ? withTwoHr(slatePool, hr2Scores, playerId) : null), [hr2On, slatePool, hr2Scores])
+  const boardPlayers = hr2On ? hr2Players : players
+  const filterState = useBoardFilter(boardPlayers, SCORE_TYPE_FOR_VIEW[viewKey] || null, cln, { positions: rankings })
   const { filtered, state } = filterState
   const setupHomers = useSetupHomers(slateDate)
   // useBackToBack, not backToBack: the watch accumulates for the slate so a
@@ -616,7 +632,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
           components/LensRow.js for why that divider could never do the job it
           was being asked to do. */}
       {phoneRank && boards && (
-        <BoardFilters state={state} total={players.length} shown={filtered.length} compact beside={phoneBeside} lead={phoneLead} ledger={rankings ? 'mlb' : null}
+        <BoardFilters state={state} total={boardPlayers.length} shown={filtered.length} compact beside={phoneBeside} lead={phoneLead} ledger={rankings ? 'mlb' : null}
           share={rankings && players.length > 0 && CARD_TYPES.has(viewKey) ? <ShareCardButton sport="mlb" what="this board" url={shareUrl({ kind: 'ranked', sport: 'mlb', type: viewKey })} filename={`board-${slug(viewKey)}_${stamp(slateDate)}.png`} /> : null} />
       )}
       {boards && !phoneRank && (
@@ -744,8 +760,8 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
             ? <AlignedSignalsSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
             : view === 'matchupedge'
             ? <MatchupEdgeSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
-            : <RankedBoard players={players} type={viewKey} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} onOpenPitcher={onNavigate ? (pid) => { leaveTarget('pitcher', pid); onNavigate('pitchers') } : null} slateDate={slateDate} filterState={filterState} setupHomers={setupHomers}
-                onOpenCard={onOpenCard} rankings={rankings} compact={phoneRank} colsView={colsView} onColsView={setColsView} slate={allPlayers.length ? allPlayers : players} viewMode={layout} onViewMode={setLayout} runAt={runAt} />
+            : <RankedBoard players={boardPlayers} type={viewKey} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} onOpenPitcher={onNavigate ? (pid) => { leaveTarget('pitcher', pid); onNavigate('pitchers') } : null} slateDate={slateDate} filterState={filterState} setupHomers={setupHomers}
+                onOpenCard={onOpenCard} rankings={rankings} compact={phoneRank} colsView={colsView} onColsView={setColsView} slate={hr2On ? hr2Slate : slatePool} viewMode={layout} onViewMode={setLayout} runAt={runAt} />
           }
           {phoneRank && b2bFold}
           {/* UNDER THE BOARD on every width, so the first ranked row does not move */}

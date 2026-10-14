@@ -56,6 +56,7 @@ const Players = dynamic(() => import('./tabs/Players'), { loading: TabLoading })
 const Player = dynamic(() => import('./tabs/Player'), { loading: TabLoading })
 const Leaders = dynamic(() => import('./tabs/Leaders'), { loading: TabLoading })
 const ShotMap = dynamic(() => import('./tabs/ShotMap'), { loading: TabLoading })
+const CalledLedger = dynamic(() => import('./tabs/CalledLedger'), { loading: TabLoading })
 const Results = dynamic(() => import('./tabs/Results'), { loading: TabLoading })
 const Guide = dynamic(() => import('./tabs/Guide'), { loading: TabLoading })
 const Binder = dynamic(() => import('./tabs/Binder'), { loading: TabLoading })   // 2026-10-12: cards earned by the players I follow (hidden with the rest of BUCKETS)
@@ -135,11 +136,13 @@ export default function BucketsDashboard() {
             {tab === 'schedule' && <Schedule date={date} setDate={setDate} onOpenGame={openGame} onOpenTeam={openTeam} />}
             {tab === 'odds' && <BucketsOdds date={date} onOpenPlayer={peekPlayer} />}
             {tab === 'storylines' && <StorylinesPage sport="nba" previewGames={4} eyebrow="BUCKETS · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.purple} onOpenPlayer={peekPlayer} onOpenGame={openGame} date={date} />}
-            {tab === 'watchlist' && <Watchlist onOpenPlayer={peekPlayer} />}
-            {/* THE LEDGER (2026-10-07): Tonight | Record -- BUCKETS has no called table or archive yet (components/pages/LedgerShell) */}
+            {tab === 'watchlist' && <Watchlist onOpenPlayer={peekPlayer} onOpenTeam={openTeam} onOpenGame={openGame} />}
+            {/* THE LEDGER (2026-10-13): Tonight | Called | Record | Archive, as LAMP's (components/pages/LedgerShell; Called and Archive: tabs/CalledLedger) */}
             {tab === 'ledger' && <LedgerShell sport="nba" bodies={{
               tonight: () => <Ledger date={date} setDate={setDate} {...nav} />,
+              called: () => <CalledLedger onOpenPlayer={peekPlayer} onOpenTeam={openTeam} />,
               record: () => <Results {...nav} />,
+              archive: () => <CalledLedger onOpenPlayer={peekPlayer} onOpenTeam={openTeam} initialView="season" />,
             }} />}
             {tab === 'numerology' && <Numerology date={date} onOpenPlayer={peekPlayer} />}
             {tab === 'hot' && <Hot date={date} setDate={setDate} {...nav} />}
