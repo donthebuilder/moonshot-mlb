@@ -6,6 +6,7 @@ import { useLiveFetch } from '../../lib/useLiveFetch'
 import { WEAK_FLOOR, leagueWord } from '../../lib/nhl/goalieWeak'
 import { seasonLabel } from '../../lib/nhl/reduce'
 import LampTable from './LampTable'
+import { nhlMugLatest } from '../../lib/nhl/format'
 import CallStatusBadge from '../CallStatusBadge'
 import Tap from '../Tap'
 import { Loading, readHashParam } from './ui'
@@ -51,12 +52,13 @@ export function SpotsTable({ w }) {
 
 function ShootersTable({ w, rows, onOpenPlayer }) {
   const byId = new Map(rows.map((r) => [String(r.playerId), r]))
-  const list = (w.shooters || []).map((s) => { const r = byId.get(String(s.id)); return r ? { ...s, _key: String(s.id), r, name: r.name, status: r.status, byText: s.byZone.filter((z) => z.n > 0).map((z) => `${z.short} ${z.n}`).join(' · ') || 'none' } : null }).filter(Boolean)
+  const list = (w.shooters || []).map((s) => { const r = byId.get(String(s.id)); return r ? { ...s, _key: String(s.id), r, name: r.name, team: r.team, pos: r.pos, status: r.status, byText: s.byZone.filter((z) => z.n > 0).map((z) => `${z.short} ${z.n}`).join(' · ') || 'none' } : null }).filter(Boolean)
   if (!list.length) return <p style={{ margin: 0, color: C.text3, font: '700 11px/1.45 system-ui, sans-serif' }}>None of tonight’s called or on-the-board skaters facing him has shots on goal on file this season.</p>
   return (
-    <LampTable bare noGroups tight heatMode="primary" maxHeight={9999} maxRows={9} caption="Which skaters facing him shoot most from his weak zones"
+    <LampTable bare noGroups nameCell="player" faceOf={(x) => ({ sport: 'nhl', photo: nhlMugLatest(x.id), name: x.name })} heatMode="primary" maxHeight={9999} maxRows={9} caption="Which skaters facing him shoot most from his weak zones"
       rows={list} columns={[
         { key: 'name', label: 'Skater', heat: false, sticky: true, w: 128, numeric: false, link: (x) => (onOpenPlayer ? () => onOpenPlayer(x.id) : null) },
+        { key: 'team', label: 'Team', group: 'Skater', heat: false, w: 44, teamMark: 'nhl' },
         { key: 'status', label: 'Status', heat: false, statusCol: true, w: 118, numeric: false, fmt: (v) => <CallStatusBadge status={v} size={8} /> },
         { key: 'n', label: 'FROM THERE', w: 76, primary: true, dp: 0, fmt: (v, x) => <span style={cell}>{v} of {x.m}</span>, explain: 'His shots on goal this regular season taken from any of the goalie’s zones listed above, out of all his shots on goal.' },
         { key: 'byText', label: 'BY ZONE', heat: false, numeric: false, w: 150, fmt: (v) => <span style={{ color: C.text2 }}>{v}</span> },

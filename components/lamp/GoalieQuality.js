@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../../lib/nhl/theme'
 import { useLampGoalieQuality } from '../../lib/nhl/useLamp'
 import { goalieLine } from '../../lib/nhl/goalieQuality'
 import LampTable from './LampTable'
+import { nhlMugLatest } from '../../lib/nhl/format'
 import { Kicker } from './ui'
 
 // 🥅 GOALIE QUALITY (2026-10-08): each goalie's shots faced, goals against, the expected goals on those same shots,
@@ -52,7 +53,7 @@ export default function GoalieQuality({ game, box = null, onOpenPlayer = null, l
       {lead}
       {rows.length > 0 && (
         <div style={{ marginTop: lead ? 10 : 0 }}>
-          <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={99} caption={`Goalie quality: shots faced, goals allowed against the ${XG_WORD} on them, and the quality factor`}
+          <LampTable bare noGroups nameCell="player" faceOf={(x) => ({ sport: 'nhl', photo: nhlMugLatest(x.pid), name: x.name })} heatMode="sorted" maxHeight={9999} maxRows={99} caption={`Goalie quality: shots faced, goals allowed against the ${XG_WORD} on them, and the quality factor`}
             rows={rows} columns={COLS(onOpenPlayer)} />
           <p style={{ margin: '6px 0 0', color: C.text3, font: '700 11px/1.45 system-ui, sans-serif' }}>
             {pre ? `Tonight's starter is not posted for ${game.away} or ${game.home}; these are the goalies each club has used lately. ` : ''}

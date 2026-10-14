@@ -29,6 +29,8 @@ export default function DashFooter({ sport, theme: C, onGuide = null }) {
       <div style={{ maxWidth: 640, margin: '0 auto', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', columnGap: 6 }}>
         <span>Stats for entertainment, not betting or financial advice. Play responsibly.</span>
         <a href="/terms#disclaimer" style={{ ...link, display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 4px' }}>Full text</a>
+        <span aria-hidden="true">·</span>
+        <a href="/terms#affiliation" style={{ ...link, display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 4px' }}>Not affiliated with any league or team</a>
       </div>
     </footer>
   )

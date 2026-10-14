@@ -4,6 +4,7 @@
 // own report (/api/lamp/penalties), tonight's skaters first. Measured, no score.
 import { useMemo, useState } from 'react'
 import LampTable from './LampTable'
+import { nhlMugLatest } from '../../lib/nhl/format'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
 import { useLampPenalties } from '../../lib/nhl/useLamp'
 import { DelayedBanner, Loading, SourceLine, Kicker } from './ui'
@@ -20,7 +21,7 @@ export default function PenaltyBox({ onOpenPlayer, onOpenTeam }) {
     .map((p) => ({ ...p, _id: p.id, opp: p.tonight ? `${p.tonight.home ? 'v' : '@'} ${p.tonight.opp}` : '' })), [all, tonightOnly, anyTonight])
   const columns = [
     { key: 'name', label: 'Skater', group: 'Skater', w: 150, heat: false, sticky: true, bold: true, link: (r) => (onOpenPlayer ? () => onOpenPlayer(r.id) : null) },
-    { key: 'team', label: 'Team', group: 'Skater', w: 50, heat: false, link: (r) => (onOpenTeam && r.team ? () => onOpenTeam(r.team) : null) },
+    { key: 'team', label: 'Team', group: 'Skater', w: 50, heat: false, teamMark: 'nhl', link: (r) => (onOpenTeam && r.team ? () => onOpenTeam(r.team) : null) },
     { key: 'opp', label: 'Tonight', group: 'Skater', w: 62, heat: false, mono: true },
     { key: 'gp', label: 'GP', group: 'Skater', w: 36, heat: false },
     { key: 'taken', label: 'Taken', group: 'Penalties', w: 50, primary: true },
@@ -42,7 +43,7 @@ export default function PenaltyBox({ onOpenPlayer, onOpenTeam }) {
       <DelayedBanner error={error} what="the penalty report" />
       {loading && !data ? <Loading what="the penalty report" /> : null}
       {rows.length > 0 && (
-        <LampTable rows={rows} columns={columns} heatMode="sorted" initialSort="taken" maxRows={12} maxHeight={9999}
+        <LampTable nameCell="player" faceOf={(r) => ({ sport: 'nhl', photo: nhlMugLatest(r.id), name: r.name })} rows={rows} columns={columns} heatMode="sorted" initialSort="taken" maxRows={12} maxHeight={9999}
           rowEdge={(r) => (r.tonight ? C.ice : null)}
           caption="Who takes penalties and who draws them. Sort any column; tap a skater for his page." />
       )}

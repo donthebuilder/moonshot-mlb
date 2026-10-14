@@ -23,7 +23,7 @@ export function ShowMoreButton({ open, restN, toggle, itemWord = '' }) {
   return (
     <button
       type="button"
-      className="tap-box"
+      className="tap-box show-more"
       onClick={toggle}
       aria-expanded={open}
       style={{

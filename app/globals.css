@@ -176,6 +176,18 @@ button {
 /* THE SCORE STRIP'S GAME CHIP, ANY TOUCH SCREEN (2026-10-13): 34px chip + 5px above and below = a 44px button. components/header/HeaderShell.js had it under 760px only, so a phone turned sideways (844 wide) got a 34px target. */
 @media (pointer: coarse) { .tp-game { padding: 5px 0 !important; } }
 
+/* 44PX TARGETS, SHARED CONTROLS (2026-10-14, final audit; Donovan's phone rule). Touch screens only, so a mouse keeps today's density.
+   - Fold's closed header was 41px (its padding is 10.5px now: +3px a closed section, components/Fold.js); ListPreview's "Show N more" was 32px (+12px under a list that already ended, its last row never moves).
+   - A phone turned sideways (>760px wide: the desktop header and the floating dock) had 20-34px header and dock items: the wordmark, the other-product pills (a 44px hit box over the same 20px pill),
+     Today / Tmrw, the gear, the sign-up pill, and the dock buttons (the dock grows 46 -> 56px, its page padding with it). Portrait phones (<=760px) have their own 44px rules and are untouched. */
+@media (pointer: coarse) { .tap-box.show-more { min-height: 44px; } }
+@media (pointer: coarse) and (min-width: 761px) {
+  .hdr-word-row > button { min-height: 44px; }
+  .hdr-date .date-mode-switch button { min-height: 44px; }
+  .hdr-gear > div > button[aria-haspopup] { width: 44px !important; height: 44px !important; }
+  .hdr-acct a, .hdr-acct button[aria-haspopup] { min-height: 44px; display: inline-flex; align-items: center; }
+}
+
 /* FILTER PILLS ON A PHONE (2026-10-13): TUDDY / LAMP / BUCKETS pills and segments are 44px tall on a touch screen (components/Filters.js adds .fp-themed there; MOONSHOT's are not themed and stay 32). */
 @media (pointer: coarse) { .fp-themed { min-height: 44px !important; min-width: 44px; } }
 

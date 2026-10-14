@@ -6,6 +6,7 @@ import { useTeamNav } from '../../../lib/teamNav'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampGame } from '../../../lib/nhl/useLamp'
 import { nhlLogo, nhlTeam } from '../../../lib/nhl/teams'
+import { nhlMug } from '../../../lib/nhl/format'
 import { strengthTag } from '../ScoreTable'
 import LampTable from '../LampTable'
 import NhlH2H from '../../h2h/NhlH2H'
@@ -203,7 +204,7 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
       <GoalieQuality game={{ home: g.home.abbrev, away: g.away.abbrev, date: g.date, state: g.state }} onOpenPlayer={onOpenPlayer}
         box={g.box && (g.box.away.goalies.length + g.box.home.goalies.length) > 0 ? g.box : null}
         lead={g.box && (g.box.away.goalies.length + g.box.home.goalies.length) > 0 ? (
-          <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={99} caption="Each goalie who played"
+          <LampTable bare noGroups nameCell="player" faceOf={(x) => ({ sport: 'nhl', photo: nhlMug(g.season, x.team, x.id), name: x.name })} heatMode="sorted" maxHeight={9999} maxRows={99} caption="Each goalie who played"
             rows={[...g.box.away.goalies, ...g.box.home.goalies].map((x) => ({ ...x, _key: `g-${x.id}`, svWord: x.sa != null ? `${x.saves ?? '—'}/${x.sa}` : '—' }))}
             columns={[
               { key: 'name', label: 'Goalie', heat: false, sticky: true, w: 150, link: (x) => (x.id && onOpenPlayer ? () => onOpenPlayer(x.id) : null) },
@@ -218,7 +219,7 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
       {g.box && ['away', 'home'].map((sd) => g.box[sd].skaters.length > 0 && (
         <section key={sd} aria-label={`${g.box[sd].abbrev} skaters`}>
           <Kicker>{g.box[sd].abbrev} SKATERS</Kicker>
-          <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={8} caption={`${g.box[sd].abbrev}'s skaters in this game`}
+          <LampTable bare noGroups nameCell="player" faceOf={(x) => ({ sport: 'nhl', photo: nhlMug(g.season, x.team, x.id), name: x.name })} heatMode="sorted" maxHeight={9999} maxRows={8} caption={`${g.box[sd].abbrev}'s skaters in this game`}
             rows={[...g.box[sd].skaters].sort((a, b) => (b.pts ?? 0) - (a.pts ?? 0) || (b.sog ?? 0) - (a.sog ?? 0)).map((x) => ({ ...x, _key: `s-${x.id}` }))}
             columns={[
               { key: 'name', label: 'Skater', heat: false, sticky: true, w: 140, link: (x) => (x.id && onOpenPlayer ? () => onOpenPlayer(x.id) : null) },
@@ -264,16 +265,13 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
       {g.threeStars.length > 0 && (
         <section aria-label="Three stars">
           <Kicker tone={C.cream}>THREE STARS</Kicker>
-          <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={99} caption="The three stars"
+          <LampTable bare noGroups nameCell="player" faceOf={(x) => ({ sport: 'nhl', photo: x.headshot || nhlMug(g.season, x.team, x.id), name: x.name })} heatMode="sorted" maxHeight={9999} maxRows={99} caption="The three stars"
             rows={g.threeStars.map((x) => ({ ...x, _key: x.star }))}
             columns={[
               { key: 'star', label: '★', w: 40, fmt: (v) => '★'.repeat(Math.max(1, 4 - (v || 3))), tone: () => ({ color: C.cream, weight: 900 }) },
-              { key: 'name', label: 'Player', heat: false, sticky: true, w: 210, link: (x) => (x.id && onOpenPlayer ? () => onOpenPlayer(x.id) : null),
-                fmt: (v, x) => (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-                    {x.headshot && <img src={x.headshot} alt="" width={20} height={20} loading="lazy" style={{ width: 20, height: 20, borderRadius: '50%', background: C.bg3, objectFit: 'cover' }} />}
-                    <b>{v}</b><span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{x.team} · {x.pos}{x.number != null ? ` #${x.number}` : ''}</span>
-                  </span>) },
+              { key: 'name', label: 'Player', heat: false, sticky: true, w: 210, link: (x) => (x.id && onOpenPlayer ? () => onOpenPlayer(x.id) : null) },
+              { key: 'pos', label: 'Pos', group: 'Player', heat: false, w: 36 },
+              { key: 'team', label: 'Team', group: 'Player', heat: false, w: 44, teamMark: 'nhl' },
               { key: 'line', label: 'Line', heat: false, numeric: false, w: 110,
                 fmt: (_, x) => (x.pos === 'G' ? (x.savePctg != null ? `${x.savePctg.toFixed(3).replace(/^0/, '')} SV%` : '') : `${x.goals ?? 0} G · ${x.assists ?? 0} A`) },
             ]} />

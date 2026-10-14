@@ -25,6 +25,7 @@ export default function TermsPage() {
         <p>DASH Network shows sports data and a model&apos;s reads. It is information, not advice; nothing here is a guarantee of any result.</p>
         <p>You must be 21 or older where sports betting is legal, and responsible for your own decisions and the laws where you live.</p>
         <p id="disclaimer">DASH Network is stats and analysis for entertainment: measured data, graded in public. It is <b>not financial, betting, or investment advice</b>, and nothing here is a recommendation to wager. If you bet, that&apos;s your decision and your responsibility. Play responsibly.</p>
+        <p id="affiliation">DASH Network is an independent site. It is not affiliated with, endorsed by, or sponsored by the NFL, MLB, NHL, NBA, or any team or player. Team names, logos and player images are the property of their respective owners and are shown to identify the players and games the stats describe.</p>
         <p>Membership is month to month; cancel any time in Whop; no refunds for a month already started.</p>
         <p>Every call is graded in public, hits and misses.</p>
         {contact ? <p>Questions: <a href={`mailto:${contact}`}>{contact}</a></p> : null}

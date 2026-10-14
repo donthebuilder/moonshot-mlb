@@ -82,7 +82,7 @@ export default function Fold({
           display: 'flex', alignItems: 'baseline', gap: 9, width: '100%',
           background: open ? 'transparent' : C.bg2,
           border: `1px solid ${open ? 'transparent' : C.border}`,
-          borderRadius: 10, padding: open ? '4px 2px' : '9px 12px',
+          borderRadius: 10, padding: open ? '4px 2px' : '10.5px 12px', minHeight: open ? undefined : 44,
           cursor: 'pointer', textAlign: 'left',
         }}
       >
