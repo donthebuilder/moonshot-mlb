@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import LampTable from '../LampTable'
+import { nhlMugLatest } from '../../../lib/nhl/format'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampHotSticks } from '../../../lib/nhl/useLamp'
 import { DelayedBanner, Loading, SourceLine, StaleSeasonNote, EmptyState, fmtSec } from '../ui'
@@ -110,7 +111,7 @@ export default function Power({ onOpenPlayer }) {
         <>
           <LensRow theme={C} lenses={LENSES} value={view} onChange={setView}
             btn={(color, on) => ({ ...btnStyle(color, on), border: `1px solid ${on ? `${color}99` : C.border}`, color: on ? color : C.text2 })} />
-          <LampTable rows={board} columns={columns} heatMode="primary" maxRows={12 /* 0g E3 */} maxHeight={9999}
+          <LampTable nameCell="player" faceOf={(r) => ({ sport: 'nhl', photo: nhlMugLatest(r.id), name: r.name })} rows={board} columns={columns} heatMode="primary" maxRows={12 /* 0g E3 */} maxHeight={9999}
             onRowClick={(r) => onOpenPlayer?.(r.id)} />
         </>
       )}
