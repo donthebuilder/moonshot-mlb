@@ -83,6 +83,18 @@ await t('the same event looks different from another event (the ice is seeded by
   const b = await renderCollect(other.model, { tier: 'base' })
   assert.ok(a.equals(again)); assert.ok(!a.equals(b))
 })
+await t('an MLB card (TEST row) renders in all four tiers, with a full-bleed action picture and with the placeholder', async () => {
+  const sharp = (await import('sharp')).default
+  const photo = await sharp({ create: { width: 450, height: 675, channels: 3, background: { r: 90, g: 110, b: 80 }, noise: { type: 'gaussian', mean: 100, sigma: 40 } } }).jpeg().toBuffer()
+  const mlb = await collectModel('mlb_multi_hr', F.TEST_MULTI_HR, { test: true })
+  assert.match(text(collectDesign(mlb.model, '', { tier: 'elite' })).join(' '), /3-HOMER GAME/)
+  for (const tier of TIERS) {
+    assert.ok((await renderCollect(mlb.model, { tier })).length > 1000, `placeholder ${tier}`)
+    const withPhoto = { ...mlb.model, face: `data:image/jpeg;base64,${photo.toString('base64')}`, portraitMode: 'action', placeholder: null }
+    assert.deepEqual(lintType(collectDesign(withPhoto, '', { tier })), [], tier)
+    assert.ok((await renderCollect(withPhoto, { tier })).length > 1000, `action ${tier}`)
+  }
+})
 await t('the preview route is not linked from anywhere (app, components, lib, scripts other than the previews)', () => {
   const hits = []
   const walk = (dir) => {

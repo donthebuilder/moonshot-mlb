@@ -62,3 +62,14 @@ const tiles = await Promise.all(order.map(async (f, i) => ({ input: await sharp(
 await sharp({ create: { width: gap + 4 * (cw + gap), height: ch + 2 * gap, channels: 4, background: { r: 10, g: 12, b: 15, alpha: 1 } } }).composite(tiles).png().toFile(`${out}/four-tier-sheet.png`)
 writeFileSync(`${out}/manifest.json`, JSON.stringify(made, null, 2))
 console.log('four-tier-sheet.png')
+
+// BRIGHTENER BEFORE / AFTER: the same real card (ELITE, earned) with the portrait as the NHL sent it, and brightened (lib/cards/portrait/enhance.js)
+const raw = await collectModel('nhl_hat_trick', real, { enhance: false })
+const rawPng = await renderCollect(raw.model, { tier: 'elite' })
+writeFileSync(`${out}/nhl-elite-before-brightening.png`, rawPng)
+const pr = (await collectModel('nhl_hat_trick', real, {})).model.collect.portrait
+console.log(`brightener: mean brightness ${pr.enhanced.before} -> ${pr.enhanced.after} (profile ${pr.enhanced.profile}), highlight/shadow clip ${(pr.enhanced.clipBefore * 100).toFixed(2)}% -> ${(pr.enhanced.clipAfter * 100).toFixed(2)}%`)
+const ba = [`${out}/nhl-elite-before-brightening.png`, `${out}/real-elite-tkachuk.png`]
+const bt = await Promise.all(ba.map(async (f, i) => ({ input: await sharp(f).resize(640, 896).png().toBuffer(), left: gap + i * (640 + gap), top: gap })))
+await sharp({ create: { width: gap + 2 * (640 + gap), height: 896 + 2 * gap, channels: 4, background: { r: 10, g: 12, b: 15, alpha: 1 } } }).composite(bt).png().toFile(`${out}/nhl-brighten-before-after.png`)
+console.log('nhl-brighten-before-after.png (left: before, right: after)')
