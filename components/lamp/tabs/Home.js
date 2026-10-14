@@ -15,6 +15,7 @@ import { useLampStandings, useLampBoard, useLampLeaders, useLampRecord, useLampH
 import { buildLampHeadlines } from '../../../lib/nhl/headlines'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
 import Fold from '../../Fold'
+import ChampionshipOdds from '../../ChampionshipOdds'
 import ScoreTable, { sortGames } from '../ScoreTable'
 import LampTable from '../LampTable'
 import Tap from '../../Tap'
@@ -248,6 +249,8 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
 
         </div>
       </Fold>
+      {/* 2026-10-14: Stanley Cup odds. Draws nothing until nhl_playoff_odds.json is published and passes lib/championship.js. */}
+      <ChampionshipOdds sport="nhl" theme={C} />
       <SourceLine>Scores: NHL score/{'{date}'} via /api/lamp/scores. Standings: NHL standings/now via /api/lamp/standings.</SourceLine>
       </>}
     </div>

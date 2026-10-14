@@ -13,6 +13,7 @@ import BucketsHeadline from '../BucketsHeadline'
 import BucketWatch from '../BucketWatch'
 import { EmptyState, DelayedBanner, Loading, Kicker, NavBtn, LastSeasonNote, fmtDay, fmtTip } from '../ui'
 import NbaTonight from '../../tonight/NbaTonight'
+import ChampionshipOdds from '../../ChampionshipOdds'
 
 // 🌙 TONIGHT -- the NBA night in one page, rebuilt 2026-10-03 on the shared
 // opener (Donovan: "the nba home seems to be missing a lot of components"):
@@ -93,6 +94,9 @@ export default function Home({ today, date, setTab, onOpenPlayer, onOpenGame, on
         )}
         <div style={{ marginTop: 8 }}><NavBtn onClick={() => setTab('leaders')}>Every leader →</NavBtn></div>
       </section>
+
+      {/* 2026-10-14: title odds, inside BUCKETS' own Home only (BUCKETS is hidden, so this does not make it public). Draws nothing until nba_playoff_odds.json is published and passes lib/championship.js. */}
+      <ChampionshipOdds sport="nba" theme={C} />
     </div>
   )
 }
