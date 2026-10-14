@@ -67,7 +67,7 @@ export default function FollowingStrip({ sport = 'mlb', onPlayerClick = null, li
       </div>
       {!account.signedIn && account.configured ? (
         <p style={body()}>
-          <a href="/dash#sign-in" style={{ color: 'inherit' }}>Sign in</a> and this list follows you
+          <a href="/dash#sign-in" className="tap-box" style={{ color: 'inherit' }}>Sign in</a> and this list follows you
           to your phone.
         </p>
       ) : null}

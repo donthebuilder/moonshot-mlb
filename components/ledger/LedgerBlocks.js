@@ -5,6 +5,7 @@ import { TeamTap } from '../EntityTap'
 import { C, NUM_FONT } from '../../lib/theme'
 import { alpha } from '../../lib/scales'
 import TeamMark from '../TeamMark'
+import { useSportTheme } from '../SportTheme'
 
 // THE LEDGER'S BLOCKS, ONCE (2026-09-28, parity plan 00Q step 3). MOONSHOT's
 // Homer ledger (components/HomerLedger.js) lifted out block by block, style
@@ -26,7 +27,7 @@ import TeamMark from '../TeamMark'
 function More({ n, open, setOpen, accent }) {
   if (n <= 0) return null
   return (
-    <button type="button" onClick={() => setOpen((v) => !v)} style={{
+    <button type="button" className="tap-box" onClick={() => setOpen((v) => !v)} style={{
       alignSelf: 'center', minHeight: 32, padding: '4px 10px', borderRadius: 8, cursor: 'pointer',
       border: `1px dashed ${C.border2}`, background: 'transparent', color: accent, fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800,
     }}>{open ? 'Show less' : `Show ${n} more`}</button>
@@ -98,6 +99,7 @@ export function WatchStrip({ label, hits, watched, sentence, children, color = C
 /** chips: [{ key, name, tags: [{ k, label, why }], onClick }] */
 export function AlignBox({ title, sub, chips = [], foot, accent = C.orange, preview = null }) {
   const [open, setOpen] = useState(false)
+  const themed = !!useSportTheme()?.themed   // 44px chips on a touch screen in TUDDY / LAMP / BUCKETS (.fp-themed); MOONSHOT unchanged
   if (!chips.length) return null
   const shownChips = preview && !open ? chips.slice(0, preview) : chips
   return (
@@ -111,9 +113,10 @@ export function AlignBox({ title, sub, chips = [], foot, accent = C.orange, prev
       </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {shownChips.map((c) => (
-          <button key={c.key} onClick={c.onClick || undefined}
+          <button key={c.key} onClick={c.onClick || undefined} className={themed ? 'fp-themed' : undefined}
             title={c.tags.map((t) => t.why).filter(Boolean).join(' ')}
             style={{
+              alignContent: 'center',
               // maxWidth + wrap: a chip with many tags wraps inside itself
               // instead of running off a phone (a chip that fits is unchanged).
               display: 'flex', flexWrap: 'wrap', maxWidth: '100%', gap: 6, alignItems: 'baseline', cursor: c.onClick ? 'pointer' : 'default',
@@ -252,12 +255,13 @@ export function NextUpBox({ title, rows = [], about, color = C.orange }) {
 // the emoji; type up a step (name 12.5, figure 11) and 40px tall to tap.
 export function ScorerChips({ cards = [], accent = C.orange, preview = null, sport = null }) {
   const [open, setOpen] = useState(false)
+  const themed = !!useSportTheme()?.themed   // 44px on a touch screen in TUDDY / LAMP / BUCKETS (.fp-themed)
   if (!cards.length) return null
   const shown = preview && !open ? cards.slice(0, preview) : cards
   return (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
       {shown.map((c) => (
-        <button key={c.key} onClick={c.onClick || undefined}
+        <button key={c.key} onClick={c.onClick || undefined} className={themed ? 'fp-themed' : undefined}
           title={c.title}
           style={{
             display: 'flex', gap: 7, alignItems: 'center', cursor: c.onClick ? 'pointer' : 'default',

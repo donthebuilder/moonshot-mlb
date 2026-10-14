@@ -75,6 +75,7 @@ export default function Fold({
       <h2 style={{ margin: 0, fontSize: 'inherit', fontWeight: 'inherit' }}>
       <button
         type="button"
+        className="tap-box"
         onClick={toggle}
         aria-expanded={open}
         style={{

@@ -86,7 +86,7 @@ export default function TickerPill({
   // title it stays an inert box.
   if (typeof onClick !== 'function' && title) {
     return (
-      <button type="button" tabIndex={echo ? -1 : 0} aria-hidden={echo || undefined} title={title}
+      <button type="button" className="tap-box" tabIndex={echo ? -1 : 0} aria-hidden={echo || undefined} title={title}
         onClick={() => explain(label, title)} style={{ ...box, cursor: 'help' }}>
         {inner}
       </button>
@@ -98,6 +98,7 @@ export default function TickerPill({
   return (
     <button
       type="button"
+      className="tap-box"
       tabIndex={echo ? -1 : 0}
       aria-hidden={echo || undefined}
       onClick={onClick}

@@ -4,7 +4,7 @@ import PageHeader from '../../PageHeader'
 import CallStatusBadge from '../../CallStatusBadge'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsBoard, useBucketsExpected } from '../../../lib/nba/useBuckets'
-import { NBA_MARKETS } from '../../../lib/nba/legs'
+import { NBA_MARKETS, LEG_LABEL, fmtLeg, RAW_OF } from '../../../lib/nba/legs'
 import BucketsTable from '../BucketsTable'
 import { faceOf, XPTS_TITLE } from '../boardTable'
 import { EmptyState, DelayedBanner, Loading, SourceLine, DayPager, Why, fmtDay, fmtTip } from '../ui'
@@ -15,6 +15,18 @@ import { EmptyState, DelayedBanner, Loading, SourceLine, DayPager, Why, fmtDay, 
 // the headline market; every column sorts. The six reads are the same
 // /api/buckets/board the Props page makes (cached at the server, 5 min).
 const KEYS = Object.keys(NBA_MARKETS)
+// THE FULL SET (2026-10-13): every number the per-market boards (boardTable.js boardColumns) show as legs, side by side here too: each market's
+// legs (his own measured rates, never the adjusted score inputs), the opponent multipliers, once, in market order. A column shows only when a
+// row on the page carries it (nothing is filled in), and they ride in All only: Short list and What I read keep the narrow table. MOONSHOT's
+// withBoardColumns is the hitter board; a basketball row's own list is these legs, as TUDDY's is lib/nfl/boardColumns.js.
+const LEG_KEYS = (() => {
+  const out = []
+  for (const k of KEYS) {
+    for (const l of NBA_MARKETS[k].legs) { const key = RAW_OF[l] || l; if (!out.includes(key)) out.push(key) }
+    if (NBA_MARKETS[k].needsLog) { const m = k === 'td' ? 'multTd' : 'multDd'; if (!out.includes(m)) out.push(m) }
+  }
+  return out
+})()
 
 // `embedded`: drawn inside the Rankings page (Board.js, the ALL MARKETS pill), which owns the header and the day.
 // `keep`: the Rankings page's search / team / game filters, as a predicate on a row
@@ -37,6 +49,7 @@ export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onO
         const g = gm.get(r.gameId)
         const row = by.get(id) || { _id: id, playerId: r.playerId, name: r.name, pos: r.pos, team: r.team, opp: r.opp, oppTxt: r.home ? r.opp : `@${r.opp}`, gameId: r.gameId, tip: g?.start || null, gameState: g?.state || null, xpts: xptsBy.get(String(r.playerId))?.xpts ?? null, xptsLine: xptsBy.get(String(r.playerId))?.line ?? null }
         row[`s_${k}`] = r.score
+        for (const [lk, lv] of Object.entries(r.legs || {})) if (lv != null && row[lk] == null) row[lk] = lv
         row[`st_${k}`] = r.status
         by.set(id, row)
       }
@@ -53,6 +66,9 @@ export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onO
       title: `${NBA_MARKETS[k].label}: the 0-100 score and its status word`,
       fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span style={{ display: 'inline-grid', lineHeight: 1.15 }}><b>{v}</b>{r[`st_${k}`] && r[`st_${k}`] !== 'off' ? <CallStatusBadge status={r[`st_${k}`]} accent={C.purple} short size={8} /> : null}</span>) })),
     { key: 'xpts', label: 'xPTS', cset: 'read', group: 'Projected', w: 58, dp: 1, mono: true, title: XPTS_TITLE, fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span title={r.xptsLine || XPTS_TITLE}>{Number(v).toFixed(1)}</span>) },
+    ...LEG_KEYS.filter((k) => rows.some((r) => r[k] != null)).map((k) => ({ key: k, label: LEG_LABEL[k] || (k === 'multTd' || k === 'multDd' ? 'OPP ×' : k), group: 'Legs', w: 62, heat: false, mono: true,
+      title: k === 'multTd' || k === 'multDd' ? 'What his opponent allows of the stats he reaches, against the league mean, shrunk for a small sample and clamped to 0.8-1.25. It scales his own rate for the ranking; 1.00 = no change.' : `${LEG_LABEL[k] || k}: his own measured rate, one of the legs the ${KEYS.filter((m) => NBA_MARKETS[m].legs.some((l) => (RAW_OF[l] || l) === k)).map((m) => NBA_MARKETS[m].label.toLowerCase()).join(' / ')} score is built from.`,
+      fmt: (v) => (k === 'multTd' || k === 'multDd' ? (v == null ? '—' : Number(v).toFixed(2)) : fmtLeg(k, v)) })),
     { key: 'tip', label: 'Game', cset: 'read', group: 'Game', w: 84, heat: false, mono: true, dim: true, link: (r) => (onOpenGame ? () => onOpenGame(r.gameId) : null),
       fmt: (v, r) => (r.gameState === 'live' ? 'LIVE' : r.gameState === 'final' ? 'FINAL' : v ? fmtTip(v) : '—') },
   ]

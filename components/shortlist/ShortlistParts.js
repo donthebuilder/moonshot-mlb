@@ -27,6 +27,7 @@ export function ShortlistHead({ title, shown, total, limit, setLimit, cap = 40, 
       </span>
       {total > cap && (
         <button
+          className={themed ? 'fp-themed' : undefined}
           onClick={() => setLimit((v) => (v >= total ? cap : total))}
           style={{
             padding: '2px 9px', borderRadius: 999, cursor: 'pointer', fontSize: 9.5,
@@ -45,7 +46,7 @@ export function ShortlistHead({ title, shown, total, limit, setLimit, cap = 40, 
 export function ShortlistPills({ options, value, onChange, size = 'view' }) {
   const { C, NUM_FONT, accent, themed } = useSportTheme()
   return options.map(([k, label]) => (
-    <button key={k} onClick={() => onChange(k)} style={{
+    <button key={k} className={themed ? 'fp-themed' : undefined} onClick={() => onChange(k)} style={{
       padding: size === 'view' ? '3px 11px' : '2.5px 10px', borderRadius: 999, cursor: 'pointer', fontSize: size === 'view' ? 10 : 9.5,
       fontWeight: 800, fontFamily: themed ? NUM_FONT : MLB_NUM,
       border: `1px solid ${value === k ? accent : C.border}`,

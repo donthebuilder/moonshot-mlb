@@ -41,7 +41,7 @@ export default function TuddyRecentAlerts() {
         : <div>
             <b>Recent alerts</b>
             <small style={{ display: 'block', marginTop: 2, color: C.text3 }}>
-              The alert log belongs to an account. <a href={LOGIN_HREF} style={{ color: C.green }}>Sign in</a> to see which touchdowns, kickoffs and bar clears were sent to this phone — and which were dropped.
+              The alert log belongs to an account. <a href={LOGIN_HREF} className="tap-box" style={{ color: C.green }}>Sign in</a> to see which touchdowns, kickoffs and bar clears were sent to this phone — and which were dropped.
             </small>
           </div>}
     </section>

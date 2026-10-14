@@ -127,7 +127,7 @@ function inPage() {
     // THE HIT AREA, not the glyph box: a name / team / game link (.tap-link, components/Tap.js) is tapped through its ::after (44px tall, app/globals.css), so on a touch
     // screen that box is the target the thumb meets. Measured, not assumed: its computed width and height. A link whose box is smaller than 44 either way still counts.
     let w = r.width, h = r.height
-    if (el.classList && el.classList.contains('tap-link')) {
+    if (el.classList && (el.classList.contains('tap-link') || el.classList.contains('tap-box'))) {
       const a = getComputedStyle(el, '::after')
       if (a && a.content && a.content !== 'none') { w = Math.max(w, parseFloat(a.width) || 0); h = Math.max(h, parseFloat(a.height) || 0) }
     }

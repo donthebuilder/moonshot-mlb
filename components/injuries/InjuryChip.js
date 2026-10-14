@@ -2,7 +2,7 @@
 // THE AVAILABILITY CHIP: OUT / IL / D / Q / DTD. Information only -- it sits BESIDE the call status (CALLED stays CALLED,
 // from lib/callStatus; a locked CALLED man who then goes OUT reads "CALLED · OUT") and changes no score. Tap explains
 // (lib/explain.js, works without hover): the status in plain words, the note, who said it and when.
-// The visible chip is small; its tap area is padded out to a thumb (negative margins give the room back, so the row does not grow).
+// The visible chip is small; its tap area is padded out to a thumb (negative margins give the room back, so the row does not grow). 14px sideways (was 11, a 41px box) so it is 44px wide.
 import { explain } from '../../lib/explain'
 import { STATUS_INFO } from '../../lib/injuries/statuses'
 import { updatedLabel } from '../../lib/injuries/words'
@@ -19,7 +19,7 @@ export default function InjuryChip({ entry, C, font, size = 9, style, label = nu
     <span role="button" tabIndex={0} aria-label={`${entry.name}: ${info.word}. ${text}`} data-injury={entry.status} title={text}
       onClick={say}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); say(e) } }}
-      style={{ display: 'inline-block', padding: '15px 11px', margin: `-15px -11px -15px ${marginLeft - 11}px`, cursor: 'pointer', verticalAlign: 'middle' }}>
+      style={{ display: 'inline-block', padding: '15px 14px', margin: `-15px -14px -15px ${marginLeft - 14}px`, cursor: 'pointer', verticalAlign: 'middle' }}>
       <span style={{
         display: 'inline-block', fontFamily: font, fontSize: size, fontWeight: 900, letterSpacing: '.08em', color: tone,
         border: `1px solid ${tone}`, borderRadius: 4, padding: '1px 5px', lineHeight: 1.3, whiteSpace: 'nowrap', ...rest,

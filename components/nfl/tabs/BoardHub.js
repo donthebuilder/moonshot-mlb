@@ -11,7 +11,7 @@ import BoardTopBar from '../../BoardTopBar'
 import { nflGameOptions } from '../NflBoardExtras'
 import Touchdowns, { tdPool } from './Touchdowns'
 import TwoTouchdowns from './TwoTouchdowns'
-import { HUB_MARKETS, OWN_MODEL_MARKETS } from '../../../lib/nfl/boardMarkets'
+import { HUB_MARKETS, OWN_MODEL_MARKETS, NO_RANK_CARD } from '../../../lib/nfl/boardMarkets'
 import { twoBoard } from '../../../lib/nfl/twoScore'
 import HowToRead from '../../HowToRead'
 import { STATUS_WORD } from '../../../lib/callStatus'
@@ -22,7 +22,7 @@ import { useGameCalls } from '../GameCalls'
 import { useIsPhone } from '../../MobileFold'
 import { ViewSwitch } from '../NflBoardExtras'
 import ShareCardButton from '../../card/ShareCardButton'
-import { shareUrl, stamp } from '../../../lib/cards/saveCard'
+import { shareUrl, stamp, slug } from '../../../lib/cards/saveCard'
 
 const MARKETS = HUB_MARKETS   // lib/nfl/boardMarkets.js: the seven scored markets + 2+ TD (our own new model)
 
@@ -151,6 +151,15 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
       fifth: { label: 'Game', value: [p.opp ? `${g?.home === p.team ? 'vs' : '@'} ${p.opp}` : null, g?.detail].filter(Boolean).join(' \u00b7 ') || 'TBD' },
     }
   }, [slate, picks, tdStatus])
+  // 📸 THIS MARKET'S RANKING AS A PICTURE (2026-10-13: every market, not only Anytime TD). The server card ranks the week file's own scores for the
+  // market (lib/cards/shareData.js nflRanked); 2+ TD (our own model) and Defense/ST TD (clubs, not players) have none (NO_RANK_CARD). Same button, same slot, whatever the market.
+  const firstKick = (slate?.games || []).map((g) => g.kickoff).filter(Boolean).sort()[0]
+  const marketLabel = (MARKETS.find(([k]) => k === market) || [])[1] || market
+  const shareBtn = (icon = false) => (view === 'board' && !NO_RANK_CARD.has(market) && slate?.games?.length
+    ? <ShareCardButton icon={icon} sport="nfl" what="this ranking" style={icon ? { marginLeft: 'auto' } : undefined}
+        url={shareUrl(market === 'TD' ? { kind: 'ranked', sport: 'nfl' } : { kind: 'ranked', sport: 'nfl', market })}
+        filename={`rankings-${slug(marketLabel)}_${stamp(firstKick)}.png`} />
+    : null)
   return (
     <div>
       {/* ONE PAGE (2026-10-06): the old Boards and Rankings pages are this page. Who is ranked, why, and what to check next. */}
@@ -165,8 +174,8 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
           <button type="button" onClick={() => setOpts((v) => !v)} aria-expanded={opts} style={{ flex: '0 0 auto', minHeight: 44, padding: '0 14px', borderRadius: 999, cursor: 'pointer', fontSize: TYPE.body, fontWeight: 900, fontFamily: NUM_FONT, whiteSpace: 'nowrap', border: `1px solid ${opts || query || team !== 'all' && team || game ? C.green : C.border}`, background: opts ? alpha(C.green, 0.14) : 'transparent', color: opts ? C.green : C.text3 }}>▤ Filters{(query || (team && team !== 'all') || game) ? ' ·' : ''}</button>
           <LedgerChip sport="nfl" />
           <WatchChip sport="nfl" />
-          {/* 📸 the Anytime TD ranking as a picture: in this control row so it is there without opening Filters (Touchdowns keeps it for a desktop) */}
-          {market === 'TD' && view === 'board' && slate?.games?.length ? <ShareCardButton icon sport="nfl" what="this ranking" style={{ marginLeft: 'auto' }} url={shareUrl({ kind: 'ranked', sport: 'nfl' })} filename={`rankings-anytime-td_${stamp((slate.games || []).map((g) => g.kickoff).filter(Boolean).sort()[0])}.png`} /> : null}
+          {/* 📸 this market's ranking as a picture: in this control row so it is there without opening Filters (Touchdowns keeps its own for Anytime TD on a desktop) */}
+          {shareBtn(true)}
           <div style={{ flex: '1 1 100%', minWidth: 0 }}><PillRow value={market} options={marketOptions} onChange={setMarket} /></div>
         </div>
         {opts && (
@@ -188,7 +197,7 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
         {VIEWS.slice().reverse().map((v) => (
           // 'Called' is Props now (2026-10-04, Donovan: merge TUDDY's Called view into
           // Props): the pill takes you there; an old #view=called link still renders here.
-          <button key={v.key} type="button" onClick={() => (v.key === 'called' ? (window.location.hash = '#sport=nfl&tab=picks') : setView(v.key))} title={v.key === 'called' ? "TUDDY's calls for every market, on Props" : v.title} style={{
+          <button key={v.key} type="button" className="fp-themed" onClick={() => (v.key === 'called' ? (window.location.hash = '#sport=nfl&tab=picks') : setView(v.key))} title={v.key === 'called' ? "TUDDY's calls for every market, on Props" : v.title} style={{
             padding: '7px 16px', minHeight: 36, borderRadius: 999, cursor: 'pointer', fontSize: TYPE.body, fontWeight: 900, fontFamily: NUM_FONT,
             whiteSpace: 'nowrap', letterSpacing: '.02em',
             border: `1px solid ${view === v.key ? C.green : C.border}`,
@@ -203,6 +212,7 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
             <HowToRead id="nfl-td-board" accent={C.green} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />
           </span>
         )}
+        {market !== 'TD' && shareBtn() ? <span style={{ marginLeft: 'auto' }}>{shareBtn()}</span> : null}
       </div>
       <PillRow label="Market" value={market} options={marketOptions} onChange={setMarket} />
       </>)}

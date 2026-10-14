@@ -1034,7 +1034,8 @@ export default function MobileCSS() {
          the label exactly where it was; the extra reach is the header gap. */
       .explain-dot { padding: 3px 5px; margin: -3px -1px -3px 2px; display: inline-block; }
       @media (pointer: coarse) {
-        .explain-dot { padding: 11px 11px; margin: -11px -9px -11px -2px; font-size: 11px !important; }
+        /* 2026-10-13: 17px each side = a 45 x 45 tap box round the 11px glyph (was 33). The negative margins still give the layout back, so the label does not move. */
+        .explain-dot { padding: 17px 17px; margin: -17px -15px -17px -8px; font-size: 11px !important; }
       }
 
       /* ══ COSMETICS PASS (2026-08-06) — small touches, compounding ══ */

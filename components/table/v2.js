@@ -152,7 +152,7 @@ export function v2Css(C, ac, NUM_FONT) {
     /* on a mouse, the ⓘ's tap padding must not swallow a click meant to sort */
     @media (pointer: fine) { .dtv2 .h-row th .explain-dot { padding: 2px 3px !important; margin: -2px -1px -2px 2px !important; } }
     /* on touch, the ⓘ's tap padding must exist wherever a v2 table renders: MobileCSS only mounts in the app shell, so on /called and /start the ⓘ was a bare 10x11 (check-mobile, landscape). Same box as MobileCSS's, negative margins keep the label where it was. */
-    @media (pointer: coarse) { .dtv2 .h-row th .explain-dot { display: inline-block; padding: 11px 11px; margin: -11px -9px -11px -2px; } }
+    @media (pointer: coarse) { .dtv2 .h-row th .explain-dot { display: inline-block; padding: 17px 17px; margin: -17px -15px -17px -8px; } }
     .dtv2 .h-row th > span { line-height: 0; }
     /* DESKTOP FIT (2026-10-03, Donovan: "columns on desktop need to be sized
        right"): a header label may wrap to two lines at its spaces, so a
@@ -252,6 +252,11 @@ export function v2Css(C, ac, NUM_FONT) {
     .dtv2 .pc-chip .tap-link { padding: 9px 10px !important; margin: -9px -10px !important; }
     /* the rank move's 32px tap box needs a rank column of at least that width; a table with a fixed name cell lets the auto layout squeeze it (landscape, 844px) */
     @media (min-width: 641px) { .dtv2-pc td.rank, .dtv2-pc th.rank { min-width: 36px; } }
+    /* 2026-10-13: the star is a 44px thumb target on every touch screen, not only under 640px (a phone turned sideways is 844 wide). The row is 36px here, so -4px keeps its height. */
+    @media (pointer: coarse) and (min-width: 641px) {
+      .dtv2 td.dense-action button { height: 44px !important; min-height: 44px !important; width: 44px !important; margin: -4px 0 !important; }
+      .dtv2 td.dense-action, .dtv2 .h-row th.act { width: 44px !important; min-width: 44px !important; max-width: 44px !important; }
+    }
     @media (max-width: 640px) {
       .dtv2-pc td { height: 58px; }
       .dtv2.dtv2-pc52 td { height: 52px; }   /* compactPhoneRow: 52px on a phone too (LAMP watchlist) */
@@ -830,7 +835,7 @@ export function renderV2(ctx) {
             return (
               <div style={{ marginTop: 6 }}>
                 {headTxt}{rest && <>{' '}
-                  <button type="button" onClick={() => setCapOpen((v) => !v)} style={{ background: 'none', border: 'none', padding: '12px 6px', margin: '-12px -6px', minHeight: 0, cursor: 'pointer', color: C.text2, fontSize: 9.5, textDecoration: 'underline dotted', textUnderlineOffset: 3, fontFamily: 'inherit' }}>{capOpen ? 'less ▴' : 'why ▸'}</button>
+                  <button type="button" onClick={() => setCapOpen((v) => !v)} style={{ background: 'none', border: 'none', padding: '17px 10px', margin: '-17px -10px', minHeight: 0, cursor: 'pointer', color: C.text2, fontSize: 9.5, textDecoration: 'underline dotted', textUnderlineOffset: 3, fontFamily: 'inherit' }}>{capOpen ? 'less ▴' : 'why ▸'}</button>
                   {capOpen && <> {rest} <b style={{ color: C.text2 }}>To sort in tiers,</b> tap {'\uff0b'} Tiers (or shift-click a header), then tap the next column: {TIER_HELP} Blanks always sort to the bottom.</>}
                 </>}
               </div>
@@ -843,9 +848,9 @@ export function renderV2(ctx) {
             <ShowMoreButton open restN={0} toggle={() => setExtra(0)} />
           )}
         </div>
-        <button type="button" onClick={() => setAdding(!adding)} title={TIER_HELP} aria-pressed={adding}
+        <button type="button" className="tap-box" onClick={() => setAdding(!adding)} title={TIER_HELP} aria-pressed={adding}
           style={{ fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, cursor: 'pointer', border: `1px solid ${adding ? ac : C.border}`, background: 'transparent', color: adding ? ac : C.text3, borderRadius: 999, padding: '5px 12px', marginTop: 6, whiteSpace: 'nowrap' }}>{'\uff0b'} Tiers</button>
-        <button type="button" onClick={exportCsv} title="Download this table — current sort, raw values — as a CSV cheat sheet"
+        <button type="button" className="tap-box" onClick={exportCsv} title="Download this table — current sort, raw values — as a CSV cheat sheet"
           style={{ fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, cursor: 'pointer', border: `1px solid ${C.border}`, background: 'transparent', color: C.text3, borderRadius: 999, padding: '5px 12px', marginTop: 6 }}>⬇ CSV</button>
       </div>}
     </div>

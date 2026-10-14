@@ -165,7 +165,22 @@ button {
 /* Tap (components/Tap.js, 2026-09-27): names, teams and games as links --
    the text unchanged, underlined on hover, a 44px tap area on touch. */
 .tap-link:hover { text-decoration: underline; text-underline-offset: 2px; }
-@media (pointer: coarse) { .tap-link { position: relative; min-width: 32px; text-align: left; } .tap-link::after { content: ''; position: absolute; left: -8px; right: -8px; top: 50%; height: 44px; transform: translateY(-50%); } }   /* 2026-10-12: 8px each side (was 4) so even a two-letter club code (32px min) has a 48 x 44 hit area; it is invisible and adds no layout */
+@media (pointer: coarse) { .tap-link { position: relative; min-width: 32px; text-align: left; } .tap-link::after { content: ''; position: absolute; left: 50%; top: 50%; width: max(44px, calc(100% + 16px)); height: 44px; transform: translate(-50%, -50%); } }   /* 2026-10-12: 8px each side (was 4) so even a two-letter club code (32px min) has a 48 x 44 hit area; it is invisible and adds no layout */
+/* 2026-10-13 (phone tap-target pass): a three-letter club code is 14px wide, so +16 gave a 30px hit box. The box is centred and never narrower than 44px now. */
+
+/* TAP-BOX (2026-10-13, phone tap-target pass): a control whose visible box must stay small (a ticker pill, a table-toolbar chip) gets a 44px
+   tall invisible hit area, centred, never narrower than the control. The control keeps its own size and layout. Only where the box
+   is not inside a clipping scroller (a clipped ::after is not a tap area). scripts/check-mobile.mjs measures it like .tap-link. */
+@media (pointer: coarse) { .tap-box { position: relative; } .tap-box::after { content: ''; position: absolute; left: 50%; top: 50%; width: max(44px, 100%); height: 44px; transform: translate(-50%, -50%); } }
+
+/* THE SCORE STRIP'S GAME CHIP, ANY TOUCH SCREEN (2026-10-13): 34px chip + 5px above and below = a 44px button. components/header/HeaderShell.js had it under 760px only, so a phone turned sideways (844 wide) got a 34px target. */
+@media (pointer: coarse) { .tp-game { padding: 5px 0 !important; } }
+
+/* FILTER PILLS ON A PHONE (2026-10-13): TUDDY / LAMP / BUCKETS pills and segments are 44px tall on a touch screen (components/Filters.js adds .fp-themed there; MOONSHOT's are not themed and stay 32). */
+@media (pointer: coarse) { .fp-themed { min-height: 44px !important; min-width: 44px; } }
+
+/* THE FOOTER'S LINKS ON A PHONE (2026-10-13): five text links, each a 44px-tall row item (they were 31px). Page-bottom chrome; nothing above it moves. */
+@media (pointer: coarse) { .dash-foot-nav { row-gap: 0 !important; } .dash-foot-nav > a, .dash-foot-nav > button { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; justify-content: center; } }
 
 /* SLATE, DESKTOP HEADER (TUDDY 2026-10-10, Donovan: "tighten it up on desktop";
    LAMP and BUCKETS the same night: "same slate header tightening: yes").

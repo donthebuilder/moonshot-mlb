@@ -81,7 +81,7 @@ export default function HowToRead({ id, accent = C.orange, row, notes, steps = [
       {/* A pill, so it reads as a thing to tap. Its 44px hit area is an
           invisible inset span, and the negative margin keeps the sentence's
           line from growing. */}
-      <button type="button" onClick={openIt} aria-haspopup="dialog"
+      <button type="button" className="tap-box" onClick={openIt} aria-haspopup="dialog"
         style={{
           position: 'relative', font: 'inherit', cursor: 'pointer', color: accent, fontWeight: 800,
           margin: '-6px 0 -6px 6px', padding: '3px 10px 3px 8px', borderRadius: 999,

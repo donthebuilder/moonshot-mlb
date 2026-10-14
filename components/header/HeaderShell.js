@@ -180,7 +180,7 @@ export default function HeaderShell({ sport, theme = MLB_C, wordmark, onHome, ho
           .hdr-mark img { width: 40px !important; height: 40px !important; }
           .hdr-word-row > button, .hdr-word-row > span { display: none !important; }
           .hdr-switch { order: 2; flex: 1 1 0; display: flex; align-items: stretch; min-width: 0; border: 1px solid ${C.border}; border-radius: 999px; background: ${C.glass}; }
-          .hdr-sw { position: relative; flex: 1 1 auto; min-width: 0; min-height: 44px; padding: 0 6px; border: 0; border-radius: 999px; background: transparent; color: ${C.text2}; font-size: 11px; font-weight: 900; letter-spacing: .05em; white-space: nowrap; cursor: pointer; }
+          .hdr-sw { position: relative; flex: 1 1 auto; min-width: 44px; min-height: 44px; padding: 0 6px; border: 0; border-radius: 999px; background: transparent; color: ${C.text2}; font-size: 11px; font-weight: 900; letter-spacing: .05em; white-space: nowrap; cursor: pointer; }
           .hdr-sw.on { background: var(--sw); color: ${C.bg}; }
           .hdr-sw-live { position: absolute; top: 9px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--sw); animation: pulse 2s infinite; }
           /* row 2 (before the day switch): row 1's switch has no room for a 44px button at 360 with four products */
@@ -195,6 +195,8 @@ export default function HeaderShell({ sport, theme = MLB_C, wordmark, onHome, ho
           .hdr-ticker-slot { display: block; order: 6; flex: 1 1 0; min-width: 0; }
           .hdr-ticker-slot > * { margin-top: 0 !important; }
           .hdr-ticker-slot .hdr-ticker-track > *:not(.tp-game) { height: 36px !important; }
+          /* 2026-10-13 (tap targets): the strip is 44px tall so a pill's 44px hit area (.tap-box) is not clipped by the strip's overflow. The row is already 44px (the day switch), so nothing moves. */
+          .hdr-ticker-slot > *, .hdr-ticker-slot > * > div { min-height: 44px; }
           /* the score strip's game chip (components/TickerPill GameChip): 34px chip, 44px tap box */
           .hdr-ticker-slot .tp-game, .nfl-ticker-shell .tp-game { padding: 5px 0 !important; }
           .hdr-scorebug { width: 100%; }
