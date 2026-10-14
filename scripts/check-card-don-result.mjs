@@ -227,7 +227,7 @@ const BANNED = /https?:\/\/|#\w|\block(?:ed|s|ing)?\b|guarantee|\bwinners?\b|\bn
   check(r.n_man_1 === 'paused' && calls.length === 0 && s.rowsT.length === 1, 'H: CARD_POSTS_PAUSE=on stops it, nothing claimed or sent')
   const tick = src('lib/card/tick.js'); const pi = src('lib/cards/postImages.js'); const ci = src('lib/cards/cardImage.js'); const nc = src('lib/cards/nManCard.js'); const oc = src('lib/cards/outcome.js')
   check(/postDonovanResults\(db, \{ sport, day, rows, now \}\)/.test(tick) && /_donResultDone/.test(tick), 'H: the tick posts the results for a graded entry and settles them')
-  check(/requireGraded/.test(ci) && /requireGraded: true/.test(pi) && /nman-result\|/.test(pi), 'H: the result image refuses the pregame card (requireGraded) and has its own cache key')
+  check(/requireGraded/.test(ci) && /requireGraded: true/.test(pi) && /nman-result-np\|/.test(pi) && /hidePrice: true/.test(pi), 'H: the result image refuses the pregame card (requireGraded) and has its own cache key')
   check(/legOutcomeWord\(out\)/.test(nc) && /outcomeWord\(graded\.result\)/.test(nc) && /cashed: 'HIT', missed: 'MISS', dnp: 'VOID'/.test(oc), 'H: the N-man card says HIT / MISS / VOID on the legs and keeps CASHED / MISSED / VOID for the ticket')
 }
 
