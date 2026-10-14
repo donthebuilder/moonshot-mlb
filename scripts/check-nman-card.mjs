@@ -12,6 +12,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { stressSet } from './proto-cards/nManStressFixtures.mjs'
+import { SHARED_H } from '../lib/cards/stampStrip.js'
+import { sharedStampOf } from '../lib/cards/situations.js'
 import { renderNMan, nManDesign, fitLegName, fitTitle, pillOf, fit1, gridOf, NMAN_LAYOUT as L } from '../lib/cards/nManCard.js'
 import { outcomeWord as outcomeWordOf } from '../lib/cards/outcome.js'
 import { lintType, MIN_TYPE, assets } from '../lib/cards/cardKit.js'
@@ -76,7 +78,7 @@ for (const v of stressSet()) {
   FIT_LOG.length = 0
   check(lintType(nManDesign(d, null, '')).length === 0, `${tag}: no text under the ${MIN_TYPE}px floor`)
   let png = null
-  try { png = await renderNMan(d, { width: 1080 }) } catch (e) { check(false, `${tag}: renders (${e.message})`); continue }
+  try { png = await renderNMan({ shared: null, ...d }, { width: 1080 }) } catch (e) { check(false, `${tag}: renders (${e.message})`); continue }
   if (OUT) fs.writeFileSync(path.join(OUT, `${tag}.png`), png)
   const meta = await sharp(png).metadata()
   check(meta.width === 1080 && meta.height === 1350, `${tag}: renders 1080x1350`)
@@ -137,6 +139,30 @@ for (const v of stressSet().filter((x) => x.d.graded)) {
   const plate = await ink(png, 26 + L.SIDE + 3, plateBottom - L.COMBO_H + 3, 26 + L.FRAME_W - L.SIDE - 3, plateBottom - 3, 170)
   check(plate.maxX < 26 + L.FRAME_W - L.SIDE - 20, `${tag}: the plate's text stays inside the plate (rightmost ink x=${plate.maxX})`)
   if (OUT) fs.writeFileSync(path.join(OUT, `${v.id}-post.png`), png)
+}
+
+
+// ── THE SHARED STAMP LINE (stamps everywhere, 2026-10-13): one line under the title, only a fact true for EVERY leg ──
+{
+  const leg = (opp, round = '') => ({ opp, round })
+  check(sharedStampOf([leg('TOR'), leg('TOR')]) === 'Both face TOR', 'shared: two legs facing the same club = "Both face TOR"')
+  check(sharedStampOf([leg('TOR'), leg('TOR'), leg('tor')]) === 'All 3 face TOR', 'shared: N legs, same club (any case) = "All 3 face TOR"')
+  check(sharedStampOf([leg('TOR'), leg('BOS')]) === null, 'shared: different opponents = no line')
+  check(sharedStampOf([leg('TOR'), leg('')]) === null, 'shared: a leg missing its opponent = no line (unsure is skipped)')
+  check(sharedStampOf([leg('TOR', 'Division Series'), leg('TOR', 'Division Series')]) === 'Both in the Division Series', 'shared: the same round for every leg wins')
+  check(sharedStampOf([leg('TOR', 'Division Series'), leg('TOR', '')]) === 'Both face TOR', 'shared: a round only one leg has is not shared; the opponent still is')
+  check(sharedStampOf([leg('TOR')]) === null && sharedStampOf(null) === null, 'shared: one leg or none = no line')
+  for (const id of ['01-six-typical', '04-three', '06-long-names']) {
+    const f = stressSet().find((x) => x.id === id)
+    const n = f.d.legs.length; const g = gridOf(n, SHARED_H)
+    check(g.rows * g.tileH + (g.rows - 1) * L.GAP <= L.GRID_H - SHARED_H, `${id} + shared: the tiles fit the grid box the line leaves`)
+    check(lintType(nManDesign({ ...f.d, shared: `All ${n} face BBB` }, null, '')).length === 0, `${id} + shared: no text under the floor`)
+    FIT_LOG.length = 0
+    const png = await renderNMan({ ...f.d, shared: `All ${n} face BBB` }, { width: 1080 })
+    const meta = await sharp(png).metadata()
+    const bad = FIT_LOG.filter((e) => e.ok === false || (e.truncated && e.kind !== 'block'))
+    check(meta.width === 1080 && meta.height === 1350 && bad.length === 0, `${id} + shared: renders 1080x1350 with no overflow in the fit log`)
+  }
 }
 
 console.log(failed ? `\n${failed} FAILED` : `\nOK: the N-man card sizing (${stressSet().length} stress variants)${OUT ? `; PNGs in ${OUT}` : ''}`)
