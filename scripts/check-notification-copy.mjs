@@ -14,7 +14,7 @@ const check = (cond, label, extra = '') => { if (cond) console.log(`ok   ${label
 const cp = (s) => [...String(s)].length
 
 // ── 1. the limits: title <= 26, body <= 48, one line, the news inside 30 characters ──
-const NO_STAT = new Set(['scratched', 'dropout', 'welcome', 'bundle', 'nflinj'])
+const NO_STAT = new Set(['scratched', 'dropout', 'welcome', 'bundle', 'nflinj', 'nhlinj'])
 for (const row of C.CATALOG) {
   if (row.limits === false || !['push', 'system'].includes(row.kind)) continue
   const r = row.render()

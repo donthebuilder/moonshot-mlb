@@ -43,6 +43,8 @@ const GROUPS = [
   { key: 'Tuddy', label: 'TUDDY · NFL' },
   { key: 'Lamp', label: 'LAMP · NHL' },
   { key: 'Cards', label: 'CARDS · BINDER' },
+  // BUCKETS: drawn only for a visitor who can see it (nbaOpen below); its categories are filtered out of the list for everyone else.
+  { key: 'Buckets', label: 'BUCKETS · NBA' },
   { key: 'Franchise', label: 'FRANCHISE · FANTASY' },
 ]
 
@@ -57,6 +59,8 @@ export default function AlertsPanel({ styles }) {
   const account = useDashAccount()
   // BUCKETS is hidden until it opens (or this visitor holds an early-access grant): its basketball word stays out of the panel until then.
   const nbaOpen = useCanSee('nba') === true
+  // The basketball switches (nba30, nbacalled) exist only for a visitor BUCKETS is open to; everyone else sees the panel exactly as before.
+  const cats = CATEGORIES.filter((c) => nbaOpen || c.sport !== 'nba')
   const [perm, setPerm] = useState('default')
   const [hint, setHint] = useState(null)
   // MOUNTED, and it is load-bearing. This renders on the server, where there
@@ -147,10 +151,10 @@ export default function AlertsPanel({ styles }) {
     : { state: 'on', word: pushable && closedSite ? 'On ✓ · even with the site closed' : 'On ✓ · while the site is open' }
 
   const active = presetOf(prefs.events)
-  const onCount = CATEGORIES.filter((c) => c.push && prefs.events[c.key]).length
+  const onCount = cats.filter((c) => c.push && prefs.events[c.key]).length
   // What a preset includes, by product ("MOONSHOT 6 · TUDDY 3 · LAMP 1").
   const includes = (p) => (p.key === 'off' ? 'nothing to your phone' : GROUPS.map((g) => {
-    const n = CATEGORIES.filter((c) => c.group === g.key && p.on.includes(c.key)).length
+    const n = cats.filter((c) => c.group === g.key && p.on.includes(c.key)).length
     return n ? `${g.label.split(' · ')[0]} ${n}` : null
   }).filter(Boolean).join(' · '))
 
@@ -239,10 +243,11 @@ export default function AlertsPanel({ styles }) {
         onClick={() => setShowAll(!showAll)}
         aria-expanded={showAll}
         style={{ margin: '4px 0 10px', minHeight: 44 }}
-      >{showAll ? 'Hide the full list' : `Show all ${CATEGORIES.length} switches`}</button>
+      >{showAll ? 'Hide the full list' : `Show all ${cats.length} switches`}</button>
 
       {showAll ? GROUPS.map((g) => {
-        const mine = CATEGORIES.filter((c) => c.group === g.key)
+        const mine = cats.filter((c) => c.group === g.key)
+        if (!mine.length) return null   // BUCKETS for a visitor who cannot see it: no heading, no word
         const pushes = mine.filter((c) => c.push).sort(byPriority)
         const inApp = mine.filter((c) => !c.push).sort(byPriority)
         return (
@@ -306,7 +311,7 @@ export default function AlertsPanel({ styles }) {
         {' '}{(() => {
           // Front door A6 (2026-09-27): true only while no "everyone" switch
           // (Any slate homer, Any CALLED goal) is on.
-          const wide = CATEGORIES.filter((c) => c.scope === 'everyone' && prefs.events?.[c.key]).map((c) => c.label)
+          const wide = cats.filter((c) => c.scope === 'everyone' && prefs.events?.[c.key]).map((c) => c.label)
           return wide.length
             ? `Nothing arrives about a player you have not followed, except ${wide.join(' and ')}, switched on above and about everyone.`
             : 'And nothing arrives about a player you have not followed. That gate is separate from every switch on this page.'
