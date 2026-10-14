@@ -70,6 +70,9 @@ export default function Ledger({
   noteExtra = null,
   // the word for the people behind a count of events ("scorers" for touchdowns, "hitters" for homers)
   scorerWord = 'players',
+  // THE PUBLIC-NUMBER FLOOR (BUCKETS, 2026-10-13): { n, nights, minNights } while the market is under it -- the called / on
+  // board / not on board counts are not drawn, only the event total and a "tracking" line. Omit it and nothing changes.
+  tracking = null,
 }) {
   const [viewState, setViewState] = useState('night')
   const view = viewProp || viewState
@@ -142,10 +145,11 @@ export default function Ledger({
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))', gap: 7, marginBottom: 11 }}>
                 <Tile label={`${eventLabelLong}s`} value={night.totals.total} color={accent} sub={night.totals.men != null && night.totals.men !== night.totals.total ? `${night.totals.men} ${scorerWord}` : ''} />
-                <Tile label="Called" value={night.totals.called} color={accent} />
-                <Tile label="On board" value={night.totals.board} color={C.text2} />
-                <Tile label="Not on board" value={night.totals.off} color={C.text3} />
+                {!tracking && <Tile label="Called" value={night.totals.called} color={accent} />}
+                {!tracking && <Tile label="On board" value={night.totals.board} color={C.text2} />}
+                {!tracking && <Tile label="Not on board" value={night.totals.off} color={C.text3} />}
               </div>
+              {tracking && <div style={{ fontSize: 12, color: C.text2, margin: '-4px 0 8px', lineHeight: 1.5 }}>Record: <b>tracking</b> · {tracking.n} graded {tracking.n === 1 ? 'call' : 'calls'}, {tracking.nights} of {tracking.minNights} nights. The tag on each row is the status it locked with.</div>}
               {night.games && night.games.final < night.games.total ? (
                 <div style={{ fontSize: 12, color: C.text3, margin: '-4px 0 8px' }}>{night.games.final} of {night.games.total} games final: the counts above are still moving.</div>
               ) : null}
@@ -187,9 +191,10 @@ export default function Ledger({
             {season ? (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(104px, 1fr))', gap: 7 }}>
                 <Tile label={`${eventLabelLong}s`} value={season.totalEvents} color={accent} sub={season.perNight != null ? `${season.perNight}/${periodWord}` : ''} />
-                <Tile label="Called" value={season.called} color={accent} sub={season.totalEvents ? `${Math.round((1000 * season.called) / season.totalEvents) / 10}%` : ''} />
-                <Tile label="On board" value={season.board} color={C.text2} />
-                <Tile label="Not on board" value={season.off} color={C.text3} />
+                {!tracking && <Tile label="Called" value={season.called} color={accent} sub={season.totalEvents ? `${Math.round((1000 * season.called) / season.totalEvents) / 10}%` : ''} />}
+                {!tracking && <Tile label="On board" value={season.board} color={C.text2} />}
+                {!tracking && <Tile label="Not on board" value={season.off} color={C.text3} />}
+                {tracking && <Tile label="Record" value="tracking" color={C.text3} sub={`${tracking.nights} of ${tracking.minNights} nights`} />}
                 {baseRate && (
                   <Tile
                     label={baseRate.label}

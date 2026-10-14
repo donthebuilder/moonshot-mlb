@@ -29,6 +29,8 @@ import { useWhySheet, whyColumn } from '../WhySheet'
 import { ordinal } from '../../lib/format'
 import { useRankMove } from '../../lib/useRankMove'
 import { RankMoveNote } from '../RankMove'
+import TwoHrCard, { twoHrInputsText } from './TwoHrCard'
+import { TWO_HR_NOTE } from '../../lib/mlb/twoHrScore'
 
 // The nine inputs the old profile grid drew as columns. They are not drawn
 // now — they are tested against the slate and surface only where a hitter is
@@ -69,6 +71,7 @@ const TITLES = {
   hrr: ['HRR Board',         'Top runs + RBI picks'],
   hit: ['Hits Board',        'Top base-hit picks'],
   tb:  ['Total Bases Board', 'Top contact / total-base picks'],
+  hr2: ['2+ HR Board', 'Who can hit two: a new ranking from the same slate file (HR score, HR per PA, ISO, barrels, the arm, the park, the lineup slot). Not part of the HR score'],
   longest: ['Longest Board', 'Ranked on longest-HR score — who hits it furthest, not most often'],
   due: ['Long-Gap Board', 'Long gap since the last homer: a plain count, not a forecast'],
 }
@@ -129,6 +132,15 @@ const pctAmong = (vals, v) => {
 // takes up space"). The board's `opp` column stays in the full column set for every other table; on Rankings it
 // is sub-only: quiet text under his name (table/v2.js), same link, no width.
 const subOnlyOpp = (cols, on) => (on ? cols.map((c) => (c.key === 'opp' ? { ...c, subOnly: true } : c)) : cols)
+
+// THE 2+ HR BOARD (2026-10-13): the same table with the pick-record columns taken out (the bot's picks and "when picked"
+// are about its own categories, not this ranking) and the ranking's own inputs put where the Why sits on The Board.
+const HR2_DROP = new Set(['rec', 'isPick', 'otherPick'])
+const forType = (type, cols) => (type !== 'hr2' ? cols : [
+  ...cols.filter((c) => !HR2_DROP.has(c.key)).map((c) => (c.key === 'adj'
+    ? { ...c, label: '2+ HR', title: 'Our two-homer ranking, 0-100: a rank among tonight\u2019s hitters, not a percentage, and not part of the HR score. ' + TWO_HR_NOTE } : c)),
+  { key: 'two', group: BOARD_GROUPS.signal, label: 'Inputs', heat: false, w: 250, dim: true, title: 'The inputs behind his number, each 0-100 among tonight\u2019s hitters' },
+])
 
 export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watchIds, onPlayerClick, onOpenPitcher = null, limit = 60, slateDate = null, filterState = null, setupHomers, onOpenCard = null, rankings = false, compact = false, colsView = 'all', onColsView = null, slate = null, viewMode: viewProp = null, onViewMode = null, runAt = null }) {
   // 🔁 PROVEN, NOT INFERRED. This column read `games_since_last_hr === 0`
@@ -266,7 +278,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
     ;[...rankPool].sort((a, b) => scoreFor(b, type) - scoreFor(a, type)).forEach((p, i) => { const id = mlbId(p); if (id != null && !m.has(id)) m.set(id, i + 1) })
     return m
   }, [rankings, rankPool, type])
-  const rankMv = useRankMove({ sport: 'mlb', board: type === 'top' ? 'hr' : type, date: slateDate, ranks: moveRanks, at: runAt, rows: rankPool, idOf: mlbId, enabled: rankings })
+  const rankMv = useRankMove({ sport: 'mlb', board: type === 'top' ? 'hr' : type, date: slateDate, ranks: moveRanks, at: runAt, rows: rankPool, idOf: mlbId, enabled: rankings && type !== 'hr2' })
   // Slate-wide facts for the board columns, over the FULL players prop.
   const boardCtx = useMemo(() => boardRowContext(players, { watchIds }), [players, watchIds])
 
@@ -411,6 +423,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               aligned: isAligned(p) ? 1 : 0,
               edgeF: nn(p?.pitch_type_match_score) > 0 ? 1 : 0,
               adj: scoreFor(p, type),
+              ...(type === 'hr2' ? { two: twoHrInputsText(p) } : null),
               // Raw hr_score rides on EVERY category (2026-08-08, Donovan):
               // whatever board you're reading, the HR context is one glance
               // away — a HIT pick with a live 70 HR score is a different bet
@@ -440,7 +453,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               ...categoryValues(p, type, { omit: catOmit }),
             }
           })}
-          columns={applyColumnView(subOnlyOpp(withBoardColumns([
+          columns={applyColumnView(subOnlyOpp(withBoardColumns(forType(type, [
             // ── THE WATCH COLUMN (2026-09-18) ──────────────────────────────
             // Donovan: "watch list button in general is not working." It was
             // not broken — on THIS board, the one he actually reads, it did
@@ -546,7 +559,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
                 )
               } },
             ...categoryColumns(type, { omit: catOmit }).map((c) => (rankings && CAT_GROUP[c.key.replace(/^cat_/, '')] ? { ...c, group: BOARD_GROUPS[CAT_GROUP[c.key.replace(/^cat_/, '')]] } : c)),
-          ], { onWatch, dhOn: dh.size > 0 }), rankings), colsView)}
+          ]), { onWatch, dhOn: dh.size > 0 }), rankings), colsView)}
           onRowClick={onPlayerClick}
           // THE PLAYER NAME CELL on Rankings (2026-10-13, Donovan: player rows): face, a name that fits, one line of chips, one row height (58px phone / 52px desktop)
           // via the shared components/table/PlayerNameCell.js; the other boards keep their own cell.
@@ -555,8 +568,10 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
           sortUrlKey={rankings ? 'sort' : null}
           // the v2 skin's status stamp: the one rule (lib/callStatus), the bot's designation + his board place
           {...(whyOn ? { statusOf: (r) => callStatus({ role: r._raw?.game_pick_role, board_rank: r.rank, board_of: boardOf }), maxRows: Math.max(ranked.length, 1) } : null)}
+          // 2+ HR: ON THE BOARD is the top third of THIS board (lib/callStatus, the one rule); CALLED never appears, there is no 2+ HR call or price
+          {...(type === 'hr2' ? { statusOf: (r) => callStatus({ board_rank: r.rank, board_of: slateRank?.size || ranked.length }) } : null)}
           maxHeight={rankings ? 640 : 520}
-          caption={`Ranked by ${type === 'hr' ? 'MOONSHOT’s HR score, with ISO beside it' : 'the category score'}. ${type === 'hr' ? 'A big score on thin power is the board’s most common trap. ' : ''}"When picked" is what he actually did the other times MOONSHOT picked him here. Tap any header to re-sort; the # column always gets you back to the board's own order.`}
+          caption={`Ranked by ${type === 'hr' ? 'MOONSHOT’s HR score, with ISO beside it' : type === 'hr2' ? 'our two-homer ranking (a new model, not the HR score)' : 'the category score'}. ${type === 'hr' ? 'A big score on thin power is the board’s most common trap. ' : ''}"When picked" is what he actually did the other times MOONSHOT picked him here. Tap any header to re-sort; the # column always gets you back to the board's own order.`}
         />
       )}
 
@@ -627,7 +642,10 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
       {viewMode === 'cards' && (
       <>
       <Grid>
-        {cardsPreview.shown.map((p, ci) => (
+        {cardsPreview.shown.map((p, ci) => (type === 'hr2' ? (
+          <TwoHrCard key={playerId(p)} p={p} rank={slateRank ? (slateRank.get(mlbId(p)) ?? ci + 1) : ci + 1}
+            status={callStatus({ board_rank: slateRank?.get(mlbId(p)), board_of: slateRank?.size || ranked.length })} onClick={() => onPlayerClick?.(p)} />
+        ) : (
           <PlayerCard
             key={playerId(p)}
             p={p}
@@ -641,7 +659,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             onClick={() => onPlayerClick?.(p)}
             rankMove={rankings ? rankMv.cell(mlbId(p)) : null}
           />
-        ))}
+        )))}
       </Grid>
       <ShowMoreButton {...cardsPreview} itemWord="players" />
       {rankings && <RankMoveNote show={rankMv.any} color={C.text3} />}

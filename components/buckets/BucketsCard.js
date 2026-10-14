@@ -13,6 +13,9 @@ import FollowButton from '../FollowButton'
 import StarMemory from '../watch/StarMemory'
 import { SportTheme } from '../SportTheme'
 import RankCard from '../card/RankCard'
+import LineMoveChip from '../LineMoveChip'
+import { useLiveFetch } from '../../lib/useLiveFetch'
+import { nbaQuote } from '../../lib/nba/oddsQuote'
 
 // 🏀 BUCKETS' PROP CARD (2026-10-03, the visual pass: "the props page should
 // have the cards like MLB ... the basketball shit don't got none of this").
@@ -24,7 +27,7 @@ import RankCard from '../card/RankCard'
 const LEG_WORD = { ptsPg: 'Points', rebPg: 'Rebounds', astPg: 'Assists', minPg: 'Minutes', fgaPg: 'Shots', ftaPg: 'Free throws', tpmPg: 'Threes', tpaPg: '3PA', tpPct: '3P%', praPg: 'PRA', fgaShare: 'Shot share', ddRate: 'DD games', ddAdj: 'DD games × opp', ddRecentAdj: 'DD last 10 × opp', tdAdj: 'TD games × opp', ddRecent: 'DD last 10', tdRate: 'TD games', oppPts: 'Opp PTS', oppReb: 'Opp REB', oppAst: 'Opp AST', oppTpm: 'Opp 3PM' }
 const MAIN = { pts: ['ptsPg', 'PTS/G'], reb: ['rebPg', 'REB/G'], ast: ['astPg', 'AST/G'], '3pm': ['tpmPg', '3PM/G'], pra: ['praPg', 'PRA/G'], dd: ['ddRate', 'OF HIS GAMES'], td: ['tdRate', 'OF HIS GAMES'], first: ['fgaShare', 'SHOT SHARE'] }
 
-export function BucketsCard({ r, rank, market = 'pts', onOpen, rankMove = null }) {
+export function BucketsCard({ r, rank, market = 'pts', onOpen, rankMove = null, quote = null }) {
   const M = NBA_MARKETS[market] || NBA_MARKETS.pts
   const called = r.status === 'called'
   const preview = r.locked === false
@@ -41,7 +44,7 @@ export function BucketsCard({ r, rank, market = 'pts', onOpen, rankMove = null }
         face={<PlayerFace sport="nba" id={r.playerId} name={r.name} variant="tile" size={84} theme={C} />}
         score={Math.round(r.score ?? 0)} scoreWord="BUCKETS" explain={`The ${M.label} board score: his percentile ranks among tonight's players on this board's legs, averaged. A ranking, not a percentage.`}
         rankTags={[...(preview ? ['PREVIEW'] : []), ...(r.injury ? [String(r.injury).toUpperCase()] : [])]}
-        extraLine={<span style={{ marginLeft: 'auto', textAlign: 'right' }}><b style={{ font: `900 20px/1 ${NUM_FONT}`, color: called ? C.purple : C.text }}>{main}</b> <span style={{ font: `800 10px/1 ${NUM_FONT}`, color: C.text3, letterSpacing: '.06em' }}>{mainLabel}</span></span>}
+        extraLine={<span style={{ marginLeft: 'auto', textAlign: 'right' }}>{/* where the book's price opened, when it has moved (lib/odds/lineMove.js: no opening price, no chip) */}{quote ? <LineMoveChip quote={quote} theme={C} numFont={NUM_FONT} compact /> : null}{quote ? ' ' : null}<b style={{ font: `900 20px/1 ${NUM_FONT}`, color: called ? C.purple : C.text }}>{main}</b> <span style={{ font: `800 10px/1 ${NUM_FONT}`, color: C.text3, letterSpacing: '.06em' }}>{mainLabel}</span></span>}
         stats={legs.slice(0, 3)}
         back={legs.length || Number.isFinite(min) ? { rows: [{ label: mainLabel, value: main }, ...(Number.isFinite(min) && market !== 'first' ? [{ label: 'MIN/G', value: min.toFixed(1) }] : []), ...legs.map((l) => ({ label: l.label, value: l.value, pct: l.pct }))], note: "Percentiles among tonight's players. A ranking, not a percentage." } : null}
         dim={Boolean(r.voidReason)} onClick={() => onOpen?.(String(r.playerId))}
@@ -58,11 +61,12 @@ export function BucketsCards({ rows, market, onOpen, rankOf = null }) {
   const phone = useIsPhone()
   const [all, setAll] = useState(false)
   const cap = phone ? 5 : 9
+  const { data: odds } = useLiveFetch('/api/odds/latest?sport=nba')   // once, no timer: the line-moved chip needs the books' opening price
   const shown = all ? rows : rows.slice(0, cap)
   return (
     <div>
       <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
-        {shown.map((r, i) => <BucketsCard key={r._id || `${r.gameId}-${r.playerId}`} r={r} rank={rankOf?.(r) ?? i + 1} market={market} onOpen={onOpen} rankMove={r.rankMove || null} />)}
+        {shown.map((r, i) => <BucketsCard key={r._id || `${r.gameId}-${r.playerId}`} r={r} rank={rankOf?.(r) ?? i + 1} market={market} onOpen={onOpen} rankMove={r.rankMove || null} quote={nbaQuote(odds, r.playerId, market)} />)}
       </div>
       {rows.length > shown.length && (
         <button type="button" onClick={() => setAll(true)} style={{ marginTop: 10, minHeight: 44, padding: '0 16px', borderRadius: 999, border: `1px solid ${C.border2}`, background: 'transparent', color: C.purple, font: `800 11px/1 ${NUM_FONT}`, cursor: 'pointer' }}>
