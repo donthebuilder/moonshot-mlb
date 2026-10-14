@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import FreshnessStamp from './FreshnessStamp'
 import { gradedResultsUrl, dataUrl } from '../lib/dataSource'
+import { sharedFetch } from '../lib/sharedRead'
 import { clean } from '../lib/player'
 import { dedupeGraded } from '../lib/graded'
 import DenseTable from './DenseTable'
@@ -69,7 +70,7 @@ export function usePickRecords(backtest) {
     let alive = true
     setState('loading')
     Promise.all(dates.map((d) =>
-      fetch(gradedResultsUrl(d))
+      sharedFetch(gradedResultsUrl(d))
         .then((r) => (r.ok ? r.json() : null))
         .then((j) => ({ date: d, json: j }))
         .catch(() => ({ date: d, json: null }))

@@ -36,9 +36,10 @@ export default function SportSwitch({ sport, onHome }) {
     mq.addEventListener?.('change', read)
     return () => mq.removeEventListener?.('change', read)
   }, [])
-  const feed = useLiveScores({ mlb: phone && sport !== 'mlb', nfl: phone && sport !== 'nfl', nhl: phone && sport !== 'nhl' })
-  const liveBy = {}
-  for (const i of feed.items) if (i.live && i.kind === 'score') liveBy[i.sport] = (liveBy[i.sport] || 0) + 1
+  // DOT MODE, AFTER THE PAGE SETTLES (2026-10-13 speed batch): the dot is one fact per other sport, so it asks for the
+  // schedule / scoreboard / scores that say "is a game live" and nothing else (no box scores, no last night, no
+  // abbreviation lookup, no leader lines), and not before the board has had its turn (lib/headlines.js `dot`, `lazyMs`).
+  const { liveBy } = useLiveScores({ mlb: phone && sport !== 'mlb', nfl: phone && sport !== 'nfl', nhl: phone && sport !== 'nhl', dot: true, lazyMs: 4000 })
 
   return (
     <nav className="hdr-switch" aria-label="Switch product">

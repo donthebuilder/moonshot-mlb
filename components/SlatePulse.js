@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import {gradedResultsUrl, dataUrl } from '../lib/dataSource'
+import { sharedFetch } from '../lib/sharedRead'
 import { nameOf, teamOf, clean, n } from '../lib/player'
 import { dedupeGraded } from '../lib/graded'
 
@@ -87,7 +88,7 @@ export default function SlatePulse({ players = [], slateDate = '', backtest, onP
   useEffect(() => {
     if (!ydayDate) return
     let alive = true
-    fetch(gradedResultsUrl(ydayDate))
+    sharedFetch(gradedResultsUrl(ydayDate))
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => { if (alive) setYday(j) })
       .catch(() => {})
