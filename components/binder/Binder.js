@@ -222,7 +222,7 @@ export function Tile({ c, C, accent, NUM_FONT, fresh, onOpen }) {
     <div data-binder-tile={c.tier} style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
       <button type="button" onClick={onOpen} aria-haspopup="dialog" aria-label={`Open the ${c.tierWord} card: ${c.name}, ${c.kicker}, ${c.dayWord}`}
         style={{ position: 'relative', display: 'block', padding: 0, border: 0, background: 'transparent', cursor: 'pointer' }}>
-        <img src={specialUrl(c, 360)} alt="" loading="lazy" style={{ width: '100%', aspectRatio: '4 / 5', display: 'block', borderRadius: 8, background: C.bg3, border: `1px solid ${C.border2}` }} />
+        <img src={specialUrl(c, 360)} alt="" loading="lazy" style={{ width: '100%', aspectRatio: '5 / 7', display: 'block', borderRadius: 8, background: C.bg3, border: `1px solid ${C.border2}` }} />
         {fresh ? <b data-binder-new style={{ position: 'absolute', top: 6, left: 6, padding: '3px 6px', borderRadius: 6, background: accent, color: C.bg, font: `900 10px/1 ${NUM_FONT}`, letterSpacing: '.08em' }}>NEW</b> : null}
       </button>
       <a href={playerHref(c.sport, c.playerId)} style={{ display: 'flex', alignItems: 'center', minHeight: 44, color: C.text, fontSize: 13, fontWeight: 800, lineHeight: 1.2, textDecoration: 'none', overflowWrap: 'anywhere' }}>{c.name}</a>

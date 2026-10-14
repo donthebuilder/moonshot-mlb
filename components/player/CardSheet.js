@@ -48,7 +48,7 @@ export default function CardSheet({ c, sport = null, id = null, name = '', onClo
           <span style={{ color: C.text2, fontSize: 13, fontWeight: 700 }}>{`${c.tierWord} · ${c.kicker} · ${c.dayWord}`}</span>
           <button ref={ref} type="button" onClick={onClose} aria-label="Close the card" style={{ minWidth: 44, minHeight: 44, borderRadius: 8, border: `1px solid ${C.border2}`, background: 'transparent', color: C.text, fontSize: 20, lineHeight: 1, cursor: 'pointer' }}>{'✕'}</button>
         </div>
-        <div style={{ position: 'relative', width: `min(100%, calc((100dvh - 250px) * 0.8))`, minWidth: 220, aspectRatio: '4 / 5', borderRadius: 14, overflow: 'hidden', background: C.bg3 }}>
+        <div style={{ position: 'relative', width: `min(100%, calc((100dvh - 250px) * 0.714))`, minWidth: 220, aspectRatio: '5 / 7', borderRadius: 14, overflow: 'hidden', background: C.bg3 }}>
           {showBack && !badBack
             ? <img key="back" src={backUrl(who.sport, who.id)} alt={`${who.name || 'Player'}: the stat-table back of his card`} onError={() => setBadBack(true)} onClick={() => setSide('front')} style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain', cursor: 'pointer' }} />
             : !showBack

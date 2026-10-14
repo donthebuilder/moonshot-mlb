@@ -33,6 +33,8 @@ export async function GET(request) {
     if (!c) return json({ error: 'NOT FOUND', detail: 'that moment did not happen (no tier earned)' }, 404)
     // a look preview of the tier it actually earned is not a "style preview"
     if (tierAsked === c.earned) c.model.collect.styleOnly = false
+    const { issueNoOf, issueLabel } = await import('../../../../lib/cards/issue')
+    c.model.collect.issue = tierAsked && tierAsked !== c.earned ? 'PREVIEW' : issueLabel(await issueNoOf(db, c.id.cardId))
     const { renderCollect } = await import('../../../../lib/cards/collect/collectCard')
     const png = await renderCollect(c.model, { width, tier: tierAsked || c.earned })
     return new Response(png, { status: 200, headers: { 'Content-Type': 'image/png', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex', 'X-Card-Id': c.id?.cardId || '' } })

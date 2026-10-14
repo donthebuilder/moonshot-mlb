@@ -139,6 +139,35 @@ await t('NO TIER DARKENS THE FACE: for every layout (cut-out, full-bleed, studio
     }
   }
 })
+await t('NFL and LONG-SHOT cards (TEST rows): every tier renders; the NFL frame wears the turf; the long shot prints the pre-game price chip and its price', async () => {
+  const nfl = await collectModel('nfl_100_yards', F.TEST_100, { test: true })
+  const multi = await collectModel('nfl_multi_td', F.TEST_MULTI_TD, { test: true })
+  const shot = await collectModel('long_shot_cashed', { ...F.TEST_LONG_SHOT, price_source: 'lock', best: 1520, books: 4 }, { test: true })
+  assert.equal(shot.earned, 'elite')
+  const noLock = await collectModel('long_shot_cashed', { ...F.TEST_LONG_SHOT, price_source: 'latest', best: 1520, books: 4 }, { test: true })
+  assert.equal(noLock, null, 'a price that is not the lock snapshot earns no card')
+  assert.match(text(collectDesign(shot.model, '', { tier: 'elite' })).join(' '), /PRICE LISTED PRE-GAME/)
+  assert.match(text(collectDesign(shot.model, '', { tier: 'elite' })).join(' '), /\+1520/)
+  assert.doesNotMatch(text(collectDesign(nfl.model, '', { tier: 'star' })).join(' '), /PRICE LISTED/)
+  shot.model.collect.issue = ''   // a real card whose table has no row: the issue line is left off, the card still draws
+  assert.doesNotMatch(text(collectDesign(shot.model, '', { tier: 'elite' })).join(' '), /ISSUE NO/)
+  for (const c of [nfl, multi, shot]) for (const tier of TIERS) {
+    assert.deepEqual(lintType(collectDesign(c.model, '', { tier })), [], `${c.model.moment.key} ${tier}`)
+    assert.ok((await renderCollect(c.model, { tier, width: 500 })).length > 1000)
+  }
+})
+await t('THE POST PATH: moment posts draw the collect card (1000 x 1400) with the issue label, and a moment the v2 rules do not know falls back to the old 4:5 card', async () => {
+  const sharp = (await import('sharp')).default
+  const { MOMENT_SENDERS } = await import('../lib/posts/momentPost.js')
+  const ev = (moment, row) => ({ moment, row, who: { name: row.name, team: row.team, opp: row.opp, playerId: String(row.player_id) } })
+  const db = { from: () => ({ select: () => ({ eq: () => ({ limit: async () => ({ data: [{ issue_no: 7, status: 'issued' }], error: null }) }) }) }) }
+  const r = await MOMENT_SENDERS.render(ev('nhl_hat_trick', F.TEST_HAT), db)
+  const m = await sharp(r.png).metadata()
+  assert.deepEqual([m.width, m.height], [1000, 1400]); assert.equal(r.model.collect.issue, '7')
+  const legacy = await MOMENT_SENDERS.render(ev('long_shot_cashed', { ...F.TEST_LONG_SHOT, price_source: 'latest', best: 1520, books: 4 }), db)
+  const lm = await sharp(legacy.png).metadata()
+  assert.deepEqual([lm.width, lm.height], [1080, 1350])
+})
 await t('the preview route is not linked from anywhere (app, components, lib, scripts other than the previews)', () => {
   const hits = []
   const walk = (dir) => {

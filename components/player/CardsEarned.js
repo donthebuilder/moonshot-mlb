@@ -39,7 +39,7 @@ export default function CardsEarned({ sport, id, name = '' }) {
   const tile = (c) => (
     <button key={`${c.moment}:${c.id}`} type="button" onClick={(e) => { e.stopPropagation(); setOpen(c) }} aria-haspopup="dialog" aria-label={`Open the ${c.tierWord} card: ${c.kicker}, ${c.dayWord}`}
       style={{ display: 'flex', flexDirection: 'column', gap: 4, width: 'calc((100% - 16px) / 3)', maxWidth: 160, minWidth: 96, padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', color: C.text }}>
-      <img src={specialUrl(c, 360)} alt="" loading="lazy" style={{ width: '100%', aspectRatio: '4 / 5', display: 'block', borderRadius: 8, background: C.bg3, border: `1px solid ${C.border2}` }} />
+      <img src={specialUrl(c, 360)} alt="" loading="lazy" style={{ width: '100%', aspectRatio: '5 / 7', display: 'block', borderRadius: 8, background: C.bg3, border: `1px solid ${C.border2}` }} />
       <span style={{ fontSize: 12, fontWeight: 800, color: accent, lineHeight: 1.2 }}>{c.tierWord}</span>
       <span style={{ fontSize: 12, color: C.text2, lineHeight: 1.25 }}>{`${c.kicker} · ${c.dayWord}`}</span>
     </button>
