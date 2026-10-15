@@ -1,4 +1,4 @@
-// GET /api/card/special?moment=nhl_goal&id=<gameId:playerId:goalN>[&sport=nhl][&date=YYYY-MM-DD][&w=360|540|720|1080][&v=1]   (the collectible 5:7 frame by default; v=1 = the old 4:5 card, kept for one release)
+// GET /api/card/special?moment=nhl_goal&id=<gameId:playerId:goalN>[&sport=nhl][&date=YYYY-MM-DD][&side=back&face=stats|brand][&w=360|540|720|1080][&v=1]   (the collectible 5:7 frame by default; v=1 = the old 4:5 card, kept for one release)
 // A SPECIAL card (PNG, 4:5): one real moment (lib/cards/moments.js) drawn in the player-card frame, with a shimmer for a STAR card and a holo foil for the ELITE and LEGEND ones (tier words: BASE, STAR, ELITE, LEGEND).
 //   id shapes: nhl_goal / nhl_season_goal_milestone  gameId:playerId:goalN      nhl_hat_trick / nhl_three_points  gameId:playerId
 //              mlb_multi_hr  gamePk:playerId      nfl_multi_td  gameId:gsisId      nfl_100_yards  gsisId:season:week (the published game logs, every week)
@@ -43,6 +43,22 @@ export async function GET(request) {
     const loaded = await loadSpecial({ key, id, db })
     if (!loaded.ok) return json({ error: loaded.status === 404 ? 'NOT FOUND' : loaded.status === 400 ? 'BAD REQUEST' : 'CARD DELAYED', detail: loaded.why }, loaded.status || 502, loaded.status === 404 ? 'public, max-age=60' : 'no-store')
     if (date && key !== 'long_shot_cashed' && loaded.row.day && loaded.row.day !== date) return json({ error: 'NOT FOUND', detail: 'no such event on that date' }, 404, 'public, max-age=60')
+    // THE BACK (side=back[&face=stats|brand]): the collectible frame's other side (lib/cards/collect/collectBack.js). stats = the player's stat table (the sport adapter's own rows), brand = the
+    // shared CALLED IT back. Both carry the card's real id and issue number. A hidden BUCKETS moment, or one the v2 rules do not know, has no collectible back: 404 (the sheet then falls back).
+    if (q.get('side') === 'back') {
+      if (hidden) return json({ error: 'NOT FOUND', detail: 'no back for that moment' }, 404, 'no-store')
+      const face = q.get('face') === 'brand' ? 'brand' : 'stats'
+      const { collectBackModel } = await import('../../../../lib/cards/collect/collectBackData')
+      const cb = await collectBackModel(key, loaded.row, { face })
+      if (!cb) return json({ error: 'NOT FOUND', detail: 'that moment earns no collectible card' }, 404, 'public, max-age=60')
+      const { issueNoOf, issueLabel } = await import('../../../../lib/cards/issue')
+      cb.model.collect.issue = issueLabel(await issueNoOf(db, cb.id.cardId))
+      const { renderCollectBack } = await import('../../../../lib/cards/collect/collectBack')
+      const bpng = await renderCollectBack(cb.model, cb.back, { width, face })
+      // a stat table whose source was down is drawn (empty, and it says so) but not kept long
+      const keep = face === 'brand' || cb.live ? 'public, s-maxage=600, stale-while-revalidate=1200' : 'public, max-age=60'
+      return new Response(bpng, { status: 200, headers: { 'Content-Type': 'image/png', 'Cache-Control': keep, 'X-Card-Look': `collect-back-${face}`, 'X-Card-Id': cb.id.cardId } })
+    }
     // THE COLLECTIBLE FRAME IS THE DEFAULT (2026-10-14, 5:7, lib/cards/collect): ?v=1 keeps the old 4:5 card for one release. A moment the v2 rules do not recognise
     // (a hidden BUCKETS moment, a long shot priced after the lock) is drawn by the old card, so nothing that used to draw is lost.
     if (q.get('v') !== '1' && !hidden) {
