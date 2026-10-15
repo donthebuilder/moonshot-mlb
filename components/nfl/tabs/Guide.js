@@ -190,7 +190,9 @@ export default function Guide({ onNavigate, data }) {
         average — on completed seasons. Where the model doesn&apos;t win, the page says so in
         red. Read the out-of-sample season, not the tuned one: beating the baseline on the
         year a model was fitted proves nothing, and more markets fail out of sample than on
-        the tuned year. The Report Card is the only place that count is current — this page
+        the tuned year. Anytime TD is the exception to read carefully: its weights were
+        tuned on one season and checked on the other, in both directions, so neither 2024
+        nor 2025 is a clean untouched year for it. The Report Card is the only place that count is current — this page
         will not try to keep it.
       </Note>
     </div>
