@@ -28,6 +28,7 @@ import { playerJoin } from '../../../../lib/odds/playerJoin'
 import { activeLeagues, nbaOddsCapture, MARKETS, snapRows, startsAt, gameDate } from '../../../../lib/odds/snap'
 import { bucketsPublic } from '../../../../lib/nba/gate'
 import { linesRows } from '../../../../lib/odds/lines'
+import { twoPlusRows } from '../../../../lib/odds/twoPlus'
 import { gameTotalRow } from '../../../../lib/odds/gameTotal'
 import { freezeDashLines } from '../../../../lib/dashLock'
 import { gradeDashLines } from '../../../../lib/dashGrade'
@@ -121,6 +122,7 @@ export async function GET(request) {
     const takenAt = new Date().toISOString()
     const rows = []
     const lineRows = []
+    const twoRows = []
     let players = 0; let matched = 0; let totals = 0
     for (const ev of events) {
       if (!(Date.now() < Date.parse(startsAt(ev))) || ev.status?.started) continue // already under way: no pregame row
@@ -129,6 +131,8 @@ export async function GET(request) {
       // The morning read of every market we score (lib/odds/lines.js), so the
       // site has hits / total bases / yards prices before each game's lock.
       lineRows.push(...linesRows(ev, 'list', takenAt, match).rows)
+      // 2+ PRICES (lib/odds/twoPlus.js): the over-1.5 rung of the anytime stat, only where a book lists it; same event, no extra object
+      twoRows.push(...twoPlusRows(ev, 'list', takenAt, match).rows)
       if (!dry) totals += await saveGameTotal(db, ev, 'list', takenAt)
     }
     if (!dry) {
@@ -146,8 +150,12 @@ export async function GET(request) {
         const w = await db.from('odds_lines').upsert(lineRows, { onConflict: 'event_id,odd_id,snap', ignoreDuplicates: true })
         if (w.error) console.error(`[odds tick] list lines ${league}: ${w.error.message}`)
       }
+      if (twoRows.length) {
+        const w = await db.from('odds_lines').upsert(twoRows, { onConflict: 'event_id,odd_id,snap', ignoreDuplicates: true })
+        if (w.error) console.error(`[odds tick] list 2+ ${league}: ${w.error.message}`)
+      }
     }
-    out.listed.push({ league, games: events.length, rows: rows.length, lines: lineRows.length, totals, players, matched })
+    out.listed.push({ league, games: events.length, rows: rows.length, lines: lineRows.length, twoPlus: twoRows.length, totals, players, matched })
     console.log(`[odds tick] list ${league} ${date}: ${events.length} games, ${rows.length} rows, join ${matched}/${players}`)
   }
 
@@ -196,7 +204,7 @@ export async function GET(request) {
         }
         // EVERY MARKET WE SCORE, AT LOCK (lib/odds/lines.js): same object, no
         // extra cost. Its own failure, logged; never the snapshot's.
-        let lines = null, dash = null, board = null
+        let lines = null, dash = null, board = null, twoPlus = null
         if (snap === 'lock') {
           if (!dry) await saveGameTotal(db, ev, snap, takenAt)
           // THE TD BOARD (lib/boardLock.js): the whole pregame board for this game, beside these prices (value call, shadow)
@@ -210,7 +218,16 @@ export async function GET(request) {
             else { try { dash = await freezeDashLines(db, ev, L.rows, takenAt) } catch (e) { dash = `error: ${e?.message}` } }
           }
         }
-        out.snaps.push({ event: ev.eventID, league: ev.leagueID, snap, rows: r.rows.length, lines, dash, board, players: r.players, matched: r.matched, minutesToStart: Math.round((Date.parse(startsAt(ev)) - Date.parse(takenAt)) / MIN) })
+        // 2+ PRICE AT LOCK (lib/odds/twoPlus.js): its own write and its own failure, apart from the dash line and the snapshot
+        if (snap === 'lock') {
+          const T = twoPlusRows(ev, snap, takenAt, match)
+          twoPlus = T.rows.length
+          if (!dry && T.rows.length) {
+            const w = await db.from('odds_lines').upsert(T.rows, { onConflict: 'event_id,odd_id,snap', ignoreDuplicates: true })
+            if (w.error) { console.error(`[odds tick] 2+ ${ev.eventID}: ${w.error.message}`); twoPlus = `error: ${w.error.message}` }
+          }
+        }
+        out.snaps.push({ event: ev.eventID, league: ev.leagueID, snap, rows: r.rows.length, lines, twoPlus, dash, board, players: r.players, matched: r.matched, minutesToStart: Math.round((Date.parse(startsAt(ev)) - Date.parse(takenAt)) / MIN) })
       }
     }
   } else if (due.size) out.skipped.push({ why: `due ${due.size} games but ${used} objects used (cap ${HARD_CAP})` })
