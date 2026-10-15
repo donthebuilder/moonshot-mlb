@@ -1,5 +1,6 @@
 import { C, NUM_FONT } from '../../lib/nhl/theme'
-import { kicker, more, playerHref, teamHref, linkStyle, tapLink } from './StaticPage'
+import { kicker, more, playerHref, teamHref } from './StaticPage'
+import StaticPlayerCell from './StaticPlayerCell'
 import { POS_KEYS, SIDE_KEYS, POS_WORD, SIDE_WORD, SIDE_SHORT, GIVEUP_FLOOR, splitLine, pct0, leanText } from '../../lib/nhl/goalieGiveUps'
 import { seasonLabel } from '../../lib/nhl/reduce'
 
@@ -12,7 +13,7 @@ const PREVIEW = 8
 const th = { padding: '0 5px 4px', color: C.text3, font: `800 11px/1.2 ${NUM_FONT}`, letterSpacing: '.06em', textAlign: 'right', whiteSpace: 'nowrap' }
 const grp = { ...th, textAlign: 'center', color: C.text2, borderBottom: `1px solid ${C.border}`, paddingBottom: 3 }
 const td = { padding: '6px 5px', borderTop: `1px solid ${C.border}`, textAlign: 'right', fontFamily: NUM_FONT, fontSize: 12.5, whiteSpace: 'nowrap', verticalAlign: 'middle' }
-const sticky = { position: 'sticky', left: 0, background: C.bg, zIndex: 1, textAlign: 'left', fontFamily: 'inherit', minWidth: 112, maxWidth: 124, whiteSpace: 'normal', lineHeight: 1.25 }
+const sticky = { position: 'sticky', left: 0, background: C.bg, zIndex: 1, textAlign: 'left', fontFamily: 'inherit', minWidth: 150, maxWidth: 164, whiteSpace: 'normal', lineHeight: 1.25 }
 const muted = { color: C.text3 }
 
 function Head() {
@@ -44,10 +45,9 @@ function Share({ cell, lean }) {
 
 function Row({ r }) {
   return (
-    <tr>
-      <td style={{ ...td, ...sticky }}>
-        <a href={playerHref(r.id)} style={{ ...linkStyle, ...tapLink }}>{r.name}</a>
-        {r.team ? <span style={{ display: 'block', lineHeight: 1 }}><a href={teamHref(r.team)} style={{ color: C.text3, textDecoration: 'none', fontSize: 11, fontFamily: NUM_FONT, ...tapLink }}>{r.team}</a></span> : null}
+    <tr className="spc-row">
+      <td style={{ ...td, ...sticky, padding: '0 6px' }}>
+        <StaticPlayerCell name={r.name} href={playerHref(r.id)} photo={r.photo} team={r.team} teamHref={r.team ? teamHref(r.team) : null} />
       </td>
       <td style={td}>{r.ga}</td>
       {POS_KEYS.map((k) => <td key={k} style={td}><Share cell={r.pos[k]} lean={r.leanPos?.key === k} /></td>)}
@@ -63,7 +63,7 @@ function LeagueRow({ lg }) {
   const cell = (c) => ({ share: c?.share ?? null })
   const bg = { ...td, color: C.text2, fontWeight: 800 }
   return (
-    <tr>
+    <tr className="spc-row">
       <td style={{ ...bg, ...sticky }}>League, all goalies</td>
       <td style={bg}>{lg.ga}</td>
       {POS_KEYS.map((k) => <td key={k} style={bg}><Share cell={cell(lg.pos[k])} /></td>)}

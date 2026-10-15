@@ -1,5 +1,6 @@
 import { C, NUM_FONT } from '../../lib/nhl/theme'
-import { kicker, table, td, num, more, playerHref, teamHref, linkStyle, tapLink } from './StaticPage'
+import { kicker, table, td, num, more, playerHref, teamHref } from './StaticPage'
+import StaticPlayerCell from './StaticPlayerCell'
 
 // One leader category as a server-rendered table: the top five, then 6-10
 // behind one tap (phone first). Rows are reduceLeaders()'s: rank, id, name,
@@ -8,12 +9,9 @@ const SHOWN = 5
 
 function Row({ r, fmt }) {
   return (
-    <tr>
+    <tr className="spc-row">
       <td style={{ ...td, width: 22, fontFamily: NUM_FONT, color: C.text3, fontSize: 10.5 }}>{r.rank}</td>
-      <td style={td}><a href={playerHref(r.id)} style={linkStyle}>{r.name}</a></td>
-      <td style={{ ...td, fontFamily: NUM_FONT, fontSize: 10.5, color: C.text3, whiteSpace: 'nowrap' }}>
-        <a href={teamHref(r.team)} style={{ color: C.text3, textDecoration: 'none', ...tapLink }}>{r.team}</a> {r.pos}
-      </td>
+      <td style={{ ...td, padding: '0 6px' }}><StaticPlayerCell name={r.name} href={playerHref(r.id)} photo={r.headshot || null} team={r.team} teamHref={r.team ? teamHref(r.team) : null} extra={r.pos} /></td>
       <td style={{ ...num, fontWeight: 900, color: r.rank === 1 ? C.ice : C.text }}>{fmt(r.value)}</td>
     </tr>
   )
