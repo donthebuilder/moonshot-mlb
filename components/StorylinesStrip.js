@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import StoryRow, { StoryParts, BoardBadge } from './StoryRow'
-import TeamMark from './TeamMark'
+import TeamMark, { MatchLogos } from './TeamMark'
 import { gameHref } from '../lib/routes'
 import { localDayTime } from '../lib/localTime'
 
@@ -55,9 +55,12 @@ export default function StorylinesStrip({ sport, theme: C, numFont, accent, max 
           <div key={id} style={{ borderTop: `1px solid ${C.border}`, padding: '7px 0 4px' }}>
             {/* the game is a link to that game (the clickable rule), 44px tall */}
             <a href={gameHref(sport, id)} aria-label={`Open ${g.away && g.home ? `${g.away} at ${g.home}` : 'this game'}`} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minHeight: 44, fontFamily: numFont, fontSize: 12, color: 'inherit', textDecoration: 'none' }}>
-              {g.away ? <TeamMark sport={sport} abbr={g.away} variant="logo" px={16} /> : null}
-              <b style={{ color: C.text }}>{g.away && g.home ? `${g.away} @ ${g.home}` : s.team}</b>
-              {g.home ? <TeamMark sport={sport} abbr={g.home} variant="logo" px={16} /> : null}
+              {/* the game is two logos (2026-10-15): "A @ B" printed between them was a bare code pair; the codes ride the logos' titles and the link's aria-label */}
+              {g.away && g.home
+                ? <MatchLogos sport={sport} away={g.away} home={g.home} px={20} gap={6} />
+                : (g.away || g.home || /^[A-Z]{2,4}$/.test(String(s.team || '')))
+                  ? <TeamMark sport={sport} abbr={g.away || g.home || s.team} variant="logo" px={20} />
+                  : <b style={{ color: C.text }}>{s.team}</b>}
               <span style={{ color: C.text3 }}>{[when(g.start), `${list.length} ${list.length === 1 ? 'story' : 'stories'}`].filter(Boolean).join(' · ')}</span>
               <span style={{ marginLeft: 'auto', color: accent, fontWeight: 800 }}>›</span>
             </a>

@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import PageHeader from '../PageHeader'
 import SectionView from './SectionView'
+import TeamMark from '../TeamMark'
 import { resolveSection } from '../../lib/team/registry'
 import { readHashKey } from '../../lib/filterHash'
 import { writeParam } from '../../lib/useShellRoute'
@@ -39,7 +40,7 @@ function Chips({ view, sec, onPick, theme }) {
 
 const tap = (C, NUM_FONT) => ({ display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 8px', background: 'transparent', border: 0, cursor: 'pointer', color: C.text2, font: `800 11px/1 ${NUM_FONT}` })
 
-function NextGame({ header, nav, theme }) {
+function NextGame({ header, nav, theme, sport }) {
   const { C, NUM_FONT } = theme
   const g = header.live || header.next
   if (!g) return <div style={{ color: C.text3, fontSize: 12 }}>No game ahead on the club schedule.</div>
@@ -49,7 +50,7 @@ function NextGame({ header, nav, theme }) {
       <span style={{ color: C.text3, font: `900 9px/1 ${NUM_FONT}`, letterSpacing: '.12em', marginRight: 6 }}>{header.live ? 'LIVE NOW' : 'NEXT'}</span>
       <button type="button" onClick={() => nav.onOpenGame?.(g.gameId, g.date)} style={{ ...tap(C, NUM_FONT), color: C.text, cursor: nav.onOpenGame ? 'pointer' : 'default' }}>{when}</button>
       <span style={{ color: C.text3, font: `800 11px/1 ${NUM_FONT}` }}>{g.home ? 'vs' : '@'}</span>
-      <button type="button" onClick={() => nav.onOpenTeam?.(g.opp)} style={{ ...tap(C, NUM_FONT), color: C.text3, fontWeight: 600 }}>{g.opp}</button>
+      <button type="button" onClick={() => nav.onOpenTeam?.(g.opp)} style={{ ...tap(C, NUM_FONT), color: C.text3, fontWeight: 600 }} title={g.opp}><TeamMark sport={sport} abbr={g.opp} variant="logo" px={20} /></button>
       {g.venue && <span style={{ color: C.text3, fontSize: 11 }}>{g.venue}</span>}
     </div>
   )
@@ -96,7 +97,7 @@ export default function TeamPage({ view, theme, ui, nav, back = null, hashKey = 
       <PageHeader eyebrow={h.eyebrow} theme={C} numFont={NUM_FONT} accent={accent}
         title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>{h.logo && <img src={h.logo} alt="" width={56} height={56} style={{ width: 56, height: 56, objectFit: 'contain' }} />}{h.name || h.code}</span>}
         note={note || 'No standings row for this club yet.'} stats={stats.length ? stats : null} />
-      <NextGame header={h} nav={nav} theme={theme} />
+      <NextGame header={h} nav={nav} theme={theme} sport={view.sport} />
       <Last5 header={h} nav={nav} theme={theme} />
       <Chips view={view} sec={active.id} onPick={pick} theme={theme} />
       <section aria-labelledby={`team-chip-${active.id}`}>

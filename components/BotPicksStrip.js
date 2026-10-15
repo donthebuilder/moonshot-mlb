@@ -8,6 +8,7 @@ import HeadlinePicks from './headline/HeadlinePicks'
 import { rankBuckets, fourGrade } from '../lib/mlbFour'
 import { playerHref } from '../lib/routes'
 import PlayerFace from './PlayerFace'
+import TeamMark from './TeamMark'
 import { reasonContext, boardReasonFor, reasonLines } from '../lib/mlb/boardReason'
 
 // THE FOUR — the bot's own headline section, rebuilt on the site.
@@ -269,7 +270,7 @@ export default function BotPicksStrip({ players = [], onPlayerClick, onFullCard 
       teamCode: i === 0 ? null : teamOf(p),
       team: i === 0 ? null : (
         <>
-          {teamOf(p)}
+          <TeamMark sport="mlb" abbr={teamOf(p)} variant="logo" px={12} />
           {p?._slateGames > 1 && (
             <span
               title={`His team plays ${p._slateGames} times today — this is his best game by this category's score. Both games are on the full board, split by the G column.`}
