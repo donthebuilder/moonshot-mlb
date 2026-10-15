@@ -150,6 +150,16 @@ export function defaultMlbState(g) {
           : g.startTime ? localTime(g.startTime, { zone: false }) : ''
 }
 
+// "14 NFL · 2 MLB" when the rail carries more than one sport (each game is tagged with its `sport` by lib/combinedRail.js),
+// else the plain count. One number for two sports under one label read as a wrong count next to a page's own SLATE tile.
+function countLine(games) {
+  const by = {}
+  for (const g of games) if (g.sport) by[g.sport] = (by[g.sport] || 0) + 1
+  const kinds = Object.keys(by)
+  if (kinds.length > 1) return kinds.map((k) => `${by[k]} ${k.toUpperCase()}`).join(' · ')
+  return `${games.length} game${games.length === 1 ? '' : 's'}`
+}
+
 export default function ScoreRail({
   players = [], results, onNavigate,
   sport = 'mlb',
@@ -250,7 +260,7 @@ export default function ScoreRail({
             {pn > 0 && <> · picks <b style={{ color: pok ? C.green : C.text3 }}>{pok}/{pn}</b> cleared</>}
             {open
               ? <> · the x/y beside each game&apos;s state is our picks in that game</>
-              : <> · {games.length} game{games.length === 1 ? '' : 's'}</>}
+              : <> · {countLine(games)}</>}
           </span>
           <span style={{ fontSize: 9, color: C.orange, fontFamily: NUM_FONT, fontWeight: 800 }}>
             {open ? '▴' : '▾'}

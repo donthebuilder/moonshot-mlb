@@ -43,7 +43,8 @@ export default function HeadlineStrip({ cards = [], onOpen = null, theme = null,
         background: `linear-gradient(160deg, ${c.col}14, ${C.glass} 70%)`, color: C.text, textAlign: 'left', cursor: 'pointer', font: 'inherit',
       }}>
       <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, fontWeight: 900, color: c.col }}>{String(i + 1).padStart(2, '0')}</span>
+        {/* the loop's second copy carries no index: 01-08 must not appear twice in a row */}
+        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, fontWeight: 900, color: c.col }}>{echo ? '' : String(i + 1).padStart(2, '0')}</span>
         <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.14em', fontFamily: NUM_FONT, color: c.col }}>{c.tag}</span>
         <span style={{ marginLeft: 'auto', fontSize: 13, lineHeight: 1 }}>{c.icon}</span>
       </span>

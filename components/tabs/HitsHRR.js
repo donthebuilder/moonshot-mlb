@@ -31,7 +31,7 @@ import { hrScore, mlbId, nameOf, playerId, teamOf } from '../../lib/player'
 import { useSetupHomers, useBackToBack } from '../../lib/b2b'
 import { dedupeGraded } from '../../lib/graded'
 import { useLockedRecord } from '../../lib/useLockedRecord'
-import { pickRate, lockedCallsLine } from '../../lib/record/lockedRecord'
+import { pickRate, lockedCallsLine, pickRange } from '../../lib/record/lockedRecord'
 
 // Which BoardFilters score-slider a view means by "Score" — mirrors the keys
 // BoardFilters.js's own SCORE_FOR_TYPE understands. weakspot/aligned/
@@ -182,7 +182,7 @@ const PROOF = (rec) => ({
   hit: {
     color: C.orange,
     head: 'Hit calls against the base rate, on the locked record',
-    body: `HIT picks are graded on getting at least one hit. ${rec?.picks?.HIT ? `On the ${rec.source} (${lockedCallsLine(rec, rec.picks.HIT.n)}) they got one ${pickRate(rec.picks.HIT)}, against ${rec.picks.HIT.base?.toFixed(1)}% for every hitter on the board.` : 'The locked record is loading.'} The "When picked" column below is each hitter’s own delivery record in this exact category, from graded results.`,
+    body: `HIT picks are graded on getting at least one hit. ${rec?.picks?.HIT ? `On the ${rec.source} (${lockedCallsLine(rec, rec.picks.HIT.n)}) they got one ${pickRate(rec.picks.HIT)}${pickRange(rec.picks.HIT) ? `, with the real rate somewhere in ${pickRange(rec.picks.HIT)}` : ''}, against ${rec.picks.HIT.base?.toFixed(1)}% for the whole board, calls included.` : 'The locked record is loading.'} The "When picked" column below is each hitter’s own delivery record in this exact category, from graded results.`,
   },
   hrr: {
     color: C.orange,

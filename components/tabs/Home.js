@@ -50,7 +50,7 @@ import HeadlineStrip from '../HeadlineStrip'
 import HeroStat from '../HeroStat'
 import { mlbNextGames, nextLine } from '../../lib/mlbNext'
 import { useLockedRecord } from '../../lib/useLockedRecord'
-import { lockedCallsLine } from '../../lib/record/lockedRecord'
+import { lockedCallsLine, pickRange } from '../../lib/record/lockedRecord'
 import { onLiveRefresh } from '../../lib/liveRefresh'
 import MlbTonight from '../tonight/MlbTonight'
 import { TeamTap } from '../EntityTap'
@@ -701,7 +701,7 @@ export default function Home({
     if (picks > 0) out.push(`🎯 MOONSHOT designated ${picks} picks on this slate — The Four, just above, is the headline cut.`)
     if (confirmed > 0 && players.length > 0) out.push(`✓ ${confirmed} of ${players.length} hitters are in confirmed lineups — the rest can still change before first pitch.`)
     if (proj?.grade) out.push(`💣 MOONSHOT calls tonight's power grade "${proj.grade}" — the range is in the line above.`)
-    if (record) out.push(`📈 Every pick gets graded in public. On the ${lockedRec.source}, hit calls got a hit ${record.pct.toFixed(1)}% of the time against ${record.base.toFixed(1)}% for every hitter (n=${record.n}).`)
+    if (record) out.push(`📈 Every pick gets graded in public. On the ${lockedRec.source}, hit calls got a hit ${record.pct.toFixed(1)}% of the time${pickRange(record) ? ` (somewhere in ${pickRange(record)})` : ''} against ${record.base.toFixed(1)}% for the whole board, calls included (n=${record.n}).`)
     // SCORES IN THE CRAWL (2026-09-06): every live game, then every final,
     // interleaved so the strip reads like a scoreboard crawl and not a list.
     const scores = live.items.filter((i) => i.live).concat(live.items.filter((i) => !i.live && !i.pregame))
@@ -950,8 +950,8 @@ export default function Home({
                 title={`${airLine(airRanked[0]) || ''}${airTitle(airRanked[0]) ? `\n${airTitle(airRanked[0])}` : ''}\nPark HR factor plus the published weather effect, as a percentage swing on the rate — not a chance of anything.${airRanked[0].edge > 0 ? '' : ' Nothing on tonight\'s slate is playing above neutral; that is the finding, not a missing section.'}`} />
             )}
             {record ? (
-              <Stat label="HIT CALLS" value={`${record.pct.toFixed(1)}%`} sub={`vs ${record.base.toFixed(1)}% base · n=${record.n}`} col={C.text}
-                title={`Locked record: ${lockedCallsLine(lockedRec, record.n)} (${lockedRec.window}). Hit calls that got a hit against ${record.base.toFixed(1)}% for every hitter on the board.`} />
+              <Stat label="HIT CALLS" value={`${record.pct.toFixed(1)}%`} sub={`vs ${record.base.toFixed(1)}% board · n=${record.n}`} col={C.text}
+                title={`Locked record: ${lockedCallsLine(lockedRec, record.n)} (${lockedRec.window}). Hit calls that got a hit against ${record.base.toFixed(1)}% for the whole board, calls included.${pickRange(record) ? ` With this many calls the real rate could sit anywhere in ${pickRange(record)}.` : ''}`} />
             ) : null}
           </div>
         )}
@@ -1001,8 +1001,9 @@ export default function Home({
           and nothing invented in the picks column -- lib/combinedRail.js's
           own header comment has the full trace. */}
       <ScoreRail
+        key={slateDate || 'today'}
         players={players} results={results} onNavigate={onNavigate}
-        fetchGames={fetchCombinedGamesForMlbHome}
+        fetchGames={() => fetchCombinedGamesForMlbHome(slateDate || undefined)}
         renderState={combinedRenderState}
         TeamMark={CombinedTeamMark}
         onSwitchSport={setSport}
