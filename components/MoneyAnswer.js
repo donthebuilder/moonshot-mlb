@@ -96,8 +96,9 @@ export default function MoneyAnswer({ compact = false, onNavigate = null }) {
           DOES THIS MAKE MONEY
         </span>
         <span style={{ display: 'block', fontSize: 11.5, color: C.text2, lineHeight: 1.5, marginTop: 3 }}>
-          <b style={{ color: tone }}>{headline}</b> at the prices the books offered
-          {days ? ` across ${days} graded nights` : ''} and {bets.toLocaleString()} settled bets.
+          <b style={{ color: tone }}>{headline}</b>
+          {down.length ? ` (${down.map((r) => r.label).join(', ')} ${down.length === 1 ? 'is' : 'are'} measurably losing)` : ''} at the prices the books offered
+          {days ? ` across ${days} nights with a price snapshot` : ''} and {bets.toLocaleString()} settled bets on our picks.
           {onNavigate ? <span style={{ color: C.orange }}> The full table →</span> : null}
         </span>
       </button>
@@ -113,8 +114,8 @@ export default function MoneyAnswer({ compact = false, onNavigate = null }) {
         <b style={{ color: tone }}>{headline}.</b>{' '}
         {down.length ? `${down.map((r) => r.label).join(' and ')} ${down.length === 1 ? 'is' : 'are'} measurably losing; ` : ''}
         {flat.length ? `${flat.length} sit inside the noise. ` : ''}
-        Flat one unit a bet, at the price actually offered
-        {days ? `, across ${days} graded nights` : ''} and {bets.toLocaleString()} settled bets.
+        Flat one unit a bet on our picks, at the price actually offered
+        {days ? `, across ${days} nights with a price snapshot` : ''} and {bets.toLocaleString()} settled bets.
       </p>
 
       {/* THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b). Was SortTh. */}
