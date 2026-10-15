@@ -109,7 +109,7 @@ export default function AccountNudge({ sport = 'mlb' }) {
       <a href={signupHref()} style={{ flex: 1, minWidth: 0, color: T.text2, textDecoration: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         Get tonight&apos;s calls before the game · <b style={{ color: A }}>free account</b>
       </a>
-      <button type="button" aria-label="Dismiss" onClick={() => { set('local', BAR_OFF, 'dismissed'); setBar(false) }} style={{ background: 'none', border: 0, color: T.text3, fontSize: 14, cursor: 'pointer', padding: '2px 6px' }}>✕</button>
+      <button type="button" className="tap-box" aria-label="Dismiss" onClick={() => { set('local', BAR_OFF, 'dismissed'); setBar(false) }} style={{ background: 'none', border: 0, color: T.text3, fontSize: 14, cursor: 'pointer', padding: '2px 6px' }}>✕</button>
       <style>{NUDGE_CSS}</style>
     </div>
   )

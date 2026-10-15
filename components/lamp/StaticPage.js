@@ -21,13 +21,13 @@ export default function StaticPage({ here, eyebrow, h1, lede, appHref, appLabel,
     <main style={{ background: C.bg, color: C.text, minHeight: '100vh', fontFamily: 'Arial, Helvetica, sans-serif' }}>
       <div style={{ maxWidth: 920, margin: '0 auto', padding: '0 16px 64px' }}>
         <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', padding: '12px 0', borderBottom: `1px solid ${C.border}` }}>
-          <Link href="/start?sport=nhl" style={{ color: C.text, textDecoration: 'none' }}>
+          <Link href="/start?sport=nhl" className="tap-box" style={{ color: C.text, textDecoration: 'none' }}>
             <small style={{ display: 'block', color: C.ice, font: `900 9px/1.4 ${NUM_FONT}`, letterSpacing: '.16em' }}>DASH NETWORK</small>
             <strong style={{ fontSize: 17, letterSpacing: '.02em' }}>LAMP <span style={{ color: C.text3, fontSize: 11, fontWeight: 800 }}>NHL</span></strong>
           </Link>
           <nav aria-label="LAMP pages" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', font: `800 11px/1 ${NUM_FONT}` }}>
             {LINKS.map(([href, label]) => (
-              <Link key={href} href={href} aria-current={href === here ? 'page' : undefined}
+              <Link key={href} href={href} className="tap-box" aria-current={href === here ? 'page' : undefined}
                 style={{ color: href === here ? C.ice : C.text2, textDecoration: 'none', padding: '6px 0' }}>{label}</Link>
             ))}
           </nav>
@@ -37,7 +37,7 @@ export default function StaticPage({ here, eyebrow, h1, lede, appHref, appLabel,
           <h1 style={{ margin: 0, fontSize: 28, lineHeight: 1.1, letterSpacing: '-.02em' }}>{h1}</h1>
           {lede ? <p style={{ margin: '10px 0 0', color: C.text2, fontSize: 13.5, lineHeight: 1.55, maxWidth: 640 }}>{lede}</p> : null}
           <p style={{ margin: '12px 0 0' }}>
-            <a href={appHref} style={{ color: C.ice, font: `800 12px/1 ${NUM_FONT}`, textDecoration: 'none' }}>{appLabel} →</a>
+            <a href={appHref} className="tap-box" style={{ color: C.ice, font: `800 12px/1 ${NUM_FONT}`, textDecoration: 'none' }}>{appLabel} →</a>
           </p>
         </section>
         {children}

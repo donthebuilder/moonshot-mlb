@@ -233,6 +233,7 @@ export default function ScoreRail({
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: open ? 7 : 0 }}>
         <button
           type="button"
+          className="tap-box"
           onClick={toggle}
           aria-expanded={open}
           title={open ? `Collapse ${label}’s games` : 'Show every game on the slate'}
@@ -257,7 +258,7 @@ export default function ScoreRail({
           </span>
         </button>
         {onNavigate && (
-          <button onClick={() => onNavigate(moreTarget)} style={{
+          <button className="tap-box" onClick={() => onNavigate(moreTarget)} style={{
             marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer',
             fontFamily: NUM_FONT, fontSize: 9.5, color: C.orange, fontWeight: 800,
           }}>{moreLabel}</button>

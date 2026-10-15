@@ -2,16 +2,17 @@
 // rendered for search (Batch 6 follow-up, 2026-09-26). Leaders lead: a list
 // of names alone would be a thin page. Same reads as LAMP's Leaders and
 // Goalies tabs (lib/nhl/readers.js).
-import StaticPage, { kicker, table, th, td, more, playerHref, teamHref, linkStyle, tapLink } from '../../../components/lamp/StaticPage'
+import StaticPage, { kicker, table, th, td, more, playerHref, teamHref } from '../../../components/lamp/StaticPage'
 import LeaderList from '../../../components/lamp/LeaderList'
 import GoalieGiveUps from '../../../components/lamp/GoalieGiveUps'
 import { readLeaders, readRosters } from '../../../lib/nhl/readers'
 import { readGoalieGiveUps } from '../../../lib/nhl/goalieZones'
 import { giveUps, chooseGiveUps, GIVEUP_FLOOR } from '../../../lib/nhl/goalieGiveUps'
 import { whichSeason } from '../../../lib/nhl/whichSeason'
+import StaticPlayerCell from '../../../components/lamp/StaticPlayerCell'
 import { fmtDay, fmt2, fmtPct3 } from '../../../lib/nhl/format'
 import { pageTitle } from '../../../lib/routes'
-import { C, NUM_FONT } from '../../../lib/nhl/theme'
+import { C } from '../../../lib/nhl/theme'
 
 export const revalidate = 600
 
@@ -33,7 +34,7 @@ export default async function Page() {
     .sort((a, b) => a.team.localeCompare(b.team) || a.name.localeCompare(b.name))
   // WHO SCORES ON A GOALIE (2026-10-13): this season's table once enough goalies have faced enough goals, else the last full
   // season's, named. Hidden until the SQL has run or when the read fails: never a guess in its place.
-  const who = (id) => { const g = goalies.find((x) => String(x.id) === String(id)); return g ? { name: g.name, team: g.team } : null }
+  const who = (id) => { const g = goalies.find((x) => String(x.id) === String(id)); return g ? { name: g.name, team: g.team, photo: g.headshot || null } : null }
   const cur = await whichSeason().then((s) => s.current ?? s.id, () => null)
   const curTable = cur ? giveUps(await readGoalieGiveUps(cur).catch(() => null), who) : null
   const prevTable = cur && !(curTable?.state === 'ok' && curTable.enough >= GIVEUP_FLOOR.rows) ? giveUps(await readGoalieGiveUps(cur - 10001).catch(() => null), who) : null
@@ -55,13 +56,11 @@ export default async function Page() {
           <details>
             <summary style={more}>Show all {goalies.length}, by club</summary>
             <table style={table}>
-              <thead><tr><th style={th}>CLUB</th><th style={th}>#</th><th style={th}>GOALIE</th></tr></thead>
+              <thead><tr><th style={th}>GOALIE</th></tr></thead>
               <tbody>
                 {goalies.map((g) => (
-                  <tr key={g.id}>
-                    <td style={{ ...td, fontFamily: NUM_FONT, fontSize: 11 }}><a href={teamHref(g.team)} style={{ color: C.text3, textDecoration: 'none', ...tapLink }}>{g.team}</a></td>
-                    <td style={{ ...td, fontFamily: NUM_FONT, color: C.text3, fontSize: 11 }}>{g.number ?? ''}</td>
-                    <td style={td}><a href={playerHref(g.id)} style={linkStyle}>{g.name}</a></td>
+                  <tr key={g.id} className="spc-row">
+                    <td style={{ ...td, padding: '0 6px' }}><StaticPlayerCell name={g.name} href={playerHref(g.id)} photo={g.headshot || null} team={g.team} teamHref={teamHref(g.team)} number={g.number} /></td>
                   </tr>
                 ))}
               </tbody>
