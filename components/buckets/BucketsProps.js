@@ -74,6 +74,8 @@ function bucketsAdapter(startOf) {
     priceNum: () => null,
     startsAt: (r) => startOf.get(String(r.gameId)) ?? NaN,
     gameOf: (r) => (r?.gameId ? { key: String(r.gameId), label: r.home ? `${r.opp}@${r.team}` : `${r.team}@${r.opp}` } : null),
+    // the pair history the slip quotes (lib/slipPairHist.js): two 25-point (points market) legs, from our own graded games
+    pairHist: { sport: 'nba', idOf: (r) => String(r.id), nameOf: (r) => r.name, isEventLeg: (k) => k === 'pts' },
     precisionKey: 'buckets_precision_v1',
     sortTimeLabel: 'Tip-off',
     picksTitle: 'everyone called tonight, in any market',

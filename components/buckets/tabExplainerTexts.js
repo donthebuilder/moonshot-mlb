@@ -22,6 +22,8 @@ export const NBA_TEXTS = {
   players: { what: 'Every player. Type a name or a club; tap a row for his file.' },
   player: { what: 'One player: the season line, the game log, every shot he took, and the board on him.' },
   leaders: { what: 'Who leads the league per game, with a 20-game floor.' },
+  power: { what: 'Who scores most, who is heating up, who scores per minute: the league’s numbers, not a BUCKETS score.' },
+  pairs: { what: 'Two players who each scored 25+ on the same day, counted from our own graded games. It builds as the season plays.' },
   shotmap: { what: 'Where a club or a player shoots from: every attempt on record, by zone, made and missed.' },
   results: { what: 'Every graded night: how many of the calls hit, per market. Preseason is counted apart.' },
   binder: { what: 'The cards your starred players earned in real games: a 30-point night, a double-double, a triple-double, 40 points, 10 threes. Rarest first. Empty until the regular season has graded games.' },
