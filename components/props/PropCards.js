@@ -5,6 +5,10 @@ import VerdictHero, { PeriodTiles } from '../VerdictHero'
 import MobileFold from '../MobileFold'
 import { FilterPill } from '../Filters'
 import BetSlip, { sameGameLine } from './BetSlip'
+import { fetchJSON } from '../../lib/data'
+import { pairHistV2Paths } from '../../lib/dataSource'
+import { readPairHistV2 } from '../../lib/pairHistV2'
+import { pairHistNotes } from '../../lib/slipPairHist'
 import HelpTip from '../HelpTip'
 import { takeSlipSeed } from '../../lib/slipSeed'
 
@@ -142,7 +146,25 @@ export default function PropCards({
   // adapter has the rules (MOONSHOT) gets the pair notes and the suggested partners; the rest are unchanged.
   const rowOfKey = useMemo(() => new Map((rawRows || []).map((r) => [String(a.keyOf(r)), r])), [rawRows, a])
   const slipLegs = useMemo(() => slip.map((l) => { const [rk, k] = String(l.key).split('|'); return { key: l.key, k, r: rowOfKey.get(rk) } }), [slip, rowOfKey])
-  const pairNotes = useMemo(() => (a.slipNotes && slip.length >= 2 ? a.slipNotes(slipLegs) : []), [a, slip.length, slipLegs])
+  // TUDDY / LAMP / BUCKETS (2026-10-15): their adapters name the event the pair history counts (a.pairHist); two legs on it get the
+  // pair's stored record from the same four-season file the Pairs page draws (lib/slipPairHist.js). Fetched once, and only when
+  // the slip holds two legs, so a visit that never builds a slip costs nothing.
+  const histSport = a.pairHist?.sport || null
+  const [histFile, setHistFile] = useState(null)
+  const wantHist = Boolean(histSport) && slip.length >= 2
+  useEffect(() => {
+    if (!wantHist) return undefined
+    let alive = true
+    fetchJSON(pairHistV2Paths(histSport), (j) => Boolean(readPairHistV2(j, histSport)))
+      .then((j) => { if (alive) setHistFile(readPairHistV2(j, histSport)) })
+      .catch(() => { if (alive) setHistFile(null) })
+    return () => { alive = false }
+  }, [wantHist, histSport])
+  const pairNotes = useMemo(() => {
+    if (slip.length < 2) return []
+    if (a.slipNotes) return a.slipNotes(slipLegs)
+    return a.pairHist ? pairHistNotes(slipLegs, histFile, a.pairHist) : []
+  }, [a, slip.length, slipLegs, histFile])
   const partnerPicks = useMemo(() => (a.slipPartners && slip.length ? a.slipPartners(slipLegs, rawRows, Date.now()) : []), [a, slip.length, slipLegs, rawRows])
   // Names checked on the Numerology page arrive once (lib/slipSeed.js): each goes on the slip in the first
   // market it is priced in. Read from storage, not from `slip`, because the stored slip loads in an effect.

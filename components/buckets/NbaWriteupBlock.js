@@ -1,6 +1,6 @@
 'use client'
-// THE CALL, ON BUCKETS' GAME PAGE (2026-10-09). The double-double / triple-double write-up the post carries
-// (lib/writeups/nba.js), built from the same two boards (/api/buckets/board dd, td), drawn by the shared
+// THE CALL, ON BUCKETS' GAME PAGE (2026-10-09). The write-up the post carries (lib/writeups/nba.js):
+// the points call, and the double-double / triple-double calls, built from the boards (/api/buckets/board pts, dd, td), drawn by the shared
 // components/GameWriteupBlock -- LAMP's NhlWriteupBlock is the template. No call in the game, nothing shown.
 import { useMemo } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/nba/theme'
@@ -16,11 +16,11 @@ const WORDS = {
 }
 
 export default function NbaWriteupBlock({ gameId, date, onOpenPlayer }) {
-  const dd = useBucketsBoard(date || null, 'dd'), td = useBucketsBoard(date || null, 'td')
+  const pts = useBucketsBoard(date || null, 'pts'), dd = useBucketsBoard(date || null, 'dd'), td = useBucketsBoard(date || null, 'td')
   const w = useMemo(() => {
-    const input = nbaGameInput({ dd: dd.data, td: td.data }, gameId)
+    const input = nbaGameInput({ pts: pts.data, dd: dd.data, td: td.data }, gameId)
     return input ? buildNbaWriteup(input) : null
-  }, [dd.data, td.data, gameId])
+  }, [pts.data, dd.data, td.data, gameId])
   if (!w) return null
   return <GameWriteupBlock w={w} theme={THEME} words={WORDS} onOpen={onOpenPlayer ? (p) => onOpenPlayer(p.player_id) : null} />
 }

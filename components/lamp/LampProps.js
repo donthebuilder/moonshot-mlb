@@ -90,6 +90,8 @@ function lampAdapter(season, odds) {
     priceNum: (r, k) => { const q = quoteOf(odds, r, k); return q ? Number(q.best_over ?? q.over) : null },
     startsAt: (r) => Date.parse(r.startUtc || ''),
     gameOf: (r) => (r?.gameId ? { key: String(r.gameId), label: r.home ? `${r.opp}@${r.team}` : `${r.team}@${r.opp}` } : null),
+    // the pair history the slip quotes (lib/slipPairHist.js): two GOAL legs, from the file the Pairs page draws
+    pairHist: { sport: 'nhl', idOf: (r) => String(r.id), nameOf: (r) => r.name, isEventLeg: (k) => k === 'GOAL' },
     precisionKey: 'lamp_precision_v1',
     sortTimeLabel: 'Puck drop',
     picksTitle: 'every skater called tonight, on goals or shots',

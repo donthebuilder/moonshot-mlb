@@ -54,6 +54,8 @@ const Teams = dynamic(() => import('./tabs/Teams'), { loading: TabLoading })
 const Team = dynamic(() => import('./tabs/Team'), { loading: TabLoading })
 const Players = dynamic(() => import('./tabs/Players'), { loading: TabLoading })
 const Player = dynamic(() => import('./tabs/Player'), { loading: TabLoading })
+const Pairs = dynamic(() => import('./tabs/Pairs'), { loading: TabLoading })
+const Power = dynamic(() => import('./tabs/Power'), { loading: TabLoading })
 const Leaders = dynamic(() => import('./tabs/Leaders'), { loading: TabLoading })
 const ShotMap = dynamic(() => import('./tabs/ShotMap'), { loading: TabLoading })
 const CalledLedger = dynamic(() => import('./tabs/CalledLedger'), { loading: TabLoading })
@@ -68,7 +70,7 @@ import SkipLink from '../SkipLink'
 import BucketsProps from './BucketsProps'
 
 // Pages that show one day and keep it in the address (`date=`).
-const DATED_TABS = new Set(['home', 'scores', 'board', 'fullboard', 'games', 'schedule', 'matchups', 'hot', 'ledger', 'storylines', 'odds', 'numerology'])
+const DATED_TABS = new Set(['home', 'scores', 'board', 'fullboard', 'games', 'schedule', 'matchups', 'hot', 'power', 'ledger', 'storylines', 'odds', 'numerology'])
 const MARKETS = new Set(['pts', 'reb', 'ast', '3pm', 'pra', 'dd', 'td', 'first'])
 const ROUTE = {
   sport: 'nba', nav: NBA_NAV, datedTabs: DATED_TABS,
@@ -152,6 +154,8 @@ export default function BucketsDashboard() {
             {tab === 'team' && <Team abbrev={teamKey} {...nav} backLabel={backLabel('teams')} onBack={() => goBack('teams')} />}
             {tab === 'players' && <Players {...nav} />}
             {tab === 'player' && <Player id={playerId} {...nav} onStep={stepPlayer} backLabel={backLabel('players')} onBack={() => goBack('players')} />}
+            {tab === 'power' && <Power date={date} setDate={setDate} {...nav} />}
+            {tab === 'pairs' && <Pairs onOpenPlayer={peekPlayer} />}
             {tab === 'leaders' && <Leaders {...nav} />}
             {tab === 'shotmap' && <ShotMap {...nav} />}
             {tab === 'binder' && <Binder />}
