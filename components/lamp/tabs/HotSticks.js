@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import LampTable from '../LampTable'
+import { nhlMugLatest } from '../../../lib/nhl/format'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampHotSticks } from '../../../lib/nhl/useLamp'
 import { DelayedBanner, Loading, SourceLine, StaleSeasonNote, EmptyState, fmtSec } from '../ui'
@@ -78,7 +79,7 @@ export default function HotSticks({ onOpenPlayer }) {
             { key: 'f', label: 'Forwards', count: rows.filter((r) => r.pos !== 'D').length },
             { key: 'd', label: 'Defense', count: rows.filter((r) => r.pos === 'D').length },
           ]} />
-          <LampTable rows={shown} columns={COLUMNS} heatMode="primary" initialSort="sogPg5" maxRows={shown.length}
+          <LampTable nameCell="player" faceOf={(r) => ({ sport: 'nhl', photo: nhlMugLatest(r.id), name: r.name })} rows={shown} columns={COLUMNS} heatMode="primary" initialSort="sogPg5" maxRows={shown.length}
             rowEdge={(r) => (r._playing ? C.ice : null)} onRowClick={(r) => onOpenPlayer?.(r.id)} />
         </>
       )}

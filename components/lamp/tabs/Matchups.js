@@ -10,6 +10,7 @@ import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { DelayedBanner, Loading, SourceLine, EmptyState, PlayerMark } from '../ui'
 import { MatchupTitle, SubLabel, BarList, FactLines } from '../../matchup/MatchupParts'
 import { arenaOf } from '../../../lib/nhl/arenas'
+import { nhlMugLatest } from '../../../lib/nhl/format'
 
 // 🏒 LAMP MATCHUPS (2026-09-27, matchups plan Part B, in the shape Donovan
 // signed off on TUDDY's): a ranked table of tonight's defences leads --
@@ -83,10 +84,10 @@ function Detail({ row, league, date = null, onOpenPlayer, onOpenTeam = null }) {
         <Kicker>THE NET · {row.def}</Kicker>
         {!goalies ? <div style={{ fontSize: 12, color: C.text3 }}>Loading the goalies…</div> : goalies.list.length ? (
           <>
-            <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={10} caption={`${row.def}'s goalies`}
+            <LampTable bare noGroups nameCell="player" faceOf={(g) => ({ sport: 'nhl', photo: g.headshot || nhlMugLatest(g.id), name: g.name })} heatMode="sorted" maxHeight={9999} maxRows={10} caption={`${row.def}'s goalies`}
               rows={goalies.list.map((g) => ({ ...g, _key: g.id }))}
               columns={[
-                { key: 'name', label: 'Goalie', heat: false, sticky: true, w: 180, fmt: (_, g) => <PlayerMark headshot={g.headshot} name={g.name} onClick={() => onOpenPlayer?.(g.id)} /> },
+                { key: 'name', label: 'Goalie', heat: false, sticky: true, w: 180, link: (g) => (onOpenPlayer ? () => onOpenPlayer(g.id) : null) },
                 { key: 'gp', label: 'GP', w: 40, fmt: (v) => v ?? '—' },
                 { key: 'svPct', label: 'SV%', w: 54, fmt: (v) => (v != null ? Number(v).toFixed(3).replace(/^0/, '') : '—') },
                 { key: 'gaa', label: 'GAA', w: 50, invert: true, fmt: (v) => (v != null ? Number(v).toFixed(2) : '—') },

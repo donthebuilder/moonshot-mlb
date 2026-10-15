@@ -1,4 +1,4 @@
-// GET /api/card/special?moment=nhl_goal&id=<gameId:playerId:goalN>[&sport=nhl][&date=YYYY-MM-DD][&w=360|540|720|1080]   (PREVIEW, not wired to any post)
+// GET /api/card/special?moment=nhl_goal&id=<gameId:playerId:goalN>[&sport=nhl][&date=YYYY-MM-DD][&w=360|540|720|1080][&v=1]   (the collectible 5:7 frame by default; v=1 = the old 4:5 card, kept for one release)
 // A SPECIAL card (PNG, 4:5): one real moment (lib/cards/moments.js) drawn in the player-card frame, with a shimmer for a STAR card and a holo foil for the ELITE and LEGEND ones (tier words: BASE, STAR, ELITE, LEGEND).
 //   id shapes: nhl_goal / nhl_season_goal_milestone  gameId:playerId:goalN      nhl_hat_trick / nhl_three_points  gameId:playerId
 //              mlb_multi_hr  gamePk:playerId      nfl_multi_td  gameId:gsisId      nfl_100_yards  gsisId:season:week (the published game logs, every week)
@@ -43,6 +43,19 @@ export async function GET(request) {
     const loaded = await loadSpecial({ key, id, db })
     if (!loaded.ok) return json({ error: loaded.status === 404 ? 'NOT FOUND' : loaded.status === 400 ? 'BAD REQUEST' : 'CARD DELAYED', detail: loaded.why }, loaded.status || 502, loaded.status === 404 ? 'public, max-age=60' : 'no-store')
     if (date && key !== 'long_shot_cashed' && loaded.row.day && loaded.row.day !== date) return json({ error: 'NOT FOUND', detail: 'no such event on that date' }, 404, 'public, max-age=60')
+    // THE COLLECTIBLE FRAME IS THE DEFAULT (2026-10-14, 5:7, lib/cards/collect): ?v=1 keeps the old 4:5 card for one release. A moment the v2 rules do not recognise
+    // (a hidden BUCKETS moment, a long shot priced after the lock) is drawn by the old card, so nothing that used to draw is lost.
+    if (q.get('v') !== '1' && !hidden) {
+      const { collectModel } = await import('../../../../lib/cards/collect/collectData')
+      const c = await collectModel(key, loaded.row, {})
+      if (c) {
+        const { issueNoOf, issueLabel } = await import('../../../../lib/cards/issue')
+        c.model.collect.issue = issueLabel(await issueNoOf(db, c.id.cardId))
+        const { renderCollect } = await import('../../../../lib/cards/collect/collectCard')
+        const cpng = await renderCollect(c.model, { width })
+        return new Response(cpng, { status: 200, headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1200', 'X-Card-Look': 'collect', 'X-Card-Id': c.id.cardId } })
+      }
+    }
     const model = await modelFromRow(key, loaded.row)
     if (!model) return json({ error: 'NOT FOUND', detail: 'that moment did not happen' }, 404, 'public, max-age=60')
     const { renderSpecial } = await import('../../../../lib/cards/specialCard')

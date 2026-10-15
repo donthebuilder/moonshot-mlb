@@ -375,6 +375,7 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
           .mobileTabBar{position:fixed;z-index:390;left:50%;transform:translateX(-50%);bottom:10px;display:flex;gap:2px;height:46px;padding:5px 8px;border:1px solid ${C.border2};border-radius:14px;background:color-mix(in srgb,${C.bg2} 90%,transparent);box-shadow:0 14px 45px #000b,inset 0 1px 0 #ffffff0a;backdrop-filter:blur(18px) saturate(140%)}
           .mobileTabBar.tucked:not(:focus-within){transform:translate(-50%,calc(100% + 24px))}
           .mobileTabBar.phoneOnly{display:none}
+          @media(pointer:coarse){:global(.dashboard-main){padding-bottom:76px!important}.mobileTabBar{height:56px}}
           .mobileTabBar a{text-decoration:none}
           .mobileTabBar button,.mobileTabBar a{position:relative;display:flex;flex-direction:row;align-items:center;gap:7px;padding:0 14px;border:0;border-radius:9px;background:transparent;color:${C.text3};font-family:${NUM_FONT};font-size:10px;font-weight:800;letter-spacing:.03em;cursor:pointer}
           .mobileTabBar button i,.mobileTabBar a i{color:${C.text2};font-family:system-ui;font-size:15px;font-style:normal;line-height:1}

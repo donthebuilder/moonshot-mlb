@@ -104,7 +104,7 @@ export default function HeaderShell({ sport, theme = MLB_C, wordmark, onHome, ho
                     const col = PILL[k] ? PILL[k]() : C.text2
                     const b = BRAND[k]
                     return (
-                      <button key={k} onClick={() => setSport(k)} aria-pressed={false}
+                      <button key={k} className="tap-box" onClick={() => setSport(k)} aria-pressed={false}
                         title={`Switch to ${b.name} · ${b.league}`} aria-label={`Switch to ${b.name} · ${b.league}`}
                         style={{
                           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
