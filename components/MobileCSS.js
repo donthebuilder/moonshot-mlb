@@ -449,6 +449,41 @@ export default function MobileCSS() {
         }
       }
 
+      /* ── HERO CHIPS AND THE HOME WHY LINE, 44 ON TOUCH (2026-10-15) ───────
+         Donovan said yes to this: the hero stat chips (GAMES, NEXT PITCH,
+         PROJ HR, KICKOFF...) were 24px tall on a touch screen wider than
+         520px (a landscape phone, a tablet) and 39px for NFL's two chips on
+         a portrait phone, with a 5-6px gap, so an invisible 44px hit box
+         would have overlapped its neighbour. They are VISIBLY 44px tall with
+         an 8px gap on touch only; a mouse keeps its density. A portrait
+         phone's MLB chips were already 54-67px (label over value), so the
+         only cost there is the gap. .hero-stats-touch is LAMP's row, which
+         keeps its own flex layout (it never had .hero-stats' grid).
+         The HeadlinePicks WHY / WATCH button (.hp-why) was a 16px text row;
+         on touch it is a 44px row that holds its lines in the middle. */
+      @media (pointer: coarse) {
+        .hero-stats, .hero-stats-touch { gap: 8px !important; }
+        .hero-stats > * > button, .hero-stats > *:not(:has(> button)),
+        .hero-stats-touch > * > button, .hero-stats-touch > *:not(:has(> button)) {
+          min-height: 44px !important; box-sizing: border-box;
+        }
+        .hp-why { min-height: 44px !important; display: flex !important; flex-direction: column; justify-content: center; margin-top: 4px !important; }
+      }
+      @media (pointer: coarse) and (min-width: 521px) {
+        .hero-stats > * > button, .hero-stats > *:not(:has(> button)),
+        .hero-stats-touch > * > button, .hero-stats-touch > *:not(:has(> button)) { align-items: center !important; }
+      }
+      @media (pointer: coarse) and (max-width: 520px) {
+        .hero-stats > * > button, .hero-stats > *:not(:has(> button)) { justify-content: center; }
+        /* LAMP's four chips wrap to two rows here (2 x 44 + 8 instead of 2 x 24 + 6, +42px): the line under them
+           sits 4px off instead of 10, which hands 6px back. A rail was tried first and dropped: HeroStat's
+           tap-to-explain note is absolutely positioned and a scrolling row would clip it. */
+        .hero-stats-touch + p { margin-top: 4px !important; }
+        /* and 6px less side padding on those four so a 360px phone still fits them two and two (GAMES + FIRST PUCK DROP,
+           LOCKED + GRADED) instead of a third row (+16px more) */
+        .hero-stats-touch > * > button, .hero-stats-touch > *:not(:has(> button)) { padding-left: 6px !important; padding-right: 6px !important; }
+      }
+
       /* ── THE TICKER (2026-08-24, later still) ─────────────────────────────
          Donovan: "make it moving like espn or like stock tickers ... give
          data on the slate, home runs, projected, lineups, games, all that."

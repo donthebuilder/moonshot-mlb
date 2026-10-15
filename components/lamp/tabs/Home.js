@@ -112,7 +112,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
         accent={C.ice} grad={[C.ice, C.teal]} headingLevel="h2" theme={C}
       >
         {games.length > 0 && (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div className="hero-stats-touch" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <HeroStat theme={C} numFont={NUM_FONT} label="GAMES" value={games.length} title="Games on the day." />
             {firstDrop && <HeroStat theme={C} numFont={NUM_FONT} label="FIRST PUCK DROP" value={fmtPuckDrop(firstDrop)} sub={zoneAbbrev()} title="The first puck drop of the day." />}
             {boardGames.length > 0 && <HeroStat theme={C} numFont={NUM_FONT} label="LOCKED" value={`${lockedN}/${boardGames.length}`} col={allLocked ? C.teal : C.text} title="Games whose board has locked before puck drop." />}
