@@ -108,7 +108,7 @@ function LeaderTile(props) {
   return (
     <SharedLeaderTile
       {...props}
-      meta={(top) => <><MlbTeamMark abbr={top.team} style={{ height: 16, verticalAlign: 'middle' }} /> · {top.pa} PA</>}
+      meta={(top) => <><MlbTeamMark abbr={top.team} variant="logo" px={18} /> · {top.pa} PA</>}
       facing={(top) => {
         const facing = clean(top._raw?.pitcher_name, '')
         if (!facing) return null
@@ -186,9 +186,9 @@ function HistRow({ i, name, team, main, note, onClick, title, onTeam }) {
         {team ? <> {onTeam?.(team)
           ? <button type="button" onClick={(e) => { e.stopPropagation(); onTeam(team)() }} title={`${team} team page`}
               style={{ padding: 0, border: 'none', background: 'none', cursor: 'pointer', verticalAlign: 'middle' }}>
-              <MlbTeamMark abbr={team} style={{ height: 16, verticalAlign: 'middle' }} />
+              <MlbTeamMark abbr={team} variant="logo" px={18} />
             </button>
-          : <MlbTeamMark abbr={team} style={{ height: 16, verticalAlign: 'middle' }} />}</> : null}
+          : <MlbTeamMark abbr={team} variant="logo" px={18} />}</> : null}
       </span>
       <span style={{ marginLeft: 'auto', textAlign: 'right', flexShrink: 0 }}>
         <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 900, color: C.orange }}>{main}</span>

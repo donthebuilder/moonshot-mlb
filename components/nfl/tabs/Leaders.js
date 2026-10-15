@@ -98,7 +98,7 @@ function meta(top) {
   const tag = injuryTag(top._raw)
   return (
     <>
-      <TeamTap abbr={top._raw.team}><NflTeamMark abbr={top._raw.team} style={{ verticalAlign: 'middle' }} /></TeamTap> · {top._raw.position}
+      <TeamTap abbr={top._raw.team}><NflTeamMark abbr={top._raw.team} variant="logo" px={18} /></TeamTap> · {top._raw.position}
       {tag && <b title={injuryTitle(tag)} style={{ color: injuryColor(tag, C), marginLeft: 5 }}>{tag}</b>}
     </>
   )

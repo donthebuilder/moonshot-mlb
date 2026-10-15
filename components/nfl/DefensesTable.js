@@ -1,6 +1,7 @@
 'use client'
 import { QMark } from './NflNote'
 import TeamMark from '../TeamMark'
+import { nflNickname } from '../../lib/nfl/teams'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { softRole, stingyRole, fitsSoft, STARTER_ROLES, SOFT_THIN_GAMES, multipleWords, earlyNote, MULTIPLE_CAP } from '../../lib/nfl/dvpSignal'
@@ -103,7 +104,7 @@ export default function DefensesTable({ matchup, data, win = 'season', active, o
       {/* The one-line takeaway first (chart rule, Part A). */}
       <p style={{ margin: '0 0 8px', fontSize: 12.5, lineHeight: 1.5, color: C.text2 }}>
         {lead._standout
-          ? <>Softest: <Tap onClick={() => onPick?.(lead.def)}><b style={{ color: C.text }}>{lead.def}</b></Tap> vs {lead._plain}{lead.fits ? <>, and <Tap onClick={onPlayerClick && lead._fits ? () => onPlayerClick(lead._fits) : null}><b style={{ color: C.text }}>{lead.fits}</b></Tap> ({lead.opp}) fills that role</> : null}. Tap a row for the defense&apos;s map.</>
+          ? <>Softest: <Tap onClick={() => onPick?.(lead.def)}><TeamMark sport="nfl" abbr={lead.def} variant="logo" px={16} style={{ verticalAlign: '-3px', marginRight: 4 }} /><b style={{ color: C.text }}>{nflNickname(lead.def)}</b></Tap> vs {lead._plain}{lead.fits ? <>, and <Tap onClick={onPlayerClick && lead._fits ? () => onPlayerClick(lead._fits) : null}><b style={{ color: C.text }}>{lead.fits}</b></Tap> ({lead.opp}) fills that role</> : null}. Tap a row for the defense&apos;s map.</>
           : <>No defense on this week&apos;s card stands out; the ranking is by how far each one&apos;s softest spot sits above the league. Tap a defense for its map.</>}
       </p>
       <NflTable

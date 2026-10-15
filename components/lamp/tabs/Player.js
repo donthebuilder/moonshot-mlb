@@ -256,7 +256,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
               {p.team && (
                 <button type="button" onClick={() => onOpenTeam?.(p.team)} title={team ? team.name : p.teamName} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, minHeight: 44, margin: '-12px 0', background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text, font: 'inherit' }}>
                   {p.teamLogo && <img src={p.teamLogo} alt="" width={18} height={18} style={{ width: 18, height: 18 }} />}
-                  <b style={{ font: `900 12px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>{p.team}</b>
+                  <b style={{ font: `900 12px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>{team?.nickname ? team.nickname.toUpperCase() : p.team}</b>
                 </button>
               )}
               <span>{[{ C: 'Centre', L: 'Left wing', R: 'Right wing', D: 'Defence' }[p.pos] || p.pos, goalie ? 'Goalie' : null, !p.active ? 'not active' : null].filter(Boolean).join(' · ')}</span>

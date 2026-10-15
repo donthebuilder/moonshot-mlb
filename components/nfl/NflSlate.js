@@ -194,10 +194,11 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
         const inGame = (p) => p.team === g.away || p.team === g.home
         const story = storyForGame?.(g)
         const rows = tableRowsFor(new Set([g.away, g.home]))
-        // a one-game table: the kickoff on every row said nothing (Game column dropped); the club code rides its logo.
+        // a one-game table: the kickoff on every row said nothing (Game column dropped); the club code rides its logo (title / alt) --
+        // no code printed beside it any more (2026-10-15, club codes are logos; the game header above still names both clubs).
         // FULL SET (2026-10-10, Donovan: "its kinda just bland wtf no stats or nothing"): the player, the call, the usage, then every
         // number a week-file row carries (lib/nfl/boardColumns.js), in groups.
-        const own = tableColumns.filter((c) => c.key !== 'state').map((c) => (c.key === 'team' || c.key === 'opp' ? { ...c, code: true } : c))
+        const own = tableColumns.filter((c) => c.key !== 'state')
         const full = withNflFullSet(rows.map((r) => ({ ...r, ...usageOf(r._raw) })), [...own.map((c) => ({ ...c, group: c.group || (['td', 'matchup', 'flags'].includes(c.key) ? GROUP_CALL : GROUP_PLAYER) })), ...USAGE_COLS], { skip: ['sc_TD'] })
         const x = xOf(g)
         // this game's top touchdown scores that are not the bot's calls: they ride the calls row, wearing their own board word
