@@ -42,6 +42,8 @@ import { seasonOptions, defaultSeason, applySeason, seasonNote } from '../../lib
 // THE SHARED PLAYER MODEL (components/player/): the verdict first, then ONE row of his numbers, MOONSHOT's parts in
 // TUDDY's words (nflAdapter.js). Replaces the per-game tiles, the market-score strip, the hit-rate boxes and the Why box.
 import VerdictBlock from '../player/VerdictBlock'
+import { useCardLock, CardLockLine } from '../MemberGate'
+import { kickoffFor } from '../../lib/nfl/kickoff'
 import StatRow from '../player/StatRow'
 import ScrollHint from '../player/ScrollHint'
 import { nflVerdict, nflStatRow } from '../player/nflAdapter'
@@ -314,6 +316,10 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
   const gameCalls = useGameCalls()
   const twoRow = useMemo(() => twoBoard(slate, matchup).rows.find((r) => String(r.player_id) === String(player?.player_id)) || null, [slate, matchup, player?.player_id])
   const tdStatus = useMemo(() => tdStatusFor({ picksCard: picks?.card, gameCalls, games: slate?.games, board: tdPool(slate).rows }), [picks, gameCalls, slate])
+  // MEMBERS (2026-10-16): the card's lock, same key as the TD board's (String(player_id)); the TD market is the only called one
+  const cardLockKey = String(player?.player_id)
+  const cardLock = { key: cardLockKey, time: player ? kickoffFor(slate?.games, player) : null }
+  const cardLocked = useCardLock({ status: market === 'TD' && player ? tdStatus.statusOf(player) : null, key: cardLockKey, time: cardLock.time }).locked
   // TAGS (lib/nfl/tags.js): his own ball-security tags and the tags of the defence he faces. Labels with their numbers; no score reads them.
   const tagBookOf = useTagBook(matchup, slate?.season)
   const [tab, setTab] = useState('overview')
@@ -386,7 +392,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
           market on screen. The close sits in it, as on MOONSHOT's card. */}
       <VerdictHero lead="face" theme={C} numFont={NUM_FONT} style={{ marginBottom: 12 }}
         photo={faceUrl({ sport: 'nfl', espnId: player.espn_id, size: 96 })}
-        col={g0.color} score={Number.isFinite(s0) ? s0 : null}
+        col={g0.color} score={Number.isFinite(s0) && !cardLocked ? s0 : null}
         // the name is the player's own link (a shared link to his page; check-clickable)
         title={<><a href={playerHref('nfl', player.player_id)} style={{ color: 'inherit', textDecoration: 'none' }}>{player.name}</a>{!tag && <PlayerInjuryChip who={{ player_id: player.player_id, name: player.name, team: player.team }} C={C} font={NUM_FONT} />}</>} badge={Number.isFinite(s0) ? g0.label : defender ? 'DEFENDER' : 'UNSCORED'} badgeQuiet={!Number.isFinite(s0)}
         market={defender ? 'Defense' : (spec?.label || market)}
@@ -419,13 +425,13 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
 
       {/* THE PLAYER MODEL (components/player/): TUDDY ON HIM first -- the word (TD market only), the score, why, his other
           markets as chips -- then ONE row of his key numbers (per game, ranked in his position; L10 and season at the bar). */}
-      <VerdictBlock sport="nfl" style={{ marginTop: 10 }}
+      <VerdictBlock sport="nfl" style={{ marginTop: 10 }} lock={cardLock}
         {...nflVerdict({ player, market, spec, score: s0, statusWord: tdStatus.statusOf(player), whyLines, watch: against?.text || null, whyExplain, two: twoRow })} />
       <StatRow noun={`${player.position || 'player'}s`} poolLabel="this week's slate" style={{ marginBottom: 8 }}
         stats={nflStatRow({ player, slate, rate: ratesFor(player, markets, fullLog).find((x) => x.key === market) })} />
       {/* THE PRICE: the line for the market on screen, the best book, the break-even. */}
       {(() => {
-        const q = quoteFor(odds, player, market)
+        const q = cardLocked ? null : quoteFor(odds, player, market)
         if (!q) return null
         return (
           <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', margin: '4px 0 6px', fontSize: 12, color: C.text2, fontFamily: NUM_FONT }}>
@@ -453,7 +459,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
 
       {/* OVERVIEW: the read, then the props grid (MOONSHOT's order), then his own notes */}
       {tab === 'overview' && <>
-        <NflPlayerRead player={player} market={market} rows={fullLog || []} matchup={matchup} slateSeason={slate?.season} />
+        {cardLocked ? <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ margin: '4px 0 8px' }} /> : <NflPlayerRead player={player} market={market} rows={fullLog || []} matchup={matchup} slateSeason={slate?.season} />}
         <div style={{ marginTop: 16 }}><SeasonToggle options={seasonOpts} value={seasonKey} onChange={setSeason} /></div>
         {slog && (() => {
           // HIS BEST MARKET LEADS: the chart opens on the market he scores highest in.

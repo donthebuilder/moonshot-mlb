@@ -27,6 +27,7 @@ import SharedSeasonToggle from '../../nfl/SeasonToggle'
 import { SportTheme } from '../../SportTheme'
 // THE SHARED PLAYER MODEL (components/player/): the verdict first, then ONE row of his numbers; LAMP's words in nhlAdapter.js
 import VerdictBlock from '../../player/VerdictBlock'
+import { useCardLock, CardLockLine } from '../../MemberGate'
 import StatRow from '../../player/StatRow'
 import ScrollHint from '../../player/ScrollHint'
 import { nhlVerdict, nhlStatRow } from '../../player/nhlAdapter'
@@ -140,6 +141,10 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
   const row = spot?.r || null
   const opp = spot ? (spot.g.game.home.abbrev === p.team ? `vs ${spot.g.game.away.abbrev}` : `@ ${spot.g.game.home.abbrev}`) : null
   const called = row?.status === 'called'
+  // MEMBERS (2026-10-16): the card's lock; same key as the goal board's (`${game id}|${playerId}`), the puck drop, the game's graded flag
+  const lockIn = row && spot?.g ? { key: `${spot.g.game?.id}|${row.playerId}`, time: spot.g.game?.startUtc, graded: Boolean(spot.g.graded) } : null
+  const cl = useCardLock({ status: row?.status || null, key: lockIn?.key, time: lockIn?.time, graded: lockIn?.graded })
+  const locked = Boolean(lockIn) && cl.locked
   const f = p.featured
   const stale = Boolean(p.current && f.season && f.season < p.current)
   const fr = f.regular
@@ -245,7 +250,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
       {/* THE STICKY HEADER: who, which club, the board's word and his numbers never scroll away. */}
       <header style={{ position: 'sticky', top: peek ? 0 : 'var(--lamp-sticky, 0px)', zIndex: 20, background: C.bg2, margin: '0 -2px', padding: '8px 2px 0', borderBottom: `1px solid ${C.border2}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-          <div style={{ width: 48, height: 48, borderRadius: '50%', overflow: 'hidden', flex: '0 0 auto', background: C.bg3, border: `2px solid ${called ? C.ice : C.border2}` }}>
+          <div style={{ width: 48, height: 48, borderRadius: '50%', overflow: 'hidden', flex: '0 0 auto', background: C.bg3, border: `2px solid ${called && !locked ? C.ice : C.border2}` }}>
             {p.headshot ? <img src={p.headshot} alt="" width={48} height={48} style={{ width: 48, height: 48, objectFit: 'cover' }} /> : null}
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
@@ -270,8 +275,8 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
             <>
               {board && shown !== 'overview' && (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <CallStatusBadge status={row ? row.status : 'off'} accent={C.ice} size={11} variant="stamp" />
-                  {row?.score != null && <b style={{ font: `900 14px/1 ${NUM_FONT}`, color: called ? C.ice : C.text }}>{Math.round(row.score)}</b>}
+                  <CallStatusBadge status={row ? row.status : 'off'} accent={C.ice} size={11} variant="stamp" gate={lockIn ? cl.gate : null} />
+                  {!locked && row?.score != null && <b style={{ font: `900 14px/1 ${NUM_FONT}`, color: called ? C.ice : C.text }}>{Math.round(row.score)}</b>}
                 </span>
               )}
               {shown !== 'overview' && <button type="button" aria-expanded={whyOpen} onClick={() => setWhyOpen((v) => !v)} style={{ minHeight: 44, margin: '-10px 0', padding: '0 6px', background: 'transparent', border: 'none', color: C.ice, font: `800 12px/1 ${NUM_FONT}`, cursor: 'pointer', textDecoration: 'underline dotted' }}>Why?</button>}
@@ -286,8 +291,8 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
           <div role="region" aria-label="Why this word" style={{ maxHeight: '38vh', overflowY: 'auto', margin: '4px 0 6px', padding: '8px 10px', border: `1px solid ${C.border2}`, borderRadius: 10, background: C.bg, fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
             {goalie ? 'Goalies are not on the goal board.' : !board ? 'Loading tonight’s board…' : !spot ? 'No game tonight, so he is not on the board.' : (
               <>
-                <div>{whyLine || (row ? 'On tonight’s board.' : 'Not on tonight’s board.')}</div>
-                {w && <WhyLines theme={C} numFont={NUM_FONT} accent={C.ice} why={[w.why]} watch={w.watch} explain={w.explain} />}
+                {locked ? <CardLockLine C={C} NUM_FONT={NUM_FONT} /> : <div>{whyLine || (row ? 'On tonight’s board.' : 'Not on tonight’s board.')}</div>}
+                {!locked && w && <WhyLines theme={C} numFont={NUM_FONT} accent={C.ice} why={[w.why]} watch={w.watch} explain={w.explain} />}
               </>
             )}
           </div>
@@ -302,8 +307,8 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
           {/* ONE HEADER (2026-10-07, Donovan: "the player shows twice"): the sticky header above is the player's
               face, name, club and the board's word. The big hero that repeated them is gone; its one line stays. */}
           {/* LAMP ON HIM (components/player/): the board's word and score, why, the night rank; a goalie or a man with no game says so in one line. */}
-          <VerdictBlock sport="nhl" {...nhlVerdict({ goalie, board, spot, row, w, whyLine })} />
-          {w && row && spot?.g && <PlayerDepthToggle row={row} game={spot.g} />}
+          <VerdictBlock sport="nhl" lock={lockIn} {...nhlVerdict({ goalie, board, spot, row, w, whyLine })} />
+          {!locked && w && row && spot?.g && <PlayerDepthToggle row={row} game={spot.g} />}
           <section aria-label="Season line">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
               <Kicker>{goalie ? 'RECORD' : 'THE LINE'} · {f.seasonLabel}{stale ? ' (LAST SEASON)' : ''}</Kicker>
