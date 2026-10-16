@@ -27,6 +27,8 @@ import { groupPitchers, groupGames } from '../../lib/data'
 import { airVerdict } from '../../lib/conditions'
 import { DIV_FIELD } from '../../lib/scales'
 import { boardColumns, boardRows, LG } from '../../lib/boardColumns'
+import { useCallGate } from '../MemberGate'
+import { playerId } from '../../lib/player'
 
 // ── FOLD LIVES AT MODULE SCOPE, NOT INSIDE Scoreboard() (fixed 2026-08-18) ──
 //
@@ -154,6 +156,14 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
     // (2026-09-25) so every hitter table on the site reads the same list.
     return boardRows(pool, { dh, laneOf, slateSize: players.length, watchIds, rankOf: boardRankOf })
   }, [players, filtered, alignedOnly, watchIds, dh, laneOf, boardRankOf])
+
+  // THE MEMBERS LOCK on tonight's CALLED labels (components/MemberGate.js): the free taste is counted over the WHOLE slate in the board's own order, so a
+  // filter cannot reveal more. null for everyone but a free viewer, and then the table draws exactly as before.
+  const statusOfRow = (r) => callStatus({ role: r._raw?.game_pick_role, board_rank: r.rank, board_of: boardOf })
+  const gateOf = useCallGate({
+    rows: () => boardRows(players, { dh, laneOf, slateSize: players.length, watchIds, rankOf: boardRankOf }), source: players, slateDate,
+    statusOf: statusOfRow, keyOf: (r) => `${playerId(r._raw)}|${r._raw?.game_pk ?? ''}`, timeOf: (r) => r._raw?.game_time, rankOf: (r) => r.rank,
+  })
 
   // Who has already homered tonight, matched back to where the board had him.
   // The board rank is the point: a scoreboard that only lists the homers tells
@@ -674,7 +684,8 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
         heatMode="sorted"
         // the v2 skin's status stamp: the one rule (lib/callStatus), the
         // bot's designation + this board's rank of the whole slate
-        statusOf={(r) => callStatus({ role: r._raw?.game_pick_role, board_rank: r.rank, board_of: boardOf })}
+        statusOf={statusOfRow}
+        gateOf={gateOf}
         maxHeight={640}
         // Every single one, in order (2026-09-25): no cap on this table. It
         // is the one place the whole board can be read #1 to #N; a "show 200

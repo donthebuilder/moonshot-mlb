@@ -24,6 +24,7 @@ import ShareCardButton from '../card/ShareCardButton'
 import { shareUrl, slug, stamp } from '../../lib/cards/saveCard'
 import { usePreview, ShowMoreButton } from '../ListPreview'
 import { callStatus, boardOfRows } from '../../lib/callStatus'
+import { useCallGate } from '../MemberGate'
 import { reasonContext, boardReasonFor } from '../../lib/mlb/boardReason'
 import { useWhySheet, whyColumn } from '../WhySheet'
 import { ordinal } from '../../lib/format'
@@ -268,6 +269,12 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
   // real board positions. Enforced by scripts/check-rank-lock.mjs.
   // POSITION FILTER (2026-10-10): Hit / HRR / Contact rank over the whole `players` pool like HR, so a filter never renumbers
   const slateRank = useMemo(() => (type === 'hr' ? hrRank(players) : overallRanks(players, mlbId, (p) => scoreFor(p, type))), [players, type])
+  // THE MEMBERS LOCK on tonight's CALLED labels (components/MemberGate.js): counted over the whole slate pool in the board's own order (not the filtered
+  // list, so a filter cannot reveal more). null for everyone but a free viewer, and then the table draws exactly as before.
+  const gateOf = useCallGate({
+    rows: () => whyPool, source: whyPool, slateDate, statusOf: (x) => { const p = x._raw ?? x; return callStatus({ role: p?.game_pick_role, board_rank: slateRank?.get(mlbId(p)), board_of: boardOf }) },
+    keyOf: (x) => { const p = x._raw ?? x; return `${playerId(p)}|${p?.game_pk ?? ''}` }, timeOf: (x) => (x._raw ?? x)?.game_time, rankOf: (x) => slateRank?.get(mlbId(x._raw ?? x)),
+  })
   // RANK MOVES (2026-10-10): the arrow beside the # (components/RankMove.js). The board's DEFAULT order over the whole
   // slate (the bot's board_rank on The Board, the market's own score on Hits / HRR / Contact), never the user's sort or filter.
   const rankPool = slate || players
@@ -567,7 +574,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
           initialSort={whyOn ? { key: 'rank', dir: 'asc' } : type === 'hr' ? 'raw' : null}
           sortUrlKey={rankings ? 'sort' : null}
           // the v2 skin's status stamp: the one rule (lib/callStatus), the bot's designation + his board place
-          {...(whyOn ? { statusOf: (r) => callStatus({ role: r._raw?.game_pick_role, board_rank: r.rank, board_of: boardOf }), maxRows: Math.max(ranked.length, 1) } : null)}
+          {...(whyOn ? { statusOf: (r) => callStatus({ role: r._raw?.game_pick_role, board_rank: r.rank, board_of: boardOf }), gateOf, maxRows: Math.max(ranked.length, 1) } : null)}
           // 2+ HR: ON THE BOARD is the top third of THIS board (lib/callStatus, the one rule); CALLED never appears, there is no 2+ HR call or price
           {...(type === 'hr2' ? { statusOf: (r) => callStatus({ board_rank: r.rank, board_of: slateRank?.size || ranked.length }) } : null)}
           maxHeight={rankings ? 640 : 520}

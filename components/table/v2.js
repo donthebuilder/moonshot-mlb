@@ -31,6 +31,7 @@ import Tap from '../Tap'
 import { STATUS_WORD } from '../../lib/callStatus'
 import PlayerFace from '../PlayerFace'
 import CallStatusBadge from '../CallStatusBadge'
+import { lockedFor } from '../../lib/members/gate'
 import PlayerNameCell, { PC_GEOM } from './PlayerNameCell'
 import { RankMoveCell } from '../RankMove'
 import InjuryChip from '../injuries/InjuryChip'
@@ -282,7 +283,7 @@ export function renderV2(ctx) {
     C, NUM_FONT, ac, columns: rawColumns, view, sorted, sort, setSort, toggle, ranges, fields, lit,
     heatMode = 'full', ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
     explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
-    truncated, maxRows, moreStep = 0, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
+    truncated, maxRows, moreStep = 0, extra, setExtra, exportCsv, railRef, statusOf, gateOf = null, title, initialStack, firstTextKey,
     capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam = null, sport = null, injuryLayer = null,
     adding = false, setAdding = () => {}, tierSig = null, phone = false, nameCell = null, compactPhoneRow = false,
   } = ctx
@@ -480,6 +481,9 @@ export function renderV2(ctx) {
         const tint = light ? withAlpha(light.color, 0.05) : null
         const status = withStatus ? statusOf(r) : null
         const called = status === 'called'
+        const gate = gateOf ? gateOf(r) : null
+        // THE MEMBERS LOCK (components/MemberGate.js): a CALLED row the viewer may not read draws no accent, edge or CALLED word; the lock chip stands in
+        const lockedRow = Boolean(gate) && lockedFor({ status, started: gate.started, graded: gate.graded, key: gate.key, free: gate.free, memberState: 'free' })
         const watched = columns.some((c) => c.action && r[c.key])
         // a rule where a tier begins (two or more sort keys, lib/multiSort.js)
         const sig = tierSig ? tierSig(r) : ''
@@ -517,7 +521,7 @@ export function renderV2(ctx) {
               }
 
               if (c._status) {
-                return <td key={c.key} className={cls(c, 'txt')} style={bgTint || undefined}><CallStatusBadge status={status} accent={ac} /></td>
+                return <td key={c.key} className={cls(c, 'txt')} style={bgTint || undefined}><CallStatusBadge status={status} accent={ac} gate={gate} /></td>
               }
 
               if (c.heat === false) {
@@ -528,7 +532,7 @@ export function renderV2(ctx) {
                 const go = c.link ? c.link(r._raw ?? r) : (!isName && onOpenTeam && teamCodeOf(c.key, v) ? () => onOpenTeam(teamCodeOf(c.key, v)) : null)
                 if (isRank(c)) {
                   return (
-                    <td key={c.key} className={cls(c, 'rank')} style={{ ...pin, ...(called ? { color: ac } : {}), ...(bgTint || {}) }}>
+                    <td key={c.key} className={cls(c, 'rank')} style={{ ...pin, ...(called && !lockedRow ? { color: ac } : {}), ...(bgTint || {}) }}>
                       {(() => {
                         if (!c.fmt) return v ?? '—'
                         // a formatter that returns an element (LAMP's CALLED chip on the
@@ -562,13 +566,13 @@ export function renderV2(ctx) {
                 if (isName) {
                   const full = String(typeof content === 'string' ? content : (v ?? ''))
                   const long = typeof content === 'string' && !fits(full)
-                  const edge = light ? light.color : rowEdge?.(r) || (called ? ac : null)
+                  const edge = light ? light.color : lockedRow ? null : rowEdge?.(r) || (called ? ac : null)
                   // the phone sub-line: CALLED · [logo] ATL · v [logo] (+ ★ when watched)
                   // availability beside the call (lib/injuries): CALLED stays callStatus's word, the chip says OUT / Q / D beside it. Information only.
                   const rawRow = r._raw ?? r
                   const injEntry = injuryLayer?.entryFor ? injuryLayer.entryFor({ player_id: rawRow.player_id ?? rawRow.playerId, name: rawRow.name ?? rawRow.player ?? (typeof content === 'string' ? content : ''), team: rawRow.team }) : null
                   const sub = []
-                  if (called) sub.push(<span key="st" style={{ color: ac }}>CALLED</span>)
+                  if (called) sub.push(lockedRow ? <span key="st"><CallStatusBadge status="called" variant="text" gate={gate} style={{ fontSize: 10 }} /></span> : <span key="st" style={{ color: ac }}>CALLED</span>)
                   let firstTeam = true
                   for (const fc of columns) {
                     if (!folds(fc) || fc.action) continue
@@ -625,7 +629,7 @@ export function renderV2(ctx) {
                     // no opponent chip (Donovan, 2026-10-14: "dont even show the opp, it takes too much space" -- the matchup is on every page already)
                     // the call word: the caller's own status (callStatus), CALLED in the product's accent; a desktop table with a Status column of its own lets the column say it
                     const hasStatusCol = columns.some((x) => x._status || x.statusCol)
-                    if (called) chips.push({ key: 'call', prio: 0, phoneOnly: hasStatusCol, text: 'CALLED', node: <CallStatusBadge status="called" accent={ac} variant="text" style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.06em' }} /> })
+                    if (called) chips.push({ key: 'call', prio: 0, phoneOnly: hasStatusCol, text: lockedRow ? '\u{1F512} Members' : 'CALLED', node: <CallStatusBadge status="called" accent={ac} variant="text" gate={gate} style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.06em' }} /> })
                     if (injEntry) chips.push({ key: 'inj', prio: 1, fixedW: 36, node: <InjuryChip entry={injEntry} C={C} font={NUM_FONT} size={9} style={{ marginLeft: 0 }} /> })
                     if (watched) chips.push({ key: 'star', prio: 4, fixedW: 10, node: <span style={{ color: ac }}>★</span> })
                     const fc = faceOf ? faceOf(r) : null

@@ -22,8 +22,8 @@ export { fmtDay, fmtPct3, fmt2, fmtSec, plusMinus } from '../../lib/nhl/format'
 // wherever LAMP prints a lock's label (the board, the goal lists).
 export const STATUS = STATUS_WORD   // lib/callStatus.js, the one set of words (R2)
 
-export function CalledChip({ style = null }) {
-  return <CallStatusBadge variant="chip" status="called" theme={C} accent={C.ice} numFont={NUM_FONT} style={style} />
+export function CalledChip({ style = null, gate = null }) {
+  return <CallStatusBadge variant="chip" status="called" theme={C} accent={C.ice} numFont={NUM_FONT} style={style} gate={gate} />
 }
 
 /** A goal's label from lamp_goal_feed (the scores route puts it on the goal):

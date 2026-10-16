@@ -147,6 +147,8 @@ export default function DenseTable({
   //             status rule; it is stamped in the CALL group.
   //   title     the sheet head.
   statusOf = null,
+  // gateOf (2026-10-16): (row) -> { key, started, graded, free } | null from components/MemberGate.js useCallGate; a CALLED stamp the viewer may not see draws as the Members lock. Absent: nothing changes.
+  gateOf = null,
   title = '',
   //   bare      v2: no footer (caption fold + CSV) -- for small tables repeated
   //             down a page (a division each), where eight footers are scroll.
@@ -414,7 +416,7 @@ export default function DenseTable({
     C, NUM_FONT, ac, columns, view, sorted, sort, setSort, toggle, adding, setAdding, tierSig: sorter.tierSig, phone, ranges, fields, lit,
     heatMode, ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
     explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
-    truncated, maxRows, moreStep, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
+    truncated, maxRows, moreStep, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey, gateOf,
     capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam: teamNav, sport: tableSport, injuryLayer, nameCell, compactPhoneRow,
   })
 }
