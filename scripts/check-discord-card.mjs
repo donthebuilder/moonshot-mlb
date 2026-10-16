@@ -116,7 +116,7 @@ check('E5 NHL goal: line 3 = assists by last name, only when stored; the multi-g
 check('E5b NHL goal: no assists stored = no assists line', !goalFeed.goalEmbed({ ...goalRow, assists: [] }, [goalRow]).description.includes('Assists'))
 check('E5c NHL goal: ON THE BOARD never says the top-call phrase', (() => { const b = goalFeed.goalEmbed({ ...goalRow, status: 'board' }, [goalRow]); return b.description.startsWith('**ON THE BOARD**, not a called pick.') && !/top call/.test(b.description) })())
 check('E6 NHL goal: footer LAMP, the timestamp is the confirmation time, only the title link', g.footer.text === 'LAMP · DASH Network' && g.timestamp === '2099-01-01T01:00:00.000Z' && slotsOk(g, { title: true }))
-check('E6b NHL goal: the X text is the news line ("Name scores for Team." then Called pregame) with the LAMP score', /scores/.test(goalFeed.postText(goalRow, [goalRow]).split('\n')[0]) && goalFeed.postText(goalRow, [goalRow]).includes('Called pregame') && /LAMP score 61/.test(goalFeed.postText(goalRow, [goalRow])))
+check('E6b NHL goal: the X text is unchanged (still CALLED IT and LAMP score)', goalFeed.postText(goalRow, [goalRow]).startsWith('\u{1F916} CALLED IT') && /LAMP score 61/.test(goalFeed.postText(goalRow, [goalRow])))
 
 const td = await import('../lib/nfl/tdFeed.js')
 const ev = { day: '2099-01-02', gameId: 'g', tdN: 1, team: 'TB', opponent: 'DAL', quarter: 3, clock: '4:12', text: 'x', parsed: { kind: 'pass', yards: 14, passer: 'Test Passer' }, kindWord: null, scorerName: 'Test Receiver', gsisId: '00-TEST', position: 'WR', seasonToDate: { td: 4, games: 5 }, onBot: { market: 'TD', rank: 88, grade: 'A' }, tdBoard: { rank: 3, of: 200 }, defense: { role: 'WR1', opp: 'DAL', tag: 'TARGET', rank: 3, season: 2025, current_season: 2026 } }
