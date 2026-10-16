@@ -51,11 +51,10 @@ import styles from './dash.module.css'
 import './scroll-anchor.css' // css-loader pure-selector fix, 2026-09-06
 import OpenOnHash from '../../components/OpenOnHash'
 import LadderBlock, { LadderAside } from '../../components/record/LadderBlock'
-import QuickPicks from '../../components/home/QuickPicks'
+import QuickPicksLoader from '../../components/home/QuickPicksLoader'
 import FoundingMembersCard from '../../components/FoundingMembersCard'
 import { DISCORD_URL } from '../../lib/members'
-import { isMember } from '../../lib/members/access'
-import { mlbTodayCalls, nflWeekBoard, nhlTonightCalls } from '../../lib/phone/todayCalls'
+import { Suspense } from 'react'
 
 export const metadata = {
   alternates: { canonical: '/' },
@@ -133,9 +132,8 @@ export default async function DashHome({ searchParams }) {
   const params = (await searchParams) || {}
   // Set by dashSignUp on a successful sign-up that produced a session.
   const welcomeName = typeof params.welcome === 'string' && params.welcome ? params.welcome.slice(0, 40) : ''
-  const [pulse, me, tonightCalls, nflBoard] = await Promise.all([getNetworkPulse(), account(), mlbTodayCalls(), nflWeekBoard()])
+  const [pulse, me] = await Promise.all([getNetworkPulse(), account()])
   const { mlb, nfl, nhl, record } = pulse
-  const nhlCalls = await nhlTonightCalls(nhl?.date)   // LAMP's CALLED skaters once a game has locked (lamp_goal_log); null before that
   const displayName = me.user?.user_metadata?.display_name || me.user?.email?.split('@')[0] || null
   // The one primary button: the board that's on today (funnel step 1).
   const live = liveProduct(pulse)
@@ -144,6 +142,8 @@ export default async function DashHome({ searchParams }) {
   const mlbOff = Boolean(mlb?.date && mlb?.today && mlb.date < mlb.today && nextLine(mlb?.next, mlb.today))
   // Football on tonight = a kickoff today (ET) or one under way (4 h). Else
   // one line: "next game Thu 8:15 PM ET".
+  // football's picks are shown only while the week still has a game to play (one under way counts for 4 hours)
+  const nflLive = (nfl?.kickoffs || []).map((k) => Date.parse(k)).some((t) => Number.isFinite(t) && t > Date.now() - 4 * 3600e3)
   const nflOff = (() => {
     const ks = (nfl?.kickoffs || []).map((k) => Date.parse(k)).filter(Number.isFinite).sort((a, b) => a - b)
     const now = Date.now()
@@ -269,7 +269,9 @@ export default async function DashHome({ searchParams }) {
 
       {/* QUICK PICKS (2026-10-16): tonight's called players + how the bot is doing + sign up, right under the hero. MLB's ledger only (the sport with a per-game
           called list today); a sport without one is still one tap away in the cards below. */}
-      <QuickPicks styles={styles} calls={mlbOff ? null : tonightCalls} sport="mlb" recordLine={record?.callsLine || null} signedIn={Boolean(me.user)} nfl={nflBoard} nhl={nhlCalls} member={isMember(me.user)} />
+      <Suspense fallback={null}>
+        <QuickPicksLoader styles={styles} mlbDate={mlb?.date || null} mlbOff={mlbOff} nflLive={nflLive} nhlDate={nhl?.date || null} recordLine={record?.callsLine || null} user={me.user} />
+      </Suspense>
 
       {/* THE OFFER, ON THE FRONT DOOR (2026-10-16, Donovan: the plain link is what gets shared, and the Founding members ask lived only inside the app).
           Right under the picks and the record line: the person has just seen what is called and that it is graded in public. Nothing here is locked on the site. */}
