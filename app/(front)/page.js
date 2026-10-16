@@ -52,6 +52,7 @@ import './scroll-anchor.css' // css-loader pure-selector fix, 2026-09-06
 import OpenOnHash from '../../components/OpenOnHash'
 import LadderBlock, { LadderAside } from '../../components/record/LadderBlock'
 import QuickPicks from '../../components/home/QuickPicks'
+import { DISCORD_URL } from '../../lib/members'
 import { mlbTodayCalls } from '../../lib/phone/todayCalls'
 
 export const metadata = {
@@ -633,6 +634,7 @@ export default async function DashHome({ searchParams }) {
       <footer className={styles.foot}>
         <span>DASH NETWORK</span>
         <Link href="/called">CALLED IT</Link>
+        <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer">Discord</a>
         <Link href="/app#sport=mlb&tab=home">MOONSHOT · MLB</Link>
         <Link href="/app#sport=nfl&tab=home">TUDDY · NFL</Link>
         <Link href="/app#sport=nhl&tab=home">LAMP · NHL</Link>
