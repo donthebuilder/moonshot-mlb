@@ -34,6 +34,7 @@ import { alertFrontCard } from '../../../../../lib/cards/alertCard'
 import { kindOn } from '../../../../../lib/dash/longshotsPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 import { momentAfterTick } from '../../../../../lib/posts/momentTick'
+import { recapAfterTick } from '../../../../../lib/posts/recapTick'
 
 // The host printed in the goal card's footer.
 const SITE_HOST = (process.env.NEXT_PUBLIC_SITE_URL || 'dashnetwork.vercel.app').replace(/^https?:\/\//, '').replace(/\/$/, '')
@@ -76,7 +77,7 @@ function supabaseStore(db) {
   }
 }
 
-export async function GET(request) {
+async function goalsTick(request) {
   if (!cronAuthorized(request)) return Response.json({ error: 'unauthorized' }, { status: 401 })
   const t0 = Date.now()
   const { searchParams } = new URL(request.url)
@@ -158,4 +159,13 @@ export async function GET(request) {
     console.error(`[lamp goals] tick failed: ${e?.message}`)
     return Response.json({ dates, error: e?.message }, { status: 500, headers: { 'Cache-Control': 'no-store' } })
   }
+}
+
+// THE NIGHT RECAP (2026-10-16): after the feed's own work and whatever it answered (even a quiet tick, since the last game goes final after the goals stop).
+// #called-it only, off unless RECAP_POSTS_ON, wrapped so a failure never touches the feed (lib/posts/recapTick.js).
+export async function GET(request) {
+  const res = await goalsTick(request)
+  const today = easternToday()
+  await recapAfterTick(res, { sport: 'nhl', days: [today, dayBefore(today)] })
+  return res
 }
