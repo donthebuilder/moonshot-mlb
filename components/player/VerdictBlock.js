@@ -6,6 +6,7 @@ import { useSportTheme } from '../SportTheme'
 import { alpha } from '../../lib/scales'
 import { BRAND } from '../../lib/routes'
 import { explain as tapExplain } from '../../lib/explain'
+import { useCardLock, CardLockLine } from '../MemberGate'
 
 // MOONSHOT ON HIM -- THE VERDICT (2026-10-08). `sport` ('mlb' default | 'nfl' | 'nhl' | 'nba') only picks the
 // product's name for the heading (BRAND in lib/routes.js): MOONSHOT / TUDDY / LAMP / BUCKETS ON HIM. Right under the header: the call-status word (from the sport's
@@ -14,27 +15,33 @@ import { explain as tapExplain } from '../../lib/explain'
 // See the adapter interface in components/player/index.js.
 export default function VerdictBlock({
   status = null, score = null, scoreLabel = null, why = [], watch = null, explain = null, signals = [],
-  offSlate = null, offSlateHelp = null, recordLine = null, lastLine = null, help = null, whyMax = 2, sport = 'mlb', style,
+  offSlate = null, offSlateHelp = null, recordLine = null, lastLine = null, help = null, whyMax = 2, sport = 'mlb', style, lock = null,
 }) {
   const { C, NUM_FONT, accent } = useSportTheme()
+  // MEMBERS (2026-10-16): `lock` = { key, time, graded?, slateDate? } from the sport's card. A non-member on tonight's not-started CALLED pick (not one of
+  // the boards' free four) sees the lock chip, ONE line and the join button instead of the score, why, watch, flags and the long help. Everyone else: as before.
+  const cl = useCardLock({ status, key: lock?.key, time: lock?.time, graded: Boolean(lock?.graded), slateDate: lock?.slateDate || null })
+  const locked = Boolean(lock) && offSlate == null && cl.locked
   const label = { fontSize: 11, fontWeight: 900, letterSpacing: '.1em', color: C.text2, fontFamily: NUM_FONT }
   const line = { fontSize: 12, color: C.text2, fontFamily: NUM_FONT, lineHeight: 1.45 }
-  const chips = (signals || []).filter((c) => c?.t)
+  const chips = locked ? [] : (signals || []).filter((c) => c?.t)
   const brand = BRAND[sport]?.name || BRAND.mlb.name
   return (
     <section data-pm="verdict" aria-label={`${brand} on him`} style={{ margin: '0 0 8px', minWidth: 0, ...style }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minHeight: 30 }}>
         <span style={label}>{brand} ON HIM</span>
-        {offSlate == null && status && <CallStatusBadge status={status} size={11} style={{ padding: '2px 7px' }} />}
-        {offSlate == null && score != null && Number.isFinite(Number(score)) && (
+        {offSlate == null && status && <CallStatusBadge status={status} size={11} style={{ padding: '2px 7px' }} gate={lock ? cl.gate : null} />}
+        {offSlate == null && !locked && score != null && Number.isFinite(Number(score)) && (
           <span style={{ fontFamily: NUM_FONT, fontSize: 13, fontWeight: 800, color: accent }}>
             {scoreLabel ? <span style={{ color: C.text3, fontSize: 11, fontWeight: 700 }}>{scoreLabel} </span> : null}{Math.round(Number(score))}
           </span>
         )}
-        {offSlate == null && help ? <HelpTip label={`${brand} on him`} text={help} /> : null}
+        {offSlate == null && !locked && help ? <HelpTip label={`${brand} on him`} text={help} /> : null}
       </div>
       {offSlate != null ? (
         <div style={{ ...line }}>{offSlate}{offSlateHelp ? <HelpTip label="Not on the slate" text={offSlateHelp} /> : null}</div>
+      ) : locked ? (
+        <CardLockLine C={C} NUM_FONT={NUM_FONT} />
       ) : (
         <WhyLines theme={C} numFont={NUM_FONT} accent={accent} why={(why || []).slice(0, whyMax)} watch={watch} explain={explain} />
       )}

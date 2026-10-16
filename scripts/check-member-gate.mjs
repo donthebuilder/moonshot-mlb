@@ -5,7 +5,7 @@
 import './_esm-resolve.mjs'
 import { readFileSync } from 'node:fs'
 
-const { memberStateOf, startedAt, freeCalledKeys, lockedFor } = await import('../lib/members/gate.js')
+const { memberStateOf, startedAt, freeCalledKeys, lockedFor, cardGate } = await import('../lib/members/gate.js')
 const { FREE_CALLS_PER_SPORT } = await import('../lib/members/limits.js')
 const access = readFileSync(new URL('../lib/members/access.js', import.meta.url), 'utf8')
 
@@ -77,6 +77,22 @@ eq(memberStateOf({ ready: true, signedIn: false, configured: true }), 'free', 's
 eq(memberStateOf({ ready: true, signedIn: true, configured: true, who: { member: true } }), 'member', 'member')
 eq(memberStateOf({ ready: true, signedIn: true, configured: true, who: { member: false } }), 'free', 'signed in, not a member')
 eq(memberStateOf({ ready: true, signedIn: true, configured: true, who: null }), 'unknown', 'signed in, no answer about membership: fail open')
+
+// 7. THE PLAYER CARD RULE (Donovan 2026-10-16): lock-all on tonight's not-started CALLED pick, except the boards' free four; TEST DATA
+const card = (over) => cardGate({ status: 'called', time: LATER, graded: false, key: 'test-9', free, memberState: 'free', now: NOW, ...over })
+eq(card({}).locked, true, 'card: a non-member is locked on tonight\'s not-started CALLED pick (lock-all)')
+eq(card({ free: new Set() }).locked, true, 'card: with no board mounted (empty free set) the card still locks')
+eq(card({ key: 'test-1' }).locked, false, 'card: one of the free four stays unlocked, so the table and the card agree')
+eq(card({ key: 'test-6' }).locked, true, 'card: a called man outside the free four locks')
+eq(card({ graded: true }).locked, false, 'card: a graded pick shows its real label')
+eq(card({ time: EARLIER }).locked, false, 'card: a started game shows its real label')
+eq(card({ time: null, slateIsToday: false }).locked, false, 'card: a past slate is never locked')
+eq(card({ memberState: 'member' }).locked, false, 'card: a member sees today\'s card')
+eq(card({ memberState: 'unknown' }).locked, false, 'card: unknown membership fails open')
+eq(card({ status: 'board' }).locked, false, 'card: ON THE BOARD never locks')
+eq(card({ status: 'off' }).locked, false, 'card: NOT ON THE BOARD never locks')
+eq(card({ status: null }).locked, false, 'card: no status never locks')
+eq(card({}).gate.key, 'test-9', 'card: the gate handed to CallStatusBadge carries the key')
 
 if (fails.length) { console.error('check-member-gate FAILED:\n - ' + fails.join('\n - ')); process.exit(1) }
 console.log('check-member-gate: ok')

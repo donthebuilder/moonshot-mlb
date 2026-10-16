@@ -8,7 +8,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { fetchBatterDetail } from '../lib/dataSource'
 import BornLine from './player/BirthdayChip'
 import {
-  nameOf, teamOf, oppOf, n, clean, pct, sc,
+  nameOf, teamOf, oppOf, n, clean, pct, sc, playerId,
   hrScore, hitScore, prodScore, tbScore, pitchMixScore,
   ihrVal,
   babipVal, pitcherBabipVal, avgVsRHP, avgVsLHP,
@@ -33,6 +33,7 @@ import MultiLine from './ledger/MultiLine'
 import { Chip } from './ui'
 import Explain from './Explain'
 import VerdictBlock from './player/VerdictBlock'
+import { useCardLock, CardLockLine } from './MemberGate'
 import StatRow from './player/StatRow'
 import HelpTip from './HelpTip'
 import { useMlbBot, mlbStatus, mlbRecordLine, mlbLastLine, mlbStatRow } from './player/mlbAdapter'
@@ -494,6 +495,10 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
     return r.why.length || r.watch ? r : null
   }, [player, slate])
 
+  // MEMBERS (2026-10-16): the card's lock. Same key as the boards' (playerId|game_pk); his game's own start; the sport's one status word.
+  const cardLockKey = `${playerId(player || {})}|${player?.game_pk ?? ''}`
+  const cardLockIn = { key: cardLockKey, time: player?.game_time, graded: player?.graded === true }
+  const cardLocked = useCardLock({ status: player && !player.api_only ? mlbStatus(player) : null, ...cardLockIn }).locked
   if (!player) return null
   // IDENTITY FIELDS NEVER COME FROM detail (2026-08-24, Donovan: "the add to
   // watch list problem" — reported again after two other real fixes to
@@ -574,7 +579,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   // the pick has to clear.
   const heroRole = apiOnly ? 'NONE' : (primaryRole(p) || 'NONE')
   const heroCol = apiOnly ? C.text3 : verdictRoleColor(heroRole)
-  const heroScore = apiOnly ? null : verdictFor(heroRole).score(p)
+  const heroScore = apiOnly || cardLocked ? null : verdictFor(heroRole).score(p)
   const heroQuote = (() => {
     if (apiOnly || !odds) return null
     const cat = heroRole === 'WATCH' ? 'HR' : heroRole === 'NONE' ? null : heroRole
@@ -600,7 +605,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
     return all.filter((c) => { const k = String(c.t).toUpperCase().replace(/[^A-Z0-9]/g, ''); if (!k || seen.has(k)) return false; seen.add(k); return true })
   })()
   const heroPriceText = heroQuote ? fmtOdds(heroQuote.over) : '—'
-  const heroPrice = heroPriceText === '—' ? null : heroPriceText
+  const heroPrice = heroPriceText === '—' || cardLocked ? null : heroPriceText
 
   // Width follows the widest table on the tab. Pitch and Pitcher carry ten-plus
   // stat columns; Spray is a fixed-size chart and gets cramped, not helped, by
@@ -687,8 +692,8 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               {nameOf(p)}
               <PlayerInjuryChip who={{ player_id: p?.player_id, name: nameOf(p), team: teamOf(p) }} />
             </>}
-            badge={apiOnly ? 'LIVE' : heroRole === 'NONE' ? 'NO BADGE' : heroRole === 'WATCH' ? '👀 WATCH' : heroRole}
-            badgeQuiet={apiOnly || heroRole === 'NONE' || heroRole === 'WATCH'}
+            badge={apiOnly ? 'LIVE' : cardLocked ? 'MEMBERS' : heroRole === 'NONE' ? 'NO BADGE' : heroRole === 'WATCH' ? '👀 WATCH' : heroRole}
+            badgeQuiet={apiOnly || cardLocked || heroRole === 'NONE' || heroRole === 'WATCH'}
             meta={apiOnly
               ? <>{clubLink(clean(p?.team, '—'), META_LINK)}{`${p?.position ? ` · ${p.position}` : ''} · ${clean(p?.bats, '?')}HB · ${p?.status_word || "not on tonight's slate"}${p?.season_line?.pa ? ` · ${String(p.season_line.avg?.toFixed?.(3) ?? '—').replace(/^0/, '')} / ${p.season_line.hr} HR / ${p.season_line.rbi} RBI in ${p.season_line.pa} PA` : ''}`}</>
               // The game and the arm are links (2026-10-04, route audit B6): Player ->
@@ -704,7 +709,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                   {p?.pitcher_name ? <>{' · vs '}{p?.pitcher_id ? <a href={`#sport=mlb&tab=pitchers&pitcher=${p.pitcher_id}`} style={ROW_LINK} title="Open the pitcher's file">{p.pitcher_name}</a> : p.pitcher_name}{` (${clean(p?.pitcher_throws, '?')})${p?.pitcher_projected ? ' ≈' : ''}`}</> : null}
                 </>}
             metaRight={heroPrice}
-            market={apiOnly ? (p?.roster ? 'on the roster, not the slate' : 'live data only') : verdictFor(heroRole).market}
+            market={apiOnly ? (p?.roster ? 'on the roster, not the slate' : 'live data only') : cardLocked ? null : verdictFor(heroRole).market}
             right={!inline && (
               <button onClick={onClose} aria-label="Close" style={{
                 background: 'transparent', border: 'none', color: C.text3, fontSize: 20,
@@ -728,6 +733,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               flags, last week), then ONE row of his key numbers. Replaces the slash line, the stat tiles, the L5 / L10 /
               season boxes and the WHY box; every number they carried is in the row, the verdict or its (?). */}
           <VerdictBlock
+            lock={cardLockIn}
             status={apiOnly ? null : mlbStatus(p)}
             score={heroScore}
             scoreLabel={apiOnly || heroRole === 'NONE' || heroRole === 'WATCH' ? null : heroRole}
@@ -869,7 +875,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               <ThresholdGrid playerId={pid} odds={odds} />
               {!apiOnly && <BvP batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} player={p} />}
               {!apiOnly && <FirstPitchSplit batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} />}
-              {!apiOnly && <OddsTimeline quote={heroQuote} marketLabel={heroRole === 'WATCH' ? 'HR' : heroRole} />}
+              {!apiOnly && !cardLocked && <OddsTimeline quote={heroQuote} marketLabel={heroRole === 'WATCH' ? 'HR' : heroRole} />}
               {/* ── 💥 HIS HOMER SHAPE USED TO END THE TAB, RIGHT HERE ────
                   MOVED UP 2026-08-16 (Donovan: "i need hr shape moved up on
                   the player modal"). It shipped on 2026-08-14 as an inline
@@ -987,7 +993,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
           {/* THE READ (2026-10-07): the sentences, his homer shape, the cold case -- one accent */}
           {tab === 'read' && (
             <>
-              {!apiOnly && <PlayerRead p={p} odds={odds} />}
+              {!apiOnly && (cardLocked ? <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ margin: '4px 0 8px' }} /> : <PlayerRead p={p} odds={odds} />)}
               <HomerShape player={p} />
               <ColdCase playerId={pid} player={player} />
             </>
