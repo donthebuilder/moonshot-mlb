@@ -8,7 +8,7 @@ export default function robots() {
     rules: [
       {
         userAgent: '*',
-        allow: ['/', '/app', '/start', '/called', '/nhl/'],
+        allow: ['/', '/app', '/start', '/called', '/c', '/nhl/'],
         disallow: ['/api/', '/account', '/fantasy', '/login', '/forgot-password', '/reset-password', '/auth/', '/ask', '/dash', '/early/'],
       },
     ],
