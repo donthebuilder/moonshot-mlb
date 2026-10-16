@@ -257,7 +257,6 @@ export default async function DashHome({ searchParams }) {
               all-sports Ledger every call is graded in. Each sport's tonight line is under it, from the numbers this
               page already reads (lib/dash/pulse) -- nothing new is fetched or invented. */}
           <Link href="/called" className={styles.ledgerBtn}>The Ledger <b>→</b><small className={styles.heroWhich}>EVERY CALL, GRADED IN PUBLIC</small></Link>
-          <Link href="/start">What is this?</Link>
         </div>
         {ledgerLines.length ? (
           <ul className={styles.ledgerLines} aria-label="The Ledger tonight, by sport">
@@ -627,7 +626,6 @@ export default async function DashHome({ searchParams }) {
 
       <footer className={styles.foot}>
         <span>DASH NETWORK</span>
-        <Link href="/start">Start here</Link>
         <Link href="/called">CALLED IT</Link>
         <Link href="/app#sport=mlb&tab=home">MOONSHOT · MLB</Link>
         <Link href="/app#sport=nfl&tab=home">TUDDY · NFL</Link>

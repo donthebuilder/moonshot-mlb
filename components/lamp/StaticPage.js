@@ -21,7 +21,7 @@ export default function StaticPage({ here, eyebrow, h1, lede, appHref, appLabel,
     <main style={{ background: C.bg, color: C.text, minHeight: '100vh', fontFamily: 'Arial, Helvetica, sans-serif' }}>
       <div style={{ maxWidth: 920, margin: '0 auto', padding: '0 16px 64px' }}>
         <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', padding: '12px 0', borderBottom: `1px solid ${C.border}` }}>
-          <Link href="/start?sport=nhl" className="tap-box" style={{ color: C.text, textDecoration: 'none' }}>
+          <Link href="/app#sport=nhl&tab=home" className="tap-box" style={{ color: C.text, textDecoration: 'none' }}>
             <small style={{ display: 'block', color: C.ice, font: `900 9px/1.4 ${NUM_FONT}`, letterSpacing: '.16em' }}>DASH NETWORK</small>
             <strong style={{ fontSize: 17, letterSpacing: '.02em' }}>LAMP <span style={{ color: C.text3, fontSize: 11, fontWeight: 800 }}>NHL</span></strong>
           </Link>
