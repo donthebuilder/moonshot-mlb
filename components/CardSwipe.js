@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import CallStatusBadge from './CallStatusBadge'
 import { C, NUM_FONT, TYPE } from '../lib/theme'
+import { playerHref } from '../lib/routes'
 
 // ONE FULL-WIDTH CARD AT A TIME, SWIPE FOR THE NEXT (Donovan, phone app Today). Each slide is the player's real card (/api/card/image, the renderer the
 // X posts use). Tap a card to flip it: the back says why he was called. Images past the second load as they come near. A card that cannot be drawn shows
@@ -23,7 +24,7 @@ function Slide({ sport, item, index, flipped, onFlip }) {
       </div>
       {bad ? (
         <div style={{ width: '100%', maxWidth: 360, aspectRatio: '4 / 5', display: 'grid', placeItems: 'center', border: `1px solid ${C.border}`, borderRadius: 14, background: C.bg2, textAlign: 'center', padding: 16 }}>
-          <div><div style={{ fontSize: TYPE.title, fontWeight: 800 }}>{item.name}</div><div style={{ color: C.text2, fontSize: TYPE.body, marginTop: 4 }}>{item.roles?.length ? `Called: ${item.roles.join(', ')}` : ''}</div></div>
+          <div><a href={playerHref(sport, item.id)} style={{ display: 'inline-block', minHeight: 44, lineHeight: '44px', fontSize: TYPE.title, fontWeight: 800, color: C.text, textDecoration: 'none' }}>{item.name}</a><div style={{ color: C.text2, fontSize: TYPE.body, marginTop: 4 }}>{item.roles?.length ? `Called: ${item.roles.join(', ')}` : ''}</div></div>
         </div>
       ) : (
         <button type="button" onClick={onFlip} aria-label={`${item.name}, ${flipped ? 'showing why. Tap for the front' : 'tap to see why'}`}

@@ -47,6 +47,8 @@ import PennantRace from '../PennantRace'
 import ComebackBoard from '../ComebackBoard'
 import { mlbSlateState } from '../../lib/mlbSlateState'
 import HeadlineStrip from '../HeadlineStrip'
+import CallsSwipe from '../home/CallsSwipe'
+import FoundingMembersCard from '../FoundingMembersCard'
 import HeroStat from '../HeroStat'
 import { mlbNextGames, nextLine } from '../../lib/mlbNext'
 import { useLockedRecord } from '../../lib/useLockedRecord'
@@ -1045,6 +1047,9 @@ export default function Home({
         onUnstar={onWatch}
       />
 
+      {/* TONIGHT'S CALLS AS CARDS (2026-10-16): one card at a time, tap to flip. Below Your players on purpose: it adds no height above the board. */}
+      <CallsSwipe sport="mlb" />
+
 
       {/* ── 💵 #34: THE MONEY ANSWER, WHERE THE CLAIM IS MADE ────────────────
           The hero above says "every pick is graded in public." True, and the
@@ -1057,6 +1062,8 @@ export default function Home({
       <div style={{ marginBottom: 12 }}>
         <MoneyAnswer compact onNavigate={onNavigate} />
       </div>
+      {/* FOUNDING MEMBERS (2026-10-16): the one place the site asks for the $10, after the record and the money line. */}
+      <FoundingMembersCard accent={C.orange} theme={C} numFont={NUM_FONT} />
       {/* ── THREE DOORS ──────────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {DOORS.map((d) => (
