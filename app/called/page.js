@@ -537,7 +537,7 @@ export default async function CalledPage({ searchParams }) {
   // visitor could circle X -> /start -> /called -> /start without reaching
   // the app. Both CTAs open the board now; /start is the small "What is
   // this?" link under the main button.
-  const START = `/start?sport=${sport.key}`
+  const START = `/app#sport=${sport.key}&tab=home`   // /start is retired (2026-10-16): the small text link opens the board
   const tonight = trackNba ? { total: 0, called: 0, rated: 0, off: 0, onBoard: 0, pct: null, boardPct: null } : sport.capture(rows)
   // Preseason nights are on the strip, labelled, but not in the span: camp
   // lineups are not the season (LAMP's own record route keeps them out too).

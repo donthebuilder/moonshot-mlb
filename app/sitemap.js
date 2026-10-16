@@ -14,7 +14,6 @@ export default function sitemap() {
     { url: url('/app'), lastModified: now, changeFrequency: 'hourly', priority: 0.9 },
     // /start and /called per sport, off the one registry (0g D6): a new sport is listed by being added there
     ...SPORT_KEYS.flatMap((k) => [
-      { url: url(sportPage('/start', k)), lastModified: now, changeFrequency: 'daily', priority: k === DEFAULT_SPORT ? 0.8 : 0.7 },
       { url: url(sportPage('/called', k)), lastModified: now, changeFrequency: k === DEFAULT_SPORT ? 'hourly' : 'daily', priority: k === DEFAULT_SPORT ? 0.8 : 0.7 },
     ]),
     // The Playbook (2026-09-30): how to research a pick, one page per market.
