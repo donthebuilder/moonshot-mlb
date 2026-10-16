@@ -4,6 +4,7 @@
 // and the one button a stranger needs. Nothing is typed or invented: no calls tonight (or the ledger unreadable) leaves the picks off.
 import Link from 'next/link'
 import { appHref, playerHref } from '../../lib/routes'
+import { DISCORD_URL } from '../../lib/members'
 
 const SHOW = 6
 const ROLE_WORD = { TOP: 'TOP', HR: 'HR', HIT: 'HIT', HRR: 'H+R+RBI', CONTACT: 'CONTACT' }
@@ -37,6 +38,7 @@ export default function QuickPicks({ styles, calls, sport = 'mlb', recordLine = 
       <div className={styles.quickActions}>
         <Link href={appHref(sport)}>{items.length > SHOW ? `All ${items.length} calls and the full board` : 'Open the full board'} <b>{'→'}</b></Link>
         {signedIn ? null : <a href="#create-account" className={styles.quickCta}>Sign up free <b>{'→'}</b></a>}
+        <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer">Join the free Discord <b>{'→'}</b></a>
       </div>
     </section>
   )

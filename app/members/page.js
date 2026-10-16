@@ -6,7 +6,7 @@
 // the Discord role are Whop's; the site only links to it (lib/members.js).
 import AuthPageHeader from '../../components/AuthPageHeader'
 import styles from '../(front)/dash.module.css'
-import { membersUrl } from '../../lib/members'
+import { membersUrl, DISCORD_URL } from '../../lib/members'
 import { MLB_MEMBERS_N, NFL_MEMBERS_N } from '../../lib/dash/membersPost'
 import { isSportOpen } from '../../lib/openSwitch'
 
@@ -34,6 +34,7 @@ export default function MembersPage() {
             <li>The top calls on tonight&apos;s board, posted before the game starts.</li>
             <li>Lineup, scratch and goalie alerts on your phone for the players you follow.</li>
             <li>Every call graded in public, hits and misses.</li>
+            <li>The free Discord: <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer">join here</a>, with the featured game and the community.</li>
           </ul>
         </div>
 
