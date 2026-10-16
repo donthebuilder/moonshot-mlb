@@ -4,10 +4,12 @@
 // Public like the card page; reached by the Phone view pill or, once NEXT_PUBLIC_PHONE_SHELL=on, by any phone.
 import Link from 'next/link'
 import CardLandingImage from '../../components/CardLandingImage'
+import CardSwipe from '../../components/CardSwipe'
 import { PhoneSegment } from '../../components/ViewToggle'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { BRAND, SPORT_KEYS, sportKey, appHref, watchHash } from '../../lib/routes'
 import { RECORD_LINE } from '../../lib/record/publicLine'
+import { mlbTodayCalls } from '../../lib/phone/todayCalls'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'DASH Network phone app', robots: { index: false } }
@@ -19,6 +21,8 @@ const TABS = [
   { key: 'watch', label: 'Watch', icon: '👁' },
 ]
 // where Research opens on the full site, per product (a table, not a ternary)
+// a sport's tonight list of called players, by sport key (a table, not a ternary); a sport without one shows its board card
+const TODAY_CALLS = { mlb: mlbTodayCalls }
 const RESEARCH_TAB = { mlb: 'fullboard', nfl: 'research', nhl: 'fullboard', nba: 'fullboard' }
 const one = (v) => String(Array.isArray(v) ? v[0] : v || '')
 const href = (sport, tab) => `/m?sport=${sport}${tab && tab !== 'today' ? `&tab=${tab}` : ''}`
@@ -41,6 +45,7 @@ export default async function PhoneApp({ searchParams }) {
   const tab = TABS.some((t) => t.key === one(params.tab)) ? one(params.tab) : 'today'
   const brand = BRAND[sport]
   const line = RECORD_LINE[sport] ? await RECORD_LINE[sport]() : null
+  const calls = tab === 'today' && TODAY_CALLS[sport] ? await TODAY_CALLS[sport]() : null
   return (
     <main style={{ background: C.bg, color: C.text, minHeight: '100dvh', paddingBottom: 'calc(96px + env(safe-area-inset-bottom))' }}>
       <header style={{ position: 'sticky', top: 0, zIndex: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 14px', paddingTop: 'calc(10px + env(safe-area-inset-top))', background: C.bg, borderBottom: `1px solid ${C.border}` }}>
@@ -55,11 +60,11 @@ export default async function PhoneApp({ searchParams }) {
           </Link>
         ))}
       </nav>
-      <section style={{ maxWidth: 480, margin: '0 auto', padding: '4px 14px 0', display: 'grid', gap: 10 }}>
+      <section style={{ maxWidth: 480, margin: '0 auto', padding: '4px 14px 0', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 10 }}>
         {tab === 'today' ? (
           <>
-            <CardLandingImage src={`/api/card/share?kind=ranked&sport=${sport}&w=720`} alt={`${brand.name} ${brand.league} board card`} />
-            <p style={{ margin: '6px 2px 0', fontWeight: 800, fontSize: TYPE.title }}>{brand.icon} {brand.name}: tonight's calls, locked before the game.</p>
+            {calls ? <CardSwipe sport={sport} items={calls.items} /> : <CardLandingImage src={`/api/card/share?kind=ranked&sport=${sport}&w=720`} alt={`${brand.name} ${brand.league} board card`} />}
+            <p style={{ margin: '6px 2px 0', fontWeight: 800, fontSize: TYPE.title }}>{brand.icon} {brand.name}: {calls ? `${calls.items.length} calls tonight, locked before the game.` : "tonight's calls, locked before the game."}</p>
             <Tile to={appHref(sport)} title="Open tonight's full board" note="Opens the full site" />
           </>
         ) : null}
