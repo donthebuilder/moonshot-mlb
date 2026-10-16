@@ -55,7 +55,7 @@ import { windowOpen, payloadFor } from '../../../../../lib/dash/xSchedule'
 import { namedInText, withNamed } from '../../../../../lib/dash/xPolicy'
 import { isRested } from '../../../../../lib/dash/xRest'
 import { tdCallStatus } from '../../../../../lib/callStatus'
-import { xEventsCalledOnly } from '../../../../../lib/dash/xEvents'
+import { xEventsCalledOnly, discordEventsCalledOnly } from '../../../../../lib/dash/xEvents'
 import { timingSafeEqual } from 'node:crypto'
 
 import { easternToday, etHoursSinceNoon, shiftDay } from '../../../../../lib/data'
@@ -397,7 +397,12 @@ async function runTouchdownTick(db, day) {
       const calledNow = tdCallStatus({ on_bot: ev.onBot, td_board: ev.tdBoard }) === 'called'
       const png = needsCard ? await alertPicture({ sport: 'nfl', id: row.gsis_id, date: row.day, db, called: calledNow, fallback: () => bytesOf(() => tdCard(ev, { site: SITE_HOST })) }) : null
 
-      if (!row.discord_sent) {
+      if (!row.discord_sent && discordEventsCalledOnly() && !calledNow) {
+        // not CALLED: no public post; marked sent so the row stops reading as pending
+        patch.discord_sent = true
+        const ds = await db.from('nfl_td_feed').update({ discord_sent: true }).match({ day: row.day, game_id: row.game_id, td_n: row.td_n })
+        if (ds.error) console.error(`[nfl-tick] discord_sent not recorded for ${row.game_id}/${row.td_n}: ${ds.error.message}`)
+      } else if (!row.discord_sent) {
         // The football channel only hears about men on the TUDDY board (CALLED /
         // ON THE BOARD); the bare homer feed still gets every touchdown.
         const tdStatus = tdCallStatus({ on_bot: ev.onBot, td_board: ev.tdBoard })

@@ -49,7 +49,7 @@ import { phxClock } from '../../../../../lib/dash/xSchedule'
 import { slateLoader } from '../../../../../lib/posts/slateLoad'
 import { recordPost } from '../../../../../lib/dash/xPostLog'
 import { isRested } from '../../../../../lib/dash/xRest'
-import { xEventsCalledOnly } from '../../../../../lib/dash/xEvents'
+import { xEventsCalledOnly, discordEventsCalledOnly } from '../../../../../lib/dash/xEvents'
 import { timingSafeEqual } from 'node:crypto'
 
 import { easternToday, etHoursSinceNoon, slateDateFromRows, shiftDay } from '../../../../../lib/data'
@@ -2153,7 +2153,12 @@ async function mlbTick(request) {
     const patch = {}
     let stopTick = false
 
-    if (DISCORD_ON && !row.discord_sent) {
+    if (DISCORD_ON && !row.discord_sent && discordEventsCalledOnly() && callStatus(row) !== 'called') {
+      // not CALLED: no public post. Marked sent so the row stops reading as pending (the 12-row window above).
+      patch.discord_sent = true
+      const ds = await db.from('homer_feed').update({ discord_sent: true }).match({ day, player_id: row.player_id, hr_n: row.hr_n })
+      if (ds.error) console.error(`[homers] discord_sent not recorded for ${row.player_id}: ${ds.error.message}`)
+    } else if (DISCORD_ON && !row.discord_sent) {
       // a card linked to him on MOONSHOT, in MOONSHOT's colour (2026-10-04)
       // a CALLED homer carries the hitter's FRONT CARD (uploaded, attachment://card.png) when it draws, else the homer's own card by URL as before
       const front = callStatus(row) === 'called' ? await alertFrontCard({ sport: 'mlb', id: row.player_id, date: day, db }) : null
