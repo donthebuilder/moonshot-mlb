@@ -52,6 +52,7 @@ import './scroll-anchor.css' // css-loader pure-selector fix, 2026-09-06
 import OpenOnHash from '../../components/OpenOnHash'
 import LadderBlock, { LadderAside } from '../../components/record/LadderBlock'
 import QuickPicks from '../../components/home/QuickPicks'
+import FoundingMembersCard from '../../components/FoundingMembersCard'
 import { DISCORD_URL } from '../../lib/members'
 import { mlbTodayCalls } from '../../lib/phone/todayCalls'
 
@@ -271,6 +272,10 @@ export default async function DashHome({ searchParams }) {
       {/* QUICK PICKS (2026-10-16): tonight's called players + how the bot is doing + sign up, right under the hero. MLB's ledger only (the sport with a per-game
           called list today); a sport without one is still one tap away in the cards below. */}
       <QuickPicks styles={styles} calls={mlbOff ? null : tonightCalls} sport="mlb" recordLine={record?.callsLine || null} signedIn={Boolean(me.user)} />
+
+      {/* THE OFFER, ON THE FRONT DOOR (2026-10-16, Donovan: the plain link is what gets shared, and the Founding members ask lived only inside the app).
+          Right under the picks and the record line: the person has just seen what is called and that it is graded in public. Nothing here is locked on the site. */}
+      <div className={styles.quick}><FoundingMembersCard /></div>
 
       <section className={styles.slate} id="tonight">
         <div className={styles.slateHead}><p className={styles.kicker}>ON RIGHT NOW</p><h2>The whole network, one glance.</h2></div>
