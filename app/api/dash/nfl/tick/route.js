@@ -85,6 +85,7 @@ import { settleAlert, staleBefore, xBlocked } from '../../../../../lib/dash/xFai
 import { logXBudget } from '../../../../../lib/dash/xBudget'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 import { momentAfterTick } from '../../../../../lib/posts/momentTick'
+import { recapAfterTick } from '../../../../../lib/posts/recapTick'
 import { sendMembers } from '../../../../../lib/writeups/discordRoute'
 import { postLongshotsOnce } from '../../../../../lib/dash/longshotsPost'
 import { postMultiClubOnce } from '../../../../../lib/dash/multiClubPost'
@@ -895,5 +896,9 @@ async function nflTick(request) {
 export async function GET(request) {
   const res = await nflTick(request)
   await momentAfterTick(res, { sources: ['nfl'] })
+  // THE NIGHT RECAP (2026-10-16): once every game of the date is final, in #called-it only; off unless RECAP_POSTS_ON; never changes the tick's answer (lib/posts/recapTick.js).
+  // Yesterday too: a Sunday-night game ends after midnight ET, and its date is still the game's own.
+  const today = easternToday()
+  await recapAfterTick(res, { sport: 'nfl', days: [today, shiftDay(today, -1)] })
   return res
 }
