@@ -21,6 +21,7 @@
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
 import { hasSupabaseConfig } from '../../../../lib/supabase/config'
 import { signedInUser } from '../../../../lib/supabase/authUser'
+import { couldBeMember, isMember } from '../../../../lib/members/access'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -89,7 +90,13 @@ export async function GET(request) {
     const { data: profile } = await supabase.from('profiles').select('display_name').eq('id', user.id).maybeSingle()
     if (profile?.display_name) name = profile.display_name
   } catch { /* the pill falls back to the email prefix */ }
-  const who = { name, email: user.email || '' }
+  // MEMBER (2026-10-16): a hint for the browser (the slip's "add today's called picks" button). The full check needs the confirmation stamp, which the JWT claims
+  // do not carry, so the Auth server is asked ONLY for an account whose email is on a member list (or an admin's): everyone else costs nothing extra.
+  let member = false
+  if (await couldBeMember(user.email)) {
+    try { member = await isMember((await supabase.auth.getUser()).data?.user) } catch { member = false }
+  }
+  const who = { name, email: user.email || '', member }
   return Response.json({ signedIn: true, configured: true, state, who, partial })
 }
 
