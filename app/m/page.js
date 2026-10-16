@@ -5,9 +5,10 @@
 import Link from 'next/link'
 import CardLandingImage from '../../components/CardLandingImage'
 import CardSwipe from '../../components/CardSwipe'
+import RankedHitters from '../../components/phone/RankedHitters'
 import { PhoneSegment } from '../../components/ViewToggle'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
-import { BRAND, SPORT_KEYS, sportKey, appHref, watchHash } from '../../lib/routes'
+import { BRAND, SPORT_KEYS, sportKey, appHref, watchHash, playerHref } from '../../lib/routes'
 import { RECORD_LINE } from '../../lib/record/publicLine'
 import { mlbTodayCalls } from '../../lib/phone/todayCalls'
 
@@ -23,7 +24,10 @@ const TABS = [
 // where Research opens on the full site, per product (a table, not a ternary)
 // a sport's tonight list of called players, by sport key (a table, not a ternary); a sport without one shows its board card
 const TODAY_CALLS = { mlb: mlbTodayCalls }
+// the phone Research table a sport has, by sport key (a table, not a ternary); the others open the full site's tables
+const RESEARCH_TABLE = { mlb: RankedHitters }
 const RESEARCH_TAB = { mlb: 'fullboard', nfl: 'research', nhl: 'fullboard', nba: 'fullboard' }
+const CARD_STATUS = ['called', 'board', 'off']
 const one = (v) => String(Array.isArray(v) ? v[0] : v || '')
 const href = (sport, tab) => `/m?sport=${sport}${tab && tab !== 'today' ? `&tab=${tab}` : ''}`
 
@@ -42,9 +46,13 @@ function Tile({ to, title, note }) {
 export default async function PhoneApp({ searchParams }) {
   const params = (await searchParams) || {}
   const sport = SPORT_KEYS.includes(one(params.sport).toLowerCase()) ? one(params.sport).toLowerCase() : sportKey('mlb')
-  const tab = TABS.some((t) => t.key === one(params.tab)) ? one(params.tab) : 'today'
+  // 'card' is a screen, not a tab: one player's card (what a name in a table opens). It highlights Research.
+  const tab = TABS.some((t) => t.key === one(params.tab)) || one(params.tab) === 'card' ? one(params.tab) : 'today'
+  const cardId = /^\d{4,8}$/.test(one(params.id)) ? one(params.id) : null
   const brand = BRAND[sport]
   const line = RECORD_LINE[sport] ? await RECORD_LINE[sport]() : null
+  const ResearchTable = RESEARCH_TABLE[sport]
+  const on = (key) => key === tab || (tab === 'card' && key === 'research')
   const calls = tab === 'today' && TODAY_CALLS[sport] ? await TODAY_CALLS[sport]() : null
   return (
     <main style={{ background: C.bg, color: C.text, minHeight: '100dvh', paddingBottom: 'calc(96px + env(safe-area-inset-bottom))' }}>
@@ -68,9 +76,16 @@ export default async function PhoneApp({ searchParams }) {
             <Tile to={appHref(sport)} title="Open tonight's full board" note="Opens the full site" />
           </>
         ) : null}
+        {tab === 'card' && cardId ? (
+          <>
+            <CardSwipe sport={sport} items={[{ id: cardId, name: one(params.name).slice(0, 80) || 'Player', roles: [], status: CARD_STATUS.includes(one(params.status)) ? one(params.status) : null, gameId: null, firstPitch: null }]} />
+            <Tile to={playerHref(sport, cardId)} title="His full page" note="Opens the full site" />
+            <Tile to={href(sport, 'research')} title="Back to Research" />
+          </>
+        ) : null}
         {tab === 'research' ? (
           <>
-            <p style={{ margin: '4px 2px', ...sub }}>The full tables are on the full site. These open the one for {brand.name}.</p>
+            {ResearchTable ? <ResearchTable /> : <p style={{ margin: '4px 2px', ...sub }}>The tables for {brand.name} are on the full site for now.</p>}
             <Tile to={appHref(sport, RESEARCH_TAB[sport])} title={`${brand.name} rankings and research`} note="Every hitter, every column. Opens the full site" />
             <Tile to={appHref(sport, 'ledger')} title="The ledger" note="Every call, graded. Opens the full site" />
           </>
@@ -93,8 +108,8 @@ export default async function PhoneApp({ searchParams }) {
       <nav aria-label="Phone app" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 30, padding: '0 10px calc(8px + env(safe-area-inset-bottom))' }}>
         <div style={{ maxWidth: 480, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', border: `1px solid ${C.border}`, borderRadius: 16, background: C.bg2 }}>
           {TABS.map((t) => (
-            <Link key={t.key} href={href(sport, t.key)} aria-current={t.key === tab ? 'page' : undefined}
-              style={{ minHeight: 56, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, textDecoration: 'none', color: t.key === tab ? C.orange : C.text2, fontFamily: NUM_FONT, fontSize: TYPE.micro, fontWeight: 900, borderBottom: `2px solid ${t.key === tab ? C.orange : 'transparent'}` }}>
+            <Link key={t.key} href={href(sport, t.key)} aria-current={on(t.key) ? 'page' : undefined}
+              style={{ minHeight: 56, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, textDecoration: 'none', color: on(t.key) ? C.orange : C.text2, fontFamily: NUM_FONT, fontSize: TYPE.micro, fontWeight: 900, borderBottom: `2px solid ${on(t.key) ? C.orange : 'transparent'}` }}>
               <span aria-hidden="true" style={{ fontSize: 18 }}>{t.icon}</span>{t.label}
             </Link>
           ))}

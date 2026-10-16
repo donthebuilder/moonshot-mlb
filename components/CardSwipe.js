@@ -17,13 +17,13 @@ function Slide({ sport, item, index, flipped, onFlip }) {
   return (
     <li style={{ flex: '0 0 100%', minWidth: 0, scrollSnapAlign: 'center', display: 'grid', gap: 8, justifyItems: 'center' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', color: C.text2 }}>
-        <CallStatusBadge status="called" size={11} />
-        <span>{item.roles.join(' · ')}</span>
+        <CallStatusBadge status={item.status || 'called'} size={11} />
+        {item.roles?.length ? <span>{item.roles.join(' · ')}</span> : null}
         {when ? <span style={{ color: C.text3 }}>{when}</span> : null}
       </div>
       {bad ? (
         <div style={{ width: '100%', maxWidth: 360, aspectRatio: '4 / 5', display: 'grid', placeItems: 'center', border: `1px solid ${C.border}`, borderRadius: 14, background: C.bg2, textAlign: 'center', padding: 16 }}>
-          <div><div style={{ fontSize: TYPE.title, fontWeight: 800 }}>{item.name}</div><div style={{ color: C.text2, fontSize: TYPE.body, marginTop: 4 }}>Called: {item.roles.join(', ')}</div></div>
+          <div><div style={{ fontSize: TYPE.title, fontWeight: 800 }}>{item.name}</div><div style={{ color: C.text2, fontSize: TYPE.body, marginTop: 4 }}>{item.roles?.length ? `Called: ${item.roles.join(', ')}` : ''}</div></div>
         </div>
       ) : (
         <button type="button" onClick={onFlip} aria-label={`${item.name}, ${flipped ? 'showing why. Tap for the front' : 'tap to see why'}`}
