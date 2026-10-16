@@ -25,7 +25,7 @@ export default function MembersPage() {
       <AuthPageHeader />
       <section style={{ maxWidth: 640, margin: '0 auto', padding: '28px 16px 48px', lineHeight: 1.6, fontSize: 15 }}>
         <h1 style={{ margin: '0 0 6px', fontSize: 26, lineHeight: 1.2 }}>Founding members</h1>
-        <p style={{ margin: '0 0 18px', opacity: 0.8 }}>$10 a month. Cancel any time.</p>
+        <p style={{ margin: '0 0 18px', opacity: 0.8 }}>$10 a month or $2.50 a week, with a 14-day free trial. Cancel any time.</p>
 
         <div className={styles.card} style={{ margin: '0 0 14px' }}>
           <h2 style={h2}>Free, for everyone</h2>
