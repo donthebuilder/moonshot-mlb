@@ -447,3 +447,17 @@ a.brand { text-decoration: none; color: inherit; }
 .recordCi { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--mlb) 22%, transparent); }
 .recordFill { position: absolute; top: 0; bottom: 0; left: 0; background: var(--mlb); border-radius: 5px 0 0 5px; }
 .recordCiText { margin-top: 4px; color: var(--dim); font-size: 10px; font-variant-numeric: tabular-nums; }
+
+/* QUICK PICKS (2026-10-16) */
+.quick { max-width: 1100px; margin: 0 auto; padding: 8px 16px 8px; }
+.quickList { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.quickRow { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; padding: 8px 14px; border: 1px solid color-mix(in srgb, var(--mlb) 35%, transparent); border-radius: 12px; text-decoration: none; color: inherit; background: color-mix(in srgb, var(--mlb) 8%, transparent); }
+.quickRow b { font-size: 15px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quickRow span { font: 800 10px/1.2 monospace; letter-spacing: .08em; color: var(--mlb); white-space: nowrap; }
+.quickNote { margin: 10px 2px 0; font-size: 13px; line-height: 1.5; color: var(--dim); }
+.quickNote a { color: inherit; text-decoration: underline; }
+.quickActions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.quickActions a { display: inline-flex; align-items: center; min-height: 48px; padding: 0 18px; border: 1px solid var(--mlb); border-radius: 12px; text-decoration: none; color: inherit; font-weight: 700; }
+.quickActions a b { margin-left: 6px; color: var(--mlb); }
+.quickActions .quickCta { background: var(--mlb); color: #0d0c0a; }
+.quickActions .quickCta b { color: inherit; }
