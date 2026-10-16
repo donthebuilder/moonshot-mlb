@@ -31,6 +31,7 @@ export async function GET(request) {
   const width = WIDTHS.includes(w) ? w : 1080
   const r = await shareCardImage({ kind, sport, q: Object.fromEntries(q.entries()), width })
   if (!r.ok) return json({ error: r.status === 404 ? 'NOT FOUND' : r.status === 400 ? 'BAD REQUEST' : 'CARD DELAYED', detail: r.why }, r.status || 502, r.status === 404 && !priv ? 'public, max-age=60' : 'no-store')
-  // the boards move through the day: a few minutes at the edge, never a stale card for long (same family as /api/card/image)
-  return new Response(r.png, { status: 200, headers: { 'Content-Type': 'image/png', 'Cache-Control': priv ? 'private, no-store' : 'public, s-maxage=120, stale-while-revalidate=300' } })
+  // the boards move through the day: five minutes fresh at the edge, then served stale for up to 30 minutes while one request redraws it, so a visitor from an X post
+  // almost never waits on a cold render (2026-10-16: was 2 + 5 minutes and the first visitor of each window paid the full draw)
+  return new Response(r.png, { status: 200, headers: { 'Content-Type': 'image/png', 'Cache-Control': priv ? 'private, no-store' : 'public, s-maxage=300, stale-while-revalidate=1800' } })
 }
