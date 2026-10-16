@@ -45,6 +45,7 @@ import { callsGradedEvents, weeklyEvents } from '../../../../../lib/dash/pushNig
 import { applyDailyCaps, brakeConfig, pushDayStart, tallyLog } from '../../../../../lib/dash/pushBrake'
 import { readInjuries } from '../../../../../lib/injuries/read'
 import { nhlPregameSnap, nflPregameSnap, nbaPregameSnap, priorStartersFrom } from '../../../../../lib/dash/pregameSources'
+import { foldsOn, foldGlobal, foldPregame, applyFoldCap, foldCap, tallyCapLog } from '../../../../../lib/dash/pushFolds'
 import { bundleTitle, bundleBody } from '../../../../../lib/copy/notifications'
 import { fanOutToDiscord } from '../../../../../lib/dash/discordAlerts'
 import { fetchNfl, nflGameCallsPaths, nflPicksLooksReal, nflPicksPaths, nflSlateLooksReal, nflSlatePaths } from '../../../../../lib/nfl/dataSource'
@@ -529,7 +530,7 @@ function bundle(events) {
   const head = list[0]
   // ONE EVENT: its own words, untouched. The title already carries the player
   // (or none), so nothing is appended to it -- the name appears once.
-  if (list.length === 1) return { title: head.title, body: head.body, tag: head.key, url: head.url, ...(head.image ? { image: head.image } : {}) }
+  if (list.length === 1) return { title: head.title, body: head.body, tag: head.tag || head.key, url: head.url, ...(head.image ? { image: head.image } : {}) }
   // SEVERAL: one short note. "<emoji> 3 went deep" / "Alpha · Bravo · Charlie". No "DASH" filler.
   const groups = new Set(list.map((e) => e.group).filter(Boolean))
   const verb = groups.size === 1 ? [...groups][0] : ''
@@ -725,6 +726,7 @@ export async function GET(request) {
     totals.events += r.events
     totals.fresh += r.fresh
     totals.discord += r.discord
+    if (r.folded != null) { totals.folded = (totals.folded || 0) + r.folded; totals.capped = (totals.capped || 0) + r.capped }
     for (const e of r.dead) if (!dead.includes(e)) dead.push(e)
   }
 
@@ -781,9 +783,18 @@ async function sentToday(db, endpoint) {
   return tallyLog(data)
 }
 
+// PUSH_FOLDS_ON: what this PERSON (every device) has been sent since 6 am ET: the event keys (so a fold knows it already fired today) and how many
+// non-live pushes count against the cap. A failed read counts as nothing sent (fail open).
+async function sentTodayPerson(db, userId) {
+  const { data, error } = await db.from('dash_push_log').select('event_key,category,sport')
+    .eq('user_id', userId).in('outcome', ['sent', 'bundled']).gte('at', new Date(pushDayStart()).toISOString()).limit(500)
+  if (error) { console.error(`[push] person cap read failed: ${error.message}`); return { keys: new Set(), count: 0 } }
+  return { keys: new Set((data || []).map((r) => r.event_key)), count: tallyCapLog(data) }
+}
+
 /** One pass: what happened, who has not been told, tell them. */
 async function sweep(db, subs, stateByUser, audience, { full }) {
-  const nothing = { sent: 0, held: 0, events: 0, fresh: 0, dead: [], discord: 0 }
+  const nothing = { sent: 0, held: 0, events: 0, fresh: 0, dead: [], discord: 0, ...(foldsOn() ? { folded: 0, capped: 0 } : {}) }
   const redZoneEnabled = await isRedZoneAlertsEnabled()
   const nhl = await nhlEvents(db, audience, stateByUser)
   const nba = await nbaEvents(db, audience, stateByUser)
@@ -828,10 +839,14 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
   // the board in hand; this is the backstop for a sweep that produced both
   // without one (dash_board_day not yet written, or not yet migrated).
   const scratchedIds = new Set(produced.filter((e) => e.category === 'scratched').map((e) => String(e.playerId)))
-  const events = scratchedIds.size
+  const deduped = scratchedIds.size
     ? produced.filter((e) => !(e.category === 'dropout' && scratchedIds.has(String(e.playerId))))
     : produced
-  if (!events.length) { await markSwept(db, nhl.unswept); await markSweptNba(db, nba.unswept); return nothing }
+  // PUSH_FOLDS_ON (default off = untouched): one Game update per game, scratches only for CALLED picks (lib/dash/pushFolds.js).
+  const folding = foldsOn()
+  const folded0 = folding ? foldGlobal(deduped) : null
+  const events = folded0 ? folded0.events : deduped
+  if (!events.length) { await markSwept(db, nhl.unswept); await markSweptNba(db, nba.unswept); return { ...nothing, ...(folding ? { folded: folded0.dropped } : {}) } }
 
   // Insert-and-see-what-stuck: only rows this run actually created are new.
   // Doing it as one insert with ignoreDuplicates makes the check atomic — two
@@ -872,7 +887,7 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
   const startedAtMs = Date.now()
   const fresh = new Set(claimed.map((r) => r.event_key))
   const toSend = events.filter((e) => fresh.has(e.key))
-  if (!toSend.length) return { ...nothing, events: events.length }
+  if (!toSend.length) return { ...nothing, events: events.length, ...(folding ? { folded: folded0.dropped } : {}) }
 
   // Fired alongside the push loop below, not after it -- a slow Discord
   // webhook must never eat into the 55s sweep budget the push send needs.
@@ -883,6 +898,8 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
 
   let sent = 0
   let held = 0
+  let folded = folding ? folded0.dropped : 0
+  let capped = 0
   const dead = []
   await Promise.all(subs.map(async (sub) => {
     const state = stateByUser[sub.user_id]
@@ -904,10 +921,22 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
     // ('daily cap'), like a lane drop. The count is this device's own log since 6 am ET; unreadable = fail open (never a silent night).
     const cfg = brakeConfig()
     let allowed = mine
+    let personal = mine
+    if (folding) {
+      // PUSH_FOLDS_ON: fold the pregame set, then the per-PERSON cap on non-live pushes (live CALLED and grading always pass). Dropped, never queued.
+      const today = await sentTodayPerson(db, sub.user_id)
+      const f = foldPregame(mine, { keys: today.keys }, { day })
+      for (const x of f.folded) { if (!x.quiet) { folded += 1; outcomes.push({ event: x.event, outcome: 'dropped', detail: x.detail }) } }
+      const capd = applyFoldCap(f.send, today.count, foldCap())
+      for (const e of capd.held) { capped += 1; held += 1; outcomes.push({ event: e, outcome: 'dropped', detail: 'daily cap (folds)' }) }
+      personal = capd.send
+      allowed = personal
+    }
     if (cfg.on) {
-      const capped = applyDailyCaps(mine, await sentToday(db, sub.endpoint), cfg)
-      allowed = capped.send
-      for (const e of capped.held) { held += 1; outcomes.push({ event: e, outcome: 'dropped', detail: 'daily cap' }) }
+      // under the folds the per-person cap above replaces the old 8-a-device soft cap; the urgent ceiling still applies
+      const capped0 = applyDailyCaps(personal, await sentToday(db, sub.endpoint), folding ? { ...cfg, daily: Infinity } : cfg)
+      allowed = capped0.send
+      for (const e of capped0.held) { held += 1; outcomes.push({ event: e, outcome: 'dropped', detail: 'daily cap' }) }
     }
     if (!allowed.length) { await logOutcomes(db, sub, outcomes); return }
 
@@ -954,5 +983,5 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
   }))
 
   const discord = await discordSend
-  return { sent, held, events: events.length, fresh: toSend.length, dead, discord: discord.sent }
+  return { sent, held, events: events.length, fresh: toSend.length, dead, discord: discord.sent, ...(folding ? { folded, capped } : {}) }
 }
