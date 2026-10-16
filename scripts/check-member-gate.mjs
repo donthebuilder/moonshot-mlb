@@ -5,7 +5,7 @@
 import './_esm-resolve.mjs'
 import { readFileSync } from 'node:fs'
 
-const { memberStateOf, startedAt, freeCalledKeys, lockedFor, cardGate } = await import('../lib/members/gate.js')
+const { memberStateOf, startedAt, freeCalledKeys, lockedFor, cardGate, storyLockKey } = await import('../lib/members/gate.js')
 const { FREE_CALLS_PER_SPORT } = await import('../lib/members/limits.js')
 const access = readFileSync(new URL('../lib/members/access.js', import.meta.url), 'utf8')
 
@@ -93,6 +93,16 @@ eq(card({ status: 'board' }).locked, false, 'card: ON THE BOARD never locks')
 eq(card({ status: 'off' }).locked, false, 'card: NOT ON THE BOARD never locks')
 eq(card({ status: null }).locked, false, 'card: no status never locks')
 eq(card({}).gate.key, 'test-9', 'card: the gate handed to CallStatusBadge carries the key')
+
+// 8. THE LIST KEY (storylines, the swipe): built the way each sport's board builds its row key, so a list and a table agree on the free four; TEST DATA
+eq(storyLockKey('mlb', 'test-7', 'test-g1'), 'test-7-test-g1|test-g1', 'MLB: `${player}-${game}|${game}`, the RankedBoard row key')
+eq(storyLockKey('nhl', 'test-7', 'test-g1'), 'test-g1|test-7', 'NHL: `${game}|${player}`, the goal board row key')
+eq(storyLockKey('nfl', 'test-7', 'test-g1'), 'test-7', 'NFL: the player id, the TD board row key')
+eq(storyLockKey('nfl', 7, null), '7', 'a number id is a string key')
+const sk = (sport, key) => lockedFor({ status: 'called', started: false, graded: false, key, free: new Set([storyLockKey(sport, 'test-1', 'test-g1')]), memberState: 'free' })
+eq(sk('mlb', storyLockKey('mlb', 'test-1', 'test-g1')), false, 'list: the man in the free set is unlocked')
+eq(sk('mlb', storyLockKey('mlb', 'test-2', 'test-g1')), true, 'list: any other called man locks')
+eq(sk('mlb', 'test-1'), true, 'list: a key that matches no board only ever LOCKS a man, it never reveals one')
 
 if (fails.length) { console.error('check-member-gate FAILED:\n - ' + fails.join('\n - ')); process.exit(1) }
 console.log('check-member-gate: ok')

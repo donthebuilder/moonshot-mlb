@@ -26,6 +26,8 @@ import WriteupBlock from './WriteupBlock'
 import GameLedgerLine from '../ledger/GameLedgerLine'
 import { easternDate } from '../../lib/data'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
+import { useCallGate } from '../MemberGate'
+import { lockedFor } from '../../lib/members/gate'
 import { localDayTime } from '../../lib/localTime'
 import { slateTotals, TD_WORD, TD_WORD_SHORT } from '../../lib/nfl/teamTdModel'
 import { expectedClause } from '../../lib/expectedLine'
@@ -145,6 +147,11 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
 
   const top = games.reduce((a, g) => ((xOf(g) ?? -1) > ((a ? xOf(a) : null) ?? -1) ? g : a), null)
 
+  // MEMBERS LOCK (components/MemberGate.js): the headline calls printed on the game cards, keyed by player (the TD board's key) with the game's kickoff; null for everyone but a free viewer
+  const gateOf = useCallGate({
+    rows: () => shownGames.flatMap((g) => callsIn(picks, g).map(({ call }) => ({ pid: String(call.player_id), kickoff: g.kickoff }))), source: [shownGames, picks],
+    statusOf: () => 'called', keyOf: (x) => x.pid, timeOf: (x) => x.kickoff,
+  })
   const cards = games.map((g) => {
     const x = xOf(g)
     const heat = heatOf(g)
@@ -173,6 +180,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
         key: `${k.market}-${k.pid}`, tag: MARKET_TAG[k.market] || k.market, color: gradeFor(k.score).color,
         name: k.name, score: Math.round(k.score ?? 0),
         title: calls.length ? `TUDDY's ${MARKET_TAG[k.market] || k.market} call in this game` : "Top TD score in this game (no headline call lands here)",
+        ...(calls.length && gateOf && (() => { const gt = gateOf({ pid: String(k.pid), kickoff: g.kickoff }); return lockedFor({ status: 'called', started: gt.started, graded: gt.graded, key: gt.key, free: gt.free, memberState: 'free' }) })() ? { locked: true, title: 'Members see tonight\u2019s call and why' } : null),
         onClick: (e) => { e.stopPropagation(); const p = playersById[String(k.pid)]; if (p) onPlayerClick?.(p, k.market) },
       })),
     }

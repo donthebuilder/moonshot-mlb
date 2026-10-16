@@ -6,9 +6,9 @@
 // product's accent; ON THE BOARD is quiet; NOT ON THE BOARD is quieter.
 import { STATUS_WORD } from '../lib/callStatus'
 import { useSportTheme } from './SportTheme'
-import { useMemberState } from './MemberGate'
 import { lockedFor } from '../lib/members/gate'
 import { membersUrl } from '../lib/members'
+import { useMemberState, useCardLock } from './MemberGate'
 
 // THREE LOOKS, ONE SET OF WORDS (R2c, 2026-10-02). variant:
 //   'stamp' (default) -- the bordered stamp above, the v2 sheet's STATUS column.
@@ -58,4 +58,15 @@ export default function CallStatusBadge({ status, accent = null, size = 9, short
       padding: '1px 5px', whiteSpace: 'nowrap', lineHeight: 1.3, ...style,
     }}>{word}</span>
   )
+}
+
+/**
+ * A status stamp in a LIST (2026-10-16, Donovan: lock the rest of the cards too) that has no board of its own to hand it a gate: lockIn = { key, time, graded?, slateDate? },
+ * the SAME key and game start the sport's table gate uses, and the free four are read from the boards (components/MemberGate.js useCardLock). Locked = a confirmed
+ * non-member's tonight, not-started, not-graded CALLED pick outside the free four, drawn as the lock chip. Anyone else, or no lockIn: the stamp exactly as before.
+ * A separate component so only the stamps that can lock subscribe to the free-four store.
+ */
+export function GatedCallBadge({ lockIn = null, status, ...rest }) {
+  const cl = useCardLock({ status: lockIn ? status : null, key: lockIn?.key, time: lockIn?.time, graded: Boolean(lockIn?.graded), slateDate: lockIn?.slateDate || null })
+  return <CallStatusBadge status={status} gate={lockIn ? cl.gate : null} {...rest} />
 }

@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { useSpot } from '../lib/spotlight'
-import { nameOf, teamOf, oppOf, clean, mlbId } from '../lib/player'
+import { nameOf, teamOf, oppOf, clean, mlbId, playerId } from '../lib/player'
 import { compactRole, roleColor, scoreFor, gradeFor, signalPills, riskPill, bestBet } from '../lib/scoring'
 import { roleBadge } from '../lib/roleBadge'
 import { hrwRead } from '../lib/hrwBand'
@@ -212,6 +212,7 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
   return (
       <RankCard accent={accentColor || color} status={status} rankMove={rankMove} pos={clean(p?.handedness || p?.bats, '')} rank={rank} sport="mlb" club={teamOf(p) || null} name={nameOf(p)} opp={oppOf(p) || null}
         compact={compact} wide={wide} kicker={kicker} kickerPills={kickerPills}
+        lockIn={{ key: `${playerId(p)}|${p?.game_pk ?? ''}`, time: p?.game_time, graded: p?.graded === true }}
         stampFor={compact && mlbId(p) && gameDayOf(p?.game_time) ? { sport: 'mlb', id: String(mlbId(p)), day: gameDayOf(p?.game_time) } : null}
         role={`${compact ? 'Bats ' : ''}${clean(p?.lineup_spot, '—')}${p?.lineup_confirmed === false ? ' (proj.)' : ''}`}
         face={<PlayerFace sport="mlb" id={mlbId(p)} team={teamOf(p)} name={nameOf(p)} variant="tile" size={compact ? 68 : 84} />}

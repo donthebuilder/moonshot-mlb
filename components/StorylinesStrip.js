@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import StoryRow, { StoryParts, BoardBadge } from './StoryRow'
+import { useStoryLock } from './MemberGate'
 import TeamMark, { MatchLogos } from './TeamMark'
 import { gameHref } from '../lib/routes'
 import { localDayTime } from '../lib/localTime'
@@ -22,6 +23,7 @@ export default function StorylinesStrip({ sport, theme: C, numFont, accent, max 
     return () => { alive = false }
   }, [sport])
   const games = data?.games || []
+  const lockOf = useStoryLock({ sport, stories: data?.stories, games })
   const pre = new Set(games.filter((g) => g.state === 'pre').map((g) => g.game_id))
   const pool = (data?.stories || []).filter((s) => (pre.size ? pre.has(s.game_id) : true))
   if (!pool.length) return null
@@ -65,7 +67,7 @@ export default function StorylinesStrip({ sport, theme: C, numFont, accent, max 
               <span style={{ marginLeft: 'auto', color: accent, fontWeight: 800 }}>›</span>
             </a>
             <StoryRow icon={s.icon} theme={C} title={`Source: ${s.source}`} onClick={storyClick(s)} style={{ fontSize: 12 }}>
-              <StoryParts parts={s.parts} theme={C} numFont={numFont} />{s.board ? <> · <BoardBadge b={s.board} theme={C} numFont={numFont} accent={accent} /></> : null}
+              <StoryParts parts={s.parts} theme={C} numFont={numFont} />{s.board ? <> · <BoardBadge b={s.board} theme={C} numFont={numFont} accent={accent} lockIn={lockOf(s)} /></> : null}
             </StoryRow>
           </div>
         )

@@ -7,11 +7,14 @@
 // STILL TO GO marks each man live (⚡) or still to start (⏳); CALLED names wear the
 // product's colour with the key ('■ CALLED') on the row's label (Donovan 10-05 chose
 // this compact form over a stamp per name) -- never on hover only.
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useSportTheme } from './SportTheme'
 import { surname } from '../lib/player'
 import { STATUS_WORD } from '../lib/callStatus'
 import { publishLedgerCount } from '../lib/ledger/chip'
+import { useCallGate } from './MemberGate'
+import CallStatusBadge from './CallStatusBadge'
+import { lockedFor } from '../lib/members/gate'
 
 // a surname keeps its particle ("Amon-Ra St. Brown" -> "St. Brown", not "Brown")
 const PARTICLE = /^(st\.?|de|del|della|di|da|van|von|der|den|le|la|du|mc|o')$/i
@@ -24,7 +27,13 @@ function short(name) {
 
 const SHOW = 3
 
-function Row({ label, items, onOpen, C, NUM_FONT, kind, accent }) {
+// is this STILL TO GO name drawn as the lock? gateOf is null for everyone but a confirmed non-member (components/MemberGate.js useCallGate)
+const isLocked = (gateOf, x) => {
+  const g = gateOf && x.lock ? gateOf(x) : null
+  return Boolean(g) && lockedFor({ status: x.status, started: g.started, graded: g.graded, key: g.key, free: g.free, memberState: 'free' })
+}
+
+function Row({ label, items, onOpen, C, NUM_FONT, kind, accent, gateOf = null }) {
   const [open, setOpen] = useState(false)
   if (!items?.length) return null
   const shown = open ? items : items.slice(0, SHOW)
@@ -37,21 +46,29 @@ function Row({ label, items, onOpen, C, NUM_FONT, kind, accent }) {
       <div style={{ font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.08em', color: C.text3 }}>
         {label}
         {/* the key for STILL TO GO's colour, in the status word itself (lib/callStatus) */}
-        {kind === 'still' && items.some((x) => x.status === 'called') && <span style={{ marginLeft: 8, color: accent }}>■ {STATUS_WORD.called}</span>}
+        {kind === 'still' && items.some((x) => x.status === 'called' && !isLocked(gateOf, x)) && <span style={{ marginLeft: 8, color: accent }}>■ {STATUS_WORD.called}</span>}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', columnGap: 12, rowGap: 20, minWidth: 0, marginTop: 2 }}>
-        {shown.map((x) => (
-          <button key={x.id} type="button" onClick={onOpen ? () => onOpen(x.id, x) : undefined}
-            aria-label={[x.name, kind === 'still' ? (x.when === 'now' ? 'live' : 'still to start') : null, kind === 'still' && x.status ? STATUS_WORD[x.status] : null, x.note].filter(Boolean).join(', ')}
-            style={{ minHeight: 44, margin: '-10px 0', display: 'inline-flex', alignItems: 'center', gap: 5, padding: 0, border: 0, background: 'transparent', color: C.text, cursor: onOpen ? 'pointer' : 'default', font: 'inherit', textAlign: 'left' }}>
-            {/* surnames keep three on one line at 390; the full name is on the button for
-                screen readers, and CALLED is said in words there too (colour isn't the only cue:
-                the row's label carries the key) */}
-            <span style={{ fontSize: 13, fontWeight: 800, color: kind === 'still' && x.status === 'called' ? accent : C.text }}>{short(x.name)}</span>
-            {kind === 'still' && <span aria-hidden="true" style={{ fontSize: 11 }}>{x.when === 'now' ? '⚡' : '⏳'}</span>}
-            {x.note && <span style={{ fontSize: 11, fontFamily: NUM_FONT, color: C.text3, fontWeight: 700 }}>{x.note}</span>}
-          </button>
-        ))}
+        {shown.map((x) => {
+          // MEMBERS LOCK (components/MemberGate.js): a CALLED, not-started name the viewer may not see keeps his name and drops the CALLED colour, the score and the
+          // word; the lock chip (CallStatusBadge, a 44px join link) stands where the call was. Not locked: drawn exactly as before.
+          const locked = kind === 'still' && isLocked(gateOf, x)
+          return (
+            <Fragment key={x.id}>
+              <button type="button" onClick={onOpen ? () => onOpen(x.id, x) : undefined}
+                aria-label={[x.name, kind === 'still' ? (x.when === 'now' ? 'live' : 'still to start') : null, kind === 'still' && x.status && !locked ? STATUS_WORD[x.status] : null, locked ? null : x.note].filter(Boolean).join(', ')}
+                style={{ minHeight: 44, margin: '-10px 0', display: 'inline-flex', alignItems: 'center', gap: 5, padding: 0, border: 0, background: 'transparent', color: C.text, cursor: onOpen ? 'pointer' : 'default', font: 'inherit', textAlign: 'left' }}>
+                {/* surnames keep three on one line at 390; the full name is on the button for
+                    screen readers, and CALLED is said in words there too (colour isn't the only cue:
+                    the row's label carries the key) */}
+                <span style={{ fontSize: 13, fontWeight: 800, color: kind === 'still' && x.status === 'called' && !locked ? accent : C.text }}>{short(x.name)}</span>
+                {kind === 'still' && <span aria-hidden="true" style={{ fontSize: 11 }}>{x.when === 'now' ? '⚡' : '⏳'}</span>}
+                {x.note && !locked && <span style={{ fontSize: 11, fontFamily: NUM_FONT, color: C.text3, fontWeight: 700 }}>{x.note}</span>}
+              </button>
+              {locked && <CallStatusBadge status="called" gate={gateOf(x)} accent={accent} size={11} />}
+            </Fragment>
+          )
+        })}
         {rest > 0 && (
           <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
             style={{ minHeight: 44, minWidth: 44, margin: '-10px 0', padding: '0 4px', border: 0, background: 'transparent', color: C.text2, font: `800 11px/1 ${NUM_FONT}`, cursor: 'pointer' }}>
@@ -73,6 +90,10 @@ export default function TonightStrip({ data, onOpen, onLedger, words = {}, sport
   const { C, NUM_FONT, accent } = useSportTheme()
   const called = data?.called && data.called.of > 0 ? data.called : null
   useEffect(() => { if (sport) publishLedgerCount(sport, called) }, [sport, called?.scored, called?.of])   // eslint-disable-line react-hooks/exhaustive-deps
+  // MEMBERS (2026-10-16): the free taste over the STILL TO GO men in the board's own order (items without a lock key, i.e. BUCKETS, are never gated)
+  const gateOf = useCallGate({
+    rows: () => (data?.still || []).filter((x) => x.lock), source: data?.still, statusOf: (x) => x.status, keyOf: (x) => x.lock.key, timeOf: (x) => x.lock.time, rankOf: (x) => x.lock.rank,
+  })
   if (!data || !(data.went?.length || data.lining?.length || data.still?.length)) return null
   return (
     <section aria-label="Tonight" style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: '8px 12px 4px', margin: '0 0 12px', background: C.bg2, minWidth: 0 }}>
@@ -86,7 +107,7 @@ export default function TonightStrip({ data, onOpen, onLedger, words = {}, sport
       </div>
       <Row label={words.went || 'WENT'} items={data.went} onOpen={onOpen} C={C} NUM_FONT={NUM_FONT} accent={accent} kind="went" />
       <Row label="LINING UP" items={data.lining} onOpen={onOpen} C={C} NUM_FONT={NUM_FONT} accent={accent} kind="lining" />
-      <Row label="STILL TO GO" items={data.still} onOpen={onOpen} C={C} NUM_FONT={NUM_FONT} accent={accent} kind="still" />
+      <Row label="STILL TO GO" items={data.still} onOpen={onOpen} C={C} NUM_FONT={NUM_FONT} accent={accent} kind="still" gateOf={gateOf} />
     </section>
   )
 }

@@ -11,7 +11,8 @@ import GameSwitcher from '../GameSwitcher'
 import { panelPairs, panelSubs, gameSections } from '../../lib/game/sections'
 import { ViewPills, GameFilterRail, SlateStrip, GamePanelPills, PanelAnchor, GameFrame, PrevNextGame } from '../slate/SlateParts'
 import { FactTiles } from '../matchup/MatchupParts'
-import { GameBoard, NavBtn, AllGamesTable, spotOf, pct1, restWord } from './tabs/Board'
+import { GameBoard, NavBtn, AllGamesTable, spotOf, pct1, restWord, useLampCallGate, lampLocked } from './tabs/Board'
+import { overallRanks } from '../../lib/positions'
 import LampProjected from './LampProjected'
 import LampWeakSpots from './LampWeakSpots'
 import NhlH2H from '../h2h/NhlH2H'
@@ -98,6 +99,9 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
     return c
   }, [all])
   const games = all.filter((g) => gfilter === 'all' || stateOf(g) === gfilter)
+  // MEMBERS LOCK (components/MemberGate.js): the board's own free taste over every game tonight; null for everyone but a free viewer, and then nothing below changes
+  const flatAll = useMemo(() => allGames.filter((g) => !g.noMarketLock).flatMap((g) => g.rows.map((r) => ({ r, g }))), [allGames])
+  const gateOf = useLampCallGate(flatAll, overallRanks(flatAll, ({ r, g }) => `${g.game.id}|${r.playerId}`, ({ r }) => r.score ?? 0))
   const lead = games.find((g) => stateOf(g) === 'live') || games.find((g) => stateOf(g) === 'upcoming') || games[0] || null
   const activeId = games.some((g) => String(g.game.id) === hashGame) ? hashGame : (lead ? String(lead.game.id) : null)
   const select = (id) => {
@@ -150,7 +154,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
       score: null,   // the title carries it: each club once, with its score beside it
       chips: called.map((r) => ({
         key: String(r.playerId), tag: 'CALL', color: C.ice, name: r.name, score: Math.round(r.score ?? 0),
-        title: `${STATUS_WORD.called} — #${r.rank} in this game${g.graded ? (r.hit ? ', scored' : ', did not score') : ''}`,
+        ...(lampLocked(gateOf, { _row: r, _g: g }) ? { locked: true, title: 'Members see tonight\u2019s call and why' } : { title: `${STATUS_WORD.called} — #${r.rank} in this game${g.graded ? (r.hit ? ', scored' : ', did not score') : ''}` }),
         onClick: (e) => { e.stopPropagation(); onOpenPlayer?.(r.playerId) },
       })),
     }
@@ -191,7 +195,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
             onOpenGame={(id) => { setHashGame(String(id)); setView('games') }} />
           {/* WEAK SPOTS, MOONSHOT's "★ Weak spots" cards (00Q step 2). */}
           <LampWeakSpots items={items} games={all} onOpenPlayer={onOpenPlayer} />
-          <AllGamesTable kept={items} market="GOAL" onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} />
+          <AllGamesTable kept={items} market="GOAL" gateOf={gateOf} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} />
         </>
       )}
       <DelayedBanner error={error} what="the slate" />
@@ -251,7 +255,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
           ),
           board: () => (
                 <PanelAnchor id="board" gamePk={g.game.id} style={{ marginTop: 14 }}>
-                  <GameBoard g={g} market="GOAL" slate onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} onOpenTeam={onOpenTeam} />
+                  <GameBoard g={g} market="GOAL" slate gateOf={gateOf} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} onOpenTeam={onOpenTeam} />
                 </PanelAnchor>
           ),
           calls: () => (

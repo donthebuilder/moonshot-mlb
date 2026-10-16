@@ -25,6 +25,7 @@ import { Card as TdCard } from './Touchdowns'
 import { PositionRow, PositionNote, PositionEmpty } from '../../Filters'
 import { SportTheme } from '../../SportTheme'
 import CallStatusBadge from '../../CallStatusBadge'
+import { useCallGate } from '../../MemberGate'
 import PlayerFace from '../../PlayerFace'
 import PageHeader from '../../PageHeader'
 import ShareCardButton from '../../card/ShareCardButton'
@@ -110,6 +111,8 @@ export default function Watchlist({ data, matchup, logs, picks = null, onPlayerC
   const byId = useMemo(() => new Map((data?.players || []).map((p) => [String(p.player_id), p])), [data])
 
   const all = useMemo(() => sortRows(buildWatchRows({ pins, byId, statusOf: status.statusOf, rankOf, moveOf: (id) => rankMv.cell(id) })), [pins, byId, status, rankOf, rankMv])
+  // MEMBERS LOCK (components/MemberGate.js): his pin's status word, keyed as the TD board keys him, with his game's kickoff; null for everyone but a free viewer
+  const gateOf = useCallGate({ rows: all, statusOf: (r) => r.status, keyOf: (r) => String(r.pin.player_id), timeOf: (r) => (Number.isFinite(r.kickoffMs) ? r.kickoffMs : null) })
   const posPool = useMemo(() => all.map((r) => r.player).filter(Boolean), [all])
   const gameFiltered = useMemo(() => (gameId ? all.filter((r) => r.pin.game_id === gameId) : all), [all, gameId])
   const pf = usePositionFilter('nfl', posPool, { posOf: (p) => p.position, extraOf: roleKeys, extraOrder: ROLE_PILLS, countRows: gameFiltered.map((r) => r.player).filter(Boolean) })
@@ -211,7 +214,7 @@ export default function Watchlist({ data, matchup, logs, picks = null, onPlayerC
     { key: 'pos', label: 'Role', w: 44, heat: false, fold: true, group: G.player, title: 'His usage role this week (RB1, WR2 ...), from snaps and touches.' },
     { key: 'team', label: 'Tm', w: 34, heat: false, teamMark: 'nfl', fold: true, group: G.player },
     { key: 'opp', label: 'Opp', w: 34, heat: false, teamMark: 'nfl', fold: true, subOnly: true, group: G.game },
-    { key: 'status', label: 'Status', heat: false, statusCol: true, w: 64, group: G.call, fmt: (v) => (v ? <CallStatusBadge status={v} accent={C.green} short /> : <span style={{ color: C.text3 }}>—</span>) },
+    { key: 'status', label: 'Status', heat: false, statusCol: true, w: 64, group: G.call, fmt: (v, r) => (v ? <CallStatusBadge status={v} accent={C.green} short gate={gateOf ? gateOf(r._row) : null} /> : <span style={{ color: C.text3 }}>—</span>) },
     { key: 'td', label: 'TD score', w: 56, primary: true, scale: 'seq', domain: [0, 100], group: G.call, title: 'His anytime-TD score, 0 to 100: a rank against the league, not a percentage.' },
     { key: 'inj', label: 'Inj', w: 44, heat: false, group: G.call, title: 'The injury report, if he is on it. Blank means he is not listed.',
       fmt: (v) => (v ? <span title={injuryTitle(v)} style={{ color: injuryColor(v, C), fontWeight: 900 }}>{v}</span> : <span style={{ color: C.text3 }}>—</span>) },

@@ -53,7 +53,7 @@ function TwoCard({ p, rank, watchlist, status, onPlayerClick, weights, base, poo
   return (
     <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
       <RankCard accent={C.green} status={status} rankMove={rankMove} pos={p.position || ''} rank={rank} sport="nfl" club={p.team} name={p.name} opp={p.opp} role={roleLabel(p)}
-        stampFor={stampArg('nfl', p.player_id, gameDayOf(kickoff), place)}
+        stampFor={stampArg('nfl', p.player_id, gameDayOf(kickoff), place)} lockIn={{ key: String(p.player_id), time: kickoff }}
         face={<PlayerFace sport="nfl" espnId={p?.espn_id} team={p?.team} name={p?.name} size={84} />}
         score={Number.isFinite(score) ? Math.round(score) : '—'} scoreWord="2+ TD" rankTags={[`GRADE ${g.label}`]}
         explain={`The two-score ranking, 0–100: a rank among this week's players, not a percentage. ${TWO_NOTE}`}

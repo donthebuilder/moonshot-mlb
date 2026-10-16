@@ -559,11 +559,11 @@ const gateRowOf = (x) => x._row ?? x.r
 const gateGameOf = (x) => x._g ?? x.g
 const gateKeyOf = (x) => `${gateGameOf(x)?.game?.id}|${gateRowOf(x)?.playerId}`
 /** Is this CALLED row drawn as the lock? (a table row; gateOf is null for everyone but a free viewer) */
-function lampLocked(gateOf, r) {
+export function lampLocked(gateOf, r) {
   const x = gateOf ? gateOf(r) : null
   return Boolean(x) && lockedFor({ status: 'called', started: x.started, graded: x.graded, key: x.key, free: x.free, memberState: 'free' })
 }
-function useLampCallGate(flat, overall) {
+export function useLampCallGate(flat, overall) {
   return useCallGate({
     rows: flat, statusOf: (x) => gateRowOf(x)?.status, keyOf: gateKeyOf, timeOf: (x) => gateGameOf(x)?.game?.startUtc,
     gradedOf: (x) => Boolean(gateGameOf(x)?.graded), rankOf: (x) => overall?.get(gateKeyOf(x)),

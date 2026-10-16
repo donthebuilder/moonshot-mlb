@@ -10,6 +10,8 @@ import StoryRow, { StoryParts, BoardBadge } from './StoryRow'
 import { localDayTime } from '../lib/localTime'
 import Fold from './Fold'
 import { ShowMoreButton } from './ListPreview'
+import { useStoryLock, useLockOf } from './MemberGate'
+import { GatedCallBadge } from './CallStatusBadge'
 
 // 📰 STORYLINES, BY GAME (BATCH-STORYLINES-PAGE step 2, 2026-09-27). One page,
 // all three products (theme / number font / accent come in as props). Reads
@@ -73,6 +75,9 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
     return () => { alive = false }
   }, [sport, date])
 
+  // MEMBERS LOCK (components/MemberGate.js): the CALLED word on tonight's not-started games; a locked man keeps his story, loses the word
+  const lockOf = useStoryLock({ sport, stories: data?.stories, games: data?.games, date })
+  const lockedNow = useLockOf()
   const allTypes = useMemo(() => [...new Set((data?.stories || []).map((s) => s.type))], [data])
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase()
@@ -96,7 +101,7 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
     background: on ? `color-mix(in srgb, ${accent} 14%, transparent)` : 'transparent', color: on ? C.text : C.text2,
     font: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
   })
-  const Badge = ({ b }) => <BoardBadge b={b} theme={C} numFont={numFont} accent={accent} />
+  const Badge = ({ b, s }) => <BoardBadge b={b} theme={C} numFont={numFont} accent={accent} lockIn={s ? lockOf(s) : null} />
   const Parts = ({ parts }) => <StoryParts parts={parts} theme={C} numFont={numFont} />
 
   const howStoriesDid = (
@@ -145,7 +150,9 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
         const rows = shown.filter((s) => s.game_id === g.game_id)
         if (filtering && !rows.length) return null
         const all = open.has(g.game_id)
-        const called = [...new Map(rows.filter((s) => s.board?.status === 'called').map((s) => [s.player_id, s.name])).values()]
+        const calledRows = rows.filter((s) => s.board?.status === 'called')
+        const called = [...new Map(calledRows.filter((s) => !lockedNow({ status: 'called', ...lockOf(s) }).locked).map((s) => [s.player_id, s.name])).values()]
+        const calledLocked = calledRows.find((s) => lockedNow({ status: 'called', ...lockOf(s) }).locked)
         return (
           <section key={g.game_id} aria-label={`${g.away} at ${g.home}`} style={{ border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2, padding: '10px 12px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
@@ -153,7 +160,7 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
               <span style={{ color: g.state === 'live' ? accent : C.text3, fontSize: 11, fontFamily: numFont }}>{g.state === 'live' ? 'LIVE' : g.state === 'final' ? 'FINAL' : timeOf(g.start)}</span>
               <span style={{ marginLeft: 'auto', color: C.text3, fontSize: 11 }}>{rows.length} {rows.length === 1 ? 'story' : 'stories'}</span>
             </div>
-            {called.length ? <div style={{ marginTop: 3, fontSize: 11, color: C.text2 }}><span style={{ color: accent, fontWeight: 800, fontFamily: numFont, fontSize: 10 }}>CALLED</span> {called.join(' · ')}</div> : null}
+            {called.length || calledLocked ? <div style={{ marginTop: 3, fontSize: 11, color: C.text2 }}>{called.length ? <><span style={{ color: accent, fontWeight: 800, fontFamily: numFont, fontSize: 10 }}>CALLED</span> {called.join(' · ')}</> : null}{calledLocked ? <>{called.length ? ' · ' : ''}<GatedCallBadge status="called" lockIn={lockOf(calledLocked)} accent={accent} theme={C} numFont={numFont} size={10} /></> : null}</div> : null}
             {/* A started game shows only what was frozen before it (the record began 09-27). */}
             {!rows.length ? <div style={{ marginTop: 6, fontSize: 12, color: C.text3 }}>{g.state !== 'pre' && !g.frozenCount ? 'Nothing was frozen before this one started, so nothing is shown — a story written after the first pitch / kickoff / puck drop would be hindsight.' : 'No storylines for this one.'}</div> : null}
             <div style={{ marginTop: 4 }}>
@@ -161,7 +168,7 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
                 <StoryRow key={`${s.type}|${s.player_id}|${s.text}`} icon={s.icon} theme={C} title={`Source: ${s.source}`}
                   onClick={onOpenPlayer && s.board ? () => onOpenPlayer(s.player_id, s)
                     : teamNav && String(s.player_id).startsWith('team:') ? () => teamNav(String(s.player_id).slice(5)) : null}
-                  tag={<Badge b={s.board} />} style={{ fontSize: 12 }}>
+                  tag={<Badge b={s.board} s={s} />} style={{ fontSize: 12 }}>
                   <Parts parts={s.parts} />
                   {s.outcome ? (
                     <span style={{ display: 'block', fontSize: 11, fontFamily: numFont, fontWeight: 800, color: s.outcome.base === 'hit' ? accent : C.text3 }}>
