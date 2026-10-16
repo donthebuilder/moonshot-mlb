@@ -9,9 +9,9 @@ import { DISCORD_URL } from '../../lib/members'
 const SHOW = 6
 const ROLE_WORD = { TOP: 'TOP', HR: 'HR', HIT: 'HIT', HRR: 'H+R+RBI', CONTACT: 'CONTACT' }
 
-export default function QuickPicks({ styles, calls, sport = 'mlb', recordLine = null, signedIn = false, nfl = null }) {
+export default function QuickPicks({ styles, calls, sport = 'mlb', recordLine = null, signedIn = false, nfl = null, nhl = null }) {
   const items = calls?.items || []
-  if (!items.length && !recordLine && !nfl) return null
+  if (!items.length && !recordLine && !nfl && !nhl) return null
   const shown = items.slice(0, SHOW)
   return (
     <section className={styles.quick} id="picks" aria-label="Quick picks">
@@ -41,6 +41,21 @@ export default function QuickPicks({ styles, calls, sport = 'mlb', recordLine = 
                 <Link href={playerHref('nfl', p.id)} className={styles.quickRow} style={{ borderColor: 'color-mix(in srgb, var(--nfl) 35%, transparent)', background: 'color-mix(in srgb, var(--nfl) 8%, transparent)' }}>
                   <b>{p.name}</b>
                   <span style={{ color: 'var(--nfl)' }}>{[p.team && p.opp ? `${p.team} vs ${p.opp}` : p.team, p.position].filter(Boolean).join(' \u00b7 ')}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+      {nhl?.items?.length ? (
+        <>
+          <p className={styles.quickNote} style={{ marginTop: 16 }}><b>LAMP: tonight&apos;s called skaters (to score), locked before puck drop</b></p>
+          <ul className={styles.quickList}>
+            {nhl.items.map((p) => (
+              <li key={p.id}>
+                <Link href={playerHref('nhl', p.id)} className={styles.quickRow} style={{ borderColor: 'color-mix(in srgb, var(--nhl) 35%, transparent)', background: 'color-mix(in srgb, var(--nhl) 8%, transparent)' }}>
+                  <b>{p.name}</b>
+                  <span style={{ color: 'var(--nhl)' }}>{[p.team && p.opp ? `${p.team} vs ${p.opp}` : p.team, p.position].filter(Boolean).join(' \u00b7 ')}</span>
                 </Link>
               </li>
             ))}
