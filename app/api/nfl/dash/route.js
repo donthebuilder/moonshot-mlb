@@ -26,7 +26,7 @@ export async function GET() {
   const have = new Set(rows.map((r) => `${r.player_id}|${r.market}|${r.game_date}`))
   // the preview: the newest book line per player/market not yet frozen
   const lines = await db.from('odds_lines').select('event_id, game_date, our_player_id, player_name, market, bet, line, odds, taken_at')
-    .eq('sport', 'nfl').gte('game_date', today).lte('game_date', to).not('our_player_id', 'is', null).eq('bet', 'ou')
+    .eq('sport', 'nfl').gte('game_date', today).lte('game_date', to).not('our_player_id', 'is', null).eq('bet', 'ou').not('market', 'in', '(td2,hr2,goal2)')
   const newest = new Map()
   for (const r of lines.data || []) { const k = `${r.our_player_id}|${r.market}|${r.game_date}`; if (!have.has(k) && (!newest.has(k) || r.taken_at > newest.get(k).taken_at)) newest.set(k, r) }
   if (newest.size) {

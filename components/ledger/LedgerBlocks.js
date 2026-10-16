@@ -163,7 +163,7 @@ export function LookOutBox({ title, tag, rows = [], foot, accent = C.orange }) {
             {r.chips.map((a) => (
               <span key={a.key} className={a.hot ? 'chip chip-hot' : 'chip'} title={a.title}>
                 <span><Tap onClick={a.onClick || null}>
-                  <b>{a.name}</b>
+                  <b>{a.nameTeam ? <TeamMark sport={a.nameTeam} abbr={a.name} variant="logo" px={16} style={{ verticalAlign: '-3px' }} /> : a.name}</b>
                   {a.small && !a.smallTeam && <small>{a.small}</small>}
                 </Tap>
                 {/* the club code in the chip is its own link to the club (nav audit 10-08), not part of the player's tap */}

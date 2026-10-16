@@ -172,7 +172,7 @@ function TheSix({ picks, playersById, players = [], markets = [], onPlayerClick,
       gridClass="tuddy-six-picks"
       foldWhy
       onPick={(pick) => pick.raw.player && onPlayerClick?.(pick.raw.player, pick.raw.key)}
-      record={<button type="button" className="tuddy-panel-action" onClick={onPicks} style={{ marginLeft: 'auto' }}>Full card →</button>}
+      record={<button type="button" className="tuddy-panel-action tap-box" onClick={onPicks} style={{ marginLeft: 'auto' }}>Full card →</button>}
     />
   )
 }
@@ -404,7 +404,7 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
 
       {/* THE PEOPLE, ONE TAP IN (2026-09-26, stranger test: players sat
           behind More). One line; the page's name comes from the registry. */}
-      <button type="button" onClick={() => setTab?.('players')}
+      <button type="button" className="tap-box" onClick={() => setTab?.('players')}
         style={{ alignSelf: 'flex-start', background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.green, font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>
         {NFL_NAV.players.icon} Find a player — {NFL_NAV.players.label} ›
       </button>
@@ -475,7 +475,7 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
           into MOONSHOT's slot rather than left at the bottom of the page,
           where it read as an afterthought instead of the answer to the
           claim the hero makes. */}
-      <section className="tuddy-receipts"><div><small>THE RECORD</small><h2>Every call gets a receipt.</h2><p>Hits, misses and voids, in public.{mine?.n ? <> <b style={{ color: C.text2 }}>Your week:</b> {mine.w}–{mine.l}{mine.t ? `–${mine.t}` : ''} on {mine.n} calls{mine.overrides ? `, ${mine.overrides} override${mine.overrides === 1 ? '' : 's'}` : ''} — you {mine.minePct != null && mine.botPct != null ? (mine.minePct > mine.botPct ? 'beat' : mine.minePct < mine.botPct ? 'trail' : 'match') : 'vs'} TUDDY.</> : null}</p></div><button onClick={() => setTab('accountability')}>Receipts →</button></section>
+      <section className="tuddy-receipts"><div><small>THE RECORD</small><h2>Every call gets a receipt.</h2><p>Hits, misses and voids, in public.{mine?.n ? <> <b style={{ color: C.text2 }}>Your week:</b> {mine.w}–{mine.l}{mine.t ? `–${mine.t}` : ''} on {mine.n} calls{mine.overrides ? `, ${mine.overrides} override${mine.overrides === 1 ? '' : 's'}` : ''} — you {mine.minePct != null && mine.botPct != null ? (mine.minePct > mine.botPct ? 'beat' : mine.minePct < mine.botPct ? 'trail' : 'match') : 'vs'} TUDDY.</> : null}</p></div><button className="tap-box" onClick={() => setTab('accountability')}>Receipts →</button></section>
 
       {/* —— THREE DOORS (parity pass, 2026-09-16) ————————————————————
           MOONSHOT's own three nav cards, same slot: right after the money

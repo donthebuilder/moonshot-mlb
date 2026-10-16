@@ -44,7 +44,7 @@ export function StoryParts({ parts, theme: C, numFont }) {
   const num = themed ? accent : C.orange
   return (parts || []).map((x, j) => (x.t === 'name'
     // a club code inside a story ("faces IND") is a link to the club through the product's team door (nav audit 10-06)
-    ? <b key={j} style={{ color: C.text }}><TeamTap abbr={x.v}>{x.v}</TeamTap></b>
+    ? <b key={j} style={{ color: C.text }}><TeamTap abbr={x.v} px={14}>{x.v}</TeamTap></b>
     : x.t === 'num' ? <b key={j} style={{ fontFamily: numFont, color: num }}>{x.v}</b> : <span key={j}>{x.v}</span>))
 }
 

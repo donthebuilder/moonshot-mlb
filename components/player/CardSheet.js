@@ -11,6 +11,8 @@ import { downloadCard, slug, stamp } from '../../lib/cards/saveCard'
 import { playerHref, gameHref, teamHref } from '../../lib/routes'
 
 export const specialUrl = (c, w) => `/api/card/special?moment=${encodeURIComponent(c.moment)}&id=${encodeURIComponent(c.id)}&w=${w}`
+// the collectible back of THIS card (lib/cards/collect/collectBack.js): face 'stats' = his stat table, 'brand' = the shared CALLED IT back; both print the card's real id and issue number
+export const backFaceUrl = (c, face, w) => `/api/card/special?moment=${encodeURIComponent(c.moment)}&id=${encodeURIComponent(c.id)}&side=back&face=${face}&w=${w}`
 const backUrl = (sport, id) => `/api/card/image?sport=${encodeURIComponent(sport)}&id=${encodeURIComponent(String(id))}&side=back&w=720`
 
 export default function CardSheet({ c, sport = null, id = null, name = '', onClose }) {
@@ -18,6 +20,7 @@ export default function CardSheet({ c, sport = null, id = null, name = '', onClo
   const who = { sport: sport || c.sport, id: id ?? c.playerId, name: name || c.name }
   const [side, setSide] = useState('front')
   const [badBack, setBadBack] = useState(false)
+  const [legacy, setLegacy] = useState(false)   // the collectible stat-table back did not draw: the player's own back (old shape) stands in
   const [loaded, setLoaded] = useState({})
   const [stamps, setStamps] = useState([])
   const ref = useRef(null)
@@ -34,8 +37,11 @@ export default function CardSheet({ c, sport = null, id = null, name = '', onClo
     const t = setTimeout(() => { try { ref.current?.focus({ preventScroll: true }) } catch { /* ignore */ } }, 30)
     return () => { clearTimeout(t); window.removeEventListener('keydown', onKey, true) }
   }, [onClose])
-  const btn = { minHeight: 44, flex: 1, borderRadius: 8, border: `1px solid ${C.border2}`, background: 'transparent', color: C.text2, fontSize: 13, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }
-  const showBack = side === 'back'
+  const btn = { minHeight: 44, flex: '1 1 0', minWidth: 0, padding: '0 4px', borderRadius: 8, border: `1px solid ${C.border2}`, background: 'transparent', color: C.text2, fontSize: 13, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }
+  const showBack = side === 'back' || side === 'brand'
+  const isBrand = side === 'brand'
+  const collectBack = Boolean(c.moment && c.id) && !legacy
+  const backSrc = (w) => (isBrand ? backFaceUrl(c, 'brand', w) : collectBack ? backFaceUrl(c, 'stats', w) : backUrl(who.sport, who.id).replace('w=720', `w=${w}`))
   const pHref = who.id != null && who.id !== '' ? playerHref(who.sport, who.id) : null
   const gHref = c.game ? gameHref(who.sport, c.game) : null
   const tHref = c.team ? teamHref(who.sport, c.team) : null
@@ -50,7 +56,7 @@ export default function CardSheet({ c, sport = null, id = null, name = '', onClo
         </div>
         <div style={{ position: 'relative', width: `min(100%, calc((100dvh - 250px) * 0.714))`, minWidth: 220, aspectRatio: '5 / 7', borderRadius: 14, overflow: 'hidden', background: C.bg3 }}>
           {showBack && !badBack
-            ? <img key="back" src={backUrl(who.sport, who.id)} alt={`${who.name || 'Player'}: the stat-table back of his card`} onError={() => setBadBack(true)} onClick={() => setSide('front')} style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain', cursor: 'pointer' }} />
+            ? <img key={`back-${side}-${collectBack}`} src={backSrc(720)} alt={isBrand ? 'The CALLED IT back of the card' : `${who.name || 'Player'}: the stat-table back of his card`} onError={() => { if (!isBrand && collectBack) setLegacy(true); else setBadBack(true) }} onClick={() => setSide('front')} style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain', cursor: 'pointer' }} />
             : !showBack
               ? <img key="front" src={specialUrl(c, 720)} alt={`${who.name || 'Player'}: ${c.kicker}, a ${c.tierWord} card`} onLoad={() => setLoaded((l) => ({ ...l, f: true }))} onClick={() => { setBadBack(false); setSide('back') }} style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain', opacity: loaded.f ? 1 : 0, transition: 'opacity .2s', cursor: 'pointer' }} />
               : null}
@@ -61,9 +67,10 @@ export default function CardSheet({ c, sport = null, id = null, name = '', onClo
           ) : null}
         </div>
         <div style={{ display: 'flex', gap: 8, width: '100%' }}>
-          <button type="button" aria-pressed={!showBack} onClick={() => setSide('front')} style={{ ...btn, color: !showBack ? accent : C.text2, borderColor: !showBack ? accent : C.border2 }}>Moment card</button>
-          <button type="button" aria-pressed={showBack} onClick={() => { setBadBack(false); setSide('back') }} style={{ ...btn, color: showBack ? accent : C.text2, borderColor: showBack ? accent : C.border2 }}>Stat table</button>
-          <button type="button" onClick={() => downloadCard(showBack ? backUrl(who.sport, who.id).replace('w=720', 'w=1080') : specialUrl(c, 1080), `${slug(who.name, 'player')}-${slug(c.moment)}_${stamp(c.day)}${showBack ? '-back' : ''}.png`)} aria-label="Save this card as a picture" style={btn}>{'\u{1F4F8} Save'}</button>
+          <button type="button" aria-pressed={!showBack} onClick={() => setSide('front')} style={{ ...btn, color: !showBack ? accent : C.text2, borderColor: !showBack ? accent : C.border2 }}>Front</button>
+          <button type="button" aria-pressed={side === 'back'} onClick={() => { setBadBack(false); setSide('back') }} style={{ ...btn, color: side === 'back' ? accent : C.text2, borderColor: side === 'back' ? accent : C.border2 }}>Stat table</button>
+          {c.moment && c.id ? <button type="button" aria-pressed={isBrand} onClick={() => { setBadBack(false); setSide('brand') }} style={{ ...btn, color: isBrand ? accent : C.text2, borderColor: isBrand ? accent : C.border2 }}>Card back</button> : null}
+          <button type="button" onClick={() => downloadCard(showBack ? backSrc(1080) : specialUrl(c, 1080), `${slug(who.name, 'player')}-${slug(c.moment)}_${stamp(c.day)}${isBrand ? '-calledit' : showBack ? '-back' : ''}.png`)} aria-label="Save this card as a picture" style={btn}>{'\u{1F4F8} Save'}</button>
         </div>
         {stamps.length ? (
           <div data-stamps style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>

@@ -27,7 +27,12 @@ const WORDS = {
   mlb: { unit: 'home run', both: 'Both homered', lead: 'hitters', day: 'day' },
   nhl: { unit: 'goal', both: 'Both scored', lead: 'skaters', day: 'day' },
   nfl: { unit: 'touchdown', both: 'Both scored', lead: 'players', day: 'week' },
+  // BUCKETS builds its own file from our graded games (lib/nba/pairHistory.js): its title, its active rule and its empty / missing words
+  nba: { unit: '25-point game', both: 'Both 25+', lead: 'players', day: 'day', own: true, title: 'Pair history',
+    active: 'Only active players are counted: a game inside the last 3 weeks of graded games on file.',
+    missing: 'Pair history is unavailable right now. It is counted from our own graded games and loads from BUCKETS.' },
 }
+const ACTIVE = 'Only active players are counted: on a current roster, and a regular this season, or in at least 3 of the last 4 seasons.'
 
 export default function PairHistV2Table({ sport = 'mlb', onOpenPlayer = null, accent = null, id = 'pairhist-v2' }) {
   const { C, NUM_FONT } = useSportTheme()
@@ -51,12 +56,12 @@ export default function PairHistV2Table({ sport = 'mlb', onOpenPlayer = null, ac
   const seasons = file?.seasons_covered || []
 
   const whatIsThis = () => explain('Pair history', file?.definition
-    ? `${file.definition} Only active players are counted: on a current roster, and a regular this season, or in at least 3 of the last 4 seasons. Rate is both-${W.unit}s games over joint games. Expected is what the two players' own rates would give if they were unrelated; Lift is the pair's actual count over that, so near 1.0 means no more than coincidence.`
+    ? `${file.definition} ${W.active || ACTIVE} Rate is both-${W.unit}s games over joint games. Expected is what the two players' own rates would give if they were unrelated; Lift is the pair's actual count over that, so near 1.0 means no more than coincidence.`
     : `Two ${W.lead} who each had a ${W.unit} on the same day. Only active players, four seasons.`)
 
   const head = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
-      <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: C.text }}>Pair history, four seasons</h2>
+      <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: C.text }}>{W.title || 'Pair history, four seasons'}</h2>
       <button type="button" onClick={whatIsThis} aria-label="What is pair history?"
         style={{ minWidth: 44, minHeight: 44, border: 0, background: 'transparent', color: hue, font: `800 14px/1 ${NUM_FONT}`, cursor: 'pointer' }}>(?)</button>
     </div>
@@ -65,12 +70,23 @@ export default function PairHistV2Table({ sport = 'mlb', onOpenPlayer = null, ac
   if (file === undefined) {
     return <section id={id}>{head}<div style={{ color: C.text3, fontSize: 12, padding: '8px 0' }}>Loading pair history…</div></section>
   }
+  // BUCKETS builds this from its own graded games: before the first graded night the file is valid and empty
+  if (W.own && file && !file.pairs.length && !(file.seasons_covered || []).length) {
+    return (
+      <section id={id}>
+        {head}
+        <div role="status" style={{ border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 18, color: C.text3, fontSize: 12, lineHeight: 1.5 }}>
+          Pair history builds as the season plays: it is counted from our own graded games, and none is graded yet.
+        </div>
+      </section>
+    )
+  }
   if (!file) {
     return (
       <section id={id}>
         {head}
         <div role="status" style={{ border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 18, color: C.text3, fontSize: 12, lineHeight: 1.5 }}>
-          Four-season pair history is not published yet. It appears here when we have built pairhist_v2_{sport}.json.
+          {W.missing || <>Four-season pair history is not published yet. It appears here when we have built pairhist_v2_{sport}.json.</>}
         </div>
       </section>
     )
@@ -109,7 +125,11 @@ export default function PairHistV2Table({ sport = 'mlb', onOpenPlayer = null, ac
             color: sameGame ? C.bg : C.text2, font: `700 12px/1 ${NUM_FONT}`, cursor: 'pointer' }}>Same game only</button>
       </div>
       {all.length === 0 ? (
-        <div style={{ color: C.text3, fontSize: 12, padding: '10px 0' }}>No pair matches.</div>
+        <div style={{ color: C.text3, fontSize: 12, padding: '10px 0' }}>
+          {!file.pairs.length && file.thresholds
+            ? `No pair has reached ${file.thresholds.min_joint_days} joint games and ${file.thresholds.min_joint_event_days} joint ${W.unit} days yet. This builds as the season plays.`
+            : 'No pair matches.'}
+        </div>
       ) : (
         <DenseTable
           rows={rows}

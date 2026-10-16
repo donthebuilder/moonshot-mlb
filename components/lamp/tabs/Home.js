@@ -112,7 +112,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
         accent={C.ice} grad={[C.ice, C.teal]} headingLevel="h2" theme={C}
       >
         {games.length > 0 && (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div className="hero-stats-touch" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <HeroStat theme={C} numFont={NUM_FONT} label="GAMES" value={games.length} title="Games on the day." />
             {firstDrop && <HeroStat theme={C} numFont={NUM_FONT} label="FIRST PUCK DROP" value={fmtPuckDrop(firstDrop)} sub={zoneAbbrev()} title="The first puck drop of the day." />}
             {boardGames.length > 0 && <HeroStat theme={C} numFont={NUM_FONT} label="LOCKED" value={`${lockedN}/${boardGames.length}`} col={allLocked ? C.teal : C.text} title="Games whose board has locked before puck drop." />}
@@ -143,14 +143,14 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
           One line, the pages' own names from the registry. */}
       <nav aria-label="Players, goalies and teams" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: -6 }}>
         {['players', 'goalies', 'teams'].map((k) => (
-          <button key={k} type="button" onClick={() => setTab?.(k)} style={link}>{NHL_NAV[k].icon} {NHL_NAV[k].label} ›</button>
+          <button key={k} type="button" className="tap-box" onClick={() => setTab?.(k)} style={link}>{NHL_NAV[k].icon} {NHL_NAV[k].label} ›</button>
         ))}
       </nav>
 
       <section aria-label="Tonight's board">
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
           <Kicker>THE BOARD · ONE CALLED PER TEAM</Kicker>
-          <button type="button" onClick={() => setTab?.('fullboard')} style={link}>Full board ›</button>
+          <button type="button" className="tap-box" onClick={() => setTab?.('fullboard')} style={link}>Full board ›</button>
         </div>
         {board.loading && !board.data ? <Loading what="the board" /> : null}
         {board.data && boardGames.length === 0 && <EmptyState title="NO BOARD TONIGHT" note="No games, so nothing to call." />}
@@ -188,7 +188,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
             <Kicker>{date ? 'GAMES' : 'TONIGHT’S GAMES'}</Kicker>
             {(day?.gameTypes || []).map((t) => <span key={t} style={{ marginBottom: 6 }}><GameTypeChip label={t === 1 ? 'PRESEASON' : t === 2 ? 'REGULAR SEASON' : 'PLAYOFFS'} /></span>)}
           </div>
-          <button type="button" onClick={() => setTab?.('scores')} style={link}>All scores ›</button>
+          <button type="button" className="tap-box" onClick={() => setTab?.('scores')} style={link}>All scores ›</button>
         </div>
         <DelayedBanner error={scores.error} what="the scores" />
         {scores.loading && !day ? <Loading what="tonight’s games" /> : null}
@@ -227,7 +227,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
       <section aria-label="Division leaders">
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
           <Kicker>DIVISION LEADERS{standings.data?.seasonLabel ? ` · ${standings.data.seasonLabel}${standings.data.stale ? ' FINAL' : ''}` : ''}</Kicker>
-          <button type="button" onClick={() => setTab?.('standings')} style={link}>Full standings ›</button>
+          <button type="button" className="tap-box" onClick={() => setTab?.('standings')} style={link}>Full standings ›</button>
         </div>
         {standings.data?.stale && (
           <div style={{ color: C.text3, fontSize: 11, margin: '0 0 8px', lineHeight: 1.5 }}>

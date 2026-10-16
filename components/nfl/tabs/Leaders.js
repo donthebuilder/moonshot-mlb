@@ -98,7 +98,7 @@ function meta(top) {
   const tag = injuryTag(top._raw)
   return (
     <>
-      <TeamTap abbr={top._raw.team}><NflTeamMark abbr={top._raw.team} style={{ verticalAlign: 'middle' }} /></TeamTap> · {top._raw.position}
+      <TeamTap abbr={top._raw.team}><NflTeamMark abbr={top._raw.team} variant="logo" px={18} /></TeamTap> · {top._raw.position}
       {tag && <b title={injuryTitle(tag)} style={{ color: injuryColor(tag, C), marginLeft: 5 }}>{tag}</b>}
     </>
   )
@@ -246,6 +246,7 @@ export default function Leaders({ data, onPlayerClick }) {
             key={sortKey}
             {...withNflFullSet(rows, columns)}
             onRowClick={onPlayerClick}
+            nameCell="player" faceOf={(r) => (r._raw?.espn_id ? { sport: 'nfl', espnId: String(r._raw.espn_id), team: r._raw.team, name: r._raw.name } : null)}
             initialSort={sortKey}
             maxHeight={620}
             caption={`Per-game rates over the trailing window, players on bye excluded. Sample: Full hides the rows flagged low-sample, because a rate on one or two games belongs to nobody. A category needs ${MIN_QUALIFIED} players with a number to get a tile and a column; one we don't carry is left out rather than shown empty.`}

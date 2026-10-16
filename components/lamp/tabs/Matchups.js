@@ -1,6 +1,7 @@
 'use client'
 import SiteTeamMark from '../../TeamMark'
 import Tap from '../../Tap'
+import { nhlNickname } from '../../../lib/nhl/teams'
 import { useEffect, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import LampTable from '../LampTable'
@@ -71,7 +72,7 @@ function Detail({ row, league, date = null, onOpenPlayer, onOpenTeam = null }) {
       <div>
         <Kicker>POWER PLAY vs PENALTY KILL</Kicker>
         <p style={{ margin: '0 0 8px', fontSize: 12.5, color: C.text2, lineHeight: 1.5 }}>
-          <Tap onClick={onOpenTeam ? () => onOpenTeam(row.opp) : null}><b style={{ color: C.text }}>{row.opp}</b></Tap>&apos;s power play ({pct(row.oppPp)}, {ord(row.oppPpRank)}) against <Tap onClick={onOpenTeam ? () => onOpenTeam(row.def) : null}><b style={{ color: C.text }}>{row.def}</b></Tap>&apos;s penalty kill ({pct(row.pk)}, {ord(row.pkRank)}){edge ? `: ${edge}.` : '.'}
+          <Tap onClick={onOpenTeam ? () => onOpenTeam(row.opp) : null}><SiteTeamMark sport="nhl" abbr={row.opp} variant="logo" px={16} style={{ verticalAlign: '-3px', marginRight: 4 }} /><b style={{ color: C.text }}>{nhlNickname(row.opp)}</b></Tap> power play ({pct(row.oppPp)}, {ord(row.oppPpRank)}) against <Tap onClick={onOpenTeam ? () => onOpenTeam(row.def) : null}><SiteTeamMark sport="nhl" abbr={row.def} variant="logo" px={16} style={{ verticalAlign: '-3px', marginRight: 4 }} /><b style={{ color: C.text }}>{nhlNickname(row.def)}</b></Tap> penalty kill ({pct(row.pk)}, {ord(row.pkRank)}){edge ? `: ${edge}.` : '.'}
         </p>
         <BarList theme={C} numFont={NUM_FONT} accent={C.ice} labelWidth={120} items={[
           { key: 'pp', label: `${row.opp} power play`, pct: ppScale(row.oppPp), text: pct(row.oppPp), tick: league.pp != null ? ppScale(league.pp) : null },
@@ -163,7 +164,7 @@ export default function Matchups({ date = null, onOpenPlayer, onOpenTeam = null 
         <>
           <div style={{ fontSize: 12.5, color: C.text2, lineHeight: 1.5 }}>
             {lastSeason ? <b style={{ color: C.amber, fontFamily: NUM_FONT, letterSpacing: '.04em' }}>LAST SEASON&apos;S NUMBERS · </b> : null}
-            Softest: <Tap onClick={onOpenTeam ? () => onOpenTeam(lead.def) : null}><b style={{ color: C.text }}>{lead.def}</b></Tap>, {lead.gaPg ?? '—'} goals allowed a game{league.gaPg != null ? ` (league ${league.gaPg})` : ''}, penalty kill {pct(lead.pk)} {ord(lead.pkRank)}{lead.called[0] ? <>; <Tap onClick={onOpenPlayer ? () => onOpenPlayer(lead.called[0].playerId) : null}><b style={{ color: C.text }}>{lead.called[0].name}</b></Tap> leads {lead.opp}&apos;s called skaters</> : null}.
+            Softest: <Tap onClick={onOpenTeam ? () => onOpenTeam(lead.def) : null}><SiteTeamMark sport="nhl" abbr={lead.def} variant="logo" px={16} style={{ verticalAlign: '-3px', marginRight: 4 }} /><b style={{ color: C.text }}>{nhlNickname(lead.def)}</b></Tap>, {lead.gaPg ?? '—'} goals allowed a game{league.gaPg != null ? ` (league ${league.gaPg})` : ''}, penalty kill {pct(lead.pk)} {ord(lead.pkRank)}{lead.called[0] ? <>; <Tap onClick={onOpenPlayer ? () => onOpenPlayer(lead.called[0].playerId) : null}><b style={{ color: C.text }}>{lead.called[0].name}</b></Tap> leads {lead.opp}&apos;s called skaters</> : null}.
           </div>
           <LampTable rows={tableRows} columns={columns} heatMode="primary" maxRows={PREVIEW} maxHeight={9999}
             rowEdge={(r) => (r.def === active?.def ? C.ice : null)}

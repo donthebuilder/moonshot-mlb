@@ -2,6 +2,7 @@
 import { useTeamNav } from '../lib/teamNav'
 import DenseTable from './DenseTable'
 import Tap from './Tap'
+import { MatchLogos } from './TeamMark'
 import { useEffect, useMemo, useState } from 'react'
 import PageHeader from './PageHeader'
 import HelpTip from './HelpTip'
@@ -148,7 +149,7 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
         return (
           <section key={g.game_id} aria-label={`${g.away} at ${g.home}`} style={{ border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2, padding: '10px 12px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-              <Tap onClick={onOpenGame && (() => onOpenGame(g.game_id, g))}><b style={{ color: C.text, fontSize: 14, fontFamily: numFont }}>{g.away} @ {g.home}</b></Tap>
+              <Tap onClick={onOpenGame && (() => onOpenGame(g.game_id, g))}><b style={{ color: C.text, fontSize: 14, fontFamily: numFont }}>{g.away && g.home ? <MatchLogos sport={sport} away={g.away} home={g.home} px={20} gap={6} /> : `${g.away} @ ${g.home}`}</b></Tap>
               <span style={{ color: g.state === 'live' ? accent : C.text3, fontSize: 11, fontFamily: numFont }}>{g.state === 'live' ? 'LIVE' : g.state === 'final' ? 'FINAL' : timeOf(g.start)}</span>
               <span style={{ marginLeft: 'auto', color: C.text3, fontSize: 11 }}>{rows.length} {rows.length === 1 ? 'story' : 'stories'}</span>
             </div>

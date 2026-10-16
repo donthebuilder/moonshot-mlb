@@ -2,6 +2,8 @@
 import { useId } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { nflTones } from '../../lib/nfl/teamColors'
+import { nflNickname } from '../../lib/nfl/teams'
+import { nflTeamLogo } from '../../lib/nfl/nflAssets'
 import { SIDES, DEPTHS, LANES } from '../../lib/nfl/fieldModel'
 
 // THE BROADCAST FIELD (2026-10-06, Donovan: "it just looks wack, give it some real
@@ -45,7 +47,19 @@ function Turf({ h, ez, ezName, id, rush }) {
           <>
             <rect x="0" y="0" width={W} height={EZ} fill={`color-mix(in srgb, ${col} 72%, ${C.bg})`} />
             <line x1="0" x2={W} y1={EZ} y2={EZ} stroke={C.text} strokeWidth="2" opacity="0.9" />
-            <text x={W / 2} y={EZ / 2 + 7} textAnchor="middle" fontSize="19" fontWeight="900" fontFamily={NUM_FONT} letterSpacing="3" fill={C.text} style={OUTLINE}>{ezName}</text>
+            {/* the end zone names the club the way the site does everywhere: its LOGO, then the nickname (2026-10-15; was the bare code "SEA" in letters) */}
+            {(() => {
+              const nick = nflNickname(ezName)
+              const logo = nflTeamLogo(ezName, 28)
+              const w = (logo ? 34 : 0) + nick.length * 15
+              const x0 = (W - w) / 2
+              return (
+                <>
+                  {logo && <image href={logo} x={x0} y={(EZ - 28) / 2} width="28" height="28"><title>{ezName}</title></image>}
+                  <text x={x0 + (logo ? 34 : 0)} y={EZ / 2 + 7} textAnchor="start" fontSize="19" fontWeight="900" fontFamily={NUM_FONT} letterSpacing="3" fill={C.text} style={OUTLINE}>{nick}</text>
+                </>
+              )
+            })()}
           </>
         )}
       </g>

@@ -430,7 +430,7 @@ export function SpotlightControl({ players = [] }) {
 
   return (
     <div style={{ position: 'relative' }}>
-      <button onClick={() => setOpen((v) => !v)} title={active
+      <button className="tap-box" onClick={() => setOpen((v) => !v)} title={active
         ? `Highlights on: ${live.map((l) => l.name).join(', ')} — matches wash in their colors on every board`
         : 'Build named highlights (e.g. "Pure power": Barrel% ≥ 10 and LD% ≥ 30) — matches wash in that color, site-wide'}
         style={{

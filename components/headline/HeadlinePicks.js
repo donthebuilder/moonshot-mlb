@@ -134,7 +134,7 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
                     )}
                   </div>
                   {whyShown && (lead.why || lead.watch) && (
-                    <button type="button"
+                    <button type="button" className="hp-why"
                       onClick={() => explain(lead.explain?.label || lead.name, lead.explain?.text || [lead.why, lead.watch].filter(Boolean).join(' · '))}
                       aria-label={`Why ${lead.name}: ${[lead.why, lead.watch && `watch: ${lead.watch}`].filter(Boolean).join('; ')}`}
                       style={{

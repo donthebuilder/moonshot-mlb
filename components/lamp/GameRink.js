@@ -4,6 +4,7 @@ import Rink from './Rink'
 import { ZONES } from './ShotPanel'
 import FlatStage, { StageSeg, StageLens } from '../charts/FlatStage'
 import TeamMark from '../TeamMark'
+import { nhlNickname } from '../../lib/nhl/teams'
 import { useIsPhone } from '../MobileFold'
 import { useLampShots } from '../../lib/nhl/useLamp'
 import { stampLine } from '../../lib/nhl/shotStamp'
@@ -60,7 +61,7 @@ export default function GameRink({ game }) {
   const shots = m.recent
   return (
     <FlatStage theme={C} numFont={NUM_FONT} accent={C.ice} label={`${att.abbrev} attacking ${def.abbrev}: shot zones`} kicker="THE RINK" right={lens === 'attack' ? 'WHERE THEY SHOOT' : 'WHAT THEY ALLOW'}
-      lead={mark(att.abbrev, 24)} title={`${att.abbrev} attacking ${def.abbrev}`} mark={mark(att.abbrev, 120)} sentence={sentence}
+      lead={mark(att.abbrev, 24)} title={`${nhlNickname(att.abbrev)} attacking ${nhlNickname(def.abbrev)}`} mark={mark(att.abbrev, 120)} sentence={sentence}
       tiles={[
         { label: `${att.abbrev} SLOT`, big: pct(atM?.slotShare), pct: atM?.slotShare != null ? atM.slotShare * 100 : null, hot: true, line: 'of shots on net' },
         { label: `${def.abbrev} ALLOW`, big: pct(dfM?.slotShare), pct: dfM?.slotShare != null ? dfM.slotShare * 100 : null, line: 'from the slot' },
@@ -77,7 +78,7 @@ export default function GameRink({ game }) {
           </div>
         )}
         <StageSeg {...th} label="Which club has the puck" value={side} onChange={(v) => { setSide(v); setTap(null) }}
-          items={[['away', `${game.away.abbrev} attacking`, mark(game.away.abbrev, 22)], ['home', `${game.home.abbrev} attacking`, mark(game.home.abbrev, 22)]]} />
+          items={[['away', 'attacking', mark(game.away.abbrev, 22)], ['home', 'attacking', mark(game.home.abbrev, 22)]]} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'space-between' }}>
           <div style={{ flex: '0 1 220px', minWidth: 190 }}><StageSeg {...th} label="Shot window" value={win} onChange={setWin} items={WINDOWS} /></div>
           <StageLens {...th} items={LENS} value={lens} onChange={(v) => { setLens(v); setTap(null) }} word="SHOWING" />

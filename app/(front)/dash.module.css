@@ -67,10 +67,10 @@ a.brand { text-decoration: none; color: inherit; }
 .brand small { display: block; color: var(--mlb); font: 900 7px/1 monospace; letter-spacing: .16em; }
 .brand strong { display: block; margin-top: 4px; font: 900 12px/1 monospace; letter-spacing: .08em; }
 .barNav { display: flex; align-items: center; gap: 14px; }
-.barNav a { display: inline-flex; align-items: center; min-height: 40px; color: var(--dim); font-size: 12px; text-decoration: none; }
+.barNav a { display: inline-flex; align-items: center; min-height: 44px; color: var(--dim); font-size: 12px; text-decoration: none; }
 .barNav a:hover { color: var(--ink); }
 .barCta, .barNav form button {
-  display: inline-flex; align-items: center; min-height: 40px;
+  display: inline-flex; align-items: center; min-height: 44px;
   padding: 8px 14px; border: 1px solid var(--line); border-radius: 9px;
   background: #191817; color: var(--ink); font: 800 11px/1 monospace; letter-spacing: .06em; cursor: pointer;
 }

@@ -229,7 +229,8 @@ export default function DenseTable({
   // ✨ THE TAP HIGHLIGHT (2026-09-30, lib/pickLight.js): names tapped on the
   // numerology chips (any product) stay lit here too, worn as one more light.
   // It wins the row over a Spotlight rule (resolved below).
-  const pick = usePickLight(useSport())
+  const tableSport = useSport()   // a team / opponent code in a text cell draws as this sport's logo (v2 teamCodeOf)
+  const pick = usePickLight(tableSport)
   const railRef = useRef(null)
 
   // 📖 TAP A HEADER'S ⓘ FOR WHAT THE COLUMN MEANS (2026-08-09).
@@ -414,6 +415,6 @@ export default function DenseTable({
     heatMode, ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
     explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
     truncated, maxRows, moreStep, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
-    capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam: teamNav, injuryLayer, nameCell, compactPhoneRow,
+    capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam: teamNav, sport: tableSport, injuryLayer, nameCell, compactPhoneRow,
   })
 }

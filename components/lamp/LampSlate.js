@@ -25,6 +25,7 @@ import { expectedClause } from '../../lib/expectedLine'
 import { STATUS_WORD } from '../../lib/callStatus'
 import { EmptyState, DelayedBanner, Loading, StaleSeasonNote, fmtPuckDrop, zoneAbbrev, shiftDay, fmtDay } from './ui'
 import TeamMark from '../TeamMark'
+import { nhlNickname } from '../../lib/nhl/teams'
 import ShareCardButton from '../card/ShareCardButton'
 import GameTotalLine, { GameTotalMark, totalRowFor, useGameTotals } from '../GameTotalLine'
 import { shareUrl, slug, stamp } from '../../lib/cards/saveCard'
@@ -232,8 +233,9 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
                       return (
                         <div key={att} style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 12px 0', minWidth: 0 }}>
                           <div style={{ marginBottom: 10 }}>
-                            <Tap onClick={onOpenTeam && (() => onOpenTeam(att))} title={att}><span style={{ fontSize: 18, fontWeight: 900, fontFamily: NUM_FONT, color: C.text }}>{att}</span></Tap>
-                            <span style={{ color: C.text3, fontSize: 13, marginLeft: 8 }}>attacking {def}{rest ? ` · rest: ${rest.toLowerCase()}` : ''}</span>
+                            {/* the club is its logo + short name (2026-10-15; was the bare code "TOR attacking MTL") */}
+                            <Tap onClick={onOpenTeam && (() => onOpenTeam(att))} title={att}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 18, fontWeight: 900, fontFamily: NUM_FONT, color: C.text }}><TeamMark sport="nhl" abbr={att} variant="logo" px={24} />{nhlNickname(att)}</span></Tap>
+                            <span style={{ color: C.text3, fontSize: 13, marginLeft: 8 }}>attacking <TeamMark sport="nhl" abbr={def} variant="logo" px={16} style={{ verticalAlign: '-3px' }} /> {nhlNickname(def)}{rest ? ` · rest: ${rest.toLowerCase()}` : ''}</span>
                           </div>
                           <FactTiles theme={C} numFont={NUM_FONT} big min={130} tiles={[
                             { k: XG_LABEL, v: rows1(sideOf(g, att)?.goals), sub: sideOf(g, att) ? (g.proj.source === 'xg' ? 'from shots' : 'from goals a game') : null },

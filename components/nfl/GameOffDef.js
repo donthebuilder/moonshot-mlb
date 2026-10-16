@@ -8,6 +8,7 @@ import { STATUS_INFO, BLOCKS } from '../../lib/injuries/statuses'
 import { injuryTag, isOut } from '../../lib/nfl/injury'
 import { placeOffense, placeDefense, whoInZone, basisNote } from '../../lib/nfl/whoLines'
 import TeamMark from '../TeamMark'
+import { nflNickname } from '../../lib/nfl/teams'
 import BroadcastField from './BroadcastField'
 import FlatStage, { StageSeg, StageLens } from '../charts/FlatStage'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
@@ -158,7 +159,7 @@ export default function GameOffDef({ matchup, players, game, onPlayerClick = nul
   )
   return (
     <FlatStage theme={C} numFont={NUM_FONT} accent={C.green} label={`${off} offense against ${def} defense`} kicker="THE FIELD" right={pass ? 'PASSING' : 'RUNNING'}
-      lead={edge(off)} title={`${off} attacking ${def}`} mark={edge2(off, 120)}
+      lead={edge(off)} title={`${nflNickname(off)} attacking ${nflNickname(def)}`} mark={edge2(off, 120)}
       sentence={<>{sentence.a}{sentence.b && <b style={{ fontWeight: 900, color: C.green }}>{sentence.b}</b>}{sentence.c}{sentence.detail ? ` ${sentence.detail}` : ''}</>}
       tiles={[
         { label: `${off} BUSIEST`, big: offTop?.share != null ? pct(offTop.share) : '—', pct: offTop?.share != null && gf.maxShare > 0 ? (100 * offTop.share) / gf.maxShare : null, hot: Boolean(ring && offTop && ring.z === offTop.z), line: offTop?.share != null ? `of ${unit}s: ${offTop.where}` : 'no data yet' },
@@ -170,7 +171,7 @@ export default function GameOffDef({ matchup, players, game, onPlayerClick = nul
       controls={<>
         {zoneWho}
         <StageSeg {...th} label="Which team has the ball" value={side} onChange={(v) => { setSide(v); setZonePick(null); onDefend?.(v === 'away' ? game.home : game.away) }}
-          items={[['away', `${game.away} attacking`, edge(game.away)], ['home', `${game.home} attacking`, edge(game.home)]]} />
+          items={[['away', 'attacking', edge(game.away)], ['home', 'attacking', edge(game.home)]]} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'space-between' }}>
           <div style={{ flex: '0 1 220px', minWidth: 190 }}>
             <StageSeg {...th} label="Passing or running" value={pass ? 'pass' : 'run'} onChange={(k) => { setPass(k === 'pass' || !rushable); setZonePick(null) }}

@@ -283,7 +283,7 @@ export function renderV2(ctx) {
     heatMode = 'full', ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
     explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
     truncated, maxRows, moreStep = 0, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
-    capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam = null, injuryLayer = null,
+    capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam = null, sport = null, injuryLayer = null,
     adding = false, setAdding = () => {}, tierSig = null, phone = false, nameCell = null, compactPhoneRow = false,
   } = ctx
   const ordered = noGroups ? rawColumns.map((c) => ({ ...c, group: null })) : orderByGroup(rawColumns)
@@ -541,7 +541,7 @@ export function renderV2(ctx) {
                     </td>
                   )
                 }
-                if (logoOf(c) && v && v !== '—') {
+                if (logoOf(c) && v && v !== '—' && !/^tie$/i.test(String(v))) {   // a tied meeting (h2h Winner) has no club to draw
                   const mark = <TeamMark sport={logoOf(c)} abbr={v} variant="logo" px={18} />   // 14 -> 18 (10-03: "logos need to be bigger")
                   // `code` (fix5-nflgame, 10-06): a one-game table names the club beside its logo
                   const markCode = c.code ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{mark}<span style={{ fontSize: 12, fontWeight: 700, color: 'inherit' }}>{String(v)}</span></span> : mark
@@ -550,6 +550,15 @@ export function renderV2(ctx) {
                   return <td key={c.key} className={cls(c, 'txt')} title={String(v)} style={{ ...pin, ...(bgTint || {}) }}>{open ? <Tap onClick={open}>{markCode}</Tap> : markCode}</td>
                 }
                 const content = c.fmt ? c.fmt(v, r) : (v ?? '—')
+                // A TEAM / OPPONENT CODE IN A TEXT CELL IS THE CLUB'S LOGO (2026-10-15, Donovan 10-02 / 10-14: a club is its
+                // logo, never "TB" in text). One rule for every sport's Opp / Vs / Team column: the code rides the logo's
+                // title / alt, LAMP's "@BUF" keeps a quiet "@", and the cell stays the club's link (the column's own, else the team door).
+                const clubCode = !isName && c.key !== 'role' && typeof content !== 'object' && sport ? teamCodeOf(c.key, content) : null
+                if (clubCode) {
+                  const away = /^@/.test(String(content).trim())
+                  const mk = <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, verticalAlign: 'middle' }}>{away ? <span aria-hidden="true" style={{ opacity: 0.5 }}>@</span> : null}<TeamMark sport={sport} abbr={clubCode} variant="logo" px={18} /></span>
+                  return <td key={c.key} className={cls(c, 'txt')} title={clubCode} style={{ ...pin, ...(bgTint || {}) }}>{go ? <Tap onClick={go}>{mk}</Tap> : mk}</td>
+                }
                 if (isName) {
                   const full = String(typeof content === 'string' ? content : (v ?? ''))
                   const long = typeof content === 'string' && !fits(full)
@@ -574,8 +583,8 @@ export function renderV2(ctx) {
                       // phone's called rows still drop it, see the `opp-called` rule in the sheet)
                       const dropOnCalled = called && !firstTeam
                       if (fc.subOnly || !dropOnCalled) {
-                        const withCode = fc.code || fc.subOnly
-                        const mk = withCode ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><TeamMark sport={logoOf(fc)} abbr={fv} variant="logo" px={11} />{String(fv)}</span> : <TeamMark sport={logoOf(fc)} abbr={fv} variant="logo" px={11} />
+                        // the logo alone (2026-10-15: the code printed beside it was a bare club code; it rides the logo's title / alt)
+                        const mk = <TeamMark sport={logoOf(fc)} abbr={fv} variant="logo" px={11} />
                         const goTeam = fc.link ? fc.link(r._raw ?? r) : (onOpenTeam && /^[A-Z]{2,4}$/.test(String(fv)) ? () => onOpenTeam(String(fv)) : null)
                         sub.push(<span key={fc.key} data-vs={firstTeam ? undefined : 1} data-cls={fc.subOnly ? `sub-only${dropOnCalled ? ' opp-called' : ''}` : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>{firstTeam ? null : 'v '}{goTeam ? <Tap onClick={goTeam}>{mk}</Tap> : mk}</span>)
                       }
@@ -587,7 +596,9 @@ export function renderV2(ctx) {
                       const txt = String(fc.fmt ? fc.fmt(fv, r) : fv)
                       if (fc.subOnly || txt.length <= 6) {
                         const goT = fc.link ? fc.link(r._raw ?? r) : (onOpenTeam && teamCodeOf(fc.key, txt) ? () => onOpenTeam(teamCodeOf(fc.key, txt)) : null)
-                        sub.push(<span key={fc.key} data-cls={fc.subOnly ? `sub-only${fc.key === 'opp' && /^[A-Z]{2,4}$/.test(txt) ? ' vs' : ''}` : undefined}>{goT ? <Tap onClick={goT}>{txt}</Tap> : txt}</span>)
+                        const subCode = sport ? teamCodeOf(fc.key, txt) : null   // an opponent / team code is its logo, not text
+                        const shownTxt = subCode ? <TeamMark sport={sport} abbr={subCode} variant="logo" px={11} /> : txt
+                        sub.push(<span key={fc.key} data-cls={fc.subOnly ? `sub-only${fc.key === 'opp' && /^[A-Z]{2,4}$/.test(txt) ? ' vs' : ''}` : undefined}>{goT ? <Tap onClick={goT}>{shownTxt}</Tap> : shownTxt}</span>)
                       }
                     }
                   }

@@ -2,6 +2,7 @@
 import { QMark } from './NflNote'
 import { useState } from 'react'
 import TeamMark from '../TeamMark'
+import { nflNickname } from '../../lib/nfl/teams'
 import PlayerFace from '../PlayerFace'
 import Tap from '../Tap'
 import { Dial } from '../VerdictHero'
@@ -128,7 +129,7 @@ export function KeyPlayers({ matchup, data, game, onPlayerClick, onOpenTeam }) {
     { key: 'share', label: 'Targets', w: 62, dp: 1, primary: true, group: 'WHO GETS THE BALL', fmt: (v) => `${v}%`, title: "His share of his team's targets" },
     { key: 'corner', label: 'Corner', heat: false, w: 120, group: 'THE CORNER HE FACES' },
     { key: 'slot', label: 'Spot', heat: false, w: 84, group: 'THE CORNER HE FACES' },
-    { key: 'def', label: 'Vs', heat: false, w: 44, group: 'THE CORNER HE FACES' },
+    { key: 'def', label: 'Vs', heat: false, w: 44, group: 'THE CORNER HE FACES', teamMark: 'nfl' },
     { key: 'edge', label: 'Edge', heat: false, w: 76, group: 'THE EDGE', title: "The pass defence's edge: how many yards it allows a top receiver, against the league" },
   ]
   return (
@@ -213,7 +214,7 @@ export function ImportantStats({ matchup, data, game: g, onOpenTeam = null }) {
         </div>
       )}
       {soft.map(([def, s]) => (
-        <p key={def} style={{ margin: 0, padding: '8px 0', borderTop: `1px solid ${C.border}`, fontSize: 13, lineHeight: 1.5, color: C.text2 }}><Tap onClick={onOpenTeam && (() => onOpenTeam(def))} title={`Open ${def}`}><b style={{ color: C.text }}>{def}</b></Tap> {softLine(s)}.</p>
+        <p key={def} style={{ margin: 0, padding: '8px 0', borderTop: `1px solid ${C.border}`, fontSize: 13, lineHeight: 1.5, color: C.text2 }}><Tap onClick={onOpenTeam && (() => onOpenTeam(def))} title={`Open ${def}`}><TeamMark sport="nfl" abbr={def} variant="logo" px={16} style={{ verticalAlign: '-3px', marginRight: 4 }} /><b style={{ color: C.text }}>{nflNickname(def)}</b></Tap> {softLine(s)}.</p>
       ))}
       <button type="button" onClick={() => setMore((v) => !v)} aria-expanded={more}
         style={{ minHeight: 44, padding: '0 2px', border: 0, borderTop: `1px solid ${C.border}`, width: '100%', textAlign: 'left', background: 'transparent', color: C.green, font: `800 13px/1 ${NUM_FONT}`, cursor: 'pointer' }}>

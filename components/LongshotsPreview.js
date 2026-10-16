@@ -25,7 +25,7 @@ export default function LongshotsPreview({ sport, theme: C, numFont, accent, onO
       </div>
       {rows.slice(0, max).map((r) => (
         <button key={r.id} type="button" onClick={() => onOpenPlayer?.(r.id)}
-          style={{ display: 'flex', width: '100%', alignItems: 'baseline', gap: 8, textAlign: 'left', padding: '6px 0', background: 'transparent', border: 'none', borderTop: `1px solid ${C.border}`, color: C.text, cursor: 'pointer', font: 'inherit', fontSize: 12, lineHeight: 1.4, minHeight: 0 }}>
+          style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 8, textAlign: 'left', padding: '0', minHeight: 44, background: 'transparent', border: 'none', borderTop: `1px solid ${C.border}`, color: C.text, cursor: 'pointer', font: 'inherit', fontSize: 12, lineHeight: 1.4 }}>
           <b style={{ flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</b>
           <span style={{ color: C.text3, fontSize: 10.5, fontFamily: numFont, flexShrink: 0 }}>{r.team}{r.opp ? ` vs ${r.opp}` : ''}</span>
           {/* a real book's price, not the median of books (2026-10-04 user review #17) */}
@@ -34,7 +34,7 @@ export default function LongshotsPreview({ sport, theme: C, numFont, accent, onO
         </button>
       ))}
       <button type="button" onClick={onSeeAll}
-        style={{ marginTop: 2, padding: '4px 0', background: 'transparent', border: 'none', color: accent, cursor: 'pointer', font: 'inherit', fontSize: 11.5, fontWeight: 700, minHeight: 0 }}>
+        style={{ marginTop: 0, padding: '0', minHeight: 44, background: 'transparent', border: 'none', color: accent, cursor: 'pointer', font: 'inherit', fontSize: 11.5, fontWeight: 700 }}>
         See all {rows.length} longshots ›
       </button>
     </div>
