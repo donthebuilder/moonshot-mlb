@@ -461,3 +461,7 @@ a.brand { text-decoration: none; color: inherit; }
 .quickActions a b { margin-left: 6px; color: var(--mlb); }
 .quickActions .quickCta { background: var(--mlb); color: #0d0c0a; }
 .quickActions .quickCta b { color: inherit; }
+
+.quickLocked { border-style: dashed; background: transparent; }
+.quickLocked b { opacity: .85; }
+.quickLocked span { color: var(--mlb); }
