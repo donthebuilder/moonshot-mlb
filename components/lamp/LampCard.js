@@ -110,7 +110,7 @@ export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen, rank
   return (
     <SportTheme theme={C} accent={C.ice} numFont={NUM_FONT}>
       <RankCard accent={C.ice} status={r.status} rankMove={rankMove} pos={canonPos('nhl', r.pos)} rank={rank} sport="nhl" club={r.team} name={r.name} opp={opp}
-        stampFor={stampArg('nhl', r.playerId, gameDayOf(g.game.startUtc), place)}
+        stampFor={stampArg('nhl', r.playerId, gameDayOf(g.game.startUtc), place)} lockIn={{ key: `${g.game.id}|${r.playerId}`, time: g.game.startUtc, graded: Boolean(g.graded) }}
         face={<PlayerFace sport="nhl" variant="tile" photo={nhlMug(g.game.season, r.team, r.playerId)} team={null} name="" size={84} theme={C} />}
         score={Math.round(r.score ?? 0)} scoreWord="LAMP" explain={SCORE_NOTE[market] || SCORE_NOTE.GOAL}
         reason={r.why && !stats.length ? r.why : null}

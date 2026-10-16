@@ -18,6 +18,7 @@ import { SportTheme } from '../../SportTheme'
 import ShareCardButton from '../../card/ShareCardButton'
 import { shareUrl, stamp } from '../../../lib/cards/saveCard'
 import RankCard from '../../card/RankCard'
+import { useCardLock } from '../../MemberGate'
 import { stampArg, gameDayOf } from '../../card/useStamps'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { ActiveFilters, FilterBar, FilterPill, PositionNote, PositionEmpty } from '../../Filters'
@@ -119,7 +120,9 @@ export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, poo
   const pinned = watchlist.isPinned(p.player_id)
   const aligned = alignedSignals(matchup, p)
   const highConf = Boolean(p.high_confidence_td_flag)
-  const quote = quoteFor(odds, p, MARKET)
+  // MEMBERS (2026-10-16): the TD board's own key and kickoff; a locked card also drops the price (the lock itself is drawn by RankCard)
+  const lockIn = { key: String(p.player_id), time: kickoff }
+  const quote = useCardLock({ status, ...lockIn }).locked ? null : quoteFor(odds, p, MARKET)
   // the back: every component the score is made of, with its percentile
   const backRows = Object.entries(comps).filter(([, v]) => Number.isFinite(Number(v))).map(([k, v]) => ({ label: String(k).replace(/_/g, ' ').toUpperCase(), value: Math.round(Number(v)), pct: Number(v) }))
   // + his share of his club (snap, target, ...): lib/nfl/usageShares.js, the same numbers as the tables' Role & usage columns
@@ -128,7 +131,7 @@ export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, poo
   return (
     <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
       <RankCard accent={C.green} status={status} rankMove={rankMove} pos={p.position || ''} rank={rank} sport="nfl" club={p.team} name={p.name} opp={p.opp} role={roleLabel(p)}
-        stampFor={stampArg('nfl', p.player_id, gameDayOf(kickoff), place)}
+        stampFor={stampArg('nfl', p.player_id, gameDayOf(kickoff), place)} lockIn={lockIn}
         face={<PlayerFace sport="nfl" espnId={p?.espn_id} team={p?.team} name={p?.name} size={84} />}
         score={Number.isFinite(score) ? Math.round(score) : '—'} scoreWord="TUDDY" rankTags={[`GRADE ${g.label}`]}
         explain="The anytime-TD score, 0–100 — a rank against the whole league, not a percentage. The boxes below are the components doing the most work in it."

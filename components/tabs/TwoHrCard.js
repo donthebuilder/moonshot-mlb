@@ -3,7 +3,7 @@ import RankCard from '../card/RankCard'
 import PlayerFace from '../PlayerFace'
 import FollowButton from '../FollowButton'
 import { C } from '../../lib/theme'
-import { nameOf, teamOf, oppOf, mlbId, clean } from '../../lib/player'
+import { nameOf, teamOf, oppOf, mlbId, clean, playerId } from '../../lib/player'
 import { TWO_HR_NOTE } from '../../lib/mlb/twoHrScore'
 
 // THE 2+ HR CARD: RankCard (the baseball-card frame every product's ranked list wears, the frame MOONSHOT's own PlayerCard
@@ -22,6 +22,7 @@ export default function TwoHrCard({ p, rank, status, onClick, rankMove = null })
     <RankCard accent={C.orange} status={status} rankMove={rankMove} pos={clean(p?.handedness || p?.bats, '')} rank={rank} sport="mlb" club={teamOf(p) || null} name={nameOf(p)} opp={oppOf(p) || null}
       role={`Bats ${clean(p?.lineup_spot, '—')}${p?.lineup_confirmed === false ? ' (proj.)' : ''}`}
       face={<PlayerFace sport="mlb" id={mlbId(p)} team={teamOf(p)} name={nameOf(p)} variant="tile" size={84} />}
+      lockIn={{ key: `${playerId(p)}|${p?.game_pk ?? ''}`, time: p?.game_time, graded: p?.graded === true }}
       score={Math.round(p.hr2_score)} scoreWord="2+ HR"
       explain={`The two-homer ranking, 0–100: a rank among tonight's hitters, not a percentage. ${TWO_HR_NOTE}`}
       stats={stats} back={parts.length ? { rows: parts.map((x) => ({ label: x.label.toUpperCase(), value: Math.round(x.pct), pct: x.pct })), note: `Each input 0-100 among tonight's hitters. ${TWO_HR_NOTE}` } : null}

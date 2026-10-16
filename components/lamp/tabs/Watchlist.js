@@ -6,6 +6,7 @@ import FollowingStrip from '../../FollowingStrip'
 import WatchRecord from '../../watch/WatchRecord'
 import AlertsEntry from '../../AlertsEntry'
 import CallStatusBadge from '../../CallStatusBadge'
+import { useCallGate } from '../../MemberGate'
 import LampTable from '../LampTable'
 import Hint from '../Hint'
 import { PositionRow, PositionNote, PositionEmpty, Segmented, LAYOUT_OPTIONS } from '../../Filters'
@@ -58,6 +59,11 @@ export default function Watchlist({ onOpenPlayer }) {
     return { f, r: hit?.r || null, g: hit?.g || null }
   }).sort((a, b) => (b.r?.score ?? -Infinity) - (a.r?.score ?? -Infinity)), [fol.rows, onBoard])
 
+  // MEMBERS LOCK (components/MemberGate.js): the board's own key (game id | skater), puck drop and grade; null for everyone but a free viewer
+  const gateOf = useCallGate({
+    rows: all, statusOf: (x) => x.r?.status, keyOf: (x) => `${x.g?.game?.id}|${x.r?.playerId}`, timeOf: (x) => x.g?.game?.startUtc ?? null,
+    gradedOf: (x) => Boolean(x.g?.graded), rankOf: (x) => x.r?.rank,
+  })
   const pf = usePositionFilter('nhl', all, { posOf: (x) => (x.r?.pos || x.f.position ? canonPos('nhl', x.r?.pos || x.f.position) : null) })
   const rows = useMemo(() => all.filter(pf.test), [all, pf.test])
   const called = all.filter((x) => x.r?.status === 'called').length
@@ -90,7 +96,7 @@ export default function Watchlist({ onOpenPlayer }) {
     { key: 'team', label: 'Tm', w: 34, heat: false, teamMark: 'nhl', fold: true, group: G.player },
     { key: 'opp', label: 'Opp', w: 34, heat: false, teamMark: 'nhl', fold: true, subOnly: true, group: G.game },
     { key: 'status', label: 'Status', heat: false, statusCol: true, w: 64, group: G.call,
-      fmt: (v) => (v ? <CallStatusBadge status={v} accent={C.ice} short /> : <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>NO GAME</span>) },
+      fmt: (v, r) => (v ? <CallStatusBadge status={v} accent={C.ice} short gate={gateOf && r._x ? gateOf(r._x) : null} /> : <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>NO GAME</span>) },
     { key: 'score', label: 'Goal score', w: 56, primary: true, scale: 'seq', domain: [0, 100], group: G.call, title: 'His goal score tonight, 0 to 100: a rank against tonight’s skaters, not a percentage.' },
     { key: 'puck', label: 'Puck drop', w: 84, heat: false, group: G.game, title: 'His game, in your time zone.', fmt: (v) => (v == null ? '—' : fmtPuckDrop(new Date(v).toISOString())) },
   ])

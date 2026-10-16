@@ -9,7 +9,7 @@
 // rule (lib/callStatus, tdCallStatus, scoreNight); this only says which already-CALLED labels are drawn as the lock.
 import { createContext, useContext, useEffect, useMemo, useSyncExternalStore } from 'react'
 import { useDashAccount } from '../lib/dash/sync'
-import { memberStateOf, freeCalledKeys, startedAt, cardGate } from '../lib/members/gate'
+import { memberStateOf, freeCalledKeys, startedAt, cardGate, storyLockKey } from '../lib/members/gate'
 import { membersUrl } from '../lib/members'
 import { etToday } from '../lib/freshness'
 
@@ -78,6 +78,34 @@ export function useCardLock({ status, key, time, graded = false, slateDate = nul
   const memberState = useMemberState()
   const free = useFreeKeys()
   return cardGate({ status, time, graded, key, free, memberState, slateIsToday: !slateDate || slateDate === etToday() })
+}
+
+/**
+ * THE SAME RULE FOR A LIST (2026-10-16): a function ({ status, key, time, graded, slateDate }) -> { locked, gate }, for a list that prints a run of names and
+ * cannot call a hook per name. It reads the viewer and the boards' free four exactly as useCardLock does.
+ */
+export function useLockOf() {
+  const memberState = useMemberState()
+  const free = useFreeKeys()
+  return (x) => cardGate({ status: x.status, time: x.time, graded: Boolean(x.graded), key: x.key, free, memberState, slateIsToday: !x.slateDate || x.slateDate === etToday() })
+}
+
+/**
+ * STORYLINES (2026-10-16): lockIn(story) -> { key, time, graded, slateDate } for CallStatusBadge's lockIn, from the story's game. The free taste is counted over the
+ * stories' CALLED men (one per man, best board place first) and published like any board's, so the page agrees with the tables.
+ */
+export function useStoryLock({ sport, stories, games, date = null }) {
+  const gameOf = useMemo(() => new Map((games || []).map((g) => [String(g.game_id), g])), [games])
+  const lockIn = (s) => {
+    const g = gameOf.get(String(s.game_id))
+    return { key: storyLockKey(sport, s.player_id, s.game_id), time: g?.start ?? null, graded: g?.state === 'final', slateDate: date }
+  }
+  useCallGate({
+    rows: () => (stories || []).filter((s) => s.board?.status === 'called'), source: stories, slateDate: date,
+    statusOf: (s) => s.board?.status, keyOf: (s) => storyLockKey(sport, s.player_id, s.game_id), timeOf: (s) => gameOf.get(String(s.game_id))?.start ?? null,
+    gradedOf: (s) => gameOf.get(String(s.game_id))?.state === 'final', rankOf: (s) => s.board?.rank,
+  })
+  return lockIn
 }
 
 /** The one line and the join button that stand in for tonight's call and why on a locked card (display only; the join link is membersUrl()). */

@@ -1,5 +1,5 @@
 'use client'
-import CallStatusBadge from './CallStatusBadge'
+import CallStatusBadge, { GatedCallBadge } from './CallStatusBadge'
 import { useSportTheme } from './SportTheme'
 import { TeamTap } from './EntityTap'
 
@@ -49,8 +49,10 @@ export function StoryParts({ parts, theme: C, numFont }) {
 }
 
 /** The player's board chip beside a story (lib/stories/index.js `board`). */
-export function BoardBadge({ b, theme: C, numFont, accent }) {
+export function BoardBadge({ b, theme: C, numFont, accent, lockIn = null }) {
   if (!b) return null
+  // lockIn (2026-10-16): the members lock on tonight's CALLED word (components/CallStatusBadge.js GatedCallBadge); absent: the word as always
+  if (lockIn) return <GatedCallBadge lockIn={lockIn} variant="text" status={b.status} score={b.score} theme={C} numFont={numFont} accent={accent} />
   return <CallStatusBadge variant="text" status={b.status} score={b.score} theme={C} numFont={numFont} accent={accent} />
 }
 

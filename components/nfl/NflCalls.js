@@ -2,6 +2,8 @@
 import { useMemo } from 'react'
 import NflTable from './NflTable'
 import CallStatusBadge from '../CallStatusBadge'
+import { useCallGate } from '../MemberGate'
+import { kickoffFor } from '../../lib/nfl/kickoff'
 import { C, TYPE } from '../../lib/nfl/theme'
 import { tdCallStatus } from '../../lib/callStatus'
 import { withNflFullSet } from '../../lib/nfl/boardColumns'
@@ -41,6 +43,8 @@ export default function NflCalls({ data, picks, onPlayerClick }) {
       status: tdCallStatus({ on_bot: rung }),
     }
   }).filter(Boolean), [picks, byId])
+  // MEMBERS LOCK (components/MemberGate.js): the week's #1 calls, keyed by player (the TD board's own key) with his game's kickoff; null for everyone but a free viewer
+  const gateOf = useCallGate({ rows, statusOf: (r) => r.status, keyOf: (r) => String(r._raw.player_id), timeOf: (r) => kickoffFor(data?.games, r._raw) })
   if (!rows.length) return null
   const columns = [
     // subOnly: on a phone the market rides the sub-line under his name (it is short), so the row says what he is called for
@@ -53,7 +57,7 @@ export default function NflCalls({ data, picks, onPlayerClick }) {
       title: 'The 0-100 score in that market. A rank against this week’s field, not a probability.' },
     { key: 'bar', label: 'Bar', group: CALL_G, heat: false, w: 42, mono: true, fmt: (v) => (v == null ? '—' : `${v}+`) },
     { key: 'status', label: 'Status', group: CALL_G, heat: false, statusCol: true, w: 70,
-      fmt: (v) => <CallStatusBadge status={v} accent={C.green} short /> },
+      fmt: (v, r) => <CallStatusBadge status={v} accent={C.green} short gate={gateOf ? gateOf(r) : null} /> },
   ]
   return (
     <section aria-label="The week's calls" style={{ marginBottom: 10 }}>

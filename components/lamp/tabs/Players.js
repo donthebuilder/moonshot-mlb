@@ -5,6 +5,8 @@ import { useLampPlayers, useLampSeasonStats, useLampBoardOnce } from '../../../l
 import { byScore } from '../../../lib/nhl/goalModel'
 import { alpha } from '../../../lib/scales'
 import CallStatusBadge from '../../CallStatusBadge'
+import { useCallGate } from '../../MemberGate'
+import { lockedFor } from '../../../lib/members/gate'
 import { SportTheme } from '../../SportTheme'
 import PlayerBoardFrame from '../../players/PlayerBoardFrame'
 import { DelayedBanner, Loading, TeamMark } from '../ui'
@@ -47,19 +49,24 @@ export default function Players({ goaliesOnly = false, onOpenTeam, onOpenGame })
   // playerId -> { score, status, rank, of } from tonight's board response
   const scored = useMemo(() => {
     const all = []
+    const gameOfRow = new Map()
     for (const g of board.data?.games || []) {
       if (g.noMarketLock) continue
-      for (const r of g.rows || []) if (r.score != null) all.push(r)
+      for (const r of g.rows || []) if (r.score != null) { all.push(r); gameOfRow.set(r, g) }
     }
     all.sort(byScore)
     const m = new Map()
-    all.forEach((r, i) => m.set(String(r.playerId), { score: r.score, status: r.status, rank: i + 1, of: all.length }))
+    all.forEach((r, i) => m.set(String(r.playerId), { score: r.score, status: r.status, rank: i + 1, of: all.length, key: `${gameOfRow.get(r).game?.id}|${r.playerId}`, time: gameOfRow.get(r).game?.startUtc ?? null, graded: Boolean(gameOfRow.get(r).graded) }))
     return m
   }, [board.data])
+  // MEMBERS LOCK (components/MemberGate.js): the board's own key, puck drop and grade per skater; null for everyone but a free viewer
+  const gateOf = useCallGate({ rows: () => [...scored.values()], source: scored, statusOf: (e) => e.status, keyOf: (e) => e.key, timeOf: (e) => e.time, gradedOf: (e) => e.graded, rankOf: (e) => e.rank })
   const goals = (p) => { const r = line.get(String(p.id)); return r ? (p.pos === 'G' ? r.w : r.g) : null }
   const starts = (p) => { const r = line.get(String(p.id)); return r ? (r.gs ?? r.gp ?? null) : null }
   const sc = (p) => (p.pos === 'G' ? null : scored.get(String(p.id)) || null)
-  const chip = (p) => (p.pos === 'G' ? (goaliesOnly ? starts(p) : null) : sc(p)?.score ?? null)
+  // a CALLED, not-started skater the viewer may not see: the stamp is the lock (metaOf) and his score and place are not printed (sorting still uses the real score)
+  const lockedP = (p) => { const e = p.pos === 'G' ? null : sc(p); const g = e && gateOf ? gateOf(e) : null; return Boolean(g) && lockedFor({ status: e.status, started: g.started, graded: g.graded, key: g.key, free: g.free, memberState: 'free' }) }
+  const chip = (p) => (p.pos === 'G' ? (goaliesOnly ? starts(p) : null) : lockedP(p) ? null : sc(p)?.score ?? null)
   const rows = useMemo(() => (data?.players || [])
     .filter((p) => !goaliesOnly || p.pos === 'G')
     .sort((a, b) => {
@@ -116,13 +123,13 @@ export default function Players({ goaliesOnly = false, onOpenTeam, onOpenGame })
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
               <TeamMark abbrev={p.team} size={16} />
               <span>{p.pos}{p.pos === 'G' && goaliesOnly && starts(p) != null ? ` · ${starts(p)} GS` : ''}{t ? ` · ${t.home ? 'vs' : '@'} ${t.opp}` : ''}</span>
-              {r ? <CallStatusBadge status={r.status} theme={C} accent={C.ice} numFont={NUM_FONT} size={11} />
+              {r ? <CallStatusBadge status={r.status} theme={C} accent={C.ice} numFont={NUM_FONT} size={11} gate={gateOf ? gateOf(r) : null} />
                 : p.pos !== 'G' ? <span style={{ color: C.text3 }}>{t ? '· unrated' : '· no game'}</span> : null}
             </span>
           )
         }}
         scoreOf={chip}
-        rankOf={(p) => sc(p)?.rank ?? null}
+        rankOf={(p) => (lockedP(p) ? null : sc(p)?.rank ?? null)}
         scoreExtra={(p) => {
           if (p.pos === 'G') { const r = line.get(String(p.id)); return r?.svPct != null ? `${(r.svPct).toFixed(3).replace(/^0/, '')} SV` : '—' }
           const g = goals(p)

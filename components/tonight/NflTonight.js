@@ -11,6 +11,7 @@ import { tdPool } from '../../lib/nfl/tdPool'
 import { tdsIn, lineFor } from '../../lib/nfl/liveSlate'
 import { slateAlignments, alignedWith, dateDigitRoot } from '../../lib/nfl/alignments'
 import { tdStatusFor } from '../../lib/nfl/tdStatus'
+import { kickoffFor } from '../../lib/nfl/kickoff'
 import { useGameCalls } from '../nfl/GameCalls'
 import { easternToday, easternDate } from '../../lib/data'
 
@@ -36,7 +37,7 @@ export default function NflTonight({ data, picks, results, liveSnap, onPlayerCli
     return tonightNfl({
       rows: pool.rows, today: (p) => stateOfTeam.has(p.team), onBotOf,
       tdsOf: (p) => Math.max(Number(graded?.[p.player_id]?.TD) || 0, tdsIn(lineFor(liveSnap, p)) || 0),
-      stateOf: (p) => stateOfTeam.get(p.team) || 'pre', aligned, root,
+      stateOf: (p) => stateOfTeam.get(p.team) || 'pre', kickoffOf: (p) => kickoffFor(data?.games, p), aligned, root,
     })
   }, [data, picks, results, liveSnap, todayET, gameCalls])
   const byId = useMemo(() => new Map((data?.players || []).map((p) => [String(p.player_id), p])), [data])
