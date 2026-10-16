@@ -32,9 +32,9 @@ import { C, NUM_FONT } from '../lib/theme'
 // ── A SCORE IS A RANK, NOT A PERCENTAGE (2026-08-09) ────────────────────────
 //
 // Every board score on this site is an ORDERING. A 78 means "ahead of the 62",
-// and nothing more. It is not a 78% chance of anything, and the archive is
-// blunt about the real numbers: the headline picks homer about 29% of the time
-// — good, and still wrong two nights in three.
+// and nothing more. It is not a 78% chance of anything, and the locked record is
+// blunt about the real numbers: the headline picks homer well under a third of the time
+// (see lib/record/lockedRecord.js for the live figure) — good, and still wrong most nights.
 //
 // The definitions below used to open with "how LIKELY this hitter is to hit a
 // home run", which reads as a probability to anybody who isn't already inside

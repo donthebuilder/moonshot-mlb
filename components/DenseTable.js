@@ -116,6 +116,8 @@ export default function DenseTable({
   dense = true,
   caption = '',
   maxRows = 200,
+  // moreStep: how many rows one "Show more" tap adds. Absent, it is maxRows (the old behaviour). The phone app previews 3 rows and opens the rest in one tap.
+  moreStep = 0,
   // dimRow(row) -> true renders that row at reduced opacity. Used for
   // sample gates: a rate built on four batted balls should not sit at the
   // same visual weight as one built on two hundred.
@@ -412,7 +414,7 @@ export default function DenseTable({
     C, NUM_FONT, ac, columns, view, sorted, sort, setSort, toggle, adding, setAdding, tierSig: sorter.tierSig, phone, ranges, fields, lit,
     heatMode, ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
     explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
-    truncated, maxRows, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
+    truncated, maxRows, moreStep, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
     capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam: teamNav, sport: tableSport, injuryLayer, nameCell, compactPhoneRow,
   })
 }

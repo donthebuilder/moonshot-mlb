@@ -282,7 +282,7 @@ export function renderV2(ctx) {
     C, NUM_FONT, ac, columns: rawColumns, view, sorted, sort, setSort, toggle, ranges, fields, lit,
     heatMode = 'full', ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
     explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
-    truncated, maxRows, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
+    truncated, maxRows, moreStep = 0, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
     capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam = null, sport = null, injuryLayer = null,
     adding = false, setAdding = () => {}, tierSig = null, phone = false, nameCell = null, compactPhoneRow = false,
   } = ctx
@@ -839,7 +839,7 @@ export function renderV2(ctx) {
             )
           })()}
           {truncated > 0 && (
-            <ShowMoreButton open={false} restN={Math.min(maxRows, truncated)} toggle={() => setExtra((n) => n + maxRows)} itemWord={`of ${sorted.length}`} />
+            <ShowMoreButton open={false} restN={Math.min(moreStep || maxRows, truncated)} toggle={() => setExtra((n) => n + (moreStep || maxRows))} itemWord={`of ${sorted.length}`} />
           )}
           {extra > 0 && (
             <ShowMoreButton open restN={0} toggle={() => setExtra(0)} />

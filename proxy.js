@@ -82,7 +82,13 @@ export async function proxy(request) {
 }
 
 const GATED = [/^\/fantasy(\/|$)/, /^\/account(\/|$)/]
-const isGated = (pathname) => GATED.some((re) => re.test(pathname))
+// THE APP GATE IS A SWITCH (2026-10-16, Phase 1; Donovan: "the whole site behind free sign-up, show the record"). It came down on
+// 2026-09-06 because an email before anyone had seen anything cost more visitors than the account was worth. What changes now is the
+// first thing a stranger sees: an X link lands on /c (the card, public), and sign-up comes after. So it goes up only when
+// DASH_GATE_APP=on -- set it once the posts point at /c -- and one env change (and a redeploy) takes it down again. Open always:
+// /, /login, /terms, /start, /called (the record), /c, /members, /playbook, /nhl, /api/*.
+const gateApp = () => String(process.env.DASH_GATE_APP || '').toLowerCase() === 'on'
+const isGated = (pathname) => GATED.some((re) => re.test(pathname)) || (gateApp() && /^\/app(\/|$)/.test(pathname))
 
 // THE MATCHER IS THE WHOLE NETWORK NOW (2026-08-28).
 //

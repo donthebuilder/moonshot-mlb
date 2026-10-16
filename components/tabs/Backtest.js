@@ -212,7 +212,7 @@ export default function Backtest({ backtest }) {
     <div>
       <PanelTitle
         title="Backtest"
-        sub={`${dayKeys.length} graded days · base-hit accuracy ${n(bt.overall_base_hit_accuracy, 0).toFixed(1)}%`}
+        sub={`post-game archive · ${dayKeys.length} graded days · base-hit accuracy ${n(bt.overall_base_hit_accuracy, 0).toFixed(1)}%`}
         right={
           <Toggle
             value={basis}
@@ -247,7 +247,7 @@ export default function Backtest({ backtest }) {
         )
         return (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '2px 0 12px' }}>
-            <Tile label="MOONSHOT overall base hit" value={`${acc.toFixed(1)}%`} sub="every pick, every graded day" col={C.blue} />
+            <Tile label="MOONSHOT overall base hit · post-game archive" value={`${acc.toFixed(1)}%`} sub="every pick, every graded day; reads high, the locked record is the one to quote" col={C.blue} />
             {bestLane && <Tile label="Best lane (MOONSHOT's post-game test)" value={`${bestLane.v.toFixed(0)}%`} sub={bestLane.k} col={C.green} />}
             <Tile label="Graded days" value={days} sub="the sample behind everything here" col={C.orange} />
           </div>

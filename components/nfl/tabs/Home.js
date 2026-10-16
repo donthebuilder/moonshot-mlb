@@ -10,7 +10,7 @@ import PlayerFace from '../../PlayerFace'
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
 import NflYourPlayers from '../NflYourPlayers'
-import { useResultsDigest, seasonTotals, grandTotal } from '../../../lib/nfl/resultsArchive'
+import { useResultsDigest, seasonTotals, grandTotal, lineTotals } from '../../../lib/nfl/resultsArchive'
 import { ledgerTotals } from '../../../lib/nfl/myPicks'
 import TeamMark from '../../TeamMark'  // the shared club mark (R1: was FRANCHISE's roster badge)
 import TeamPower from '../TeamPower'
@@ -271,8 +271,9 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
   // "graded x% over N nights"; TUDDY's had a player-pool count in that slot,
   // which nobody bets on. Season to date from the harvested weekly files,
   // and your own week against the bot from the device-local ledger.
-  const { archive, keys } = useResultsDigest(results, data?.season)
+  const { archive, keys, loading: recLoading, failed: recFailed } = useResultsDigest(results, data?.season)
   const record = grandTotal(seasonTotals(keys.map((k) => archive[k])))
+  const bookLine = lineTotals(keys, archive)   // the same rungs against the book's line; only the weeks that stored one
   // THE RECORD, SAID PLAINLY (2026-09-29, queue batch 7): the big number is
   // every market's rungs blended, each graded against its OWN bar -- so the
   // tile says that, puts Anytime TD's own rate beside it, and opens the
@@ -433,7 +434,7 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
       <section className="tuddy-snapshot">
         <div><small>SLATE</small><strong>{games.length}</strong><span>games</span></div>
         <div><small>STATE</small><strong>{live || final}</strong><span>{live ? 'live now' : final ? 'final' : 'awaiting kickoff'}</span></div>
-        <button onClick={() => setTab('accountability')} title={record.n ? `${record.hit} of ${record.n} card rungs this season cleared their own bar — every market blended, ${keys.length} graded week${keys.length === 1 ? '' : 's'}. Anytime TD on its own: ${tdRec?.hit ?? 0} of ${tdRec?.n ?? 0}. Tap for every market's record.${regradeNotes(keys).map((t) => ` ${t}`).join('')}` : undefined}><small>RECORD · ALL</small><strong style={{ color: record.pct == null ? C.text3 : record.pct >= 55 ? C.green : record.pct < 45 ? C.text3 : C.text }}>{record.pct == null ? '—' : `${record.pct}%`}</strong><span>{record.n ? <>{record.hit}/{record.n}{tdRec?.n ? <> · <b style={{ color: C.text }}>TD {Math.round(tdRec.pct)}%</b></> : null}</> : 'nothing graded yet'}</span></button>
+        <button onClick={() => setTab('accountability')} title={recLoading ? 'Loading the season record' : recFailed ? "The season record could not be loaded. Tap to open the record page." : record.n ? `${record.hit} of ${record.n} card rungs this season cleared their own bar — every market blended, ${keys.length} graded week${keys.length === 1 ? '' : 's'}. Anytime TD on its own: ${tdRec?.hit ?? 0} of ${tdRec?.n ?? 0}.${bookLine.n ? ` Against the book's own line (weeks ${bookLine.from}–${bookLine.to}): ${bookLine.hit} of ${bookLine.n}.` : ''} Tap for every market's record.${regradeNotes(keys).map((t) => ` ${t}`).join('')}` : undefined}><small>RECORD · ALL</small><strong style={{ color: recLoading || recFailed || record.pct == null ? C.text3 : record.pct >= 55 ? C.green : record.pct < 45 ? C.text3 : C.text }}>{recLoading || recFailed || record.pct == null ? '—' : `${record.pct}%`}</strong><span>{recLoading ? 'loading' : recFailed ? "couldn't load" : record.n ? <>{record.hit}/{record.n} · own bar</> : 'nothing graded yet'}</span>{!recLoading && !recFailed && bookLine.n ? <span>book line {Math.round(bookLine.pct)}% · wk {bookLine.from}{bookLine.to !== bookLine.from ? `–${bookLine.to}` : ''}</span> : null}</button>
         <button onClick={() => topTd && onPlayerClick?.(topTd, 'TD')}><small>TOP TD SCORE</small><strong>{topTd ? Math.round(topTd.scores.TD) : '—'}</strong><span>{topTd?.name || 'awaiting slate'}</span></button>
       </section>
       <TheSix picks={picks} playersById={playersById} players={players} markets={data?.markets || []} onPlayerClick={onPlayerClick} onPicks={() => setTab('picks')} totals={seasonTotals(keys.map((k) => archive[k]))} />

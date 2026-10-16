@@ -30,5 +30,5 @@ export async function GET(request) {
   const failed = got.some(([, , bad]) => bad)
   const weeks = Object.fromEntries(got.filter(([, j]) => j).map(([k, j]) => [k, j]))
   // a read that failed is not "no such week": do not let the CDN keep a partial answer
-  return Response.json({ season, weeks }, { headers: { 'Cache-Control': failed ? 'no-store' : 'public, s-maxage=300, stale-while-revalidate=600' } })
+  return Response.json({ season, weeks, partial: failed }, { headers: { 'Cache-Control': failed ? 'no-store' : 'public, s-maxage=300, stale-while-revalidate=600' } })
 }

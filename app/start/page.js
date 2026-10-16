@@ -13,8 +13,8 @@
 //
 // EVERY NUMBER ON THIS PAGE IS ALREADY REAL AND ALREADY MEASURED. Nothing here
 // is modelled, scored or written for the first time (project rules 16 and 17):
-//   MLB best calls   BotPicksStrip — The Four, 65.0% over 25 graded nights
-//                    (bots/precision_study.py), the component mounted as-is
+//   MLB best calls   BotPicksStrip — The Four, mounted as-is. Its own record line is OFF
+//                    (post-game archive rates read high); the locked record is the number to quote
 //   MLB the league   buildHeadlines() via lib/headlinesCore.js — the same
 //                    bites the header ticker and the front page already roll
 //   NFL best calls   buildNflHeadlines() — the same five story-bites TUDDY's
