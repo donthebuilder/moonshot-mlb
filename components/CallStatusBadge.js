@@ -6,6 +6,9 @@
 // product's accent; ON THE BOARD is quiet; NOT ON THE BOARD is quieter.
 import { STATUS_WORD } from '../lib/callStatus'
 import { useSportTheme } from './SportTheme'
+import { useMemberState } from './MemberGate'
+import { lockedFor } from '../lib/members/gate'
+import { membersUrl } from '../lib/members'
 
 // THREE LOOKS, ONE SET OF WORDS (R2c, 2026-10-02). variant:
 //   'stamp' (default) -- the bordered stamp above, the v2 sheet's STATUS column.
@@ -14,11 +17,30 @@ import { useSportTheme } from './SportTheme'
 //   'chip'  -- LAMP's CalledChip: a filled accent chip, dark ink.
 // The old BoardBadge / CalledChip names stay as wrappers over this, same pixels.
 // theme / numFont override the SportTheme when a caller passes its own.
-export default function CallStatusBadge({ status, accent = null, size = 9, short = false, style, variant = 'stamp', score = null, theme = null, numFont = null }) {
+//
+// gate (2026-10-16, optional): { key, started, graded, free } from components/MemberGate.js useCallGate. Tonight's CALLED label of a viewer who is not
+// a member, outside the free taste, draws as the grey lock chip below instead of the stamp (lib/members/gate.js lockedFor). No gate, or any viewer
+// who is not a confirmed non-member: this draws EXACTLY as before.
+export default function CallStatusBadge({ status, accent = null, size = 9, short = false, style, variant = 'stamp', score = null, theme = null, numFont = null, gate = null }) {
   const sport = useSportTheme()
+  const memberState = useMemberState()
   const C = theme || sport.C
   const NUM_FONT = numFont || sport.NUM_FONT
   if (!STATUS_WORD[status]) return null
+  if (gate && lockedFor({ status, started: gate.started, graded: gate.graded, key: gate.key, free: gate.free, memberState })) {
+    // a 44px tap area around a stamp-sized chip: the negative margin keeps the row exactly as tall as the stamp made it
+    return (
+      <a href={membersUrl()} target="_blank" rel="noopener noreferrer" role="link" aria-label="Members only. Join to see this pick." title="Members only. Join to see this pick."
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box', minWidth: 44, minHeight: 44, margin: '-15px -6px',
+          padding: '0 6px', verticalAlign: 'middle', textDecoration: 'none', whiteSpace: 'nowrap', fontFamily: NUM_FONT, fontSize: Math.max(size, 10), fontWeight: 900,
+          letterSpacing: '.04em', color: C.text2, ...style,
+        }}>
+        <span style={{ border: `1px solid ${C.border2}`, borderRadius: 4, padding: '1px 5px', lineHeight: 1.3 }}>{'\u{1F512}'} Members</span>
+      </a>
+    )
+  }
   const ac = accent || sport.accent
   if (variant === 'chip') {
     return <span style={{ marginRight: 7, background: ac, color: C.bg, font: `900 7.5px/1 ${NUM_FONT}`, letterSpacing: '.12em', borderRadius: 4, padding: '2px 5px', verticalAlign: '1px', whiteSpace: 'nowrap', ...style }}>{STATUS_WORD[status]}</span>

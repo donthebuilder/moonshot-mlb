@@ -21,6 +21,8 @@ import { baselineFor, topStatChips } from './ScoreAnatomy'
 import { injuryTag } from '../../lib/nfl/injury'
 import { useWhySheet, whyColumn } from '../WhySheet'
 import CallStatusBadge from '../CallStatusBadge'
+import { useCallGate } from '../MemberGate'
+import { kickoffFor } from '../../lib/nfl/kickoff'
 import { lastNightColumn } from '../CalledLastNight'
 import { roleLabel } from '../../lib/nfl/roles'
 import TagChips from './TagChips'
@@ -113,6 +115,12 @@ const MARK_GROUP = { key: 'marks', label: 'Marks', order: 2 }
 const TAGS_GROUP = { key: 'matchup', label: 'The matchup', order: 2.6 }
 export function NflBoardList({ games = null, players, market, weights, odds, phone, onPlayerClick, statusOf = null, rankOf = null, base = null, pool = null, watchlist = null, lastNight = null, tags = null, rankMv = null, twoOf = null }) {
   const { open: openWhy, sheet: whySheet } = useWhySheet({ theme: C, accent: C.green, numFont: NUM_FONT })
+  // THE MEMBERS LOCK on this week's CALLED labels (components/MemberGate.js): the free taste is counted over the whole pool in the board's own order (a
+  // filter cannot reveal more); started = his game's kickoff has passed. null for everyone but a free viewer, and then the table draws as before.
+  const gateOf = useCallGate({
+    rows: pool || players, statusOf: (x) => (statusOf ? statusOf(x._p ?? x) : null), keyOf: (x) => String((x._p ?? x).player_id),
+    timeOf: (x) => kickoffFor(games, x._p ?? x), rankOf: (x) => (rankOf ? rankOf.get(String((x._p ?? x).player_id)) : null),
+  })
   // our line beside the book's (TEST, BATCH-DASH-LINE): only where one exists for this market
   const dash = useDashLines()
   const dmk = DASH_OF[market]
@@ -183,7 +191,7 @@ export function NflBoardList({ games = null, players, market, weights, odds, pho
     ...(phone ? [] : [{ key: 'grade', group: CALL_GROUP, label: 'Grade', cset: 'read', w: 56, heat: false }]),
     { ...whyColumn({ textOf: (r) => whyOf(r._p)?.text || '', itemOf: whyItem, open: openWhy, theme: C, numFont: NUM_FONT, w: phone ? 124 : 260, tidy: true }), group: CALL_GROUP, cset: 'lean' },
     // Status right after Why (2026-10-06): short on a phone, so Why shows without a swipe
-    ...(statusOf ? [{ key: 'status', group: CALL_GROUP, label: 'Status', heat: false, statusCol: true, w: phone ? 64 : 118, fmt: (v, r) => <CallStatusBadge status={statusOf(r._p)} accent={C.green} short={phone} /> }] : []),
+    ...(statusOf ? [{ key: 'status', group: CALL_GROUP, label: 'Status', heat: false, statusCol: true, w: phone ? 64 : 118, fmt: (v, r) => <CallStatusBadge status={statusOf(r._p)} accent={C.green} short={phone} gate={gateOf ? gateOf(r) : null} /> }] : []),
     ...top.map((k, i) => ({ group: CALL_GROUP, key: k, label: LABELS[k] || k, cset: i < 2 ? 'lean' : 'read', w: phone ? 74 : 86, scale: 'seq', domain: [0, 100] })),
     // TAGS: ball-security tags on him and the tags of the defence he faces; OFF until the Filters sheet turns it on (Tags > Show tags column)
     ...(tags?.show ? [{ key: 'tags', label: 'Tags', cset: 'read', w: phone ? 190 : 300, heat: false, numeric: false, group: TAGS_GROUP,
@@ -214,6 +222,7 @@ export function NflBoardList({ games = null, players, market, weights, odds, pho
       dimRow={(r) => r._p?.low_sample} onRowClick={(r) => (r._p?.position === 'DEF' ? null : onPlayerClick?.(r._p, market))}
       // the TD board's Status column: CALLED / ON THE BOARD / NOT ON THE BOARD (lib/nfl/tdStatus)
       statusOf={statusOf ? (r) => statusOf(r._p) : null}
+      gateOf={gateOf}
       caption={phone
         ? 'Score and the two heaviest parts of it, as percentiles in this week’s pool. Tap a row for the full card.'
         : 'Score, grade, and the three heaviest parts of the score as percentiles in this week’s pool. Click a header to sort; shift-click adds a tiebreaker.'} />

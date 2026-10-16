@@ -11,6 +11,7 @@ import { playerId, mlbId, nameOf } from '../../lib/player'
 import { teamHref } from '../../lib/routes'
 import { TeamNav } from '../../lib/teamNav'
 import DenseTable from '../DenseTable'
+import { MemberGateProvider, useCallGate } from '../MemberGate'
 
 // THE RANKED HITTERS, ON THE PHONE (2026-10-16, Research tab). The same DenseTable, the same board columns (lib/boardColumns.js: the full set) and the same
 // call-status rule as the full site's Ranked board, without the full site's dashboard around it. The tonight slate is read the way the dashboard reads it
@@ -18,7 +19,12 @@ import DenseTable from '../DenseTable'
 // table's own box with the name pinned, never the page.
 const PREVIEW_ROWS = 3
 
+// the phone app has no shell above this table, so it carries its own member context (components/MemberGate.js)
 export default function RankedHitters() {
+  return <MemberGateProvider><RankedHittersTable /></MemberGateProvider>
+}
+
+function RankedHittersTable() {
   const router = useRouter()
   const [players, setPlayers] = useState(null)
   const [state, setState] = useState('loading')
@@ -45,6 +51,9 @@ export default function RankedHitters() {
     }
   }, [players])
 
+  // tonight's CALLED labels a non-member may not read (null for everyone else: the table draws as before)
+  const gateOf = useCallGate({ rows, statusOf, keyOf: (r) => r._key, timeOf: (r) => r._raw?.game_time, rankOf: (r) => r.rank })
+
   // A name opens HIS CARD in the phone app (the card, flipped, replaces the dashboard's player pop-up); a club opens its page on the full site.
   const openPlayer = useCallback((p) => {
     const id = mlbId(p)
@@ -63,7 +72,7 @@ export default function RankedHitters() {
         <span>RANKED HITTERS</span><span>{rows.length} TONIGHT</span>
       </div>
       <TeamNav.Provider value={openTeam}>
-        <DenseTable rows={rows} columns={columns} statusOf={statusOf} nameCell="player" heatMode="sorted" onRowClick={openPlayer}
+        <DenseTable rows={rows} columns={columns} statusOf={statusOf} gateOf={gateOf} nameCell="player" heatMode="sorted" onRowClick={openPlayer}
           maxRows={PREVIEW_ROWS} moreStep={rows.length} maxHeight={560} initialSort={{ key: 'rank', dir: 'asc' }}
           caption="Tonight's hitters ranked by home run score, every board column" />
       </TeamNav.Provider>

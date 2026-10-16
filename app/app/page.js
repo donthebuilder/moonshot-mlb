@@ -14,6 +14,7 @@
 import SportRoot from '../../components/SportRoot'
 import WelcomeTour from '../../components/WelcomeTour'
 import { PhoneViewPill, ViewRouter } from '../../components/ViewToggle'
+import { MemberGateProvider } from '../../components/MemberGate'
 
 // 2026-09-24 (SEO-1/2): the board's own canonical. Every #sport=…&tab=… is
 // this one document to a crawler; the tab title is set client-side by each
@@ -29,7 +30,10 @@ export const metadata = {
 export default function Page() {
   return (
     <>
-      <SportRoot />
+      {/* who is a member, for the Members lock on tonight's CALLED labels (components/MemberGate.js); everyone else's view is unchanged */}
+      <MemberGateProvider>
+        <SportRoot />
+      </MemberGateProvider>
       <WelcomeTour />
       <ViewRouter />
       <PhoneViewPill />
