@@ -54,6 +54,7 @@ import LadderBlock, { LadderAside } from '../../components/record/LadderBlock'
 import QuickPicks from '../../components/home/QuickPicks'
 import FoundingMembersCard from '../../components/FoundingMembersCard'
 import { DISCORD_URL } from '../../lib/members'
+import { isMember } from '../../lib/members/access'
 import { mlbTodayCalls, nflWeekBoard, nhlTonightCalls } from '../../lib/phone/todayCalls'
 
 export const metadata = {
@@ -263,16 +264,12 @@ export default async function DashHome({ searchParams }) {
               page already reads (lib/dash/pulse) -- nothing new is fetched or invented. */}
           <Link href="/called" className={styles.ledgerBtn}>The Ledger <b>→</b><small className={styles.heroWhich}>EVERY CALL, GRADED IN PUBLIC</small></Link>
         </div>
-        {ledgerLines.length ? (
-          <ul className={styles.ledgerLines} aria-label="The Ledger tonight, by sport">
-            {ledgerLines.map((l) => <li key={l.k}><Link href={`/called?sport=${l.k}`}><b>{BRAND[l.k].name}</b> <span>{l.line}</span></Link></li>)}
-          </ul>
-        ) : null}
+        {/* (2026-10-16: the per-sport 'tonight' lines that sat here repeated the tiles in "ON RIGHT NOW" below, so they are gone.) */}
       </section>
 
       {/* QUICK PICKS (2026-10-16): tonight's called players + how the bot is doing + sign up, right under the hero. MLB's ledger only (the sport with a per-game
           called list today); a sport without one is still one tap away in the cards below. */}
-      <QuickPicks styles={styles} calls={mlbOff ? null : tonightCalls} sport="mlb" recordLine={record?.callsLine || null} signedIn={Boolean(me.user)} nfl={nflBoard} nhl={nhlCalls} />
+      <QuickPicks styles={styles} calls={mlbOff ? null : tonightCalls} sport="mlb" recordLine={record?.callsLine || null} signedIn={Boolean(me.user)} nfl={nflBoard} nhl={nhlCalls} member={isMember(me.user)} />
 
       {/* THE OFFER, ON THE FRONT DOOR (2026-10-16, Donovan: the plain link is what gets shared, and the Founding members ask lived only inside the app).
           Right under the picks and the record line: the person has just seen what is called and that it is graded in public. Nothing here is locked on the site. */}
