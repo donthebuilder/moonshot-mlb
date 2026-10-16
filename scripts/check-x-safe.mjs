@@ -150,10 +150,10 @@ await ok('links: no hashtags in any post this piece builds', () => {
   assert.ok(!/#[A-Za-z]/.test(t))
 })
 await ok('links: Moonshot text is character-identical but for the removed link block (before/after, TEST data)', async () => {
-  // BEFORE = origin/main 7bf7897 with NEXT_PUBLIC_SITE_URL set (captured from the fetch body); AFTER = now.
+  // BEFORE = origin/main 7bf7897 with NEXT_PUBLIC_SITE_URL set (captured from the fetch body); AFTER = now. (The longshots layout is the 2026-10-16 spacing: label, blank, lead-in with the names.)
   const before = {
     pregame: "🌙 THE CALLED SHOTS\n\n1. Test Alpha (AAA) vs Test Arm 1.50 HR/9 L3 · +250\n2. Test Bravo (BBB) vs Test Two\n3. Test Charlie (CCC)\n\nTonight's board is public before first pitch.\nhttps://test.example/app?utm_source=x&utm_medium=social&utm_campaign=pregame#sport=mlb&tab=home",
-    longshots: "🎯 LONGSHOTS · HOME RUN\n+500 or longer, by our model score:\n\nTest Alpha (AAA) +600 · 71 · CALLED\nTest Bravo (BBB) +700 · 65\nTest Charlie (CCC) +550 · 60\n\nPrices, not picks. Full list on the site.\n\nEvery long price tonight, beside the model.",
+    longshots: "🎯 LONGSHOTS · HOME RUN\n\n+500 or longer, by our model score:\nTest Alpha (AAA) +600 · 71 · CALLED\nTest Bravo (BBB) +700 · 65\nTest Charlie (CCC) +550 · 60\n\nPrices, not picks. Full list on the site.\n\nEvery long price tonight, beside the model.",
   }
   const picks = [
     { player_id: '1', name: 'Test Alpha', team: 'AAA', pitcher: 'Test Arm', pitcher_l3_hr9: 1.5, odds_over: 250, odds_book: 'TestBook' },

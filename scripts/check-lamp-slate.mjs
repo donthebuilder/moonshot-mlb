@@ -129,11 +129,12 @@ await ok('list: the top 5 CALLED by night rank (rank 1..5 of 8), best first, one
   assert.deepEqual(a.named, ['t1', 't2', 't3', 't4', 't5'])
   const lines = a.text.split('\n')
   assert.match(lines[0], /^\u{1F3D2} THE LAMP SLATE · SAT OCT 10$/u)
-  assert.equal(lines[1], "8 CALLED tonight, top 5 by LAMP ranking score. Percentiles are among tonight's skaters.")
-  assert.equal(lines[2], '')
-  assert.equal(lines[3], '1. Test Skater 1 (TOR) vs MTL · shots 98th')       // his highest of shots / goals / ice time
-  assert.equal(lines[4], '2. Test Skater 2 (MTL) vs TOR · shots 97th')
-  assert.equal(lines.length, 8)
+  assert.equal(lines[1], '')                                                   // label, a blank line, the lead, a blank line, the names (Donovan 2026-10-16)
+  assert.equal(lines[2], "8 CALLED tonight, top 5 by LAMP ranking score. Percentiles are among tonight's skaters.")
+  assert.equal(lines[3], '')
+  assert.equal(lines[4], '1. Test Skater 1 (TOR) vs MTL · shots 98th')       // his highest of shots / goals / ice time
+  assert.equal(lines[5], '2. Test Skater 2 (MTL) vs TOR · shots 97th')
+  assert.equal(lines.length, 9)
   assert.ok(!/Board Skater/.test(a.text))                                   // ON THE BOARD (not called) men are never in it
   assert.equal(a.payload.n_called, 8); assert.deepEqual(a.payload.named, a.named)
 })

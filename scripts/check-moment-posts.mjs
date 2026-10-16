@@ -319,7 +319,7 @@ process.env.MOMENT_POSTS_ON = 'on'
   check(kinds.length === 1 && kinds[0] === 'postseason_mlb_top3_20261012' && r.nights?.[0]?.result?.startsWith('posted TOP 3 POSTSEASON PERFORMANCES'), `H: the night posts ONE digest, claimed as ${kinds.join(', ')} (not one claim per player)`)
   check(m.s.sent.x.length === 1 && m.s.sent.discord.length === 1 && m.s.sent.members.length === 1 && m.s.sent.upload === 1 && m.s.sent.x[0].mediaId === 'media-1', 'H: ONE X post with the one card image, ONE MLB channel post, ONE #members post')
   const hx = m.s.sent.x[0].text
-  check(/^TOP 3 POSTSEASON PERFORMANCES · MLB\n1\. Test A \(TST\): 3-FOR-4 · 2 HR · 4 RBI\n2\. Test C \(TST\): 7\.0 IP · 0 ER · 9 K/.test(hx) && !/https?:\/\//.test(hx) && Array.from(hx).length <= 280 && !P.BANNED.test(hx), `H: the X text is neutral, titled, ranked, no link, fits 280 (${hx.replace(/\n/g, ' | ')})`)
+  check(/^TOP 3 POSTSEASON PERFORMANCES · MLB\n\n1\. Test A \(TST\): 3-FOR-4 · 2 HR · 4 RBI\n2\. Test C \(TST\): 7\.0 IP · 0 ER · 9 K/.test(hx) && !/https?:\/\//.test(hx) && Array.from(hx).length <= 280 && !P.BANNED.test(hx), `H: the X text is neutral, titled, ranked, no link, fits 280 (${hx.replace(/\n/g, ' | ')})`)
   check(/2\. Test C/.test(hx) && /3\. Test G/.test(hx) && !/Test E|Test F|Test B/.test(hx), 'H: the three best of the WHOLE night across games (A 34, C 27.5, then G 16 from the second game), not the first game\'s')
   check(f.tables.homer_feed_posts[0].payload.named.join(',') === '1,3,7' && f.tables.homer_feed_posts[0].payload.count === 3 && f.tables.homer_feed_posts[0].x_post_id === 'tw-1', 'H: the claim row names the three players (the repeat record) and the tweet')
   check(m.s.sent.admit.length === 1 && m.s.sent.admit[0].kind === 'postseason_mlb_top3_20261012' && m.s.sent.admit[0].repeat === false, 'H: it counts as ONE post through the one X gate (write-up tier)')
@@ -338,7 +338,7 @@ process.env.MOMENT_POSTS_ON = 'on'
   // one big night: titled by count
   reset(); f = fakeDb(); m = mk({ boxes: { 900001: { teams: { home: { players: { ID1: player(1, 'Test A', hit({ homeRuns: 1 })) } }, away: { players: {} } } }, 900002: emptyBox } })
   await PS.postseasonPass(f.db, { now: NOW, deps: m.deps })
-  check(f.tables.homer_feed_posts.length === 1 && /^TOP POSTSEASON PERFORMANCE · MLB\n1\. Test A/.test(m.s.sent.x[0]?.text || ''), 'H: one big night is posted as one (titled by count)')
+  check(f.tables.homer_feed_posts.length === 1 && /^TOP POSTSEASON PERFORMANCE · MLB\n\n1\. Test A/.test(m.s.sent.x[0]?.text || ''), 'H: one big night is posted as one (titled by count)')
   // no big night at all: nothing
   reset(); f = fakeDb(); m = mk({ boxes: { 900001: emptyBox, 900002: emptyBox } })
   await PS.postseasonPass(f.db, { now: NOW, deps: m.deps })
@@ -516,7 +516,7 @@ process.env.MOMENT_POSTS_ON = 'on'
   check(DR.digestTitle(3) === 'TOP 3 TONIGHT' && DR.digestTitle(2) === 'TOP 2 TONIGHT' && DR.digestTitle(1) === 'TOP PERFORMER TONIGHT' && DR.digestTitle(0) === null && DR.digestTitle(3, { sport: 'nfl' }) === 'TOP 3 TODAY' && DR.digestTitle(3, { postseason: true }) === 'TOP 3 POSTSEASON PERFORMANCES' && DR.digestTitle(9) === 'TOP 3 TONIGHT', 'L: titled by count (TOP 3 / TOP 2 / TOP PERFORMER; NFL says TODAY; the postseason one says POSTSEASON PERFORMANCES)')
   const three = top([hatN, otA, otB, mil, pts])
   const tx = DR.digestTexts(three, { sport: 'nhl' })
-  check(/^TOP 3 TONIGHT · NHL\n1\. Test Skater \(TST\): HAT TRICK · 3 G\n2\. /.test(tx.x) && !/https?:\/\//.test(tx.x) && Array.from(tx.x).length <= 280 && !P.BANNED.test(tx.x) && tx.discord === tx.x, `L: the X text is neutral, ranked, no link, fits 280 (${tx.x.replace(/\n/g, ' | ')})`)
+  check(/^TOP 3 TONIGHT · NHL\n\n1\. Test Skater \(TST\): HAT TRICK · 3 G\n2\. /.test(tx.x) && !/https?:\/\//.test(tx.x) && Array.from(tx.x).length <= 280 && !P.BANNED.test(tx.x) && tx.discord === tx.x, `L: the X text is neutral, ranked, no link, fits 280 (${tx.x.replace(/\n/g, ' | ')})`)
   const longP = (n) => ({ slug: `p${n}`, playerId: `p${n}`, name: `Test Maximilian Featherstonehaugh-Villanueva ${n}`, team: 'TST', rank: 1, tier: 'star', magnitude: 1, at: n, moment: 'x', line: '3-POINT NIGHT · 1 G 2 A' })
   const lx = DR.digestTexts([longP(1), longP(2), longP(3)], { sport: 'nhl' })
   check(lx.x === null || Array.from(lx.x).length <= 280, 'L: three very long names: the X text is shortened (clubs dropped) or refused, never over 280')
@@ -570,10 +570,10 @@ process.env.MOMENT_POSTS_ON = 'on'
   // ── counts: 2, 1, none ──
   resetD(); f = fakeDb(); m = mkd({ events: [otA, otB] })
   await D(f, m)
-  check(/^TOP 2 TONIGHT · NHL\n1\. Test Center/.test(m.s.sent.x[0]?.text || '') && f.tables.homer_feed_posts[0].payload.count === 2, 'L: two names -> "TOP 2 TONIGHT" (no filler)')
+  check(/^TOP 2 TONIGHT · NHL\n\n1\. Test Center/.test(m.s.sent.x[0]?.text || '') && f.tables.homer_feed_posts[0].payload.count === 2, 'L: two names -> "TOP 2 TONIGHT" (no filler)')
   resetD(); f = fakeDb(); m = mkd({ events: [otA] })
   await D(f, m)
-  check(/^TOP PERFORMER TONIGHT · NHL\n1\. Test Winger/.test(m.s.sent.x[0]?.text || '') && m.s.sent.discord.length === 1, 'L: one name -> a single "TOP PERFORMER TONIGHT"')
+  check(/^TOP PERFORMER TONIGHT · NHL\n\n1\. Test Winger/.test(m.s.sent.x[0]?.text || '') && m.s.sent.discord.length === 1, 'L: one name -> a single "TOP PERFORMER TONIGHT"')
   resetD(); f = fakeDb(); m = mkd({ events: [baseN, baseN] })
   r = await D(f, m)
   check(f.tables.homer_feed_posts.length === 0 && m.s.sent.x.length + m.s.sent.discord.length + m.s.sent.members.length === 0 && /nothing to name/.test(r.nights?.[0]?.result || ''), 'L: nothing but BASE moments -> nothing is claimed or posted')
@@ -653,7 +653,7 @@ process.env.MOMENT_POSTS_ON = 'on'
   check(f.tables.homer_feed_posts.length === 0 && /postseason date/.test(r.nights?.[0]?.result || ''), 'L: WHEN: on an MLB postseason date the regular TOP 3 is not posted (the postseason digest is the night\'s one MLB top-three post)')
   resetD(); f = fakeDb(); m = mkd({ events: [yd(212, 'a3'), yd(151, 'a2'), yd(105, 'a1')], games: [g({ startMs: NOW - 5 * 3600e3 })] })
   r = await DG.digestPass(f.db, { sport: 'nfl', now: NOW, deps: m.deps })
-  check(/^TOP 3 TODAY · NFL\n1\. Test Back a3 \(TST\): 212 RUSH YDS/.test(m.s.sent.x[0]?.text || '') && f.tables.homer_feed_posts[0]?.kind === 'moment_nfl_top3_20261012', 'L: NFL: one post for the game day, "TOP 3 TODAY", kind moment_nfl_top3_<date>')
+  check(/^TOP 3 TODAY · NFL\n\n1\. Test Back a3 \(TST\): 212 RUSH YDS/.test(m.s.sent.x[0]?.text || '') && f.tables.homer_feed_posts[0]?.kind === 'moment_nfl_top3_20261012', 'L: NFL: one post for the game day, "TOP 3 TODAY", kind moment_nfl_top3_<date>')
   // NFL: nothing yet (the weekly logs are late) -> looked at again, not given up on for hours
   resetD(); f = fakeDb(); m = mkd({ events: [], games: [g({ startMs: NOW - 5 * 3600e3 })] })
   await DG.digestPass(f.db, { sport: 'nfl', now: NOW, deps: m.deps })
