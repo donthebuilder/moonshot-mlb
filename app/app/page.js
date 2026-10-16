@@ -13,6 +13,7 @@
 // intact. The board opens on exactly the tab and player the link asked for.
 import SportRoot from '../../components/SportRoot'
 import WelcomeTour from '../../components/WelcomeTour'
+import { PhoneViewPill, ViewRouter } from '../../components/ViewToggle'
 
 // 2026-09-24 (SEO-1/2): the board's own canonical. Every #sport=…&tab=… is
 // this one document to a crawler; the tab title is set client-side by each
@@ -30,6 +31,8 @@ export default function Page() {
     <>
       <SportRoot />
       <WelcomeTour />
+      <ViewRouter />
+      <PhoneViewPill />
     </>
   )
 }

@@ -9,8 +9,7 @@ import CardLandingImage from '../../components/CardLandingImage'
 import styles from '../(front)/dash.module.css'
 import { BRAND, appHref, playerHref, isHiddenSport } from '../../lib/routes'
 import { MEMBERS_LINE } from '../../lib/members'
-import { readLockedRecord } from '../../lib/calibration/readMlbCalibration'
-import { lockedCallsLine } from '../../lib/record/lockedRecord'
+import { RECORD_LINE } from '../../lib/record/publicLine'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,19 +41,6 @@ export async function generateMetadata({ searchParams }) {
     twitter: { card: image ? 'summary_large_image' : 'summary', title, description, ...(image ? { images: [image] } : {}) },
   }
 }
-
-// MLB's locked record line (the one source). A failed read leaves the line off: nothing is invented.
-async function recordLine() {
-  try {
-    const rec = await readLockedRecord(new Date().toISOString().slice(0, 10))
-    if (!rec) return null
-    const calls = Object.values(rec.picks || {}).reduce((a, r) => a + (r?.n || 0), 0)
-    return calls ? lockedCallsLine(rec, calls) : null
-  } catch { return null }
-}
-
-// a sport's own record line, by sport key (a table, not a ternary); a sport without one shows the link to its record only
-const RECORD_LINE = { mlb: recordLine }
 
 export default async function CardLanding({ searchParams }) {
   const params = (await searchParams) || {}
