@@ -36,6 +36,8 @@ import { localTime } from '../../../lib/localTime'
 import { useColumnSet } from '../../../lib/useColumnSet'
 import { useCallGate } from '../../MemberGate'
 import { lockedFor } from '../../../lib/members/gate'
+import { poolOver } from '../../../lib/nhl/poolWords'
+import { gameDayOf } from '../../card/useStamps'
 
 // 🏒 THE LAMP GOAL BOARD (lamp-goal-v1) — the product's first signal page.
 // Per game: every scored skater ranked, the top skater on each TEAM CALLED, the rest ON
@@ -52,10 +54,10 @@ export { STATUS }
 
 // HOW TO READ THIS, LAMP's words (components/HowToRead.js draws them; the same
 // component as MOONSHOT's and TUDDY's boards). Describes the page; no hit rates.
-const HOW_NOTES = [
+const howNotes = (date) => [
   { title: 'Rank in his game', text: 'LAMP ranks each game on its own, #1 first. The top skater on each team is the call, two in every game.' },
   { title: 'The player', text: 'Tap a name to open his page: his shots, goals and ice time.' },
-  { title: 'Goal score', text: 'Three ranks averaged against tonight\u2019s skaters: shots, goals and ice time per game over his last 82 games, 0\u2013100. A ranking, not a percent.' },
+  { title: 'Goal score', text: 'Three ranks averaged against tonight\u2019s skaters: shots, goals and ice time per game ' + poolOver(date) + ', 0\u2013100. A ranking, not a percent.' },
   { title: 'The call', text: 'CALLED means he\u2019s the top skater on his team in his game (the shots and points boards call three a game). ON THE BOARD means he\u2019s scored but not called. Calls lock before puck drop.' },
   { title: 'Game', text: 'His game and puck drop, in your time zone.' },
 ]
@@ -304,7 +306,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
           {data ? <Segmented tall value={layout} onChange={setLayout} options={layoutOptions} /> : <span />}
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flex: '0 0 auto' }}>
             {shareBtn(true)}
-            {howRow && <HowToRead id="nhl-goal-board" accent={C.ice} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />}
+            {howRow && <HowToRead id="nhl-goal-board" accent={C.ice} row={howRow} notes={howNotes(date)} steps={HOW_STEPS} />}
           </span>
         </div>
       ) : (<>
@@ -340,7 +342,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
           {angleDef && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angleDef.title}</p>}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
-              {howRow && <HowToRead id="nhl-goal-board" accent={C.ice} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />}
+              {howRow && <HowToRead id="nhl-goal-board" accent={C.ice} row={howRow} notes={howNotes(date)} steps={HOW_STEPS} />}
               {layoutSwitch}
               {shareBtn()}
             </span>
@@ -421,25 +423,26 @@ const factsOf = (g, r) => ({ pp: pct1(spotOf(g, r.team, true)?.ppPct), pk: pct1(
 // LAMP v2 (2026-09-27): the board reads one market at a time. GOAL is the
 // original; SOG is lamp-sog-v1 (3+ shots on goal). Same table, same words.
 const MARKETS = [
-  { key: 'GOAL', label: 'GOAL', short: 'GOAL', eyebrow: 'LAMP · RANKINGS · GOAL', note: 'Who we rank tonight, and why. One called per team in every game, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots, goals, ice time per game over his last 82 NHL games.', result: 'GOALS', log: 'lamp_goal_log' },
-  { key: 'SOG', label: 'SHOTS 3+', short: 'SHOTS 3+', eyebrow: 'LAMP · RANKINGS · SHOTS', note: 'Who we rank tonight, and why. Three called per game for 3+ shots on goal, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots per game over his last 82, ice time, and how many shots his opponent allows per 60.', result: 'SOG', log: 'lamp_prop_log' },
+  { key: 'GOAL', label: 'GOAL', short: 'GOAL', eyebrow: 'LAMP · RANKINGS · GOAL', note: 'Who we rank tonight, and why. One called per team in every game, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots, goals, ice time per game over his games this season (his last 82 games before 2026-10-18).', result: 'GOALS', log: 'lamp_goal_log' },
+  { key: 'SOG', label: 'SHOTS 3+', short: 'SHOTS 3+', eyebrow: 'LAMP · RANKINGS · SHOTS', note: 'Who we rank tonight, and why. Three called per game for 3+ shots on goal, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots per game over his games this season (last 82 before 2026-10-18), ice time, and how many shots his opponent allows per 60.', result: 'SOG', log: 'lamp_prop_log' },
   // POINTS and ASSISTS (2026-10-02, Donovan: "the new markets"): locked and graded every night since
   // 10-01 (lamp-pts / lamp-ast), shown as a TEST until each has 30 graded nights (the record rule)
-  { key: 'PTS', label: 'POINTS 1+ · TEST', short: 'POINTS 1+', test: true, eyebrow: 'LAMP · RANKINGS · POINTS · TEST', note: 'Who we rank tonight, and why. A TEST: three called per game for 1+ point, locked before puck drop, graded after; no record is printed until 30 graded nights. Score = mean of three percentile ranks tonight: points per game over his last 82, ice time, and how many goals his opponent allows.', result: 'PTS', log: 'lamp_prop_log' },
-  { key: 'AST', label: 'ASSISTS 1+ · TEST', short: 'ASSISTS 1+', test: true, eyebrow: 'LAMP · RANKINGS · ASSISTS · TEST', note: 'Who we rank tonight, and why. A TEST: three called per game for 1+ assist, locked before puck drop, graded after; no record is printed until 30 graded nights. Score = mean of three percentile ranks tonight: assists per game over his last 82, ice time, and how many goals his opponent allows.', result: 'AST', log: 'lamp_prop_log' },
+  { key: 'PTS', label: 'POINTS 1+ · TEST', short: 'POINTS 1+', test: true, eyebrow: 'LAMP · RANKINGS · POINTS · TEST', note: 'Who we rank tonight, and why. A TEST: three called per game for 1+ point, locked before puck drop, graded after; no record is printed until 30 graded nights. Score = mean of three percentile ranks tonight: points per game over his games this season (last 82 before 2026-10-18), ice time, and how many goals his opponent allows.', result: 'PTS', log: 'lamp_prop_log' },
+  { key: 'AST', label: 'ASSISTS 1+ · TEST', short: 'ASSISTS 1+', test: true, eyebrow: 'LAMP · RANKINGS · ASSISTS · TEST', note: 'Who we rank tonight, and why. A TEST: three called per game for 1+ assist, locked before puck drop, graded after; no record is printed until 30 graded nights. Score = mean of three percentile ranks tonight: assists per game over his games this season (last 82 before 2026-10-18), ice time, and how many goals his opponent allows.', result: 'AST', log: 'lamp_prop_log' },
   // 2+ GOALS (TWO-SCORE batch, 2026-10-11, Donovan): a NEW MODEL, tracked, never CALLED (goals are exempt from the Card price floor; no 2+ goals price is stored)
-  { key: 'G2', label: '2+ GOALS · NEW MODEL', short: '2+ GOALS', test: true, eyebrow: 'LAMP · RANKINGS · 2+ GOALS · NEW MODEL', note: 'Who could score two. Two-goal ranking: a new model, not part of the goal score. Ranked tonight by shots per game, shooting %, ice time and goals per game over his last 82 games; ON THE BOARD is the top third. Recorded before puck drop and graded on the real result, 2 or more goals; no record is printed until 30 graded nights. Information only.', result: 'GOALS', log: 'lamp_prop_log' },
+  { key: 'G2', label: '2+ GOALS · NEW MODEL', short: '2+ GOALS', test: true, eyebrow: 'LAMP · RANKINGS · 2+ GOALS · NEW MODEL', note: 'Who could score two. Two-goal ranking: a new model, not part of the goal score. Ranked tonight by shots per game, shooting %, ice time and goals per game over his games this season (last 82 before 2026-10-18); ON THE BOARD is the top third. Recorded before puck drop and graded on the real result, 2 or more goals; no record is printed until 30 graded nights. Information only.', result: 'GOALS', log: 'lamp_prop_log' },
 ]
 // The SCORE header's ⓘ, per market (it had none, so no explanation and no
 // picture). The legs are the models' own: lib/nhl/goalModel.js and
 // lib/nhl/sogModel.js (BAND_DEFS above names the same three per market).
-const SCORE_TITLE = {
-  GOAL: 'Tonight\u2019s goal score: three ranks against tonight\u2019s skaters, averaged \u2014 shots, goals and ice time per game over his last 82 games. Higher ranks better.',
+const scoreTitle = (market, g) => { const d = gameDayOf(g?.game?.startUtc) || null; return SCORE_TITLE(d)[market] }
+const SCORE_TITLE = (date) => ({
+  GOAL: 'Tonight\u2019s goal score: three ranks against tonight\u2019s skaters, averaged \u2014 shots, goals and ice time per game ' + poolOver(date) + '. Higher ranks better.',
   SOG: 'Tonight\u2019s shots score: shots and ice time per game, and how many shots his opponent allows, each ranked against tonight\u2019s skaters. Higher ranks better.',
   PTS: 'Tonight\u2019s points score (a TEST): points and ice time per game, and how many goals his opponent allows, each ranked against tonight\u2019s skaters. Higher ranks better.',
   AST: 'Tonight\u2019s assists score (a TEST): assists and ice time per game, and how many goals his opponent allows, each ranked against tonight\u2019s skaters. Higher ranks better.',
-  G2: 'Tonight\u2019s two-goal ranking (a new model, not part of the goal score): shots, shooting %, ice time and goals per game over his last 82 games, each ranked against tonight\u2019s skaters, then weighted. A ranking, not a probability. Higher ranks better.',
-}
+  G2: 'Tonight\u2019s two-goal ranking (a new model, not part of the goal score): shots, shooting %, ice time and goals per game ' + poolOver(date) + ', each ranked against tonight\u2019s skaters, then weighted. A ranking, not a probability. Higher ranks better.',
+})
 const SCORE_ART = { GOAL: 'nhl-goal' }   // components/ScoreArt.js
 const marketOf = (k) => MARKETS.find((m) => m.key === k) || MARKETS[0]
 // each market's own rate columns, read off its legs (one lookup, both tables)
@@ -453,6 +456,7 @@ const RATE_COLS = {
 const rateCols = (market) => (RATE_COLS[market] || RATE_COLS.GOAL).map(({ key, label, dp, w }) => ({ key, label, primary: true, dp, w }))
 const rateVals = (r, market) => Object.fromEntries((RATE_COLS[market] || RATE_COLS.GOAL).map((c) => [c.key, r.legs ? r.legs[c.leg] ?? null : null]))
 
+const PPG_WHY = 'Power-play goals this regular season, all clubs he played for, as of now. Blank on a finished game on purpose: the report already counts that game’s goals, so it is not shown as a before-puck-drop number.'
 function columnsFor(g, onOpenTeam, market = 'GOAL', gateOf = null) {
   const graded = g.graded
   const sog = market === 'SOG'
@@ -466,7 +470,7 @@ function columnsFor(g, onOpenTeam, market = 'GOAL', gateOf = null) {
       fmt: (v, r) => <>{v}<span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, marginLeft: 6 }}>{r.pos}</span></> },
     { key: 'team', group: G.call, label: 'TM', heat: false, mono: true, w: 40,
       fmt: (v) => <button type="button" onClick={(e) => { e.stopPropagation(); onOpenTeam?.(v) }} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text2, font: `800 10.5px/1 ${NUM_FONT}` }}>{v}</button> },
-    { key: 'score', group: G.call, label: 'SCORE', cset: 'lean', primary: true, scale: 'seq', domain: [0, 100], w: 50, explain: SCORE_TITLE[market], art: SCORE_ART[market] || null, answers: market === 'GOAL' ? 'nhl-goal' : null },
+    { key: 'score', group: G.call, label: 'SCORE', cset: 'lean', primary: true, scale: 'seq', domain: [0, 100], w: 50, explain: scoreTitle(market, g), art: SCORE_ART[market] || null, answers: market === 'GOAL' ? 'nhl-goal' : null },
     ...rateCols(market).map((c, i) => ({ ...c, group: G.rate, cset: i === 0 ? 'lean' : 'read' })),
     { key: 'toi', group: G.rate, label: 'TOI', cset: 'read', primary: true, w: 48, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
     { key: 'pctl', group: G.rate, label: 'LEGS', cset: 'read', heat: false, w: 118, fmt: (v, r) => (r.status === 'called' && !lampLocked(gateOf, r) ? <PctBars r={r._row} market={market} /> : null) },
@@ -474,7 +478,7 @@ function columnsFor(g, onOpenTeam, market = 'GOAL', gateOf = null) {
     // in it. PP G is his season's power-play goals; PP v PK is his club's
     // power play against tonight's opponent's penalty kill; REST is full days
     // off before tonight (B2B = played yesterday).
-    { key: 'ppg', group: G.st, label: 'PP G', cset: 'read', primary: true, w: 44 },
+    { key: 'ppg', group: G.st, label: 'PP G', cset: 'read', primary: true, w: 44, explain: PPG_WHY },
     { key: 'ppvpk', group: G.st, label: 'PP v PK', heat: false, mono: true, w: 84, fmt: (v) => v || '—' },
     { key: 'rest', group: G.st, label: 'REST', heat: false, mono: true, w: 48, fmt: (v) => v || '—' },
     { answers: 'called', key: 'result', group: G.call, cset: 'lean', label: graded ? marketOf(market).result : 'STATUS', heat: false, w: 96, fmt: (v, r) => {
@@ -543,11 +547,11 @@ function lampSlateColumns(g, market = 'GOAL', onOpenTeam, gateOf = null) {
     { key: 'name', label: 'PLAYER', heat: false, sticky: true, bold: true, w: 170, group: G.call },
     { key: 'pos', label: 'POS', heat: false, mono: true, w: 44, group: G.call },
     { key: 'team', label: 'TEAM', heat: false, mono: true, w: 52, fold: false, group: G.call, fmt: (v) => v },
-    { key: 'score', label: 'SCORE', cset: 'lean', primary: true, scale: 'seq', domain: [0, 100], w: 56, group: G.call, explain: SCORE_TITLE[market], art: SCORE_ART[market] || null, answers: market === 'GOAL' ? 'nhl-goal' : null },
+    { key: 'score', label: 'SCORE', cset: 'lean', primary: true, scale: 'seq', domain: [0, 100], w: 56, group: G.call, explain: scoreTitle(market, g), art: SCORE_ART[market] || null, answers: market === 'GOAL' ? 'nhl-goal' : null },
     ...(graded ? result : []),
     ...(RATE_COLS[market] || RATE_COLS.GOAL).map(({ key, label, dp, w }, i) => ({ key, label, cset: i === 0 ? 'lean' : 'read', primary: true, dp, w: Math.max(w, 56), group: G.rate })),
     { key: 'toi', label: 'TOI', cset: 'read', primary: true, w: 56, group: G.rate, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
-    { key: 'ppg', label: 'PP G', cset: 'read', primary: true, w: 52, group: G.st, explain: 'Power-play goals this season.' },
+    { key: 'ppg', label: 'PP G', cset: 'read', primary: true, w: 52, group: G.st, explain: PPG_WHY },
     ...(graded ? [] : result),
   ]
 }
@@ -621,7 +625,7 @@ export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'G
         {' · '}{g.lineupKnown ? 'lineups in' : 'no lineups yet'}{ctx.b2b ? ' · back-to-back' : ''}
         {g.net ? ` · in net: ${g.net}` : ''}
       </div>
-      {scored.length === 0 ? <EmptyState title="NOBODY SCORED YET" note="No skater on either roster has ten NHL games on file." /> : layout === 'cards' ? (
+      {scored.length === 0 ? <EmptyState title="NOBODY SCORED YET" note="No skater on either roster has three NHL games on file." /> : layout === 'cards' ? (
         <LampCards market={market} onOpen={onOpenPlayer} items={rows.map((x) => ({ key: x.id, r: x._row, g, rank: x.rank, rankMove: x.rankMove, facts: { pp: pct1(spotOf(g, x.team, true)?.ppPct), pk: pct1(spotOf(g, x.team, false)?.pkPct), rest: x.rest } }))} />
       ) : (
         <LampTable sets={!slate} nameCell="player" {...withNhlFullSet(rows, withLastNight(withWeakZone(slate ? lampSlateColumns(g, market, onOpenTeam, gateOf) : columnsFor(g, onOpenTeam, market, gateOf), wk, () => game.id), cln))} heatMode="primary" gateOf={gateOf}
@@ -777,7 +781,7 @@ export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam, onOpenGa
         </span>
       )
     } },
-    { key: 'score', label: 'SCORE', cset: 'lean', primary: true, scale: 'seq', domain: [0, 100], w: 50, group: GROUPS.signal, explain: SCORE_TITLE[market], art: SCORE_ART[market] || null, answers: market === 'GOAL' ? 'nhl-goal' : null },
+    { key: 'score', label: 'SCORE', cset: 'lean', primary: true, scale: 'seq', domain: [0, 100], w: 50, group: GROUPS.signal, explain: scoreTitle(market, kept[0]?.g), art: SCORE_ART[market] || null, answers: market === 'GOAL' ? 'nhl-goal' : null },
     { ...whyColumn({ textOf: (r) => plainWhy(r._row, market).short, itemOf: (r) => whyItemFor(r._row, market, r.rank), open, theme: C, numFont: NUM_FONT, group: GROUPS.signal, w: 165, tidy: true }), cset: 'lean' },
     { key: 'gameRank', label: 'GAME #', cset: 'read', heat: false, mono: true, w: 52, group: GROUPS.signal, title: 'His rank in his own game. CALLED is the top-scored skater on each team (three in a game on the shots, points and assists boards).' },
     ...rateCols(market).map((c, i) => ({ ...c, cset: i === 0 ? 'lean' : 'read', group: GROUPS.shooter })),

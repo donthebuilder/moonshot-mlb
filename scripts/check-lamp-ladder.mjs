@@ -3,6 +3,7 @@
 // skater-games ("TEST n"), counts shaped like the 10-10 pooled record only as a sanity check on the arithmetic
 // (CALLED 48/147, board 150/788, off 182/1580, base 380/2515 = 15.1%); nothing real is read, nothing here is shown on the site.
 //   node --no-warnings --import ./scripts/_esm-resolve.mjs scripts/check-lamp-ladder.mjs
+import { MODEL_VERSION } from '../lib/nhl/goalModel.js'
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -119,7 +120,7 @@ await okA('readNhlCalibration: the ladder rides the same body as the tiers and t
   const cal = await readNhlCalibration({ from: () => q })
   const tier = Object.fromEntries(cal.regular.tiers.map((t) => [t.key, t]))
   const lad = ladderFrom(cal)
-  assert.ok(lad, 'the body carries a ladder'); assert.equal(cal.liveVersion, 'lamp-goal-v3')
+  assert.ok(lad, 'the body carries a ladder'); assert.equal(cal.liveVersion, MODEL_VERSION)
   for (const s of LADDER_RUNGS) assert.deepEqual([lad.rungs[s].hits, lad.rungs[s].n], [tier[s].hits, tier[s].n], s)
   assert.deepEqual([lad.base.hits, lad.base.n], [tier.called.board.hits, tier.called.board.n])
   assert.deepEqual([lad.rungs.called.hits, lad.rungs.called.n], [48, 147])

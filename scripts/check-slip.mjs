@@ -80,6 +80,21 @@ eq('a void below the top N leaves N=2 counted', landedTogether(voidFar, { today:
 const shuffled = [...rows].reverse()
 eq('the night\'s order is its score, whatever the row order', landedTogether(shuffled, { today: '2026-10-24' }).rows.map((r) => r.allHit), four.rows.map((r) => r.allHit))
 eq('calls with no score cannot be ordered, so that night is not used', landedTogether(rows.map((c) => ({ ...c, score: null })), { today: '2026-10-24' }).rows[0].nights, 0)
+// LOCKED ORDER (MLB board rank, NFL TD rung). TEST rows: made-up names; `order` 1 = best, whatever the score or the row order.
+const ord = (date, pairs, extra = {}) => pairs.map(([o, r], i) => ({ date, name: `TEST ${date} ${i}`, order: o, result: r, ...extra }))
+const mlbRows = days.slice(0, 5).flatMap((d, i) => ord(d, i < 2 ? [[9, 'miss'], [3, 'hit'], [14, 'hit'], [5, 'hit']] : [[4, 'hit'], [2, 'hit'], [20, 'miss'], [7, 'hit']]))
+const mlb = landedTogether([...mlbRows].reverse(), { today: '2026-10-24' })
+eq('MLB: the night\'s top N is by `order` (board rank), not row order', [mlb.rows[0].nights, mlb.rows[0].allHit, mlb.rows[1].allHit], [5, 5, 3])
+eq('MLB: a night with no order on one call is not counted', landedTogether([...mlbRows.slice(0, 4).map((c, i) => (i === 1 ? { ...c, order: null } : c)), ...mlbRows.slice(4)], { today: '2026-10-24' }).rows[0].nights, 4)
+eq('MLB: rows with no order and no score count nothing', landedTogether(mlbRows.map((c) => ({ ...c, order: null })), { today: '2026-10-24' }).rows[0].nights, 0)
+eq('MLB: the start date still gates an ordered night', landedTogether(ord('2026-10-12', [[1, 'hit'], [2, 'hit']]), { today: '2026-10-24' }).rows[0].nights, 0)
+// NFL: the week's TD ladder; calls fall on different days, so the week is the night
+const WEEK_DAYS = { 7: ['2026-10-22', '2026-10-25'], 8: ['2026-10-29', '2026-11-01'], 9: ['2026-11-05', '2026-11-08'], 10: ['2026-11-12', '2026-11-15'], 11: ['2026-11-19', '2026-11-22'] }
+const nflWeeks = Object.entries(WEEK_DAYS).flatMap(([w, [thu, sun]]) => [[1, 'hit'], [2, 'hit'], [3, 'miss'], [4, 'hit'], [5, 'hit']].map(([o, r], i) => ({ date: i % 2 ? thu : sun, week: Number(w), ladder: true, name: `TEST w${w} ${i}`, order: o, result: r })))
+const nfl = landedTogether(nflWeeks, { today: '2026-12-01' })
+eq('NFL: five weeks of ladders are five nights (a week is one night however many days it spans)', [nfl.rows[0].nights, nfl.rows[0].allHit, nfl.rows[1].allHit, nfl.rows[4].nights], [5, 5, 0, 0])
+eq('NFL: a ladder missing rung 1 (not graded / left out) is not used', landedTogether(nflWeeks.filter((c) => !(c.week === 7 && c.order === 1)), { today: '2026-12-01' }).rows[0].nights, 4)
+eq('NFL: a week with no order is not used', landedTogether(nflWeeks.map((c) => ({ ...c, order: null })), { today: '2026-12-01' }).rows[0].nights, 0)
 eq('MIN_NIGHTS is 5', MIN_NIGHTS, 5)
 eq('no model probability is printed anywhere in the messages', JSON.stringify(four).includes('%'), false)
 

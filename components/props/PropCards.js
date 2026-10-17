@@ -12,6 +12,8 @@ import { pairHistV2Paths } from '../../lib/dataSource'
 import { readPairHistV2 } from '../../lib/pairHistV2'
 import { pairHistNotes } from '../../lib/slipPairHist'
 import HelpTip from '../HelpTip'
+import HeroStat from '../HeroStat'
+import PropFind from './PropFind'
 import { takeSlipSeed } from '../../lib/slipSeed'
 import { useCallGate, HiddenCalledLine } from '../MemberGate'
 import { lockedFor } from '../../lib/members/gate'
@@ -123,6 +125,9 @@ function Card({ a, r, k, onOpen, onWatch, watched, onSlip = null, inSlip = false
 
 export default function PropCards({
   a: aIn, rows: rawRows = [], onOpen, onWatch, watchIds, compare = null,
+  // find: { nameOf(r), teamOf(r), placeholder } turns on the search box + Filter button (MOONSHOT's Controls row).
+  // compareOf(pool): the sport's Compare-two fold, fed ONLY the rows a non-member may see named. hero: the stat strip.
+  find = null, compareOf = null, hero = false,
   theme = MLB_C, numFont = MLB_NUM, accent = MLB_C.orange, accentWash = 'rgba(249,115,22,.14)',
 }) {
   const C = theme
@@ -146,6 +151,9 @@ export default function PropCards({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [aIn, gateOf])
   const [market, setMarket] = useState('picks')
+  const [query, setQuery] = useState('')
+  const [fTeam, setFTeam] = useState('')
+  const [fGame, setFGame] = useState('')
   const [all, setAll] = useState(false)
   const [precision, setPrecision] = useState(1)
   const [onlyPriced, setOnlyPriced] = useState(false)
@@ -234,7 +242,38 @@ export default function PropCards({
     try { window.localStorage.setItem(a.precisionKey, String(v)) } catch { /* private mode */ }
   }
 
-  const rows = useMemo(() => (rawRows || []).filter((r) => r && a.idOf(r)), [rawRows, a])
+  // THE ROWS A NON-MEMBER MAY SEE NAMED: a hidden CALLED pick (see hiddenRow) is in no search result and in no Compare picker, so he cannot be
+  // found by name. The gate is applied here, at the data the two controls read, not in the controls.
+  const pool = useMemo(() => (rawRows || []).filter((r) => r && !hiddenRow(r)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rawRows, gateOf])
+  const norm = (v) => String(v ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+  const needle = norm(query)
+  const finding = Boolean(find) && Boolean(needle || fTeam || fGame)
+  const findTeams = useMemo(() => (find ? [...new Set((rawRows || []).map((r) => find.teamOf(r)).filter(Boolean))].sort() : []), [rawRows, find])
+  const findGames = useMemo(() => {
+    if (!find || !a.gameOf) return []
+    const m = new Map()
+    for (const r of rawRows || []) { const g = a.gameOf(r); if (g?.key && !m.has(g.key)) m.set(g.key, g.label) }
+    return [...m].map(([key, label]) => ({ key, label }))
+  }, [rawRows, find, a])
+  const found = useMemo(() => {
+    if (!find || (!needle && !fTeam && !fGame)) return rawRows
+    const hide = new Set(needle ? (rawRows || []).filter((r) => r && hiddenRow(r)) : [])
+    return (rawRows || []).filter((r) => {
+      if (!r) return false
+      if (needle) {
+        if (hide.has(r)) return false
+        const tm = norm(find.teamOf(r))
+        if (!norm(find.nameOf(r)).includes(needle) && tm !== needle && !(needle.length >= 2 && tm.startsWith(needle))) return false
+      }
+      if (fTeam && find.teamOf(r) !== fTeam) return false
+      if (fGame && String(a.gameOf?.(r)?.key) !== String(fGame)) return false
+      return true
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawRows, find, needle, fTeam, fGame, a, gateOf])
+  const rows = useMemo(() => (found || []).filter((r) => r && a.idOf(r)), [found, a])
   const callable = useMemo(() => a.markets.filter((k) => k !== 'NONE'), [a])
 
   const counts = useMemo(() => {
@@ -249,16 +288,18 @@ export default function PropCards({
   }, [rows, callable, a])
 
   const groups = useMemo(() => {
-    const single = market !== 'picks' && market !== 'everyone'
+    // a search / team / game in force looks at everyone (Picks would hide a player who is not called), uncut
+    const mk = finding && market === 'picks' ? 'everyone' : market
+    const single = mk !== 'picks' && mk !== 'everyone'
     let out = rows
-    if (market === 'picks') out = out.filter((r) => a.rolesOf(r).length)
-    else if (single) out = out.filter((r) => a.rolesOf(r).includes(market))
+    if (mk === 'picks') out = out.filter((r) => a.rolesOf(r).length)
+    else if (single) out = out.filter((r) => a.rolesOf(r).includes(mk))
     if (onlyWatched) out = out.filter((r) => watchIds?.has(a.idOf(r)))
     if (onlyUpcoming) out = out.filter((r) => { const t = a.startsAt(r); return Number.isFinite(t) && t > now })
-    if (onlyPriced) out = out.filter((r) => a.priced(r, single ? market : (a.primaryOf(r) || market)))
+    if (onlyPriced) out = out.filter((r) => a.priced(r, single ? mk : (a.primaryOf(r) || mk)))
     const buckets = new Map()
     for (const r of out) {
-      const k = single ? market : (a.primaryOf(r) || 'NONE')
+      const k = single ? mk : (a.primaryOf(r) || 'NONE')
       if (!buckets.has(k)) buckets.set(k, [])
       buckets.get(k).push(r)
     }
@@ -274,9 +315,9 @@ export default function PropCards({
           : (x, y) => sc(y) - sc(x) || String(a.card(x, k).title).localeCompare(String(a.card(y, k).title))
       return { key: k, rows: buckets.get(k).sort(cmp) }
     })
-  }, [rows, market, onlyPriced, onlyUpcoming, onlyWatched, watchIds, now, sortBy, a])
+  }, [rows, market, finding, onlyPriced, onlyUpcoming, onlyWatched, watchIds, now, sortBy, a])
 
-  const shown = useMemo(() => (precision > 0 ? groups.map((g) => ({ key: g.key, rows: g.rows.slice(0, precision) })) : groups), [groups, precision])
+  const shown = useMemo(() => (precision > 0 && !finding ? groups.map((g) => ({ key: g.key, rows: g.rows.slice(0, precision) })) : groups), [groups, precision, finding])
   // SAME GAME, ONE BET (2026-10-04 user review #12: three Utah skaters read as
   // three chances). Among tonight's picks (the filters apply, the Top-N cut
   // doesn't), the games holding two or more
@@ -316,10 +357,43 @@ export default function PropCards({
   // the product's own words where it has them (MOONSHOT keeps its originals)
   const T = { priced: "Cards where the book has posted a number on this pick's OWN bar.", upcoming: 'Games that have not started yet.', watched: 'Only names on your watchlist.', sortScore: "Each market's own score -- cards only rank against cards measured the same way.", sortPrice: 'Longest price first, within each market block. An unpriced card sinks.', sortTime: 'Earliest start first, within each market block.', empty: 'No board published yet, or the market filter left nobody. Clear it above.', precision: {}, ...(a.copy || {}) }
 
+  // THE HERO STRIP (hero): what the slate is, from the same rows the cards read -- games, how many have started, the calls, the priced calls.
+  const heroStats = useMemo(() => {
+    if (!hero) return null
+    const byGame = new Map()
+    let priced = 0
+    let calls = 0
+    for (const r of rawRows || []) {
+      if (!r || !a.idOf(r)) continue
+      const g = a.gameOf ? a.gameOf(r) : null
+      const t = a.startsAt(r)
+      if (g?.key) { const cur = byGame.get(g.key); if (!cur || (Number.isFinite(t) && t < cur)) byGame.set(g.key, Number.isFinite(t) ? t : (cur ?? Infinity)) }
+      const rl = a.rolesOf(r)
+      if (rl.length) calls += 1
+      if (rl.some((k) => a.priced(r, k))) priced += 1
+    }
+    const n = byGame.size
+    const started = [...byGame.values()].filter((t) => Number.isFinite(t) && t <= now).length
+    return { n, started, priced, calls }
+  }, [hero, rawRows, a, now])
+
   return (
     <div>
-      {compare && (
-        <MobileFold title="⚖️ Compare two picks" summary="side by side, with a verdict" accent={accent}>{compare}</MobileFold>
+      {heroStats && (
+        <div className="chip-row" style={{ display: 'flex', gap: 6, alignItems: 'center', margin: '2px 0 4px' }}>
+          {heroStats.n > 0 && <HeroStat theme={C} numFont={NUM_FONT} label="GAMES" value={heroStats.n} />}
+          {heroStats.n > 0 && <HeroStat theme={C} numFont={NUM_FONT} label="STARTED" value={`${heroStats.started}/${heroStats.n}`} col={C.text} />}
+          <HeroStat theme={C} numFont={NUM_FONT} label={`${a.unit === 'badge' ? 'BADGES' : 'CALLS'}`} value={heroStats.calls} col={accent} />
+          <HeroStat theme={C} numFont={NUM_FONT} label="PRICED" value={heroStats.priced} col={C.text} />
+        </div>
+      )}
+      {find && (
+        <PropFind query={query} setQuery={setQuery} team={fTeam} setTeam={setFTeam} game={fGame} setGame={setFGame} market={market} setMarket={(m) => { setMarket(m); setAll(false) }}
+          teams={findTeams} games={findGames} markets={pills.map((o) => ({ key: o.key, label: o.label }))}
+          placeholder={find.placeholder} C={C} NUM_FONT={NUM_FONT} accent={accent} />
+      )}
+      {(compare || compareOf) && (
+        <MobileFold title="⚖️ Compare two picks" summary="side by side, with a verdict" accent={accent}>{compareOf ? compareOf(pool) : compare}</MobileFold>
       )}
       <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', paddingBottom: 2 }}>
         {pills.map((o) => (
