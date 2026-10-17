@@ -2,7 +2,7 @@
 import HighlightBar from './HighlightBar'
 import { TodayContext } from './TodayContext'
 import { useHashFilter, readHashKey, FILTER_KEYS } from '../lib/filterHash'
-import { hashParams, writeHash, cardKeep, cardViewPush, closeOpenedStack } from '../lib/urlState'
+import { hashParams, writeHash, cardKeep, cardViewPush, closeOpenedStack, applyAliasParams } from '../lib/urlState'
 import { leaveTarget } from '../lib/openTarget'
 import { listenForWorkerOpen } from '../lib/workerOpen'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -91,6 +91,7 @@ const Pitchers = dynamic(() => import('./tabs/Pitchers'), { loading: TabLoading 
 const Matchups = dynamic(() => import('./tabs/Matchups'), { loading: TabLoading })
 const PropsGrid = dynamic(() => import('./tabs/PropsGrid'), { loading: TabLoading })
 const Longshots = dynamic(() => import('./Longshots'), { loading: TabLoading })
+import OddsWithLongshots from './OddsWithLongshots'
 const StorylinesPage = dynamic(() => import('./StorylinesPage'), { loading: TabLoading })
 const PlayerModal = dynamic(() => import('./PlayerModal'), { loading: () => null })
 
@@ -136,6 +137,7 @@ export default function Dashboard({ palettePass = 0 }) {
     const next = asked.status === 'alias' ? asked.tab : rawNext
     // an old Ledger key (results, calledledger, bands ...) opens The Ledger on its sub-tab (lib/ledger/views.js)
     if (asked.status === 'alias' && asked.view) queueLedgerView(asked.view)
+    applyAliasParams(asked)   // longshots -> odds + lens=longshots (the address writer below keeps lens on Odds)
     if (next !== 'pairs') setFocusPlayerId(null)
     setModalView({ pid: '', view: '' })
     // Changing tab closes the player card. #33: `#tab=odds&p=686948` rendered
@@ -223,7 +225,7 @@ export default function Dashboard({ palettePass = 0 }) {
     const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
     const r = resolveTab('mlb', h.get('tab'))
     if (r.status === 'missing') setMissingTab(r.asked)
-    else if (r.status !== 'default') setTabRaw(r.tab)
+    else if (r.status !== 'default') { applyAliasParams(r); setTabRaw(r.tab) }
     // TODAY / TMRW IS IN THE ADDRESS (2026-09-27, audit 00A root fix 1 stage
     // 2): day=tmrw; Today writes nothing, so every existing link is Today.
     if (h.get('day') === 'tmrw') setMode('tomorrow')
@@ -296,7 +298,7 @@ export default function Dashboard({ palettePass = 0 }) {
       // done this since 09-25 and flagged this one). The exception is a hash
       // that only names a player (#sport=mlb&p=…, the notification shape):
       // that opens his card over whatever page is open, as before.
-      else { setMissingTab(''); if (r.status !== 'default' || !h.get('p')) setTabRaw(r.tab) }
+      else { setMissingTab(''); applyAliasParams(r); if (r.status !== 'default' || !h.get('p')) setTabRaw(r.tab) }
       // ── #p= ON A LIVE HASH CHANGE (2026-09-03) ──────────────────────────
       //
       // The mount-time reader below handles a COLD open. This handles the
@@ -583,6 +585,7 @@ export default function Dashboard({ palettePass = 0 }) {
     if (tab === 'props' && live.get('sheet')) h.set('sheet', live.get('sheet'))       // the phone pick sheet (10-05)
     if (tab === 'fullboard') { for (const k of ['cols', 'sort', 'cln', 'pos']) if (live.get(k)) h.set(k, live.get(k)) }   // Rankings' column view and its sort chain (10-07); cln = the Called last night filter (10-10)
     carryLedgerView(h, live, tab)                                                     // The Ledger's sub-tab (lv=, lib/ledger/views.js)
+    if (tab === 'odds' && live.get('lens')) h.set('lens', live.get('lens'))   // the Longshots lens (components/OddsWithLongshots.js)
     if (tab === 'team' && live.get('team')) h.set('team', live.get('team'))           // the team page's club (10-03)
     if (tab === 'team') for (const k of ['sec', 'sv']) if (live.get(k)) h.set(k, live.get(k))   // its section and view (components/team/TeamPage.js)
     // PUSH WHAT YOU OPENED (2026-09-27, audit 00A root fix 1; lib/urlState).
@@ -1056,7 +1059,8 @@ export default function Dashboard({ palettePass = 0 }) {
               </>
             )}
             {tab === 'combos'      && <Combos onNavigate={setTab} odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
-            {tab === 'odds'        && <OddsBoard players={players} odds={oddsRaw} onPlayerClick={setModalPlayer} />}
+            {tab === 'odds'        && <OddsWithLongshots odds={<OddsBoard players={players} odds={oddsRaw} onPlayerClick={setModalPlayer} />}
+              longshots={<Longshots sport="mlb" eyebrow="MOONSHOT · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.orange} onOpenPitcher={(pid) => { leaveTarget('pitcher', pid); setTab('pitchers') }} onOpenPlayer={(id) => { const p = allPlayers.find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) setModalPlayer(p) }} />} />}
             {tab === 'binder'      && <Binder sport="mlb" board={binderBoard} />}
 
             {/* ── ALIASES — every old key keeps landing somewhere right ───── */}
@@ -1075,7 +1079,6 @@ export default function Dashboard({ palettePass = 0 }) {
             {Object.hasOwn(HOME_VIEW, tab) && <Home key={tab} players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial={HOME_VIEW[tab]} />}
             {/* 2026-09-25: the full board, #1 to #N, on its own page. */}
             {tab === 'storylines'  && <StorylinesPage sport="mlb" eyebrow="MOONSHOT · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.orange} onOpenGame={(pk) => { leaveTarget('game', pk); setTab('games') }} searchBox={false} keepIds={players.length < allPlayers.length ? new Set(players.map((p) => String(p?.player_id ?? p?.id))) : null} onOpenPlayer={(id) => { const p = allPlayers.find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) setModalPlayer(p) }} />}
-            {tab === 'longshots'   && <Longshots sport="mlb" eyebrow="MOONSHOT · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.orange} onOpenPitcher={(pid) => { leaveTarget('pitcher', pid); setTab('pitchers') }} onOpenPlayer={(id) => { const p = allPlayers.find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) setModalPlayer(p) }} />}
             {/* ONE RANKINGS PAGE (2026-10-06): the Boards page and Rankings are this page. #tab=board / boards / hitshrr are aliases (lib/routes.js). */}
             {tab === 'fullboard'   && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} onOpenCard={openCardAt} slateDate={slateDate} onNavigate={setTab} runAt={Date.parse(runMeta?.generated_at) || null} />}
             {/* #tab=power and #tab=patterns were NEVER WIRED (found 2026-08-17

@@ -229,7 +229,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
       {/* ⭐ YOUR PLAYERS (2026-10-03): MOONSHOT's section, fed by the scores and board read above. */}
       <LampYourPlayers games={games} board={board.data} onOpenPlayer={onOpenPlayer} />
       <StorylinesStrip sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} max={3} onOpenTeam={onOpenTeam} onSeeAll={() => setTab?.('storylines')} onOpenPlayer={(id) => onOpenPlayer?.(Number(id))} />
-      <LongshotsPreview sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onSeeAll={() => setTab?.('longshots')} onOpenPlayer={(id) => onOpenPlayer?.(id)} />
+      <LongshotsPreview plain sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onSeeAll={() => setTab?.('longshots')} onOpenPlayer={(id) => onOpenPlayer?.(id)} />
 
       {/* TONIGHT'S NUMBERS (numerology v2 step 6b): one line under the board, taps to Numerology. */}
       <HotNumbers compact sport="nhl" date={day?.date || date} theme={C} numFont={NUM_FONT} accent={C.ice} onOpen={() => setTab?.('numerology')} />

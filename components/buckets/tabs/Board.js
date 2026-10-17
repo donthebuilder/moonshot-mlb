@@ -87,7 +87,7 @@ function whyItemFor(r, market, rank) {
     links: [
       { label: 'His page: season line, game log, every shot', href: `#sport=nba&tab=player&player=${id}` },
       { label: 'Where he shoots from', href: `#sport=nba&tab=shotmap&player=${id}` },
-      { label: 'Who is running hot: last 5 and 10', href: '#sport=nba&tab=hot' },
+      { label: 'Who is running hot: last 5 and 10', href: '#sport=nba&tab=power&lens=hot' },
       { label: 'Tonight’s defences, ranked', href: '#sport=nba&tab=matchups' },
     ],
   }

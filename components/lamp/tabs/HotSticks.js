@@ -63,7 +63,7 @@ export default function HotSticks({ onOpenPlayer }) {
   const shown = scope === 'tonight' ? rows.filter((r) => r._playing) : scope === 'f' ? rows.filter((r) => r.pos !== 'D') : scope === 'd' ? rows.filter((r) => r.pos === 'D') : rows
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <PageHeader eyebrow="LAMP · HOT STICKS" title="Who is shooting more than usual"
+      <PageHeader eyebrow="LAMP · POWER · HOT STREAKS" title="Who is shooting more than usual"
         note="Last 5 and last 10 games beside his season rate."
         theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={data ? [{ value: rows.length, label: 'SKATERS', tone: C.text2 }, ...(data.stale ? [] : [{ value: playing, label: 'PLAYING TONIGHT', tone: C.ice }])] : null} />
