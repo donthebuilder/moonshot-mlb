@@ -1,65 +1,36 @@
-// QUICK PICKS on the front door (2026-10-16, Donovan: "this should have everything anyone needs to sign up, get quick picks, see how the bot is doing,
+// THE FREE TASTE on the front door (2026-10-16, Donovan: "this should have everything anyone needs to sign up, get quick picks, see how the bot is doing,
 // see their players"; then: keep the site open and free, show a taste of the called picks, hide the rest unless you are a member).
-// Server component. Tonight's called players (MLB, from the lock ledger), the week's TD board (NFL) and LAMP's called skaters (NHL), each a link to his page.
-// WHAT A VIEWER SEES IS DECIDED HERE, ON THE SERVER (lib/members/access.js previewOf): a free visitor gets the first FREE_CALLS_PER_SPORT of each list and a
-// "+N more" row; the hidden names are never in the page. A member gets the longer list. Nothing is typed or invented: an empty list leaves its block off.
-import Link from 'next/link'
-import { playerHref } from '../../lib/routes'
-import { DISCORD_URL, membersUrl } from '../../lib/members'
+// Rebuilt 2026-10-17 as MOONSHOT tables (components/home/FreeTaste.js): one DenseTable per sport, 4 rows for a visitor, up to 8 for a member.
+// Server component. WHAT A VIEWER SEES IS DECIDED HERE, ON THE SERVER (lib/members/access.js previewOf): only the rows that pass the gate are handed to
+// the table, so a hidden name is never in the page. The count of hidden ones is all that crosses. Nothing is typed or invented: an empty list leaves its
+// block off, and with no list at all the section is gone.
+import { playerHref, teamHref } from '../../lib/routes'
 import { previewOf } from '../../lib/members/access'
+import FreeTaste from './FreeTaste'
 
-const ROLE_WORD = { TOP: 'TOP', HR: 'HR', HIT: 'HIT', HRR: 'H+R+RBI', CONTACT: 'CONTACT' }
-const matchup = (p) => [p.team && p.opp ? `${p.team} vs ${p.opp}` : p.team, p.position].filter(Boolean).join(' · ')
-
-function Rows({ styles, sport, view, label, tone, detail, member }) {
-  if (!view.shown.length) return null
-  const join = membersUrl()
-  return (
-    <>
-      <p className={styles.quickNote} style={{ marginTop: 16 }}><b>{label}</b></p>
-      <ul className={styles.quickList}>
-        {view.shown.map((p) => (
-          <li key={p.id}>
-            <Link href={playerHref(sport, p.id)} className={styles.quickRow}
-              style={tone ? { borderColor: `color-mix(in srgb, var(${tone}) 35%, transparent)`, background: `color-mix(in srgb, var(${tone}) 8%, transparent)` } : undefined}>
-              <b>{p.name}</b>
-              <span style={tone ? { color: `var(${tone})` } : undefined}>{detail(p)}</span>
-            </Link>
-          </li>
-        ))}
-        {view.hidden > 0 ? (
-          <li>
-            <a href={join || '/members'} className={`${styles.quickRow} ${styles.quickLocked}`}>
-              <b>+{view.hidden} more {member ? '' : 'for members'}</b>
-              <span>{'JOIN →'}</span>
-            </a>
-          </li>
-        ) : null}
-      </ul>
-    </>
-  )
+const firstPitch = (iso) => {
+  const t = Date.parse(iso || '')
+  return Number.isFinite(t) ? `${new Date(t).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })} ET` : ''
 }
 
-export default function QuickPicks({ styles, calls, sport = 'mlb', recordLine = null, signedIn = false, nfl = null, nhl = null, member = false }) {
-  const mlbV = previewOf(calls?.items, member), nflV = previewOf(nfl?.items, member), nhlV = previewOf(nhl?.items, member)
-  if (!mlbV.shown.length && !nflV.shown.length && !nhlV.shown.length && !recordLine) return null
-  const anyHidden = mlbV.hidden + nflV.hidden + nhlV.hidden > 0
+function block(sport, view, note, row) {
+  return view.shown.length ? { sport, note, hidden: view.hidden, rows: view.shown.map((p) => ({ _key: `${sport}-${p.id}`, id: p.id, name: p.name, href: playerHref(sport, p.id), ...row(p) })) } : null
+}
+
+export default function QuickPicks({ styles, calls, nfl = null, nhl = null, member = false }) {
+  const blocks = [
+    block('mlb', previewOf(calls?.items, member), 'locked before first pitch', (p) => ({ role: p.roles.join(' · '), first: firstPitch(p.firstPitch) })),
+    block('nfl', previewOf(nfl?.items, member), `${nfl?.label || 'this week'} · the anytime-touchdown board`, (p) => ({ team: p.team, teamHref: teamHref('nfl', p.team), vs: p.opp, vsHref: teamHref('nfl', String(p.opp || '').replace(/^@\s*/, '')), pos: p.position })),
+    block('nhl', previewOf(nhl?.items, member), 'tonight’s skaters, locked before puck drop', (p) => ({ team: p.team, teamHref: teamHref('nhl', p.team), vs: p.opp, vsHref: teamHref('nhl', String(p.opp || '').replace(/^@\s*/, '')), pos: p.position })),
+  ].filter(Boolean)
+  if (!blocks.length) return null
   return (
-    <section className={styles.quick} id="picks" aria-label="Quick picks">
+    <section id="picks" className={styles.taste} aria-label="Tonight’s called players">
       <div className={styles.slateHead}>
-        <p className={styles.kicker}>QUICK PICKS</p>
-        <h2>{mlbV.shown.length || nflV.shown.length || nhlV.shown.length ? 'Tonight’s called players.' : 'How the bot is doing.'}</h2>
+        <p className={styles.kicker}>FREE PICKS</p>
+        <h2>Tonight’s called players.</h2>
       </div>
-      <Rows styles={styles} sport={sport} view={mlbV} member={member} label="MOONSHOT: locked before first pitch"
-        detail={(p) => p.roles.map((r) => ROLE_WORD[r] || r).join(' · ')} />
-      <Rows styles={styles} sport="nfl" view={nflV} member={member} tone="--nfl" label={`TUDDY · ${nfl?.label || 'this week'}: the anytime-touchdown board`} detail={matchup} />
-      <Rows styles={styles} sport="nhl" view={nhlV} member={member} tone="--nhl" label="LAMP: tonight’s called skaters, locked before puck drop" detail={matchup} />
-      {recordLine ? <p className={styles.quickNote}>Record so far: {recordLine} <a href="#record">See how it{'’'}s graded {'↓'}</a></p> : null}
-      <div className={styles.quickActions}>
-        {signedIn ? null : <a href="#create-account" className={styles.quickCta}>Sign up free <b>{'→'}</b></a>}
-        <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer">Join the free Discord <b>{'→'}</b></a>
-      </div>
-      {anyHidden && !member ? <p className={styles.quickNote}>Free shows a few from each sport. Founding members see every called player, delivered at lock.</p> : null}
+      <FreeTaste blocks={blocks} member={member} />
     </section>
   )
 }
