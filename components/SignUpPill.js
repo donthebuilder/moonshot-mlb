@@ -20,13 +20,15 @@ import { useEffect, useRef, useState } from 'react'
 import { useDashAccount } from '../lib/dash/sync'
 import { dashSignOut } from '../app/(front)/actions'
 import { useIsAdmin } from '../lib/useIsAdmin'
+import { signUpHref } from '../lib/loginHref'
+import { accountWatchHref } from '../lib/routes'
 
 const pressable = {
   transition: 'transform .09s ease, filter .12s ease, box-shadow .12s ease',
   willChange: 'transform',
 }
 
-export default function SignUpPill({ accent = '#f97316', dark = '#0d0c0a', onWatchlist }) {
+export default function SignUpPill({ accent = '#f97316', dark = '#0d0c0a', onWatchlist, sport = 'mlb' }) {
   const account = useDashAccount()
   const isAdmin = useIsAdmin()      // the server's answer (/api/admin/me); false for everyone else
   const [href, setHref] = useState('/login?next=%2Fapp%23sport%3Dmlb%26tab%3Dhome#create-account')
@@ -40,7 +42,7 @@ export default function SignUpPill({ accent = '#f97316', dark = '#0d0c0a', onWat
     const { pathname, search, hash } = window.location
     const n = pathname + search + (hash || '')
     setNext(n)
-    setHref(`/login?next=${encodeURIComponent(pathname + search)}${hash || '#create-account'}`)
+    setHref(signUpHref({ pathname, search, hash }))
   }, [])
 
   // Click-away and Escape both close the menu.
@@ -100,7 +102,7 @@ export default function SignUpPill({ accent = '#f97316', dark = '#0d0c0a', onWat
             <MenuLink ac={accent} href="/account">⚙ Account</MenuLink>
             {onWatchlist
               ? <MenuButton ac={accent} onClick={() => { setOpen(false); onWatchlist() }}>⭐ Watchlist</MenuButton>
-              : <MenuLink ac={accent} href="/app#sport=mlb&tab=you">⭐ Watchlist</MenuLink>}
+              : <MenuLink ac={accent} href={accountWatchHref(sport)}>⭐ Watchlist</MenuLink>}
             {isAdmin ? <MenuLink ac={accent} href="/admin">🛠 Admin</MenuLink> : null}
             <form action={dashSignOut} style={{ display: 'contents' }}>
               <input type="hidden" name="next" value={next} />

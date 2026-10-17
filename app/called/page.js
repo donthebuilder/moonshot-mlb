@@ -660,9 +660,10 @@ export default async function CalledPage({ searchParams }) {
         {/* THE LEDGER'S FOUR WORDS (2026-10-07): the same sub-tabs the in-app Ledger has, jumping to this page's own
             sections -- Tonight (the calls), Called (every event, tagged), Record (the graded tiers), Archive (the nights). */}
         <nav className={styles.ledgerNav} aria-label="The Ledger, by section">
-          <a href="#calls">{ledgerWord(sport.key, 'tonight')}</a>
-          <a href="#tonight">{ledgerWord(sport.key, 'called')}</a>
-          <a href="#tiers">{ledgerWord(sport.key, 'record')}</a>
+          {/* a jump only where its section is drawn (2026-10-17, check-clicks): with no calls yet, or no events, a button pointed at an id that was not on the page */}
+          {picks.length || hiddenPicks ? <a href="#calls">{ledgerWord(sport.key, 'tonight')}</a> : null}
+          {rows.length ? <a href="#tonight">{ledgerWord(sport.key, 'called')}</a> : null}
+          {sport.tierRecord ? <a href="#tiers">{ledgerWord(sport.key, 'record')}</a> : null}
           <a href="#nights">{ledgerWord(sport.key, 'archive')}</a>
         </nav>
         <p className={styles.whatIs}><a href={ledgerAppHref(sport.key)}>The same Ledger, in the app, with every table →</a></p>

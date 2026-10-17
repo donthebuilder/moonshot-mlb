@@ -54,7 +54,7 @@ export default function LampHeader({ tab, setTab, live = 0, date = null, setDate
           theme={C} numFont={NUM_FONT}
         />
       }
-      account={<SignUpPill accent={C.ice} />}
+      account={<SignUpPill accent={C.ice} sport="nhl" />}
       settings={
         <SettingsSheet theme={C} accent={C.ice} title="View settings — quiet mode, alerts" hint="Quiet mode and alerts. Stick on this device.">
           <SheetLabel theme={C}>View</SheetLabel>

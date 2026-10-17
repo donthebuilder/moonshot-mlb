@@ -118,4 +118,6 @@ export default function AccountNudge({ sport = 'mlb' }) {
 // Above the dock at every width, from the one shared offset (lib/dockClear.js).
 // Was 16px on a desktop, "where there is no bar" -- there has been a slim
 // dock there since 2026-08-29, and the ask sat on top of it.
-const NUDGE_CSS = dockClearCss('account-nudge')
+// On a desktop the shell leaves ~78px under the footer and the line sits 66px up and ~40px tall, so at the bottom of the page it covered the
+// footer's last link ("Not affiliated ...", check-clicks, 2026-10-17). While the line is up, the footer gets the room (a phone already has more).
+const NUDGE_CSS = dockClearCss('account-nudge') + '@media(min-width:761px){body:has(.account-nudge[role=note]) .dash-foot{padding-bottom:52px!important}}'

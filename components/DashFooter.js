@@ -15,7 +15,7 @@ export default function DashFooter({ sport, theme: C, onGuide = null }) {
   const link = { color: C.text2, textDecoration: 'none', fontWeight: 700 }
   const sep = <span aria-hidden="true" style={{ color: C.text3, margin: '0 8px' }}>·</span>
   return (
-    <footer style={{ marginTop: 22, padding: '16px 12px 12px', borderTop: `1px solid ${C.border}`, textAlign: 'center', color: C.text3, fontSize: 12, lineHeight: 1.6 }}>
+    <footer className="dash-foot" style={{ marginTop: 22, padding: '16px 12px 12px', borderTop: `1px solid ${C.border}`, textAlign: 'center', color: C.text3, fontSize: 12, lineHeight: 1.6 }}>
       <nav className="dash-foot-nav" aria-label={`${name} footer`} style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', rowGap: 6, marginBottom: 8 }}>
         {onGuide ? <button type="button" onClick={onGuide} style={{ ...link, background: 'none', border: 0, padding: '6px 2px', cursor: 'pointer', font: 'inherit', fontWeight: 700 }}>How this works</button> : null}
         {onGuide ? sep : null}

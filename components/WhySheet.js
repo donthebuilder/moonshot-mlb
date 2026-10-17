@@ -61,7 +61,7 @@ export function WhySheet({ item, onClose, theme: C, accent, numFont }) {
           <div style={label}>RESEARCH NEXT</div>
           <div style={{ display: 'grid', gap: 8 }}>
             {item.links.map((l) => (l.href
-              ? <a key={l.label} href={l.href} onClick={onClose} style={linkStyle}><span>{l.label}</span><span aria-hidden="true">›</span></a>
+              ? <a key={l.label} href={l.href} {...(/^https?:/i.test(l.href) ? { target: '_blank', rel: 'noopener noreferrer' } : {})} onClick={onClose} style={linkStyle}><span>{l.label}</span><span aria-hidden="true">›</span></a>
               : <button key={l.label} type="button" onClick={() => { onClose(); l.onClick?.() }} style={linkStyle}><span>{l.label}</span><span aria-hidden="true">›</span></button>))}
           </div>
         </>)}
