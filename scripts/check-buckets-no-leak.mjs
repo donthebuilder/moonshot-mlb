@@ -256,4 +256,15 @@ await ok('MEMBERS: the BUCKETS player card hides the call from a free viewer (sc
   assert.ok(/strip: \[[^\]]*'score'[^\]]*'why'/.test(src), 'the compare mask strips the score and the why')
 })
 
+await ok('MEMBERS: the BUCKETS board, ALL MARKETS and the top ticker read through useGatedBoard (no free four: a free viewer sees plain ON THE BOARD; the ticker never names a hidden pick)', async () => {
+  for (const f of ['components/buckets/tabs/Board.js', 'components/buckets/tabs/FullBoard.js', 'components/buckets/BucketsTicker.js']) {
+    const src = code(read(f))
+    assert.ok(src.includes('useGatedBoard('), `${f} must read the board through useGatedBoard`)
+    assert.ok(!/useBucketsBoard\(/.test(src), `${f} reads the raw board`)
+  }
+  const g = code(read('components/buckets/useGatedBoard.js'))
+  for (const n of ['useLockOf()', "status: 'board'", 'role: null', '_callHidden', "g?.state === 'final'"]) assert.ok(g.includes(n), `useGatedBoard lost ${n}`)
+  assert.ok(code(read('components/buckets/BucketsTicker.js')).includes('!r._callHidden'), 'the ticker must skip a hidden pick')
+})
+
 console.log(`\n${n} groups ok`)

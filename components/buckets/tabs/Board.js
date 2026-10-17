@@ -4,9 +4,10 @@ import PageHeader from '../../PageHeader'
 import HowToRead from '../../HowToRead'
 import { useIsPhone } from '../../MobileFold'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
-import { useBucketsBoard, useBucketsExpected } from '../../../lib/nba/useBuckets'
+import { useBucketsExpected } from '../../../lib/nba/useBuckets'
 import { NBA_MARKETS, MARKET_OPTIONS, LEG_LABEL, fmtLeg, RAW_OF } from '../../../lib/nba/legs'
 import BucketsTable from '../BucketsTable'
+import { useGatedBoard } from '../useGatedBoard'
 import { boardRows, boardColumns, faceOf, XPTS_MARKETS } from '../boardTable'
 import FullBoard from './FullBoard'
 import { useWhySheet, whyColumn } from '../../WhySheet'
@@ -113,9 +114,9 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
   const [minX, setMinX] = useState(0)
   // ONE READ PER MARKET (2026-10-08): the chips carry a count (how many players have a score for that market), the
   // same way TUDDY's do, so all eight boards are read -- the same cached /api/buckets/board reads the ALL MARKETS table makes.
-  const bPts = useBucketsBoard(date, 'pts'), bReb = useBucketsBoard(date, 'reb'), bAst = useBucketsBoard(date, 'ast')
-  const bTpm = useBucketsBoard(date, '3pm'), bPra = useBucketsBoard(date, 'pra'), bFirst = useBucketsBoard(date, 'first')
-  const bDd = useBucketsBoard(date, 'dd'), bTd = useBucketsBoard(date, 'td')
+  const bPts = useGatedBoard(date, 'pts'), bReb = useGatedBoard(date, 'reb'), bAst = useGatedBoard(date, 'ast')
+  const bTpm = useGatedBoard(date, '3pm'), bPra = useGatedBoard(date, 'pra'), bFirst = useGatedBoard(date, 'first')
+  const bDd = useGatedBoard(date, 'dd'), bTd = useGatedBoard(date, 'td')
   const boardsBy = { pts: bPts, reb: bReb, ast: bAst, '3pm': bTpm, pra: bPra, dd: bDd, td: bTd, first: bFirst }
   const { data, error, loading } = boardsBy[mk]
   const marketCounts = useMemo(() => {

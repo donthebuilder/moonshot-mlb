@@ -3,7 +3,8 @@ import { useMemo } from 'react'
 import PageHeader from '../../PageHeader'
 import CallStatusBadge from '../../CallStatusBadge'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
-import { useBucketsBoard, useBucketsExpected } from '../../../lib/nba/useBuckets'
+import { useBucketsExpected } from '../../../lib/nba/useBuckets'
+import { useGatedBoard } from '../useGatedBoard'
 import { NBA_MARKETS, LEG_LABEL, fmtLeg, RAW_OF } from '../../../lib/nba/legs'
 import BucketsTable from '../BucketsTable'
 import { faceOf, XPTS_TITLE } from '../boardTable'
@@ -31,9 +32,9 @@ const LEG_KEYS = (() => {
 // `embedded`: drawn inside the Rankings page (Board.js, the ALL MARKETS pill), which owns the header and the day.
 // `keep`: the Rankings page's search / team / game filters, as a predicate on a row
 export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onOpenGame, embedded = false, keep = null, empty = null }) {
-  const pts = useBucketsBoard(date, 'pts'), reb = useBucketsBoard(date, 'reb'), ast = useBucketsBoard(date, 'ast')
-  const tpm = useBucketsBoard(date, '3pm'), pra = useBucketsBoard(date, 'pra'), first = useBucketsBoard(date, 'first')
-  const dd = useBucketsBoard(date, 'dd'), td = useBucketsBoard(date, 'td')
+  const pts = useGatedBoard(date, 'pts'), reb = useGatedBoard(date, 'reb'), ast = useGatedBoard(date, 'ast')
+  const tpm = useGatedBoard(date, '3pm'), pra = useGatedBoard(date, 'pra'), first = useGatedBoard(date, 'first')
+  const dd = useGatedBoard(date, 'dd'), td = useGatedBoard(date, 'td')
   const boards = { pts, reb, ast, '3pm': tpm, pra, dd, td, first }
   const xp = useBucketsExpected(date)
   const xptsBy = useMemo(() => new Map((xp.data?.rows || []).map((r) => [String(r.playerId), r])), [xp.data])

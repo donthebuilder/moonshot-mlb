@@ -202,5 +202,21 @@ for (const f of ['components/CallStatusBadge.js', 'components/MemberGate.js', 'c
   eq(lockedFor({ ...t, free: new Set(['test-g1|test-p1']) }), false, 'buckets card: a free-four man stays unlocked')
 }
 
+// 13. THE BUCKETS BOARD + TICKER (2026-10-17). Every board read goes through useGatedBoard (call fields off a locked pick; no free four, so a free viewer's
+//     board is plain ON THE BOARD); the ticker never names a hidden pick. Graded / started games and members stay as they were.
+{
+  for (const f of ['components/buckets/tabs/Board.js', 'components/buckets/tabs/FullBoard.js', 'components/buckets/BucketsTicker.js']) {
+    const src = readFileSync(new URL(`../${f}`, import.meta.url), 'utf8')
+    ok(src.includes('useGatedBoard(') && !/useBucketsBoard\(/.test(src), `${f}: reads the board without the member gate (useGatedBoard)`)
+  }
+  ok(readFileSync(new URL('../components/buckets/BucketsTicker.js', import.meta.url), 'utf8').includes('_callHidden'), 'BucketsTicker no longer skips a hidden pick')
+  const g = readFileSync(new URL('../components/buckets/useGatedBoard.js', import.meta.url), 'utf8')
+  for (const needle of ['useLockOf()', "status: 'board'", 'role: null', "g?.state === 'final'", '_callHidden']) ok(g.includes(needle), `useGatedBoard.js lost ${needle}`)
+  const row = { status: 'called', started: false, graded: false, key: 'test-g1|test-p1', free: new Set(), memberState: 'free' }
+  eq(lockedFor(row), true, 'buckets board: a free viewer\u2019s not-started called pick is hidden (no free four)')
+  eq(lockedFor({ ...row, started: true }), false, 'buckets board: a started game is public')
+  eq(lockedFor({ ...row, status: 'board' }), false, 'buckets board: ON THE BOARD is never locked')
+}
+
 if (fails.length) { console.error('check-member-gate FAILED:\n - ' + fails.join('\n - ')); process.exit(1) }
 console.log('check-member-gate: ok')

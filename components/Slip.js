@@ -7,7 +7,7 @@
 //                                'Try an example slip' (the free four's priced ones, most two) and one quiet Join line.
 //   HOW OFTEN CALLED PICKS LANDED TOGETHER   the locked, graded record, N = 2..6 (lib/slip/landed.js), sample size always shown.
 // MLB's old floating Slip (HR / Hit / HRR / TB legs, no price) is this component now: the same chip, the same slip.
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import BetSlip from './props/BetSlip'
 import { useSlip, useCalls } from '../lib/slip/store'
 import { calledLegs } from '../lib/slip/core'
@@ -16,6 +16,41 @@ import { useMemberState } from './MemberGate'
 import { membersUrl } from '../lib/members'
 import { TYPE } from '../lib/theme'
 import { DOCK_CLEAR_PHONE } from '../lib/dockClear'
+
+
+// NEVER OVER A CONTROL (2026-10-17, phone run-through: the chip floated over a card's "The Read" / "Recent form" at some scroll positions). A fixed chip
+// cannot avoid every control by CSS, so when the page settles (scroll stops, resize, the DOM changes) it asks where a tap target's CENTRE lies and takes
+// the first free place: bottom right (home), bottom left, then each one chip-height up, and last a slim edge tab. It also hides while the on-screen keyboard
+// is open (visualViewport shorter than it was) and while another dialog / sheet is open (it is z-index 80: it floated over the Filters drawer). Pure
+// DOM reads; it writes one data attribute. `data-pos` / `data-hide` are what the CSS below keys on.
+const TAP_SEL = 'a[href],button,input,select,textarea,summary,[role=button],[role=link],[role=tab],[role=menuitem]'
+const SLOTS = ['right', 'left', 'right-up', 'left-up', 'tab']
+function placeChip(chip, fullH) {
+  const vv = window.visualViewport
+  const ae = document.activeElement
+  const typing = Boolean(ae) && (/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) || ae.isContentEditable)
+  const keyboard = typing && Boolean(vv) && vv.height < fullH.current - 120   // a shorter viewport alone (a phone turned sideways) is not the keyboard
+  const sheet = document.querySelector('[role=dialog]:not(.slipSheet), [aria-modal=true], .modal-backdrop')
+  const hide = keyboard || Boolean(sheet)
+  if (hide) { if (chip.dataset.hide !== '1') chip.dataset.hide = '1'; return }
+  if (chip.dataset.hide) delete chip.dataset.hide
+  const taps = []
+  for (const el of document.querySelectorAll(TAP_SEL)) {
+    if (el === chip) continue
+    const r = el.getBoundingClientRect()
+    if (r.width < 2 || r.height < 2 || r.bottom < 0 || r.top > window.innerHeight || r.right < 0 || r.left > window.innerWidth) continue
+    taps.push({ el, cx: Math.min(Math.max(r.left + r.width / 2, 0), window.innerWidth - 1), cy: Math.min(Math.max(r.top + r.height / 2, 0), window.innerHeight - 1) })
+  }
+  let best = null
+  for (const slot of SLOTS) {
+    chip.dataset.pos = slot
+    const c = chip.getBoundingClientRect()
+    const hit = taps.filter((t) => t.cx >= c.left - 3 && t.cx <= c.right + 3 && t.cy >= c.top - 3 && t.cy <= c.bottom + 3 && (() => { const top = document.elementFromPoint(t.cx, t.cy); return top && (chip.contains(top) || top === t.el || t.el.contains(top) || top.contains(t.el)) })()).length
+    if (best == null || hit < best.hit) best = { slot, hit }
+    if (!hit) break
+  }
+  chip.dataset.pos = best.slot
+}
 
 const SPORT_WORD = { mlb: 'home-run', nfl: 'touchdown', nhl: 'goal', nba: 'points' }
 
@@ -41,6 +76,28 @@ export default function Slip({ sport = 'mlb', C, NUM_FONT, accent, onOpenProps =
   const memberState = useMemberState()
   const landed = useLanded(sport, open)
   const [note, setNote] = useState('')
+  const chipRef = useRef(null)
+  const fullH = useRef(0)
+  useEffect(() => {
+    const chip = chipRef.current
+    if (!chip) return undefined
+    const vv = window.visualViewport
+    fullH.current = Math.max(fullH.current, vv ? vv.height : 0, window.innerHeight)
+    let t = null
+    const run = () => { t = null; if (!document.hidden) { const h = vv ? vv.height : window.innerHeight; if (h > fullH.current) fullH.current = h; placeChip(chip, fullH) } }
+    const later = (ms = 160) => { if (t) clearTimeout(t); t = setTimeout(run, ms) }
+    const kb = () => { if (!document.hidden) placeChip(chip, fullH) }   // the keyboard opening or closing: no wait, the chip must not sit on the input
+    window.addEventListener('scroll', later, { passive: true, capture: true })
+    window.addEventListener('resize', later)
+    window.addEventListener('hashchange', () => later(400))
+    window.addEventListener('focusin', kb); window.addEventListener('focusout', () => later(120))
+    window.addEventListener('orientationchange', () => { fullH.current = 0; later(400) })
+    vv?.addEventListener('resize', kb)
+    const mo = new MutationObserver(() => later(300))
+    mo.observe(document.body, { childList: true, subtree: true })
+    later(300)
+    return () => { if (t) clearTimeout(t); window.removeEventListener('scroll', later, { capture: true }); window.removeEventListener('resize', later); window.removeEventListener('focusin', kb); vv?.removeEventListener('resize', kb); mo.disconnect() }
+  }, [])
   useEffect(() => {
     if (!open) return undefined
     const key = (e) => { if (e.key === 'Escape') setOpen(false) }
@@ -62,6 +119,10 @@ export default function Slip({ sport = 'mlb', C, NUM_FONT, accent, onOpenProps =
     <>
       <style>{`
         .slipChip{position:fixed;z-index:80;right:max(12px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom))}
+        .slipChip[data-pos=left],.slipChip[data-pos=left-up]{right:auto;left:max(12px,env(safe-area-inset-left))}
+        .slipChip[data-pos=right-up],.slipChip[data-pos=left-up]{margin-bottom:52px}
+        .slipChip[data-pos=tab]{right:0;border-radius:22px 0 0 22px!important;transform:translateX(calc(100% - 24px))}
+        .slipChip[data-hide]{visibility:hidden;pointer-events:none}
         .slipSheet{position:fixed;z-index:420;right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));width:min(440px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow-y:auto;overscroll-behavior:contain}
         @media(max-width:760px){
           .slipChip{bottom:${DOCK_CLEAR_PHONE}}
@@ -69,8 +130,9 @@ export default function Slip({ sport = 'mlb', C, NUM_FONT, accent, onOpenProps =
           .slipSheet{left:max(8px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));width:auto;max-height:calc(100dvh - 16px - env(safe-area-inset-top))}
           main.dashboard-main{padding-bottom:156px!important}
         }
+        @media(orientation:landscape) and (max-height:500px){main.dashboard-main{padding-bottom:132px!important}}   /* a phone on its side: the last row scrolls clear of the dock and the chip */
       `}</style>
-      <button type="button" className="slipChip" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open}
+      <button type="button" className="slipChip" ref={chipRef} onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open}
         aria-label={`Your slip, ${legs.length} ${legs.length === 1 ? 'pick' : 'picks'}. Open it.`}
         style={{ minHeight: 44, minWidth: 44, display: 'inline-flex', alignItems: 'center', gap: 8, padding: '0 14px', background: C.bg2, color: C.text, border: `1px solid ${legs.length ? accent : C.border2}`, borderRadius: 22, boxShadow: '0 8px 28px rgba(0,0,0,.6)', fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: NUM_FONT }}>
         <span aria-hidden="true">🧾</span>

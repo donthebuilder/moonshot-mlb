@@ -67,7 +67,7 @@ export default function MobileCSS() {
         .dashboard-main { padding-left: 10px !important; padding-right: 10px !important; padding-bottom: 18px !important; }
         /* three cells since the ✨ spotlight got its own column (2026-08-15) —
            this was still forcing two, which wrapped the button to a new row */
-        .dash-controls { grid-template-columns: 1fr 108px 120px auto !important; gap: 7px !important; }
+        .dash-controls { grid-template-columns: 1fr 140px 124px auto !important; gap: 7px !important; }   /* 132: "⚾ All teams" is ~124px of text + the arrow's room; at 108 the select read "All te" (2026-10-17) */
         .modal-box { width: calc(100vw - 16px) !important; max-width: calc(100vw - 16px) !important; border-radius: 16px !important; }
         .modal-content { padding: 16px 14px 18px !important; }
         .stat-grid-two { grid-template-columns: 1fr !important; gap: 0 !important; }
