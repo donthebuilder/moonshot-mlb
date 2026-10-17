@@ -36,11 +36,12 @@ eq('form: unknown player = absent', form.has(905), false)
 const dayOf = formFrom(rows, '2099-01-11')
 eq('form: asked for the NEXT day, the 01-10 game counts; the 01-11 one still does not', dayOf.get(901).drought, 0)
 
-// the join: a game that has started (live or final) gets NO season line; form needs no such guard
+// the join: a game that has started (live or final) gets the season line TO DATE, tagged asOfNow (never blank, never pregame); form is dated
 const pre = joinLines(901, { lines, form, started: false })
 const done = joinLines(901, { lines, form, started: true })
 eq('join: pre-game carries the season line and the form', [pre.szn?.g, pre.form?.drought], [4, 2])
-eq('join: a final/live game blanks the season line (as-of-now numbers would include it)', done.szn, null)
+eq('join: a final/live game keeps the season line, tagged as-of-now', [done.szn?.g, done.szn?.asOfNow], [4, true])
+eq('join: a pre-game line is not tagged', pre.szn?.asOfNow, undefined)
 eq('join: form survives on a final night (it is dated, not as-of-now)', done.form?.drought, 2)
 eq('join: traded player total on the board', joinLines(902, { lines, form, started: false }).szn.pts, 10)
 // goalless drought becomes exact when the window holds all of his season games (904: 2 window games, 2 season games)
