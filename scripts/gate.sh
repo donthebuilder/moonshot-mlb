@@ -8,6 +8,10 @@
 # Local: npm run build, check-routes, check-parity, check-scales, check-shell-route, check-no-printed-probability, then `next start` on :3108 and
 # check-market-chips + check-interactions --quick (taps), check-position-filter (the Rankings position pills; its browser twin check-position-filter-ui.mjs is run by hand), check-mobile --all + check-clickable on the pages. Reports go to a temp folder
 # (never the repo's mobile-report/). Exit 0 = green.
+#
+# NOT RUN HERE, run by hand when navigation changed (2026-10-17): `npx next start -p 3113 &` then `node scripts/check-clicks.mjs` (~15 min; --quick ~5).
+# It clicks every link / nav button on the front page and every tab of the three sports at 390 and 1280 and checks the landing, Back, the shared
+# link, retired addresses, external rel/host and tap-point cover. Add it to this gate only deliberately (Donovan's call).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 BASE=""

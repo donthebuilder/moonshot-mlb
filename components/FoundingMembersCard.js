@@ -18,7 +18,7 @@ export default function FoundingMembersCard({ accent = null, theme = null, numFo
       <p style={{ margin: '6px 0 4px', fontSize: TYPE.name, lineHeight: 1.5, color: T.text }}>{MEMBERS_LINE}</p>
       <p style={{ margin: '0 0 10px', fontSize: TYPE.body, lineHeight: 1.45, color: T.text2 }}>Everything on the site stays free. Members get it delivered to one place at lock.</p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        {join ? <a href={join} style={{ ...btn, background: ac, color: T.bg, border: `1px solid ${ac}` }}>Join on Whop →</a> : null}
+        {join ? <a href={join} target="_blank" rel="noopener noreferrer" style={{ ...btn, background: ac, color: T.bg, border: `1px solid ${ac}` }}>Join on Whop →</a> : null}
         <Link href="/members" style={{ ...btn, background: 'transparent', color: T.text, border: `1px solid ${T.border}` }}>{join ? 'How it works' : 'See what members get →'}</Link>
       </div>
     </section>

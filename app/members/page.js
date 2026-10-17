@@ -58,7 +58,7 @@ export default function MembersPage() {
           {join ? (
             <div className={styles.heroActions} style={{ marginTop: 14 }}>
               {/* the front door's own primary button (dash.module.css .heroActions a:first-child) */}
-              <a href={join}>Join on Whop <b>→</b></a>
+              <a href={join} target="_blank" rel="noopener noreferrer">Join on Whop <b>→</b></a>
             </div>
           ) : <p style={{ margin: '14px 0 0', opacity: 0.8 }}>Membership opens soon.</p>}
         </div>

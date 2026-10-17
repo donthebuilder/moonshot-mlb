@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { useSport, setSport } from '../lib/sport'
+import { useSport, setSport, enterBoard } from '../lib/sport'
 import { useCanSee, useEarly } from '../lib/useVisibleSports'
 import { themeFromUrl } from '../lib/themes'
 import { applyTheme, C } from '../lib/theme'
@@ -82,6 +82,8 @@ const BucketsDashboard = dynamic(() => import('./buckets/BucketsDashboard'), { s
 const SHELLS = { nfl: NflDashboard, nhl: LampDashboard, nba: BucketsDashboard }
 
 export default function SportRoot() {
+  // before useSport(): effects run in order, and useSport's reads the address enterBoard() has just re-taken (lib/sport.js)
+  useEffect(() => { enterBoard() }, [])
   const sport = useSport()
   const [pass, setPass] = useState(0)
   const [ready, setReady] = useState(false)

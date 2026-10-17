@@ -5,7 +5,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import NetworkSwitch from './NetworkSwitch'
 import MoreAccount from './header/MoreAccount'
 import useBinderNew from './binder/useBinderNew'
-import { MLB_NAV, MLB_MORE_GROUPS, BAR_KEYS } from '../lib/routes'
+import { MLB_NAV, MLB_MORE_GROUPS, BAR_KEYS, BRAND } from '../lib/routes'
 
 // 2026-08-30, Donovan: "i want slate as a selection on the navigator at the
 // bottom... slate replaces picks on the bar." Picks (bot) moves into the More
@@ -257,7 +257,7 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
               the sheet because on a phone the switcher is the hardest thing
               to find. Leaving the sport is a link, not a tab, so it sits
               outside the grid of tabs below. */}
-          {network && <div className="mobileMoreWide mobileMoreAcct"><MoreAccount accent={AC} theme={C} onNavigate={() => setOpen(false)} /></div>}
+          {network && <div className="mobileMoreWide mobileMoreAcct"><MoreAccount accent={AC} theme={C} onNavigate={() => setOpen(false)} sport={Object.keys(BRAND).find((k) => BRAND[k].name === brand) || null} /></div>}
           {network && <div className="mobileMoreWide"><NetworkSwitch onNavigate={() => setOpen(false)} /></div>}
           {/* TILES, NOT PARAGRAPHS (BATCH-ONE-SITE step 4, 2026-10-05; tested with an older, sports-first
               reader: "big words, few small ones"): each page is its icon and its name, two to a row --

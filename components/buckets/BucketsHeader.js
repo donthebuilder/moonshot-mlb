@@ -27,7 +27,7 @@ export default function BucketsHeader({ setTab, live = 0, date = null, setDate =
           options={[{ key: 'today', text: 'Today', color: C.purple }, { key: 'tomorrow', text: 'Tmrw', color: C.purple }]}
           theme={C} numFont={NUM_FONT} />
       }
-      account={<SignUpPill accent={C.purple} />}
+      account={<SignUpPill accent={C.purple} sport="nba" />}
       settings={
         <SettingsSheet theme={C} accent={C.purple} title="View settings — quiet mode" hint="Quiet mode. Sticks on this device.">
           <SheetLabel theme={C}>View</SheetLabel>

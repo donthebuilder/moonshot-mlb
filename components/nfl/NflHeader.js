@@ -307,7 +307,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, logs = nul
         />
       }
       // THE ACCOUNT IS OPTIONAL NOW (2026-09-06) — see proxy.js.
-      account={<SignUpPill accent={C.green} />}
+      account={<SignUpPill accent={C.green} sport="nfl" />}
       settings={<NflSettingsSheet />}>
       {/* ── row 2: THE MOVING TICKER, ABOVE THE TABS (2026-09-06) ────────
           Same move MOONSHOT's header made the same day: the strip gets a
