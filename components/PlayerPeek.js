@@ -19,13 +19,14 @@ export default function PlayerPeek({ id, Page, theme: C, accent, onClose, onFull
   // a team / game opened from the card is a move: the router drops the card
   // (openDetail clears pm) and Back returns to the page with the card open
   const btn = { minHeight: 44, padding: '0 14px', borderRadius: 10, border: `1px solid ${C.border2}`, background: C.bg, color: C.text2, font: '800 12px/1 system-ui, -apple-system, sans-serif', cursor: 'pointer' }
+  const full = <button type="button" onClick={() => onFullPage(id)} style={{ ...btn, color: accent || C.text }}>Full page ›</button>
+  const close = <button type="button" onClick={onClose} aria-label="Close" style={{ ...btn, width: 44, padding: 0, fontSize: 20 }}>×</button>
+  // a Page that takes `lead` (LAMP's player page) carries Full page in its one toolbar row and the close in its header
+  const toolbar = <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 6 }}>{full}{close}</div>
   return (
     <CardShell onClose={onClose} width={980} label="Player card" theme={C} accent={accent}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 6 }}>
-        <button type="button" onClick={() => onFullPage(id)} style={{ ...btn, color: accent || C.text }}>Full page ›</button>
-        <button type="button" onClick={onClose} aria-label="Close" style={{ ...btn, width: 44, padding: 0, fontSize: 20 }}>×</button>
-      </div>
-      <Page id={id} onBack={null} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} onStep={onStep} peek />
+      {Page.peekToolbar ? null : toolbar}
+      <Page id={id} onBack={null} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} onStep={onStep} peek lead={Page.peekToolbar ? { full, close } : null} />
     </CardShell>
   )
 }

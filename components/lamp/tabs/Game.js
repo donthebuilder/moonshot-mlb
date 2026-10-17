@@ -18,7 +18,7 @@ import ShareCardButton from '../../card/ShareCardButton'
 import { shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
 import GameTotalLine, { useGameTotals } from '../../GameTotalLine'
 import SiteTeamMark from '../../TeamMark'
-import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, GoalLabel, fmtDay, fmtPuckDrop, zoneAbbrev } from '../ui'
+import { EmptyState, DelayedBanner, Loading, Kicker, GameTypeChip, LampDot, GoalLabel, fmtDay, fmtPuckDrop, zoneAbbrev } from '../ui'
 
 // 🏒 GAME — one game, top to bottom: the header (score, period, clock),
 // the linescore and shots by period, every goal with its assists and
@@ -309,10 +309,6 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
 
       {gameSections('nhl', 'page', g.state).map((sec) => <Fragment key={sec.id}>{SECTIONS[sec.id]?.()}</Fragment>)}
 
-      <SourceLine>
-        Source: NHL (api-web.nhle.com) gamecenter/{'{id}'}/landing and /right-rail, read server-side by /api/lamp/game, refreshed every 30 s while the game is live. Game id {g.id}.
-        {g.railMissing ? ' The right-rail feed did not answer; by-period and team-comparison sections are missing until it does.' : ''}
-      </SourceLine>
     </div>
   )
 }

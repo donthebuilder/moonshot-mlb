@@ -4,10 +4,13 @@ import PageHeader from '../../PageHeader'
 import BucketsTable from '../BucketsTable'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsHot } from '../../../lib/nba/useBuckets'
-import { DelayedBanner, Loading, SourceLine, EmptyState, LastSeasonNote, DayPager, fmtDay } from '../ui'
+import { DelayedBanner, Loading, EmptyState, LastSeasonNote, DayPager, fmtDay } from '../ui'
 import { Para, Num, ConvictionClause, PowerLead, LensRow } from '../../power/PowerParts'
 import { convictionOf, percentileOf } from '../../../lib/whyPick'
 import { btnStyle } from '../../ui'
+import { PillRow } from '../../Filters'
+import { useHashLens } from '../../../lib/useHashLens'
+import Hot from './Hot'
 
 // 🚀 POWER, BASKETBALL EDITION (2026-10-15). LAMP's Power (components/lamp/tabs/Power.js) on MOONSHOT's Power frame
 // (components/power/PowerParts.js): ONE LEAD -- the strongest scoring read of the night's rotation players, argued with his
@@ -30,7 +33,21 @@ const LENSES = [
 const f1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : '—')
 const signFmt = (v) => (Number.isFinite(v) ? `${v > 0 ? '+' : ''}${v.toFixed(1)}` : '—')
 
-export default function Power({ date, setDate, onOpenPlayer, onOpenTeam }) {
+// ONE PAGE (2026-10-17, Donovan: "sure"): Hot streaks (Hot.js) is Power's second lens, every column of it. `lens=hot` rides the
+// address; #tab=hot / hotsticks / form are aliases that land here with it on (lib/routes.js ALIAS_PARAMS).
+const VIEWS = ['scorers', 'hot']
+const VIEW_OPTIONS = [{ key: 'scorers', label: 'Scorers' }, { key: 'hot', label: 'Hot streaks' }]
+export default function Power(props) {
+  const [view, setView] = useHashLens(VIEWS, 'scorers')
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <PillRow tall label="View" value={view} onChange={setView} options={VIEW_OPTIONS} />
+      {view === 'hot' ? <Hot {...props} /> : <Scorers {...props} />}
+    </div>
+  )
+}
+
+function Scorers({ date, setDate, onOpenPlayer, onOpenTeam }) {
   const { data, error, loading } = useBucketsHot(date)
   const [view, setView] = useState('scoring')
   const rows = useMemo(() => (data?.rows || []).map((r) => {
@@ -111,7 +128,6 @@ export default function Power({ date, setDate, onOpenPlayer, onOpenTeam }) {
             caption={`${lens.label}: ${lens.tag}. Column headers sort; each row opens that player.`} />
         </>
       )}
-      <SourceLine>Source: each player’s ESPN game log, regular season and playoffs (/api/buckets/hot). Scoring and per minute need {MIN_GP}+ games, heating up {HEAT_GP}+; rotation = 15+ minutes a game. Under {SMALL_GP} games the page says the numbers are early.</SourceLine>
     </div>
   )
 }

@@ -5,10 +5,13 @@ import LampTable from '../LampTable'
 import { nhlMugLatest } from '../../../lib/nhl/format'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampHotSticks } from '../../../lib/nhl/useLamp'
-import { DelayedBanner, Loading, SourceLine, StaleSeasonNote, EmptyState, fmtSec } from '../ui'
+import { DelayedBanner, Loading, StaleSeasonNote, EmptyState, fmtSec } from '../ui'
 import { Para, Num, ConvictionClause, PowerLead, LensRow } from '../../power/PowerParts'
 import { convictionOf, percentileOf } from '../../../lib/whyPick'
 import { btnStyle } from '../../ui'
+import { PillRow } from '../../Filters'
+import { useHashLens } from '../../../lib/useHashLens'
+import HotSticks from './HotSticks'
 
 // 🚀 POWER, HOCKEY EDITION (2026-09-29, Donovan: "did we ever do the player
 // powers for all the sports?"). MOONSHOT's Power page shape
@@ -41,7 +44,21 @@ const LENSES = [
 const pctFmt = (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : '—')
 const signFmt = (v) => (Number.isFinite(v) ? `${v > 0 ? '+' : ''}${v.toFixed(2)}` : '—')
 
+// ONE PAGE (2026-10-17, Donovan: "sure"): Hot streaks is Power's second lens, every column of it. `lens=hot` rides the
+// address; #tab=hotsticks / hot / form are aliases that land here with it on (lib/routes.js ALIAS_PARAMS).
+const VIEWS = ['shooters', 'hot']
+const VIEW_OPTIONS = [{ key: 'shooters', label: 'Shooters' }, { key: 'hot', label: 'Hot streaks' }]
 export default function Power({ onOpenPlayer }) {
+  const [view, setView] = useHashLens(VIEWS, 'shooters')
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <PillRow tall label="View" value={view} onChange={setView} options={VIEW_OPTIONS} />
+      {view === 'hot' ? <HotSticks onOpenPlayer={onOpenPlayer} /> : <Shooters onOpenPlayer={onOpenPlayer} />}
+    </div>
+  )
+}
+
+function Shooters({ onOpenPlayer }) {
   const { data, error, loading } = useLampHotSticks()
   const [view, setView] = useState('volume')
   const rows = useMemo(() => (data?.rows || []).map((r) => ({ ...r, shooting: shotsOf(r) >= MIN_SHOTS ? (100 * r.seasonG) / shotsOf(r) : null })), [data])
@@ -115,7 +132,6 @@ export default function Power({ onOpenPlayer }) {
             onRowClick={(r) => onOpenPlayer?.(r.id)} />
         </>
       )}
-      <SourceLine>api.nhle.com/stats skater summary via /api/lamp/hotsticks (regular season). Volume needs {MIN_GP}+ games, finishing {MIN_SHOTS}+ shots on goal (under {SMALL_GP} games the page says the numbers are early); heating up compares his last 5 games with his season.</SourceLine>
     </div>
   )
 }

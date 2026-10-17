@@ -8,13 +8,27 @@ import { useEffect, useState } from 'react'
 // Same compact box as HistoryWatch; theme and openers come in as props.
 const plus = (v) => (v > 0 ? `+${v}` : String(v))
 
-export default function LongshotsPreview({ sport, theme: C, numFont, accent, onOpenPlayer, onSeeAll, max = 3 }) {
+// 2026-10-17 (simplify): `plain` is the whole strip reduced to one link to the Longshots lens on the Odds page -- no fetch,
+// no three rows, one 44px line. Longshots left the More menu with that move, so this link is Home's way in
+// (the Odds page's View pill is the other).
+export default function LongshotsPreview({ sport, theme: C, numFont, accent, onOpenPlayer, onSeeAll, max = 3, plain = false }) {
   const [data, setData] = useState(null)
   useEffect(() => {
+    if (plain) return undefined
     let alive = true
     fetch(`/api/odds/longshots?sport=${sport}`).then((r) => (r.ok ? r.json() : null)).then((j) => { if (alive) setData(j) }).catch(() => {})
     return () => { alive = false }
-  }, [sport])
+  }, [sport, plain])
+  if (plain) {
+    return (
+      <button type="button" onClick={onSeeAll}
+        style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 8, margin: '6px 0 8px', padding: '0 10px', minHeight: 44, borderRadius: 9, border: `1px solid ${C.border}`, background: C.bg3 || C.bg2, color: accent, cursor: 'pointer', font: 'inherit', fontSize: 12, fontWeight: 700, textAlign: 'left' }}>
+        <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.12em', fontFamily: numFont, color: C.text }}>🎯 LONGSHOTS</span>
+        <span style={{ flex: '1 1 auto', minWidth: 0, color: C.text3, fontSize: 11, fontWeight: 500 }}>priced long, beside our score</span>
+        <span aria-hidden>›</span>
+      </button>
+    )
+  }
   const rows = data?.rows || []
   if (!rows.length) return null
   return (

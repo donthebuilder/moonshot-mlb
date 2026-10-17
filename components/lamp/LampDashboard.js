@@ -37,19 +37,20 @@ const Schedule = dynamic(() => import('./tabs/Schedule'), { loading: TabLoading 
 const Standings = dynamic(() => import('./tabs/Standings'), { loading: TabLoading })
 const Game = dynamic(() => import('./tabs/Game'), { loading: TabLoading })
 const Guide = dynamic(() => import('./tabs/Guide'), { loading: TabLoading })
-const Teams = dynamic(() => import('./tabs/Teams'), { loading: TabLoading })
 const Team = dynamic(() => import('./tabs/Team'), { loading: TabLoading })
 const Players = dynamic(() => import('./tabs/Players'), { loading: TabLoading })
 const Player = dynamic(() => import('./tabs/Player'), { loading: TabLoading })
+// next/dynamic returns a wrapper that does not carry the module's statics, so the flag PlayerPeek reads (the page holds the card's one toolbar and the close in its header) is set on the wrapper itself
+Player.peekToolbar = true
 const Pairs = dynamic(() => import('./tabs/Pairs'), { loading: TabLoading })
 const SpecialTeams = dynamic(() => import('./tabs/SpecialTeams'), { loading: TabLoading })
 const Ledger = dynamic(() => import('./tabs/Ledger'), { loading: TabLoading })
 const Matchups = dynamic(() => import('./tabs/Matchups'), { loading: TabLoading })
-const HotSticks = dynamic(() => import('./tabs/HotSticks'), { loading: TabLoading })
 const Power = dynamic(() => import('./tabs/Power'), { loading: TabLoading })
 const Watchlist = dynamic(() => import('./tabs/Watchlist'), { loading: TabLoading })
 const Binder = dynamic(() => import('./tabs/Binder'), { loading: TabLoading })   // 2026-10-12: cards earned by the players I follow
 const Longshots = dynamic(() => import('../Longshots'), { loading: TabLoading })
+import OddsWithLongshots from '../OddsWithLongshots'
 const StorylinesPage = dynamic(() => import('../StorylinesPage'), { loading: TabLoading })
 const ShotMap = dynamic(() => import('./tabs/ShotMap'), { loading: TabLoading })
 const LampLedger = dynamic(() => import('./tabs/LampLedger'), { loading: TabLoading })
@@ -91,7 +92,7 @@ const DATED_TABS = new Set(['home', 'scores', 'schedule', 'board', 'shots', 'gam
 const ROUTE = {
   sport: 'nhl', nav: NHL_NAV, datedTabs: DATED_TABS,
   ids: { game: /^\d{10}$/, team: /^[A-Z]{3}$/, player: /^\d{7}$/ },
-  keep: { game: ['games'], m: ['fullboard', 'shots'], player: ['players', 'goalies', 'shotmap'] },
+  keep: { game: ['games'], m: ['fullboard', 'shots'], player: ['players', 'shotmap'] },
   // #tab=board&m=sog predates the Shots slot (2026-09-28): it opens there. #tab=board&m=pts|ast|goal
   // predates Boards (2026-10-05: Props is cards only): those open the table they meant.
   rewrite: (r, get) => {
@@ -145,7 +146,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             sport="nhl"
             palette={C}
             onNavigate={setTab}
-            doors={[['home', '\u{1F3E0} TONIGHT'], ['board', '\u{1F3AF} BOARD'], ['scores', '\u{1F4E1} SCORES'], ['schedule', '\u{1F4C5} SCHEDULE'], ['standings', '\u{1F4CA} STANDINGS'], ['players', '\u{1F464} PLAYERS'], ['teams', '\u{1F3DF} TEAMS'], ['leaders', '\u{1F3C6} LEADERS'], ['guide', '\u{1F4D6} GUIDE']]}
+            doors={[['home', '\u{1F3E0} TONIGHT'], ['board', '\u{1F3AF} BOARD'], ['scores', '\u{1F4E1} SCORES'], ['schedule', '\u{1F4C5} SCHEDULE'], ['standings', '\u{1F4CA} STANDINGS'], ['players', '\u{1F464} PLAYERS'], ['leaders', '\u{1F3C6} LEADERS'], ['guide', '\u{1F4D6} GUIDE']]}
           />
         ) : (<>
           {/* ✨ who you highlighted (lib/pickLight.js) -- only while someone is */}
@@ -165,10 +166,8 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'standings' && <Standings onOpenTeam={openTeam} />}
             {tab === 'game' && <Game id={gameId} onOpenPlayer={peekPlayer} onOpenTeam={openTeam} onOpenGame={openGame} backLabel={backLabel('scores')} onBack={() => goBack('scores')} />}
             {tab === 'guide' && <Guide onNavigate={setTab} />}
-            {tab === 'teams' && <Teams onOpenTeam={openTeam} />}
-            {tab === 'team' && <Team abbrev={teamKey} onOpenPlayer={peekPlayer} onOpenGame={openGame} backLabel={backLabel('teams')} onBack={() => goBack('teams')} />}
+            {tab === 'team' && <Team abbrev={teamKey} onOpenPlayer={peekPlayer} onOpenGame={openGame} backLabel={backLabel('standings')} onBack={() => goBack('standings')} />}
             {tab === 'players' && <Players onOpenTeam={openTeam} onOpenGame={openGame} />}
-            {tab === 'goalies' && <Players goaliesOnly onOpenTeam={openTeam} onOpenGame={openGame} />}
             {tab === 'player' && <Player id={playerId} onStep={stepPlayer} onOpenTeam={openTeam} onOpenGame={openGame} backLabel={backLabel('players')} onBack={() => goBack('players')} />}
             {tab === 'leaders' && <Leaders onOpenPlayer={peekPlayer} onOpenTeam={openTeam} />}
             {tab === 'pairs' && <Pairs onOpenPlayer={peekPlayer} />}
@@ -182,14 +181,12 @@ export default function LampDashboard({ palettePass = 0 }) {
               record: () => <Results onOpenPlayer={peekPlayer} />,
               archive: () => <LampLedger onOpenPlayer={peekPlayer} onOpenTeam={openTeam} initialView="season" />,
             }} />}
-            {tab === 'hotsticks' && <HotSticks onOpenPlayer={peekPlayer} />}
             {tab === 'power' && <Power onOpenPlayer={peekPlayer} />}
             {tab === 'watchlist' && <Watchlist onOpenPlayer={peekPlayer} />}
             {tab === 'binder' && <Binder />}
             {tab === 'storylines' && <StorylinesPage sport="nhl" previewGames={4} eyebrow="LAMP · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.ice} onOpenPlayer={peekPlayer} onOpenGame={openGame} date={date} />}
             {/* MOONSHOT's Odds page, sport="nhl" (2026-10-02, components/lamp/LampOdds.js) */}
-            {tab === 'odds' && <LampOdds onOpenPlayer={peekPlayer} />}
-            {tab === 'longshots' && <Longshots sport="nhl" eyebrow="LAMP · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.ice} Table={LampTable} onOpenPlayer={peekPlayer} />}
+            {tab === 'odds' && <OddsWithLongshots odds={<LampOdds onOpenPlayer={peekPlayer} />} longshots={<Longshots sport="nhl" eyebrow="LAMP · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.ice} Table={LampTable} onOpenPlayer={peekPlayer} />} />}
             {tab === 'shotmap' && <ShotMap onOpenPlayer={peekPlayer} />}
             {tab === 'numerology' && <Numerology date={date} onOpenPlayer={peekPlayer} />}
             {/* Props is cards only (BATCH-ONE-SITE step 3, 2026-10-05; Donovan: "props page on NHL is

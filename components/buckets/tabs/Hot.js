@@ -4,7 +4,7 @@ import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsHot } from '../../../lib/nba/useBuckets'
 import BucketsTable from '../BucketsTable'
-import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, DayPager, LastSeasonNote, Why, fmtDay } from '../ui'
+import { EmptyState, DelayedBanner, Loading, Pills, DayPager, LastSeasonNote, Why, fmtDay } from '../ui'
 
 // 🔥 HOT HANDS -- LAMP's Hot sticks, basketball's: every rotation player in
 // the day's games, his last 5 and last 10 beside his season, from his own
@@ -40,7 +40,7 @@ export default function Hot({ date, setDate, onOpenPlayer, onOpenTeam }) {
   ]
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <PageHeader eyebrow="BUCKETS · HOT HANDS" title={data?.date ? fmtDay(data.date) : 'Tonight'} theme={C} numFont={NUM_FONT} accent={C.purple}
+      <PageHeader eyebrow="BUCKETS · POWER · HOT STREAKS" title={data?.date ? fmtDay(data.date) : 'Tonight'} theme={C} numFont={NUM_FONT} accent={C.purple}
         note={<>Last 5 and last 10 games beside the season. <Why label="Hot streaks" text="Every rotation player in the day’s games: his last 5 and last 10 beside his season. ± is last 5 minus season. Measured from game logs, not projected." /></>}
         stats={data ? [{ value: rows.length, label: 'PLAYERS', tone: C.text2 }, { value: rows.filter((r) => (r.pts_d || 0) >= 3).length, label: '+3 PTS', tone: C.purple }] : null} />
       <DayPager shown={data?.date || date} date={date} setDate={setDate} disabled={loading} />
@@ -54,7 +54,6 @@ export default function Hot({ date, setDate, onOpenPlayer, onOpenTeam }) {
           initialSort={{ key: `${k}_d`, dir: 'desc' }} heatMode="sorted" maxHeight={620} maxRows={rows.length}
           caption={`${label}: last 5 and last 10 games beside the season. Column headers sort; each row opens that player.`} />
       )}
-      <SourceLine>Source: each player’s ESPN game log, regular season and playoffs (/api/buckets/hot). Rotation = 15+ minutes a game on the points board’s pooled line.</SourceLine>
     </div>
   )
 }

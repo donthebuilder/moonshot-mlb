@@ -5,8 +5,9 @@ import PageHeader from '../../PageHeader'
 import LampTable from '../LampTable'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampStandings } from '../../../lib/nhl/useLamp'
-import { EmptyState, DelayedBanner, Loading, Pills, SourceLine, Kicker, fmtDay } from '../ui'
+import { DelayedBanner, Loading, Pills, Kicker, fmtDay } from '../ui'
 import Hint from '../Hint'
+import { NHL_TEAMS } from '../../../lib/nhl/teams'
 
 // 🏒 STANDINGS — division, wild card, conference, league. Four views of one
 // table; the ORDER within each is the feed's own sequence fields
@@ -26,6 +27,10 @@ const VIEWS = [
   { key: 'conference', text: 'CONFERENCE' },
   { key: 'league', text: 'LEAGUE' },
 ]
+// NO TABLE AT ALL YET (2026-10-17: Teams folded into Standings, and the old Teams page always listed the clubs): when the
+// feed has no rows, the 32 clubs themselves, by division from lib/nhl/teams.js, 0-0-0 each (true: no games) and each
+// opening its club. Preseason normally shows last season's final table, labelled; this is only the empty case.
+const PRE_ROWS = NHL_TEAMS.map(([abbrev, , , nickname, conf, divName]) => ({ abbrev, nickname, conf, divName, gp: 0, w: 0, l: 0, otl: 0, pts: 0 }))
 const rec = (r) => (r && r.w != null ? `${r.w}-${r.l}-${r.otl}` : '—')
 const COLUMNS = [
   { key: 'rank', label: '#', w: 30, heat: false, fmt: (v) => v ?? '' },
@@ -69,10 +74,14 @@ const GROUPED_COLUMNS = COLUMNS.map((c) => ({ ...c, group: STAND_GROUP_OF[c.key]
 export default function Standings({ onOpenTeam }) {
   const [view, setView] = useState('division')
   const { data, error, loading } = useLampStandings()
-  const rows = data?.rows || []
+  const noTable = !loading && Boolean(data) && !(data.rows || []).length
+  const rows = noTable ? PRE_ROWS : data?.rows || []
 
   const groups = useMemo(() => {
     if (!rows.length) return []
+    if (noTable) {
+      return ['Atlantic', 'Metropolitan', 'Central', 'Pacific'].map((d) => ({ title: d, rows: rowsFor(rows.filter((r) => r.divName === d), 'division', 'divRank') }))
+    }
     if (view === 'league') return [{ title: 'NHL', rows: rowsFor(rows, view, 'leagueRank') }]
     if (view === 'conference') {
       return ['E', 'W'].map((c) => ({ title: `${c === 'E' ? 'Eastern' : 'Western'} Conference`, rows: rowsFor(rows.filter((r) => r.conf === c), view, 'confRank') }))
@@ -93,7 +102,7 @@ export default function Standings({ onOpenTeam }) {
     const order = ['Atlantic', 'Metropolitan', 'Central', 'Pacific']
     divs.sort((a, b) => order.indexOf(a) - order.indexOf(b))
     return divs.map((d) => ({ title: d, rows: rowsFor(rows.filter((r) => r.divName === d), view, 'divRank') }))
-  }, [rows, view])
+  }, [rows, view, noTable])
 
   const stale = data?.stale
   const opens = data?.current?.standingsStart
@@ -105,9 +114,9 @@ export default function Standings({ onOpenTeam }) {
         note={<>League order: points, then regulation wins. <Hint label="Standings order" text="Ordered the way the league orders them: points, then regulation wins, then regulation-plus-overtime wins. Tap a column’s ⓘ for what it means." /></>}
         theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={data ? [{ value: rows.length, label: 'TEAMS', tone: C.text2 }, data.date ? { value: fmtDay(data.date), label: 'AS OF', tone: C.text2 } : null] : null}
-        right={<Pills ariaLabel="Standings view" value={view} onChange={setView} options={VIEWS} />}
+        right={noTable ? null : <Pills ariaLabel="Standings view" value={view} onChange={setView} options={VIEWS} />}
       />
-      {stale && (
+      {stale && !noTable && (
         <div role="status" style={{ padding: '10px 14px', borderRadius: 10, border: `1px solid ${C.amber}`, background: C.bg2, color: C.text2, fontSize: 12, lineHeight: 1.5 }}>
           <b style={{ color: C.amber, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>{data.seasonLabel} FINAL TABLE</b>
           {' · '}This is how last season ended. {opens ? `The ${String(data.current.id).slice(0, 4)}-${String(data.current.id).slice(6, 8)} table opens ${fmtDay(opens)}, when the regular season starts.` : 'The new season’s table starts with its first regular-season game.'}
@@ -115,8 +124,8 @@ export default function Standings({ onOpenTeam }) {
       )}
       <DelayedBanner error={error} what="the standings" />
       {loading && !data ? <Loading what="the standings" /> : null}
-      {!loading && data && rows.length === 0 && (
-        <EmptyState title="SEASON NOT STARTED" note={opens ? `The standings table opens ${fmtDay(opens)}.` : 'No standings table has been published for this season yet.'} />
+      {noTable && (
+        <div role="status" style={{ color: C.text2, fontSize: 12, lineHeight: 1.5 }}>SEASON NOT STARTED: {opens ? `the standings table opens ${fmtDay(opens)}. ` : 'no standings table has been published yet. '}Every club is 0-0-0 until then.</div>
       )}
       {groups.map((g) => (
         <section key={g.title} aria-label={g.title}>
@@ -127,7 +136,6 @@ export default function Standings({ onOpenTeam }) {
           )}
         </section>
       ))}
-      <SourceLine>Source: NHL (api-web.nhle.com) standings/now and standings-season, read server-side by /api/lamp/standings, cached ten minutes. Season and as-of date are the feed’s own.</SourceLine>
     </div>
   )
 }

@@ -7,7 +7,7 @@ import LampTable from './LampTable'
 import { nhlMugLatest } from '../../lib/nhl/format'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
 import { useLampPenalties } from '../../lib/nhl/useLamp'
-import { DelayedBanner, Loading, SourceLine, Kicker } from './ui'
+import { DelayedBanner, Loading, Kicker } from './ui'
 
 const chip = (on) => ({ minHeight: 44, padding: '0 12px', borderRadius: 10, border: `1px solid ${on ? C.ice : C.border2}`, background: on ? C.ice + '22' : 'transparent', color: on ? C.ice : C.text2, fontWeight: 800, fontSize: 12, cursor: 'pointer' })
 
@@ -48,7 +48,6 @@ export default function PenaltyBox({ onOpenPlayer, onOpenTeam }) {
           caption="Who takes penalties and who draws them. Sort any column; tap a skater for his page." />
       )}
       {data && !rows.length ? <p style={{ fontSize: 12, color: C.text3, fontFamily: NUM_FONT }}>No skater has a regular-season game yet.</p> : null}
-      <SourceLine>{data?.source || 'api.nhle.com/stats skater/penalties'}: penalties, penaltiesDrawn, netPenalties, penaltyMinutes, majorPenalties, penaltiesTakenPer60, penaltiesDrawnPer60. Tonight: the league scoreboard.</SourceLine>
     </section>
   )
 }

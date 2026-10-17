@@ -96,8 +96,7 @@ ok(/perViewer/.test(read('app/api/card/image/route.js')) && /perViewer/.test(rea
 ok(/private, no-store/.test(read('app/api/card/image/route.js')) && /private, no-store/.test(read('app/api/card/share/route.js')), 'the image routes say private for a per-viewer picture')
 // the server-side readers of tonight's called lists are known; anything new has to be added here on purpose, with its gate
 const walk = (dir, out = []) => { for (const f of readdirSync(join(root, dir))) { const p = join(dir, f); const s = statSync(join(root, p)); if (s.isDirectory()) { if (f !== 'node_modules') walk(p, out) } else if (/\.(js|jsx)$/.test(f)) out.push(p) } return out }
-// components/home/CallsSwipe.js is a CLIENT component in the /app Home tab: the app's own (cosmetic) CardSwipe gate covers it, and the card image it asks for is gated by the route
-const READERS = new Set(['app/(front)/page.js', 'components/home/CallsSwipe.js', 'app/m/page.js', 'components/home/QuickPicksLoader.js', 'lib/members/freeFour.js', 'lib/phone/todayCalls.js'])
+const READERS = new Set(['app/(front)/page.js', 'app/m/page.js', 'components/home/QuickPicksLoader.js', 'lib/members/freeFour.js', 'lib/phone/todayCalls.js'])
 for (const f of [...walk('app'), ...walk('components'), ...walk('lib')]) {
   if (f.startsWith('app/fantasy') || f.startsWith('components/fantasy') || f.startsWith('lib/fantasy')) continue
   if (/from '[./]+\/(lib\/)?phone\/todayCalls'/.test(read(f)) && !READERS.has(f)) fails.push(`${relative('.', f)} reads tonight's called lists (lib/phone/todayCalls) but is not on the gated list in this check`)

@@ -250,4 +250,10 @@ await ok('PARITY: NBA odds capture is its own flag, default OFF, and opens no su
   assert.ok(!/NBA_ODDS_CAPTURE/.test(code(read('lib/openSwitch.js'))), 'the capture flag is not an open switch')
 })
 
+await ok('MEMBERS: the BUCKETS player card hides the call from a free viewer (score, why, legs, share, flip, compare call fields) and stays behind the public switch', async () => {
+  const src = code(read('components/buckets/tabs/Player.js'))
+  for (const n of ['useCardLock(', 'useCallMask(', 'lock={lockIn}', 'CardLockLine', '!locked && <CardFlip', '!locked && <ShareCardButton', 'rows={compareRows}']) assert.ok(src.includes(n), `the card no longer has ${n}`)
+  assert.ok(/strip: \[[^\]]*'score'[^\]]*'why'/.test(src), 'the compare mask strips the score and the why')
+})
+
 console.log(`\n${n} groups ok`)

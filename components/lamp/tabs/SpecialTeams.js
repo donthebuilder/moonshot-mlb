@@ -3,7 +3,7 @@ import PageHeader from '../../PageHeader'
 import LampTable from '../LampTable'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampSpecialTeams } from '../../../lib/nhl/useLamp'
-import { DelayedBanner, Loading, SourceLine, StaleSeasonNote, EmptyState, fmtSec } from '../ui'
+import { DelayedBanner, Loading, StaleSeasonNote, EmptyState, fmtSec } from '../ui'
 import { NHL_TEAMS } from '../../../lib/nhl/teams'
 import PenaltyBox from '../PenaltyBox'
 
@@ -52,7 +52,6 @@ export default function SpecialTeams({ onOpenTeam, onOpenPlayer = null }) {
         <LampTable rows={rows} columns={COLUMNS} heatMode="primary" initialSort="ppPct" maxRows={12 /* 0g E3: 32 clubs, preview then "show N more" */} maxHeight={9999}
           rowEdge={(r) => (r._playing ? C.ice : null)} onRowClick={(r) => onOpenTeam?.(r.abbrev)} />
       )}
-      <SourceLine>api.nhle.com/stats team/powerplay and team/penaltykill, regular season (gameTypeId 2): powerPlayPct, ppOpportunitiesPerGame, ppGoalsPerGame, ppTimeOnIcePerGame, penaltyKillPct, timesShorthandedPerGame, pkTimeOnIcePerGame. Tonight: the league scoreboard.</SourceLine>
       {/* who sends his team short, and who puts it on the power play */}
       <PenaltyBox onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />
     </div>

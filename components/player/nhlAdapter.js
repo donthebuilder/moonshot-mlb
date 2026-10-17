@@ -3,11 +3,12 @@
 // re-derived here) and its one-row stat strip. Pure: the page hands in what it already holds.
 import { fmtSec, fmtPct3, fmt2 } from '../../lib/nhl/format'
 import { rankInPool } from '../../lib/mlb/slateRank'
+import { SIGNALS } from '../../lib/nhl/goalSignals'
 
 const clean = (v) => (v == null || v === '' ? null : v)
 
 /** The props for <VerdictBlock sport="nhl" />. `w` is goalWhy(row, board); `whyLine` is the board row's own sentence. */
-export function nhlVerdict({ goalie, board, spot, row, w, whyLine }) {
+export function nhlVerdict({ goalie, board, spot, row, w, whyLine, extraSignals = [], recordLine = null }) {
   if (goalie) return { offSlate: 'Goalies are not on the goal board.' }
   if (!board) return { offSlate: 'Reading tonight’s board…' }
   if (!spot) {
@@ -29,7 +30,8 @@ export function nhlVerdict({ goalie, board, spot, row, w, whyLine }) {
     why: [w?.why, whyLine].filter(Boolean),
     watch: w?.watch || null,
     explain: w?.explain || null,
-    signals: chips,
+    signals: [...chips, ...extraSignals],
+    recordLine,
     help: 'The word and the score are LAMP’s goal board for tonight. The score is a 0-100 rank among tonight’s skaters, not a probability.',
   }
 }
@@ -61,4 +63,28 @@ export function nhlStatRow({ goalie, fr, board, row, l10, l10n = null, drought, 
     { id: 'drt', label: 'DRT', text: drought == null ? null : String(drought), title: 'Games since his last goal.', rank: null },
   ]
   return items.filter((s) => s.text != null)
+}
+
+// ── the record on him (the card's "Record on him" line and its LAMP ON HIM table) ──
+// Read from /api/lamp/record?player= (lamp_goal_log, graded dressed games, the goal board's own calls, counts only).
+const g = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`
+
+/** 'Record on him: 9 games, 2 called, 1 scored.' -- null when the record has no game of his (or is not there yet). */
+export function nhlRecordLine(rec) {
+  const P = rec?.player
+  if (!P || !P.games) return null
+  const c = P.byStatus.called
+  return `Record on him: ${g(P.games, 'game')}, ${c.g} called${c.g ? `, ${c.scored} scored` : ''}.`
+}
+
+/** The board's own facts as small chips (lib/nhl/goalSignals.js: Shooter / Finisher / Big minutes, top fifth of tonight), plus what the card already holds: a back-to-back, a goal drought, a hot last five. */
+export function nhlSignals({ row, drought = null, l5 = null }) {
+  const out = []
+  if (row) {
+    for (const [, label, why, test] of SIGNALS) if (label !== 'Called' && test(row)) out.push({ t: label, explain: `${label}: ${why}.` })
+    if (row.context?.b2b) out.push({ t: 'Back-to-back', warn: true, explain: 'His club played last night.' })
+  }
+  if (Number.isFinite(drought) && drought >= 5) out.push({ t: `${drought} games no goal`, warn: true, explain: `He has gone ${drought} games without a goal.` })
+  if (Number.isFinite(l5) && l5 >= 3) out.push({ t: `${l5} goals in L5`, explain: `${l5} goals in his last five games.` })
+  return out
 }

@@ -5,7 +5,7 @@ import { MatchLogos } from '../../TeamMark'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsDefense } from '../../../lib/nba/useBuckets'
 import BucketsTable from '../BucketsTable'
-import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, DayPager, LastSeasonNote, Why, fmtDay, fmtTip } from '../ui'
+import { EmptyState, DelayedBanner, Loading, Kicker, DayPager, LastSeasonNote, Why, fmtDay, fmtTip } from '../ui'
 
 // 🛡 MATCHUPS -- the defence-vs view (TUDDY's "what each defence gave up",
 // LAMP's Matchups), basketball's version: each side tonight against what the
@@ -65,7 +65,6 @@ export default function Matchups({ date, setDate, onOpenTeam, onOpenGame }) {
             caption="What each club allows a game. Column headers sort; each row opens the club." />
         </section>
       )}
-      <SourceLine>Source: ESPN’s league stats by team, the Opponent block (/api/buckets/defense).</SourceLine>
     </div>
   )
 }

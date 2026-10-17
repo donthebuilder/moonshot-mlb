@@ -23,7 +23,7 @@ import { bucketsAngles } from '../../../lib/nba/angles'
 import { BucketsCards } from '../BucketsCard'
 import ShareCardButton from '../../card/ShareCardButton'
 import { shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
-import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager, Why, fmtDay, fmtTip, writeHashParam, readHashParam } from '../ui'
+import { EmptyState, DelayedBanner, Loading, Pills, NavBtn, DayPager, Why, fmtDay, fmtTip, writeHashParam, readHashParam } from '../ui'
 import { STATUS_WORD } from '../../../lib/callStatus'
 import { useRankMove } from '../../../lib/useRankMove'
 import { RankMoveNote } from '../../RankMove'
@@ -68,7 +68,7 @@ function plainWhy(r, market) {
   const legs = (NBA_MARKETS[market].legs || []).map((l) => ({ l, p: Number(r.pct?.[l]) })).filter((x) => Number.isFinite(x.p)).sort((a, b) => b.p - a.p)
   if (!legs.length) return null
   const w = LEG_WORDS[legs[0].l] || (LEG_LABEL[legs[0].l] || legs[0].l).toLowerCase()
-  return { lead: `His best part is ${w}: ${ordW(legs[0].p)} percentile among tonight’s players.`, short: `Best part: ${w}, ${ordW(legs[0].p)} percentile.` }
+  return { lead: `His best part is ${w}: ${ordW(legs[0].p)} percentile among tonight’s players.`, short: `${w[0].toUpperCase()}${w.slice(1)}, ${ordW(legs[0].p)} percentile` }
 }
 function whyItemFor(r, market, rank) {
   const D = NBA_MARKETS[market]
@@ -87,7 +87,7 @@ function whyItemFor(r, market, rank) {
     links: [
       { label: 'His page: season line, game log, every shot', href: `#sport=nba&tab=player&player=${id}` },
       { label: 'Where he shoots from', href: `#sport=nba&tab=shotmap&player=${id}` },
-      { label: 'Who is running hot: last 5 and 10', href: '#sport=nba&tab=hot' },
+      { label: 'Who is running hot: last 5 and 10', href: '#sport=nba&tab=power&lens=hot' },
       { label: 'Tonight’s defences, ranked', href: '#sport=nba&tab=matchups' },
     ],
   }
@@ -321,7 +321,6 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
       {mk === 'pts' && m !== ALL && <CalledLastNight lens={cln} accent={C.purple} theme={C} numFont={NUM_FONT} logoSport="nba" onOpen={(r) => onOpenPlayer?.(r.pid)} />}
       </>)}
       {whySheet}
-      <SourceLine>Where this comes from: the league’s rosters, injury reports and season stats. A locked row is written before tip and never changed after it.</SourceLine>
     </div>
   )
 }

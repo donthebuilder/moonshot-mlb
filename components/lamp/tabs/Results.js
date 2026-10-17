@@ -10,7 +10,7 @@ import { PanelTitle, WhatThis } from '../../ui'
 import { SportTheme } from '../../SportTheme'
 import { ModeBar, ViewRow } from '../../results/ResultsParts'
 import LampTable from '../LampTable'
-import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, fmtDay } from '../ui'
+import { EmptyState, DelayedBanner, Loading, Kicker, fmtDay } from '../ui'
 import { bandClaim } from '../../bands/BandTable'
 import { bandTint } from '../../ScoreBands'
 import { wilson } from '../../../lib/interval'
@@ -186,7 +186,6 @@ export default function Results({ onOpenPlayer }) {
       })()}
 
       </>)} />
-      <SourceLine>Source: lamp_goal_log, graded rows only (dressed / goals / hit from gamecenter/{'{id}'}/boxscore after the final). Void men (not dressed) are out of every denominator.</SourceLine>
     </div>
     </SportTheme>
   )

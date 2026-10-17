@@ -27,7 +27,7 @@ import { alpha } from '../../../lib/scales'
 import { useLampBoard, useLampGoalieWeakMany } from '../../../lib/nhl/useLamp'
 import { useRankMove } from '../../../lib/useRankMove'
 import { RankMoveNote } from '../../RankMove'
-import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, StaleSeasonNote, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, shiftDay, STATUS, CalledChip, readHashParam, writeHashParam } from '../ui'
+import { TeamMark, EmptyState, DelayedBanner, Loading, Kicker, GameTypeChip, LampDot, StaleSeasonNote, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, shiftDay, STATUS, CalledChip, readHashParam, writeHashParam } from '../ui'
 import { withNhlFullSet, weakZoneCell, weakZoneColumn, WEAK_ZONE_KEY } from '../../../lib/nhl/boardColumns'
 import { useWhySheet, whyColumn } from '../../WhySheet'
 import { MatchLogos } from '../../TeamMark'
@@ -391,7 +391,6 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
           </MobileFold>
         </div>
       )}
-      <SourceLine>Where this comes from: the NHL’s own player and team stats (this season and last), the posted lineups, and the final box scores for grading. A locked row is never rewritten.</SourceLine>
     </div>
   )
 }
@@ -423,12 +422,12 @@ const factsOf = (g, r) => ({ pp: pct1(spotOf(g, r.team, true)?.ppPct), pk: pct1(
 // LAMP v2 (2026-09-27): the board reads one market at a time. GOAL is the
 // original; SOG is lamp-sog-v1 (3+ shots on goal). Same table, same words.
 const MARKETS = [
-  { key: 'GOAL', label: 'GOAL', short: 'GOAL', eyebrow: 'LAMP · RANKINGS · GOAL', note: 'Who we rank tonight, and why. One called per team in every game, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots, goals, ice time per game over his games this season (his last 82 games before 2026-10-18).', result: 'GOALS', log: 'lamp_goal_log' },
-  { key: 'SOG', label: 'SHOTS 3+', short: 'SHOTS 3+', eyebrow: 'LAMP · RANKINGS · SHOTS', note: 'Who we rank tonight, and why. Three called per game for 3+ shots on goal, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots per game over his games this season (last 82 before 2026-10-18), ice time, and how many shots his opponent allows per 60.', result: 'SOG', log: 'lamp_prop_log' },
+  { key: 'GOAL', label: 'GOAL', short: 'GOAL', eyebrow: 'LAMP · RANKINGS · GOAL', note: 'One called per team in every game, locked before puck drop, graded after. Score = shots, goals and ice time per game, each ranked against tonight\u2019s skaters.', result: 'GOALS', log: 'lamp_goal_log' },
+  { key: 'SOG', label: 'SHOTS 3+', short: 'SHOTS 3+', eyebrow: 'LAMP · RANKINGS · SHOTS', note: 'Three called per game for 3+ shots on goal, locked before puck drop, graded after. Score = shots per game, ice time and shots his opponent allows, each ranked tonight.', result: 'SOG', log: 'lamp_prop_log' },
   // POINTS and ASSISTS (2026-10-02, Donovan: "the new markets"): locked and graded every night since
   // 10-01 (lamp-pts / lamp-ast), shown as a TEST until each has 30 graded nights (the record rule)
-  { key: 'PTS', label: 'POINTS 1+ · TEST', short: 'POINTS 1+', test: true, eyebrow: 'LAMP · RANKINGS · POINTS · TEST', note: 'Who we rank tonight, and why. A TEST: three called per game for 1+ point, locked before puck drop, graded after; no record is printed until 30 graded nights. Score = mean of three percentile ranks tonight: points per game over his games this season (last 82 before 2026-10-18), ice time, and how many goals his opponent allows.', result: 'PTS', log: 'lamp_prop_log' },
-  { key: 'AST', label: 'ASSISTS 1+ · TEST', short: 'ASSISTS 1+', test: true, eyebrow: 'LAMP · RANKINGS · ASSISTS · TEST', note: 'Who we rank tonight, and why. A TEST: three called per game for 1+ assist, locked before puck drop, graded after; no record is printed until 30 graded nights. Score = mean of three percentile ranks tonight: assists per game over his games this season (last 82 before 2026-10-18), ice time, and how many goals his opponent allows.', result: 'AST', log: 'lamp_prop_log' },
+  { key: 'PTS', label: 'POINTS 1+ · TEST', short: 'POINTS 1+', test: true, eyebrow: 'LAMP · RANKINGS · POINTS · TEST', note: 'A TEST: three called per game for 1+ point, graded after; no record until 30 graded nights. Score = points per game, ice time and goals his opponent allows, each ranked tonight.', result: 'PTS', log: 'lamp_prop_log' },
+  { key: 'AST', label: 'ASSISTS 1+ · TEST', short: 'ASSISTS 1+', test: true, eyebrow: 'LAMP · RANKINGS · ASSISTS · TEST', note: 'A TEST: three called per game for 1+ assist, graded after; no record until 30 graded nights. Score = assists per game, ice time and goals his opponent allows, each ranked tonight.', result: 'AST', log: 'lamp_prop_log' },
   // 2+ GOALS (TWO-SCORE batch, 2026-10-11, Donovan): a NEW MODEL, tracked, never CALLED (goals are exempt from the Card price floor; no 2+ goals price is stored)
   { key: 'G2', label: '2+ GOALS · NEW MODEL', short: '2+ GOALS', test: true, eyebrow: 'LAMP · RANKINGS · 2+ GOALS · NEW MODEL', note: 'Who could score two. Two-goal ranking: a new model, not part of the goal score. Ranked tonight by shots per game, shooting %, ice time and goals per game over his games this season (last 82 before 2026-10-18); ON THE BOARD is the top third. Recorded before puck drop and graded on the real result, 2 or more goals; no record is printed until 30 graded nights. Information only.', result: 'GOALS', log: 'lamp_prop_log' },
 ]
@@ -713,7 +712,7 @@ export function plainWhy(r, market) {
   if (!placed.length) return { lead: r.reason || null, short: r.reason || '', watch: null }
   const top = placed[0]; const low = placed[placed.length - 1]
   const w = LEG_WORDS[top.d.key] || top.d.label.toLowerCase()
-  return { lead: `His best part is ${w}: ${ordW(top.p)} percentile among tonight’s skaters.`, short: `Best part: ${w}, ${ordW(top.p)} percentile.`,
+  return { lead: `His best part is ${w}: ${ordW(top.p)} percentile among tonight’s skaters.`, short: `${w[0].toUpperCase()}${w.slice(1)}, ${ordW(top.p)} percentile`,
     watch: low !== top && low.p <= 25 ? `${LEG_WORDS[low.d.key] || low.d.label.toLowerCase()}, ${ordW(low.p)} percentile.` : null }
 }
 /** The sheet's item for one row: the board's own sentence, its numbers, and where to look next. */
@@ -734,7 +733,7 @@ export function whyItemFor(r, market, rank) {
     links: [
       { label: 'His page: season, last five, game log', href: `#sport=nhl&tab=player&player=${id}` },
       { label: 'Where he shoots from', href: `#sport=nhl&tab=shotmap&player=${id}` },
-      { label: 'Who is hot: last 5 and 10 games', href: '#sport=nhl&tab=hotsticks' },
+      { label: 'Who is hot: last 5 and 10 games', href: '#sport=nhl&tab=power&lens=hot' },
       { label: 'Tonight’s defences, ranked', href: '#sport=nhl&tab=matchups' },
     ],
   }
@@ -782,7 +781,7 @@ export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam, onOpenGa
       )
     } },
     { key: 'score', label: 'SCORE', cset: 'lean', primary: true, scale: 'seq', domain: [0, 100], w: 50, group: GROUPS.signal, explain: scoreTitle(market, kept[0]?.g), art: SCORE_ART[market] || null, answers: market === 'GOAL' ? 'nhl-goal' : null },
-    { ...whyColumn({ textOf: (r) => plainWhy(r._row, market).short, itemOf: (r) => whyItemFor(r._row, market, r.rank), open, theme: C, numFont: NUM_FONT, group: GROUPS.signal, w: 165, tidy: true }), cset: 'lean' },
+    { ...whyColumn({ textOf: (r) => plainWhy(r._row, market).short, itemOf: (r) => whyItemFor(r._row, market, r.rank), open, theme: C, numFont: NUM_FONT, group: GROUPS.signal, w: 140, tidy: true }), cset: 'lean' },
     { key: 'gameRank', label: 'GAME #', cset: 'read', heat: false, mono: true, w: 52, group: GROUPS.signal, title: 'His rank in his own game. CALLED is the top-scored skater on each team (three in a game on the shots, points and assists boards).' },
     ...rateCols(market).map((c, i) => ({ ...c, cset: i === 0 ? 'lean' : 'read', group: GROUPS.shooter })),
     { key: 'toi', label: 'TOI', cset: 'read', primary: true, w: 48, group: GROUPS.shooter, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },

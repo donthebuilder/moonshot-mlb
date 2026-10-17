@@ -190,5 +190,17 @@ for (const f of ['components/CallStatusBadge.js', 'components/MemberGate.js', 'c
   }
 }
 
+// 12. THE BUCKETS CARD (2026-10-17). The player card goes through the same lock as LAMP's and TUDDY's: useCardLock + VerdictBlock lock + CardLockLine, the call
+//     fields (score, why, legs, share, flip) hidden while locked, the compare rows masked. A graded pick is public; a free viewer's not-started called pick locks.
+{
+  const src = readFileSync(new URL('../components/buckets/tabs/Player.js', import.meta.url), 'utf8')
+  for (const needle of ['useCardLock(', 'useCallMask(', 'CardLockLine', 'lock={lockIn}', 'mask(board?.rows', 'rows={compareRows}', "game?.state === 'final'"]) ok(src.includes(needle), `components/buckets/tabs/Player.js no longer has the member lock (${needle})`)
+  const t = { status: 'called', started: false, graded: false, key: 'test-g1|test-p1', free: new Set(), memberState: 'free' }
+  eq(lockedFor(t), true, 'buckets card: a free viewer\u2019s not-started called pick locks (no free four published by this board)')
+  eq(lockedFor({ ...t, graded: true }), false, 'buckets card: a graded result is public')
+  eq(lockedFor({ ...t, memberState: 'unknown' }), false, 'buckets card: unknown membership fails open')
+  eq(lockedFor({ ...t, free: new Set(['test-g1|test-p1']) }), false, 'buckets card: a free-four man stays unlocked')
+}
+
 if (fails.length) { console.error('check-member-gate FAILED:\n - ' + fails.join('\n - ')); process.exit(1) }
 console.log('check-member-gate: ok')

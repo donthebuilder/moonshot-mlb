@@ -46,15 +46,15 @@ const Game = dynamic(() => import('./tabs/Game'), { loading: TabLoading })
 const Standings = dynamic(() => import('./tabs/Standings'), { loading: TabLoading })
 const Schedule = dynamic(() => import('./tabs/Schedule'), { loading: TabLoading })
 const Matchups = dynamic(() => import('./tabs/Matchups'), { loading: TabLoading })
-const Hot = dynamic(() => import('./tabs/Hot'), { loading: TabLoading })
 const Ledger = dynamic(() => import('./tabs/Ledger'), { loading: TabLoading })
 const Numerology = dynamic(() => import('./tabs/Numerology'), { loading: TabLoading })
 const Watchlist = dynamic(() => import('./tabs/Watchlist'), { loading: TabLoading })
 const StorylinesPage = dynamic(() => import('../StorylinesPage'), { loading: TabLoading })
-const Teams = dynamic(() => import('./tabs/Teams'), { loading: TabLoading })
 const Team = dynamic(() => import('./tabs/Team'), { loading: TabLoading })
 const Players = dynamic(() => import('./tabs/Players'), { loading: TabLoading })
 const Player = dynamic(() => import('./tabs/Player'), { loading: TabLoading })
+// next/dynamic returns a wrapper that does not carry the module's statics, so the flag PlayerPeek reads (the page holds the card's one toolbar and the close in its header) is set on the wrapper itself
+Player.peekToolbar = true
 const Pairs = dynamic(() => import('./tabs/Pairs'), { loading: TabLoading })
 const Power = dynamic(() => import('./tabs/Power'), { loading: TabLoading })
 const Leaders = dynamic(() => import('./tabs/Leaders'), { loading: TabLoading })
@@ -71,7 +71,7 @@ import SkipLink from '../SkipLink'
 import BucketsProps from './BucketsProps'
 
 // Pages that show one day and keep it in the address (`date=`).
-const DATED_TABS = new Set(['home', 'scores', 'board', 'fullboard', 'games', 'schedule', 'matchups', 'hot', 'power', 'ledger', 'storylines', 'odds', 'numerology'])
+const DATED_TABS = new Set(['home', 'scores', 'board', 'fullboard', 'games', 'schedule', 'matchups', 'power', 'ledger', 'storylines', 'odds', 'numerology'])
 const MARKETS = new Set(['pts', 'reb', 'ast', '3pm', 'pra', 'dd', 'td', 'first'])
 const ROUTE = {
   sport: 'nba', nav: NBA_NAV, datedTabs: DATED_TABS,
@@ -117,7 +117,7 @@ export default function BucketsDashboard() {
         )}
         {missingTab ? (
           <TabNotFound asked={missingTab} sport="nba" palette={C} onNavigate={setTab}
-            doors={[['home', '\u{1F319} TONIGHT'], ['board', '\u{1F0CF} PROPS'], ['scores', '\u{1F4E1} LIVE'], ['standings', '\u{1F4C8} STANDINGS'], ['players', '\u{1F464} PLAYERS'], ['teams', '\u{1F3DF} TEAMS'], ['leaders', '\u{1F3C6} LEADERS'], ['guide', '❓ GUIDE']]} />
+            doors={[['home', '\u{1F319} TONIGHT'], ['board', '\u{1F0CF} PROPS'], ['scores', '\u{1F4E1} LIVE'], ['standings', '\u{1F4C8} STANDINGS'], ['players', '\u{1F464} PLAYERS'], ['leaders', '\u{1F3C6} LEADERS'], ['guide', '❓ GUIDE']]} />
         ) : (<>
           <SportTheme theme={C} accent={C.purple} numFont={NUM_FONT}>
             <HighlightBar sport="nba" onOpen={(id) => peekPlayer(id)} />
@@ -148,11 +148,9 @@ export default function BucketsDashboard() {
               archive: () => <CalledLedger onOpenPlayer={peekPlayer} onOpenTeam={openTeam} initialView="season" />,
             }} />}
             {tab === 'numerology' && <Numerology date={date} onOpenPlayer={peekPlayer} />}
-            {tab === 'hot' && <Hot date={date} setDate={setDate} {...nav} />}
             {tab === 'matchups' && <Matchups date={date} setDate={setDate} onOpenTeam={openTeam} onOpenGame={openGame} />}
             {tab === 'standings' && <Standings onOpenTeam={openTeam} />}
-            {tab === 'teams' && <Teams onOpenTeam={openTeam} />}
-            {tab === 'team' && <Team abbrev={teamKey} {...nav} backLabel={backLabel('teams')} onBack={() => goBack('teams')} />}
+            {tab === 'team' && <Team abbrev={teamKey} {...nav} backLabel={backLabel('standings')} onBack={() => goBack('standings')} />}
             {tab === 'players' && <Players {...nav} />}
             {tab === 'player' && <Player id={playerId} {...nav} onStep={stepPlayer} backLabel={backLabel('players')} onBack={() => goBack('players')} />}
             {tab === 'power' && <Power date={date} setDate={setDate} {...nav} />}

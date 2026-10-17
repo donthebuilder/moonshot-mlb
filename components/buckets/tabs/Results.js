@@ -11,7 +11,7 @@ import CallHistory from '../../record/CallHistory'
 import CalledByTeam, { CalledWeekStrip } from '../../record/CalledByTeam'
 import CalibrationTable from '../../record/CalibrationTable'
 import { nbaRecordModel } from '../../../lib/record/page'
-import { DelayedBanner, Loading, SourceLine, EmptyState, Pills, Kicker, Why, fmtDay } from '../ui'
+import { DelayedBanner, Loading, EmptyState, Pills, Kicker, Why, fmtDay } from '../ui'
 
 // 🧾 THE RECORD -- MOONSHOT's / TUDDY's / LAMP's one record page
 // (components/record/RecordPage.js) with BUCKETS' numbers (lib/record/page.js
@@ -72,7 +72,6 @@ export default function Results({ onOpenPlayer, onOpenTeam }) {
           )}
         </>)} />
       )}
-      <SourceLine>Source: buckets_log rows with a grade (/api/buckets/record), the last 120 days.</SourceLine>
     </div>
   )
 }

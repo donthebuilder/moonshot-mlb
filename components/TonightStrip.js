@@ -84,7 +84,7 @@ function Row({ label, items, onOpen, C, NUM_FONT, kind, accent, gateOf = null })
  * @param onLedger open The Ledger
  * @param sport    the sport key: the called-vs-scored count is published for the Ledger chip (lib/ledger/chip.js)
  */
-export default function TonightStrip({ data, onOpen, onLedger, words = {}, sport = null }) {
+export default function TonightStrip({ data, onOpen, onLedger, words = {}, sport = null, hideStill = false }) {
   const { C, NUM_FONT, accent } = useSportTheme()
   const called = data?.called && data.called.of > 0 ? data.called : null
   useEffect(() => { if (sport) publishLedgerCount(sport, called) }, [sport, called?.scored, called?.of])   // eslint-disable-line react-hooks/exhaustive-deps
@@ -92,7 +92,8 @@ export default function TonightStrip({ data, onOpen, onLedger, words = {}, sport
   const gateOf = useCallGate({
     rows: () => (data?.still || []).filter((x) => x.lock), source: data?.still, statusOf: (x) => x.status, keyOf: (x) => x.lock.key, timeOf: (x) => x.lock.time, rankOf: (x) => x.lock.rank,
   })
-  if (!data || !(data.went?.length || data.lining?.length || data.still?.length)) return null
+  // hideStill: MLB Home shows tonight's calls once, in The Four; STILL TO GO repeated them (the CALLED-scored count above and WENT / LINING UP stay)
+  if (!data || !(data.went?.length || data.lining?.length || (!hideStill && data.still?.length))) return null
   return (
     <section aria-label="Tonight" style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: '8px 12px 4px', margin: '0 0 12px', background: C.bg2, minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 30 }}>
@@ -105,8 +106,8 @@ export default function TonightStrip({ data, onOpen, onLedger, words = {}, sport
       </div>
       <Row label={words.went || 'WENT'} items={data.went} onOpen={onOpen} C={C} NUM_FONT={NUM_FONT} accent={accent} kind="went" />
       <Row label="LINING UP" items={data.lining} onOpen={onOpen} C={C} NUM_FONT={NUM_FONT} accent={accent} kind="lining" />
-      <Row label="STILL TO GO" items={data.still} onOpen={onOpen} C={C} NUM_FONT={NUM_FONT} accent={accent} kind="still" gateOf={gateOf} />
-      {gateOf && <HiddenCalledLine n={gateOf.hidden} C={C} NUM_FONT={NUM_FONT} style={{ marginTop: 2 }} />}
+      {!hideStill && <Row label="STILL TO GO" items={data.still} onOpen={onOpen} C={C} NUM_FONT={NUM_FONT} accent={accent} kind="still" gateOf={gateOf} />}
+      {!hideStill && gateOf && <HiddenCalledLine n={gateOf.hidden} C={C} NUM_FONT={NUM_FONT} style={{ marginTop: 2 }} />}
     </section>
   )
 }

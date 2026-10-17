@@ -108,12 +108,6 @@ export function NavBtn({ children, onClick, disabled = false, strong = false, ar
     }}>{children}</button>
   )
 }
-/** RETIRED 2026-10-03 (Donovan: no API names at the foot of every page) --
- *  renders nothing; the DASH footer (components/DashFooter.js) closes the page
- *  and each product's Guide says how its numbers are built. */
-export function SourceLine() {
-  return null
-}
 /** "‹ <where you came from>" -- the shell's trail names the place (lib/useShellRoute). */
 export function BackBtn({ onBack, label }) {
   if (!onBack) return null   // inside the player card (PlayerPeek) the card's × is the way out

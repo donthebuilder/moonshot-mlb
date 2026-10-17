@@ -5,7 +5,7 @@ import { useBucketsPlayers } from '../../../lib/nba/useBuckets'
 import { SportTheme } from '../../SportTheme'
 import PlayerBoardFrame from '../../players/PlayerBoardFrame'
 import TeamMark from '../../TeamMark'
-import { DelayedBanner, Loading, LastSeasonNote, SourceLine } from '../ui'
+import { DelayedBanner, Loading, LastSeasonNote } from '../ui'
 import Player from './Player'
 import { useLiveFetch } from '../../../lib/useLiveFetch'
 import { nbaLeg } from '../../../lib/slip/rowLegs'
@@ -57,7 +57,6 @@ export default function Players({ onOpenTeam, onOpenGame }) {
         nounPlural="players"
         renderDetail={(p) => <Player id={String(p.id)} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} />}
       />
-      <SourceLine>Source: ESPN’s league stats by athlete (/api/buckets/players).</SourceLine>
     </SportTheme>
   )
 }

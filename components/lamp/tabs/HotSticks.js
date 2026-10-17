@@ -5,7 +5,7 @@ import LampTable from '../LampTable'
 import { nhlMugLatest } from '../../../lib/nhl/format'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampHotSticks } from '../../../lib/nhl/useLamp'
-import { DelayedBanner, Loading, SourceLine, StaleSeasonNote, EmptyState, fmtSec } from '../ui'
+import { DelayedBanner, Loading, StaleSeasonNote, EmptyState, fmtSec } from '../ui'
 import { PillRow } from '../../Filters'
 
 // 🔥 HOT STICKS (2026-09-27) — who is shooting more than usual. Every
@@ -63,7 +63,7 @@ export default function HotSticks({ onOpenPlayer }) {
   const shown = scope === 'tonight' ? rows.filter((r) => r._playing) : scope === 'f' ? rows.filter((r) => r.pos !== 'D') : scope === 'd' ? rows.filter((r) => r.pos === 'D') : rows
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <PageHeader eyebrow="LAMP · HOT STICKS" title="Who is shooting more than usual"
+      <PageHeader eyebrow="LAMP · POWER · HOT STREAKS" title="Who is shooting more than usual"
         note="Last 5 and last 10 games beside his season rate."
         theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={data ? [{ value: rows.length, label: 'SKATERS', tone: C.text2 }, ...(data.stale ? [] : [{ value: playing, label: 'PLAYING TONIGHT', tone: C.ice }])] : null} />
@@ -83,7 +83,6 @@ export default function HotSticks({ onOpenPlayer }) {
             rowEdge={(r) => (r._playing ? C.ice : null)} onRowClick={(r) => onOpenPlayer?.(r.id)} />
         </>
       )}
-      <SourceLine>api.nhle.com/stats skater/summary, regular season (gameTypeId 2), one row per skater per game over the last {data?.windowDays || 35} days: goals, shots, timeOnIcePerGame, ppGoals; season rate from the same report aggregated. Skaters with fewer than 3 games in the window are left out. Tonight: the league scoreboard.</SourceLine>
     </div>
   )
 }

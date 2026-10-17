@@ -23,7 +23,7 @@ import { BucketsCards } from '../BucketsCard'
 import ShareCardButton from '../../card/ShareCardButton'
 import GameTotalLine, { GameTotalMark, totalRowFor, useGameTotals } from '../../GameTotalLine'
 import { shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
-import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager, RimDot, fmtDay, fmtTip, readHashParam, writeHashParam } from '../ui'
+import { EmptyState, DelayedBanner, Loading, Pills, NavBtn, DayPager, RimDot, fmtDay, fmtTip, readHashParam, writeHashParam } from '../ui'
 
 // 📋 THE SLATE -- tonight one game at a time (LAMP's Slate): pick a game, see
 // its calls and its board for the market you pick. The open game rides the
@@ -139,7 +139,6 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
               caption={`This game’s board for ${NBA_MARKETS[m].label}. Each row opens that player.`} />
           : <EmptyState title={NBA_MARKETS[m].startersOnly ? 'NO STARTERS LISTED YET' : 'NOBODY RATED IN THIS GAME'} note={NBA_MARKETS[m].startersOnly ? 'First basket waits for the pre-tip box score.' : 'No player in this game has ten NBA games on file.'} />}
       </>)}
-      <SourceLine>Same rows as Props (/api/buckets/board), filtered to one game.</SourceLine>
     </div>
   )
 }

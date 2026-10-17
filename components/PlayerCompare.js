@@ -1,5 +1,6 @@
 'use client'
 import { useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 import useScrollLock from '../lib/useScrollLock'
 import { C, NUM_FONT } from '../lib/theme'
@@ -143,12 +144,15 @@ export default function PlayerCompare({ anchor, peers = [], pairHistorySummary =
   const hist = other ? findPairHistory(pairHistorySummary, anchor, other) : null
   const together = n(hist?.repeat_count, 0)
 
-  return (
+  if (typeof document === 'undefined') return null
+  // z-index 400 (was 110): this sheet is only ever opened from the player card (PlayerModal), whose CardShell is 395, so at 110 it opened BEHIND the card.
+  // 400 is above the card and the dock (390), as NflCompareSheet; portalled to the body so no pane's stacking context can clip it.
+  return createPortal(
     <div
       onClick={onClose}
       className="modal-backdrop"
       style={{
-        position: 'fixed', inset: 0, zIndex: 110,
+        position: 'fixed', inset: 0, zIndex: 400,
         background: 'rgba(0,0,0,.75)', backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
       }}
@@ -264,6 +268,7 @@ export default function PlayerCompare({ anchor, peers = [], pairHistorySummary =
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
