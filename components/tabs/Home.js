@@ -8,7 +8,7 @@ import { slateWhen } from '../../lib/slateWhen'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import LongshotsPreview from '../LongshotsPreview'
 import { logUrl, dataUrl } from '../../lib/dataSource'
-import { nameOf, teamOf, oppOf, clean, n, hrScore, hitScore, dateText } from '../../lib/player'
+import { nameOf, teamOf, oppOf, clean, n, hrScore, hitScore } from '../../lib/player'
 import { boardOrder } from '../../lib/boardOrder'
 import { laneRecord } from '../../lib/lanes'
 import { groupGames } from '../../lib/data'
@@ -20,15 +20,13 @@ import { hr9Color, isLeaky } from '../../lib/hr9'
 import YourPlayers from '../YourPlayers'
 import Fold from '../Fold'
 import BotPicksStrip from '../BotPicksStrip'
-import StealLooksStrip from '../StealLooksStrip'
-import ReadTeaser, { callOfTheNight } from '../ReadTeaser'
+import { callOfTheNight } from '../ReadTeaser'
 import { airParts } from '../../lib/conditions'
 import { useSetupHomers, useBackToBack } from '../../lib/b2b'
 import { rankArms } from '../../lib/armLeak'
 import { slateProjHr } from '../ProjectedOutput'
 import { useClubHr } from '../../lib/clubHr'
 import { buildHeadlines, useLiveScores, nextPitch, fmtCountdown } from '../../lib/headlines'
-import { getPicks, CONVICTION } from '../../lib/myPicks'
 import { setSport } from '../../lib/sport'
 import { fetchCombinedGamesForMlbHome, combinedRenderState, CombinedTeamMark } from '../../lib/combinedRail'
 import { btnStyle } from '../ui'
@@ -43,11 +41,8 @@ const Scoreboard = dynamic(() => import('./Scoreboard'), { loading: TabLoading }
 const Boxes = dynamic(() => import('./Boxes'), { loading: TabLoading })
 const AtThePlate = dynamic(() => import('./AtThePlate'), { loading: TabLoading })
 import MoneyAnswer from '../MoneyAnswer'
-import PennantRace from '../PennantRace'
-import ComebackBoard from '../ComebackBoard'
 import { mlbSlateState } from '../../lib/mlbSlateState'
 import HeadlineStrip from '../HeadlineStrip'
-import CallsSwipe from '../home/CallsSwipe'
 import FoundingMembersCard from '../FoundingMembersCard'
 import HeroStat from '../HeroStat'
 import { mlbNextGames, nextLine } from '../../lib/mlbNext'
@@ -562,16 +557,6 @@ export default function Home({
     return [...seen.values()].filter((g) => g.venue).sort((a, b) => b.edge - a.edge)
   }, [players])
 
-  // ── 🎟 your own night (2026-08-15). The one thing the front page knew
-  // nothing about was the person reading it. If he logged calls for this
-  // slate on My Picks, the porch says so and points at the scorecard —
-  // and if he didn't, the card doesn't exist. Read in an effect, same
-  // hydration rule as startOpen above.
-  const [mine, setMine] = useState([])
-  useEffect(() => {
-    try { setMine(Object.values(getPicks(b2bDateKey) || {})) } catch { setMine([]) }
-  }, [b2bDateKey])
-  const convWord = (k) => (CONVICTION.find(([key]) => key === k)?.[1] || '').toLowerCase()
 
   // ── 🧱 near-miss watch — the same bar the Scoreboard board sets (drought
   // + genuinely homer-shaped recent contact), reduced to the single
@@ -726,10 +711,6 @@ export default function Home({
   const liveGames = useMemo(
     () => games.filter((g) => g?.row?.game_state === 'live' || g?.live === true).length,
     [games],
-  )
-  const topHr = useMemo(
-    () => boardOrder(players)[0] || null,   // 2026-09-25: The Board's #1
-    [players],
   )
   const airLine = (g) => airParts(g?.row).map((x) => x.text).join(', ')
   const airTitle = (g) => airParts(g?.row).map((x) => `${x.text} — ${x.title}`).join('\n')
@@ -951,10 +932,6 @@ export default function Home({
                 col={airRanked[0].edge > 0 ? C.orange : C.text3}
                 title={`${airLine(airRanked[0]) || ''}${airTitle(airRanked[0]) ? `\n${airTitle(airRanked[0])}` : ''}\nPark HR factor plus the published weather effect, as a percentage swing on the rate — not a chance of anything.${airRanked[0].edge > 0 ? '' : ' Nothing on tonight\'s slate is playing above neutral; that is the finding, not a missing section.'}`} />
             )}
-            {record ? (
-              <Stat label="HIT CALLS" value={`${record.pct.toFixed(1)}%`} sub={`vs ${record.base.toFixed(1)}% board · n=${record.n}`} col={C.text}
-                title={`Locked record: ${lockedCallsLine(lockedRec, record.n)} (${lockedRec.window}). Hit calls that got a hit against ${record.base.toFixed(1)}% for the whole board, calls included.${pickRange(record) ? ` With this many calls the real rate could sit anywhere in ${pickRange(record)}.` : ''}`} />
-            ) : null}
           </div>
         )}
 
@@ -1047,8 +1024,7 @@ export default function Home({
         onUnstar={onWatch}
       />
 
-      {/* TONIGHT'S CALLS AS CARDS (2026-10-16): one card at a time, tap to flip. Below Your players on purpose: it adds no height above the board. */}
-      <CallsSwipe sport="mlb" />
+      {/* ONE CALLS SURFACE (2026-10-17): tonight's calls live in The Four (the hero) -- the swipe-through cards are gone from Home. */}
 
 
       {/* ── 💵 #34: THE MONEY ANSWER, WHERE THE CLAIM IS MADE ────────────────
@@ -1093,7 +1069,7 @@ export default function Home({
           sit on the page is still here, one drawer down, closed by default —
           the Fold renders nothing until it is opened, so a closed drawer costs
           the phone nothing. Same panels, same code, one level deeper. */}
-      <Fold id="more-tonight" title="••• More on tonight" meta="angles · top 10s · weakest arms · the snapshot · steal looks · the game to circle · the read · October · comebacks · moneyline · your night">
+      <Fold id="more-tonight" title="••• More on tonight" meta="angles · top 10s · weakest arms">
       {/* ── TONIGHT'S ANGLES — hero lines, not tables ─────────────────
           Renamed from "storylines" in the 2026-08-09 polish pass: the full
           Storylines engine renders directly below, and two adjacent panels
@@ -1514,224 +1490,8 @@ export default function Home({
         </Fold>
       )}
 
-      {/* ── THE SNAPSHOT (2026-08-29) ──────────────────────────────────────
-          Four tiles, straight off TUDDY's Home, which has had them since it
-          shipped: slate size, what state the night is in, how many hitters
-          the bot scored, and the top HR score with the man's name on it.
-
-          Every number here is already on this page in a sentence somewhere —
-          this is the same night, said in four glances instead of a paragraph,
-          for the read where you have not got a paragraph's worth of attention.
-          The last tile is a button because a name is a thing you want to open,
-          and the score carries its own "not a probability" line, same as
-          everywhere else on the site. */}
-      {players.length > 0 && (
-        <div className="home-snapshot">
-          <div>
-            <small>SLATE</small>
-            <strong>{games.length}</strong>
-            <span>{confirmedGames > 0 ? `${confirmedGames} confirmed` : 'games tonight'}</span>
-          </div>
-          <div>
-            <small>STATE</small>
-            <strong>{isLive ? liveGames || games.length : homersSoFar || '—'}</strong>
-            <span>{isLive ? 'live now' : homersSoFar ? 'homers so far' : 'before first pitch'}</span>
-          </div>
-          <div>
-            <small>HITTERS</small>
-            <strong>{players.length}</strong>
-            <span>{picks > 0 ? `${picks} designated` : 'scored names'}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => topHr && onPlayerClick?.(topHr)}
-            title="The highest HR score on tonight's board. A board ranking from 0-100, not a chance of anything — the same scale every board on this site uses."
-          >
-            <small>TOP HR SCORE</small>
-            <strong>{topHr ? hrScore(topHr).toFixed(1) : '—'}</strong>
-            <span>{topHr ? nameOf(topHr) : 'awaiting the slate'}</span>
-          </button>
-        </div>
-      )}
-
-      {/* 🏃 STEAL LOOKS (2026-09-01) — the Steal Board's front door, no new
-          tab. See components/StealLooksStrip.js. Empty slate → nothing. */}
-      <Fold id="steal" title="🏃 Steal looks" meta="the steal board's front door">
-        <StealLooksStrip players={players} odds={odds} onPlayerClick={onPlayerClick} onNavigate={onNavigate} />
-      </Fold>
-
-      <style>{`
-        .home-snapshot{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:12px}
-        .home-snapshot>div,.home-snapshot>button{display:flex;flex-direction:column;align-items:flex-start;min-height:84px;padding:12px 14px;border:1px solid ${C.border};border-radius:11px;background:${C.bg2};color:inherit;text-align:left;font-family:inherit}
-        .home-snapshot>button{cursor:pointer}
-        .home-snapshot>button:hover{border-color:rgba(249,115,22,.45)}
-        .home-snapshot small{color:${C.text3};font:900 8px/1 ${NUM_FONT};letter-spacing:.08em}
-        .home-snapshot strong{margin-top:7px;color:${C.orange};font:900 24px/1 ${NUM_FONT}}
-        .home-snapshot span{margin-top:5px;color:${C.text2};font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
-        @media(max-width:800px){.home-snapshot{grid-template-columns:1fr 1fr}}
-      `}</style>
-
-      {/* 🧾 THE LEDGER MOVED OFF HOME (2026-09-13, Donovan: "move the home
-          run ledger fro[m] the home page tot[o] the live page"). It lived
-          here since 2026-08-17; it now renders on the Live/Scores page
-          instead — see components/tabs/Scoreboard.js. */}
-
-      {/* ── THE HEADLINE GAME — lifted here 2026-08-16 ───────────────
-             The hero's last clause names this game; it used to be three
-             sections below (past the onboarding card, the tile row and Your
-             Night), so reading the sentence meant scrolling down to find the
-             matchup and back up to re-read the sentence. Sentence and subject
-             now touch. The onboarding card moved to the doors block at the
-             foot of the page and the four-tile row is gone into the hero
-             sentence — see the notes on both. */}
-      {headline && (
-        <Fold
-          id="headline"
-          title="⭐ The game to circle"
-          meta={`${clean(headline.g.away, '?')} @ ${clean(headline.g.home, '?')}`}
-        >
-        <div style={{
-          background: `linear-gradient(155deg, rgba(249,115,22,.1), ${C.bg2} 55%)`,
-          border: '1px solid rgba(249,115,22,.35)', borderRadius: 14,
-          padding: '13px 16px', marginBottom: 14,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: TYPE.label, fontWeight: 900, color: C.orange, letterSpacing: '.1em', fontFamily: NUM_FONT }}>🔥 TONIGHT&apos;S HEADLINER</span>
-            <span style={{ fontSize: TYPE.micro, color: C.text3 }}>the game whose top power bats stack highest on the board — a ranking, not a promise</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginTop: 7 }}>
-            <div style={{ fontSize: TYPE.title, fontWeight: 900, letterSpacing: '-.02em', fontFamily: NUM_FONT }}>
-              {clean(headline.g.away, '?')} <span style={{ color: C.text3, fontWeight: 400 }}>@</span> {clean(headline.g.home, '?')}
-            </div>
-            <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{dateText(headline.g.game_time)}</div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginLeft: 'auto' }}>
-              {headline.bats.map((p, i) => (
-                <button key={i} onClick={() => onPlayerClick?.(p)} style={{
-                  display: 'inline-flex', alignItems: 'baseline', gap: 6, cursor: 'pointer',
-                  background: C.bg3, border: `1px solid ${C.border2}`, borderRadius: 9, padding: '7px 12px',
-                }}>
-                  <span style={{ fontSize: TYPE.body, fontWeight: 800, color: C.text }}>{nameOf(p)}</span>
-                  <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{teamOf(p)}</span>
-                  <span style={{ fontSize: TYPE.body, fontWeight: 900, color: C.orange, fontFamily: NUM_FONT }}>{hrScore(p).toFixed(1)}</span>
-                </button>
-              ))}
-              <button onClick={() => onNavigate?.('games')} style={{
-                fontSize: TYPE.micro, fontWeight: 800, color: C.orange, cursor: 'pointer',
-                background: 'transparent', border: '1px dashed rgba(249,115,22,.4)', borderRadius: 9, padding: '7px 12px',
-              }}>full matchup →</button>
-            </div>
-          </div>
-          {/* WHY THIS GAME, IN A LINE (2026-08-16). The header said "the game
-              whose top power bats stack highest" and then never showed the
-              stack, and the air for the one game worth circling was only
-              readable by scrolling to a tile strip further down the page. Both
-              are stated here: the ranking key with its own tooltip, and the
-              conditions spoken by lib/conditions (temp, wind and direction,
-              park, humidity, rain, roof — whichever the file published for
-              this game, and nothing it didn't). */}
-          {(() => {
-            const row = headline.g.players?.[0]
-            const parts = airParts(row)
-            const venue = clean(row?.venue_name, '')
-            return (
-              <div style={{ fontSize: TYPE.body, color: C.text3, lineHeight: 1.65, marginTop: 7 }}>
-                Its three best power bats sum to{' '}
-                <b title="The sum of this game's three highest HR scores — the ranking key for this section. A 0-100 board score, not a chance of anything."
-                  style={{ color: C.orange, fontFamily: NUM_FONT, cursor: 'default' }}>{headline.heat.toFixed(1)}</b>
-                {', the highest on the slate.'}
-                {parts.length > 0 && (
-                  <>{' '}{venue ? `${venue} is playing ` : 'The air reads '}
-                    <span title={parts.map((x) => `${x.text} — ${x.title}`).join('\n')} style={{ cursor: 'default', color: C.text2 }}>
-                      {parts.map((x) => x.text).join(', ')}
-                    </span>.
-                  </>
-                )}
-              </div>
-            )
-          })()}
-        </div>
-        </Fold>
-      )}
-
-      {/* ── 📰 THE CALL OF THE NIGHT — the lead of The Read (2026-08-16) ─────
-             WHY HERE, BELOW THE HEADLINER AND ABOVE YOUR NIGHT.
-             Not above it: the hero paragraph ends "The game to circle is X @ Y,
-             immediately below", and putting a pick between that sentence and
-             its subject would re-open the exact scroll-down-scroll-back-up
-             complaint the flow pass was built to close. Not further down
-             either: this is the most opinionated thing the site says all night
-             and it was buried on a tab. So the page now goes slate → the game
-             → the pick → your own calls, which is descending scope and reads as
-             one thought — and the bot's single best call sits directly above
-             the calls YOU made against it, which is the comparison worth having.
-             It is the lead ONLY. The other three calls, the ISO lens and the
-             traps stay on the Bot page, so Home keeps its shape and The Read
-             keeps its length. Nothing that was on this page moved or left. ── */}
-      <Fold id="read" title="📰 The Read" meta="MOONSHOT's single best call tonight">
-        <ReadTeaser players={players} onNavigate={onNavigate} onPlayerClick={onPlayerClick} />
-      </Fold>
-
-      {/* ── 🏆 OCTOBER — the playoff predictor and the World Series pick ──────
-          Two of the four bots Donovan asked for, and they are one machine: you
-          cannot answer who wins the World Series without first answering who is
-          in the field, and once the bracket is being simulated the champion
-          falls out of the same run.
-
-          It is a FOLD and not a tab on purpose. "You can get lost on the site
-          very easily, especially the MLB side" -- a tab costs every visitor a
-          decision forever, a fold costs only the people who open it. And
-          because Fold does not render its children while shut, a reader who
-          never opens this never fetches playoff_odds.json either. ── */}
-      <Fold id="october" title="🏆 October odds" meta="playoff field and a World Series pick, simulated">
-        <PennantRace />
-      </Fold>
-
-      {/* Comebacks sit beside October because they are the same KIND of thing:
-          season-long colour next to a product about tonight. Same fold, same
-          cost of nothing until opened. */}
-      <Fold id="comebacks" title="🔄 Comeback board" meta="who wins after falling behind — and who gives it away">
-        <ComebackBoard />
-      </Fold>
-
-      {/* The moneyline log is folded like the other two and titled like what it
-          is. It says "disagrees", not "picks", because the simulation says the
-          model has no demonstrated edge — only a record being built in public. */}
-      <Fold id="moneyline" title="💰 Where the model disagrees" meta="game lines vs MOONSHOT — logged and graded, not tipped">
-        {/* MoneylineBoard was mounted here until 2026-09-06 -- Donovan: "if easy just remove". The
-            model and its log live on (bots/moneyline_bot.py, moneyline_board.json); only the panel is gone. */}
-      </Fold>
-
-      {/* ── 🎟 YOUR NIGHT — only exists when he made calls for this slate ── */}
-      {mine.length > 0 && (
-        <Fold id="yournight" title="🎟 Your night" meta={`${mine.length} call${mine.length === 1 ? '' : 's'} on this slate`}>
-        <div style={{
-          background: C.bg2,
-          border: `1px solid ${C.border}`, borderRadius: 14,
-          padding: '11px 16px', marginBottom: 14,
-        }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', fontSize: TYPE.body, lineHeight: 1.6, color: C.text2 }}>
-            <span style={{ flexShrink: 0 }}>🎟</span>
-            <span style={{ minWidth: 0 }}>
-              <b style={{ color: C.blue }}>Your night</b> — you have{' '}
-              <b style={{ color: C.text, fontFamily: NUM_FONT }}>{mine.length}</b> call{mine.length === 1 ? '' : 's'} riding
-              against MOONSHOT on this slate:{' '}
-              {mine.slice(0, 3).map((m, i) => (
-                <span key={i}>
-                  {i > 0 && ', '}
-                  <b style={{ color: C.text }}>{m.name}</b>
-                  <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}> {m.role}{m.conviction ? ` · ${convWord(m.conviction)}` : ''}</span>
-                </span>
-              ))}
-              {mine.length > 3 && <span style={{ color: C.text3 }}> and {mine.length - 3} more</span>}
-              .{' '}
-              <button type="button" onClick={() => onNavigate?.('mypicks')} style={{ ...BARE_BUTTON, padding: '3px 1px', color: C.blue, cursor: 'pointer', fontWeight: 800 }}>
-                Grade them on My Picks →
-              </button>
-            </span>
-          </div>
-        </div>
-        </Fold>
-      )}
+      {/* SIMPLIFY (2026-10-17, Donovan): the fold is three sub-folds -- angles, top 10s, weakest arms. The snapshot, steal looks, the game to circle, The Read, October odds,
+          the Comeback board, the empty moneyline fold and Your night left Home; each is still reachable (Steals, Games, Bot, Leaders, Watchlist -> My picks). */}
       </Fold>
 
       {/* ── NOTHING BUILT YET. One honest card instead of eight strips each
