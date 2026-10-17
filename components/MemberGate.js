@@ -7,7 +7,7 @@
 // useCallGate(...) is what a board calls: it returns null for everyone but a free viewer (so the table draws as it always did), else gateOf(row) ->
 // { key, started, graded, free } for CallStatusBadge's `gate` prop. It decides nothing about CALLED itself: the status still comes from the sport's one
 // rule (lib/callStatus, tdCallStatus, scoreNight); this only says which already-CALLED labels are drawn as the lock.
-import { createContext, useCallback, useContext, useEffect, useMemo, useSyncExternalStore } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 import { useDashAccount } from '../lib/dash/sync'
 import { memberStateOf, freeCalledKeys, hiddenCalledCount, startedAt, cardGate, storyLockKey, maskCalledRows, gameCountVisible } from '../lib/members/gate'
 import { membersUrl } from '../lib/members'
@@ -25,7 +25,11 @@ const listeners = new Set()
 let freeUnion = new Set()
 const publish = (id, set) => {
   if (set) published.set(id, set); else published.delete(id)
-  freeUnion = new Set([...published.values()].flatMap((s) => [...s]))
+  const next = new Set([...published.values()].flatMap((s) => [...s]))
+  // same members -> keep the SAME snapshot and tell nobody: a board that rebuilds an equal (even empty) set every render must not re-render
+  // its readers (useSyncExternalStore), or the republish loops (React error #185)
+  if (next.size === freeUnion.size && [...next].every((k) => freeUnion.has(k))) return
+  freeUnion = next
   listeners.forEach((l) => l())
 }
 const subscribe = (l) => { listeners.add(l); return () => listeners.delete(l) }
@@ -66,10 +70,16 @@ export function useCallGate({ rows, source, statusOf, timeOf, keyOf, rankOf = nu
     return fn
   // the callbacks are the caller's inline functions of `rows`; the rows, the viewer and the slate day are what change the answer
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, source !== undefined ? source : rows, slateDate])
+  }, [state, typeof rows === 'function' ? source : rows, slateDate])
   const id = useMemo(() => ++nextId, [])
   const freeSet = gateOf ? gateOf.free : null
-  useEffect(() => { publish(id, freeSet); return () => publish(id, null) }, [id, freeSet])
+  // publish by CONTENT, not identity: a caller whose rows are a fresh array each render rebuilds an equal Set every render, and re-publishing on each
+  // (take back, then add) would notify every reader each time, so a reader that is also a board loops (React error #185)
+  const freeSig = freeSet ? [...freeSet].sort().join('\u0001') : null
+  const freeRef = useRef(freeSet)
+  freeRef.current = freeSet
+  useEffect(() => { publish(id, freeRef.current) }, [id, freeSig])
+  useEffect(() => () => publish(id, null), [id])
   return gateOf
 }
 
