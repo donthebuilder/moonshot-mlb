@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMlbMask } from './MemberGate'
 import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, teamOf, oppOf, hrScore, playerId } from '../lib/player'
 import { boardCompare } from '../lib/boardOrder'
@@ -65,7 +66,9 @@ function useViewport(active) {
   return vp
 }
 
-export default function QuickSearch({ players = [], onPick = null, sport: sportProp = DEFAULT_SPORT }) {
+export default function QuickSearch({ players: playersIn = [], onPick = null, sport: sportProp = DEFAULT_SPORT }) {
+  // MEMBERS GATE (2026-10-17): a CALLED man a non-member may not read is an ordinary ON THE BOARD hitter here (no 🤖 / role / pick count). Same array for members.
+  const _mask = useMlbMask(); const players = useMemo(() => _mask(playersIn), [playersIn, _mask])   // eslint-disable-line react-hooks/exhaustive-deps
   const sport = sportKey(sportProp)
   const hasSlate = Boolean(onPick)
   const [open, setOpen] = useState(false)

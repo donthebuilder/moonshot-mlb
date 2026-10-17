@@ -453,7 +453,7 @@ function SidePanel({ team, rows, odds, onPlayerClick }) {
       ) : (
         <div>
           <div style={{ fontSize: 10, color: C.text3, marginBottom: 5 }}>
-            MOONSHOT designated nobody on this side. Its two best scores:
+            {rows.some((p) => p?._callHidden) ? 'The two best scores on this side:' : 'MOONSHOT designated nobody on this side. Its two best scores:'}
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {fallback.map((p) => (

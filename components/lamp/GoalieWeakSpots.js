@@ -9,6 +9,7 @@ import LampTable from './LampTable'
 import { nhlMugLatest } from '../../lib/nhl/format'
 import CallStatusBadge from '../CallStatusBadge'
 import Tap from '../Tap'
+import { useLockOf } from '../MemberGate'
 import { Loading, readHashParam } from './ui'
 
 // 🥅 GOALIE WEAK SPOTS (2026-10-10, Donovan: "need to know what position the goalie is weak to"). A compact block for one
@@ -29,8 +30,10 @@ function gameFrom(board, { gameId, away, home }) {
 }
 
 // the skaters facing a net: the OTHER club's CALLED, then ON THE BOARD, by their rank in the game
-function facing(bg, netTeam) {
+// MEMBERS GATE (2026-10-17): a CALLED skater a non-member may not read (lockOf, components/MemberGate.js) is an ordinary ON THE BOARD skater here, in the stamp and in the order
+function facing(bg, netTeam, lockOf = null) {
   const rows = (bg?.rows || []).filter((r) => r.team !== netTeam && (r.status === 'called' || r.status === 'board'))
+    .map((r) => (r.status === 'called' && lockOf && lockOf({ status: 'called', key: `${bg.game?.id}|${r.playerId}`, time: bg.game?.startUtc, graded: Boolean(bg.graded) }).locked ? { ...r, status: 'board' } : r))
   rows.sort((a, b) => (a.status === 'called' ? 0 : 1) - (b.status === 'called' ? 0 : 1) || (a.rank ?? 999) - (b.rank ?? 999))
   return rows.slice(0, 8)
 }
@@ -72,7 +75,8 @@ function Side({ bg, side, season, onOpenPlayer }) {
   const other = g[side === 'away' ? 'home' : 'away'].abbrev
   const entry = bg.starters?.[side] || null
   const confirmed = entry?.confirmed === true && /^\d{7}$/.test(entryId(entry))
-  const rows = useMemo(() => facing(bg, net), [bg, net])
+  const lockOf = useLockOf()
+  const rows = useMemo(() => facing(bg, net, lockOf), [bg, net, lockOf])
   const { data: w, loading, error } = useLampGoalieWeak(confirmed ? entryId(entry) : null, season, rows.map((r) => String(r.playerId)))
   const head = (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', minHeight: 24 }}>

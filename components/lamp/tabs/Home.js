@@ -23,6 +23,9 @@ import { NHL_NAV } from '../../../lib/nhl/routes'
 import HotNumbers from '../../numerology/HotNumbers'
 import { MatchLogos } from '../../TeamMark'
 import NhlTonight from '../../tonight/NhlTonight'
+import { CardLockLine } from '../../MemberGate'
+import { overallRanks } from '../../../lib/positions'
+import { useLampCallGate, lampLocked } from './Board'
 import ChampionshipFold from '../../ChampionshipFold'
 
 // 🏒 TONIGHT — LAMP's front page. Three things and no more (spec §6: the
@@ -43,6 +46,12 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
   const sogBoard = useLampBoard(date, 'SOG')
   const boardGames = board.data?.games || []
   const boardPrev = usePreview(boardGames, 6)
+  // MEMBERS GATE (2026-10-17): "who is called in each game" names only the calls a free viewer may read (the free four, over every game on the board); the rest are not
+  // listed and not counted. null gateOf (members, unknown membership): the list is exactly as it was.
+  const flatBoard = boardGames.filter((g) => !g.noMarketLock).flatMap((g) => g.rows.map((r) => ({ r, g })))
+  const callGate = useLampCallGate(flatBoard, overallRanks(flatBoard, ({ r, g }) => `${g.game.id}|${r.playerId}`, ({ r }) => r.score ?? 0))
+  const readableCalls = (g) => g.rows.filter((x) => x.status === 'called' && !lampLocked(callGate, { _row: x, _g: g }))
+  const someHidden = Boolean(callGate) && boardGames.some((g) => g.rows.some((x) => x.status === 'called' && lampLocked(callGate, { _row: x, _g: g })))
   const day = scores.data
   const games = sortGames(day?.games || [])
   const prev = usePreview(games, 6)
@@ -167,13 +176,14 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
                 label: boardGames.every((g) => g.locked || g.graded) ? 'Called' : boardGames.some((g) => g.locked || g.graded) ? 'Called · preview = projected' : 'Projected',
                 heat: false, numeric: false, w: 260, fmt: (_, r) => (
                 <span style={{ fontSize: 11.5, lineHeight: 1.4, whiteSpace: 'normal' }}>
-                  {r.g.rows.filter((x) => x.status === 'called').map((x, i) => (
+                  {readableCalls(r.g).map((x, i) => (
                     <span key={x.playerId}>{i ? ' · ' : ''}{onOpenPlayer ? <Tap onClick={() => onOpenPlayer(x.playerId)}><span style={{ color: x.hit ? C.ice : C.text }}>{x.name}</span></Tap> : <span style={{ color: x.hit ? C.ice : C.text }}>{x.name}</span>} <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{x.score}</span></span>
                   ))}
                 </span>) },
               { key: 'stamp', label: 'State', heat: false, w: 70, fmt: (v, r) => <span style={{ color: r.g.graded ? C.cream : r.g.locked ? C.teal : C.amber, font: `900 8px/1 ${NUM_FONT}`, letterSpacing: '.12em' }}>{v}</span> },
             ]} />
         )}
+        {someHidden && <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ marginTop: 6 }} />}
         <ShowMoreButton open={boardPrev.open} restN={boardPrev.restN} toggle={boardPrev.toggle} itemWord="games" />
       </section>
 

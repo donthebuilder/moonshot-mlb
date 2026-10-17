@@ -6,7 +6,7 @@
 import { useState } from 'react'
 import CallStatusBadge from './CallStatusBadge'
 import Tap from './Tap'
-import { useLockOf, HiddenCalledLine } from './MemberGate'
+import { useLockOf, CardLockLine } from './MemberGate'
 
 /**
  * @param w        a write-up (buildWriteup)
@@ -14,7 +14,7 @@ import { useLockOf, HiddenCalledLine } from './MemberGate'
  * @param words    { status(w), meta(p), numbers(p) } -> strings
  * @param onOpen   (p) => void, opens the player
  * @param lockIn   optional (p) => { key, time, graded? }: the members gate (2026-10-16). A CALLED player a non-member may not read is left out, with the rest of the write-up
- *                 (its lines can name him); one count line says how many are for members. Absent, or any other viewer: unchanged.
+ *                 (its lines can name him); one generic line (no count) says the rest is for members. Absent, or any other viewer: unchanged.
  * @param depth    optional { player(p) => node, game: node } the sport's deeper sections, drawn only while the full write-up is open
  */
 export default function GameWriteupBlock({ w, theme, words, onOpen, depth = null, lockIn = null }) {
@@ -56,7 +56,8 @@ export default function GameWriteupBlock({ w, theme, words, onOpen, depth = null
           {open && depth?.player && depth.player(p)}
         </div>
       ))}
-      {hiddenN > 0 && <HiddenCalledLine n={hiddenN} C={C} NUM_FONT={NUM_FONT} style={{ marginTop: 6 }} />}
+      {/* no per-game count: with the visible list it could point at the man (2026-10-17) */}
+      {hiddenN > 0 && <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ marginTop: 6 }} />}
       {open && (<>
         {w.game.length > 0 && (<><Kicker>THE GAME</Kicker>{w.game.map((l) => <div key={l.t} title={l.src} style={{ fontSize: TYPE.body, color: C.text2 }}>{l.t}</div>)}</>)}
         {depth?.game}

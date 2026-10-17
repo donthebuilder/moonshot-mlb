@@ -11,7 +11,7 @@
 // each called player's name, status, score and two reasons; the full write-up
 // (watch-outs, price, bottom line) one tap down, so the first useful row on the
 // game page doesn't move far.
-import { useLockOf, HiddenCalledLine } from '../MemberGate'
+import { useLockOf, CardLockLine } from '../MemberGate'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { buildNflWriteup } from '../../lib/writeups/build'
@@ -118,7 +118,9 @@ export default function WriteupBlock({ game, gameCalls, week, matchup, logs, odd
     return <section aria-label="Our calls" style={{ marginBottom: 16 }}>{head}<div style={{ fontSize: 13, color: C.text3 }}>Waiting on this week&apos;s calls. They post with the board and lock at kickoff.</div>{extras.length > 0 && <CallsStrip cards={extras} onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />}</section>
   }
   if (!w || !(w.players.length || w.noCall.length)) {
-    return <section aria-label="Our calls" style={{ marginBottom: 16 }}>{head}<div style={{ fontSize: 13, color: C.text3 }}>{g.no_lock_reason || 'No call for this game.'}</div>{extras.length > 0 && <CallsStrip cards={extras} onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />}</section>
+    return <section aria-label="Our calls" style={{ marginBottom: 16 }}>{head}{hiddenN > 0
+      ? <CardLockLine C={C} NUM_FONT={NUM_FONT} />   /* every call here is for members: never say "no call" (it would be false) */
+      : <div style={{ fontSize: 13, color: C.text3 }}>{g.no_lock_reason || 'No call for this game.'}</div>}{extras.length > 0 && <CallsStrip cards={extras} onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />}</section>
   }
   const playerById = new Map((week?.players || []).map((p) => [String(p.player_id), p]))
   const callOf = (id) => (g.calls || []).find((c) => String(c.player_id) === String(id)) || null
@@ -169,7 +171,8 @@ export default function WriteupBlock({ game, gameCalls, week, matchup, logs, odd
           </div>
         )
       })}
-      {hiddenN > 0 && <HiddenCalledLine n={hiddenN} C={C} NUM_FONT={NUM_FONT} style={{ marginTop: 4 }} />}
+      {/* no per-game count: with the visible list it could point at the man (2026-10-17) */}
+      {hiddenN > 0 && <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ marginTop: 4 }} />}
       {open && (<>
         {w.game.length > 0 && (<><Kicker>THE GAME</Kicker>{w.game.map((l) => <div key={l.t} title={l.src} style={{ fontSize: 13, color: C.text2 }}>{l.t}</div>)}</>)}
         <Kicker>BOTTOM LINE</Kicker>

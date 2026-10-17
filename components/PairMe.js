@@ -1,5 +1,6 @@
 'use client'
 import { useMemo, useState } from 'react'
+import { useMlbMask } from './MemberGate'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, clean, nameOf, teamOf, oppOf, hrScore, playerId } from '../lib/player'
 import { tone, alpha } from '../lib/scales'
@@ -16,7 +17,9 @@ import { tone, alpha } from '../lib/scales'
 
 const norm = (full) => String(full || '').toLowerCase().replace(/[^a-z]/g, '')
 
-export default function PairMe({ players = [], pairHistorySummary, onPlayerClick }) {
+export default function PairMe({ players: playersIn = [], pairHistorySummary, onPlayerClick }) {
+  // MEMBERS GATE (2026-10-17): a CALLED man a non-member may not read is an ordinary ON THE BOARD hitter here (no 🤖 / role / pick count). Same array for members.
+  const _mask = useMlbMask(); const players = useMemo(() => _mask(playersIn), [playersIn, _mask])   // eslint-disable-line react-hooks/exhaustive-deps
   const [anchorId, setAnchorId] = useState(null)
   const [query, setQuery] = useState('')
 

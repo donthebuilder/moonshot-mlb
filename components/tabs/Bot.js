@@ -1,5 +1,6 @@
 'use client'
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { useMlbMask } from '../MemberGate'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { tierTone } from '../../lib/roleBadge'
 import { hrwRead } from '../../lib/hrwBand'
@@ -518,7 +519,9 @@ const VIEWS = [
   { key: 'read',     label: 'The Read' },
 ]
 
-export default function Bot({ players = [], onPlayerClick, onGoPairs, odds = null, onWatch, watchIds = null }) {
+export default function Bot({ players: playersIn = [], onPlayerClick, onGoPairs, odds = null, onWatch, watchIds = null }) {
+  // MEMBERS GATE (2026-10-17): a CALLED man a non-member may not read is an ordinary ON THE BOARD hitter here (no 🤖 / role / pick count). Same array for members.
+  const _mask = useMlbMask(); const players = useMemo(() => _mask(playersIn), [playersIn, _mask])   // eslint-disable-line react-hooks/exhaustive-deps
   const [view, setView] = useState('short')
 
   return (

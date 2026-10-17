@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMlbMask } from './MemberGate'
 import { C as MLB_C, NUM_FONT as MLB_NUM_FONT } from '../lib/theme'
 import { scheduleFor, slateDay } from '../lib/boxscore'
 import { mlbId } from '../lib/player'
@@ -161,7 +162,7 @@ function countLine(games) {
 }
 
 export default function ScoreRail({
-  players = [], results, onNavigate,
+  players: playersIn = [], results, onNavigate,
   sport = 'mlb',
   theme,
   TeamMark = MlbTeamMark,
@@ -187,6 +188,8 @@ export default function ScoreRail({
   // hasn't opted into a merged `fetchGames`) never hit that branch at all.
   onSwitchSport,
 }) {
+  // MEMBERS GATE (2026-10-17): a CALLED man a non-member may not read is an ordinary ON THE BOARD hitter here, so no game tile counts him as a pick. Same array for members.
+  const _mask = useMlbMask(); const players = useMemo(() => _mask(playersIn), [playersIn, _mask])   // eslint-disable-line react-hooks/exhaustive-deps
   const C = theme?.C || MLB_C
   const NUM_FONT = theme?.NUM_FONT || MLB_NUM_FONT
   // MOONSHOT keeps the exact original key so an already-open rail never

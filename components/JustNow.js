@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
+import { useMlbMask } from './MemberGate'
 import { C, NUM_FONT } from '../lib/theme'
 import { playerId } from '../lib/player'
 import { fetchLiveSlate } from '../lib/liveSlate'
@@ -59,7 +60,9 @@ const SHORT = (e) => String(e || '')
   .toLowerCase()
   .replace(/^home run$/, 'HOME RUN')
 
-export default function JustNow({ players = [], watchIds, onPlayerClick, limit = 10 }) {
+export default function JustNow({ players: playersIn = [], watchIds, onPlayerClick, limit = 10 }) {
+  // MEMBERS GATE (2026-10-17): a CALLED man a non-member may not read is an ordinary ON THE BOARD hitter here (no 🤖 / role / pick count). Same array for members.
+  const _mask = useMlbMask(); const players = useMemo(() => _mask(playersIn), [playersIn, _mask])   // eslint-disable-line react-hooks/exhaustive-deps
   const [rows, setRows] = useState([])
   const [showAll, setShowAll] = useState(false)
 

@@ -18,6 +18,7 @@ import StartSit from '../StartSit'
 import StorylinesStrip from '../../StorylinesStrip'
 import Fold from '../../Fold'
 import ScoreRail from '../../ScoreRail'
+import { useLockOf } from '../../MemberGate'
 import { fetchNflLive, lineFor, tdsIn } from '../../../lib/nfl/liveSlate'
 import { scheduleFor, slateDay } from '../../../lib/boxscore'
 import { setSport } from '../../../lib/sport'
@@ -327,6 +328,7 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
   // per-game touchdown clearance from the live snapshot (lineFor/tdsIn), the
   // same rule NflYourPlayers uses for "did he clear a bar" -- not invented
   // here a second time.
+  const lockOf = useLockOf()
   const nflComputeByGame = useCallback(() => {
     const out = new Map()
     const rungs = picks?.card?.TD?.rungs || []
@@ -335,6 +337,8 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
     rungs.forEach((r) => {
       const g = rawGames.find((gm) => gm.away === r.team || gm.home === r.team)
       if (!g) return
+      // MEMBERS GATE (2026-10-17): a pick a non-member may not read is not counted in its game's tile (a count beside a visible list could point at him)
+      if (lockOf({ status: 'called', key: String(r.player_id), time: g.kickoff }).locked) return
       const key = g.game_id
       const rec = out.get(key) || { n: 0, ok: 0, live: 0, names: [] }
       rec.n += 1
@@ -345,7 +349,7 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
       out.set(key, rec)
     })
     return out
-  }, [picks])
+  }, [picks, lockOf])
   const live = games.filter((game) => game.state === 'in').length
   const final = games.filter((game) => game.completed || game.state === 'post').length
   const topTd = [...players].filter((player) => Number.isFinite(player.scores?.TD)).sort((a, b) => b.scores.TD - a.scores.TD)[0]

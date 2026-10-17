@@ -5,7 +5,7 @@
 import './_esm-resolve.mjs'
 import { readFileSync } from 'node:fs'
 
-const { memberStateOf, startedAt, freeCalledKeys, hiddenCalledCount, lockedFor, cardGate, storyLockKey } = await import('../lib/members/gate.js')
+const { memberStateOf, startedAt, freeCalledKeys, hiddenCalledCount, lockedFor, cardGate, storyLockKey, maskCalledRows, gameCountVisible } = await import('../lib/members/gate.js')
 const { FREE_CALLS_PER_SPORT } = await import('../lib/members/limits.js')
 const access = readFileSync(new URL('../lib/members/access.js', import.meta.url), 'utf8')
 
@@ -125,6 +125,37 @@ for (const f of ['components/CallStatusBadge.js', 'components/MemberGate.js', 'c
   const mg = readFileSync(new URL('../components/MemberGate.js', import.meta.url), 'utf8')
   ok(/Members see tonight\\u2019s called picks and why/.test(mg), 'the card line is the generic "Members see tonight\u2019s called picks and why."')
   ok(/more called pick/.test(mg), 'the list line is the count line "N more called picks tonight are for members."')
+}
+
+// 10. THE GAMES (Donovan 2026-10-17: "the games on the slate page are showing the called picks"). A game's rows are masked: the call fields come off every LOCKED man, his
+//     name / stats stay, a member gets the SAME array back, and a per-game count is drawn only when no called man in the game is locked. TEST DATA.
+{
+  const rowsOf = [
+    { id: 'test-1', game_pick_role: 'TOP', best_bet_type: 'HR Bet', hr_score: 61, name: 'Test One' },
+    { id: 'test-2', game_pick_role: 'HR/CONTACT', best_bet_type: '', hr_score: 55, name: 'Test Two' },
+    { id: 'test-3', game_pick_role: 'WATCH', hr_score: 40, name: 'Test Three' },
+    { id: 'test-4', game_pick_role: '', hr_score: 30, name: 'Test Four' },
+  ]
+  const lockedOf = (r) => ['test-1', 'test-2'].includes(r.id) && lockedFor({ status: 'called', started: false, graded: false, key: r.id, free: new Set(['test-1']), memberState: 'free' })
+  const strip = ['game_pick_role', 'best_bet_type', 'beginner_label']
+  const m = maskCalledRows(rowsOf, { lockedOf, strip })
+  eq(m.map((r) => r.game_pick_role), ['TOP', '', 'WATCH', ''], 'games: only the locked man (test-2) loses his role; the free four man, WATCH and unroled rows are untouched')
+  eq(m[1].name, 'Test Two', 'games: a masked man keeps his name')
+  eq(m[1].hr_score, 55, 'games: a masked man keeps his score (the board is public; only the CALL is hidden)')
+  eq(m[1]._callHidden, true, 'games: a masked row says so (a sentence must not claim "nobody was designated")')
+  ok(m[0] === rowsOf[0] && m[2] === rowsOf[2], 'games: an unmasked row is the SAME object')
+  ok(maskCalledRows(rowsOf, { lockedOf: () => false, strip }) === rowsOf, 'games: nothing locked (member / unknown / all free) returns the SAME array')
+  eq(gameCountVisible([rowsOf[0]], { lockedOf }), true, 'games: a count is drawn when every called man in the game is readable')
+  eq(gameCountVisible([rowsOf[0], rowsOf[1]], { lockedOf }), false, 'games: one locked man and the per-game count is hidden (it would point at him)')
+  eq(gameCountVisible([], { lockedOf }), true, 'games: no called man, nothing to hide')
+  // the game surfaces must go through the mask / the lock, not read the role raw
+  for (const [f, needle] of [['components/tabs/Games.js', 'useMlbMask'], ['components/lamp/LampSlate.js', 'hideRow'], ['components/lamp/tabs/Home.js', 'readableCalls'], ['components/nfl/tabs/Home.js', 'lockOf('], ['components/ScoreRail.js', 'useMlbMask'], ['components/lamp/GoalieWeakSpots.js', 'useLockOf']]) {
+    ok(readFileSync(new URL(`../${f}`, import.meta.url), 'utf8').includes(needle), `${f} no longer goes through the member gate (${needle})`)
+  }
+  for (const f of ['components/GameWriteupBlock.js', 'components/nfl/WriteupBlock.js']) {
+    ok(!/HiddenCalledLine/.test(readFileSync(new URL(`../${f}`, import.meta.url), 'utf8')), `${f} prints a per-game count of hidden calls`)
+  }
+  ok(/FREE_CALLS_PER_SPORT = 4\b/.test(readFileSync(new URL('../lib/members/limits.js', import.meta.url), 'utf8')), 'lib/members/limits.js: the free taste is no longer 4 (a test value left in?)')
 }
 
 if (fails.length) { console.error('check-member-gate FAILED:\n - ' + fails.join('\n - ')); process.exit(1) }
