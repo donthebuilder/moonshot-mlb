@@ -35,7 +35,7 @@ const pctOf = (comps, key) => (Number.isFinite(Number(comps?.[key])) ? `${Math.r
 
 // The shell is components/compare/CompareTwo.js (2026-10-03): MOONSHOT's
 // compare layout, TUDDY's signals, rows and verdict.
-export default function TdCompare({ rows = [], matchup, odds, onPlayerClick }) {
+export default function TdCompare({ rows = [], matchup, odds, onPlayerClick, anchor = null }) {
   const signals = useMemo(() => SIGNALS.map(([k, l, w, f]) => [k, l, w, (p) => f(p, matchup)]), [matchup])
   const verdictFor = (a, b, qa, qb, ca, cb) => {
     const sa = Number(a.scores?.TD) || 0, sb = Number(b.scores?.TD) || 0
@@ -73,7 +73,7 @@ export default function TdCompare({ rows = [], matchup, odds, onPlayerClick }) {
       verdictFor={verdictFor} onPlayerClick={onPlayerClick ? (p) => onPlayerClick(p, 'TD') : null}
       title="⚖️ Compare two players" sub="the things that differ between two TD picks, side by side, and a verdict that says why"
       placeholders={['first player…', 'second player…']} signalsTitle="The four real signals this page tracks for a TD pick."
-      accent={C.green} accentBg={`${C.green}14`} bgTint={`${C.green}0a`} winInk={C.green}
+      initialA={anchor} accent={C.green} accentBg={`${C.green}14`} bgTint={`${C.green}0a`} winInk={C.green}
       theme={C} numFont={NUM_FONT} gridClass="tc-grid" />
   )
 }

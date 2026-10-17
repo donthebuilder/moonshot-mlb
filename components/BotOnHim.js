@@ -51,24 +51,34 @@ export default function BotOnHim({ pid, data }) {
     { key: 'home', label: 'Home', group: 'HR games by split', w: 48, heat: false },
     { key: 'away', label: 'Away', group: 'HR games by split', w: 48, heat: false },
   ]
+  const sub = <>{d.player.games} games on the clean pregame record, {day(d.since)}–{day(d.through)}<HelpTip label="Role record" text="Each role MOONSHOT has given him, judged on that role's job. Small samples: a lead, not a fact." /></>
+  return <BotRoleTable brand="MOONSHOT" sub={sub} badges={d.badges} rows={rows} columns={columns} hint="Swipe for vs LHP / vs RHP, Home, Away" />
+}
+
+// THE ROLE TABLE, ANY SPORT (2026-10-17, player-portal mirror pass). The section MOONSHOT's card wears -- the product's name
+// ON HIM, the sample line, the badges, the role-by-split table -- lifted out of BotOnHim so TUDDY's card draws the same
+// section from its own graded calls (components/nfl/NflOnHim.js). Defaults are MOONSHOT's: BotOnHim above is the same markup.
+//   brand     the product name in the heading        sub     the sample line (a node)      badges  [{ key, kind, label, text, job }]
+//   rows / columns  the DenseTable's (rows carry _id)   hint  the swipe hint     Table  the product's table (default DenseTable)
+//   theme / numFont / accent  the product's tokens (the badge colour; default MOONSHOT's orange)
+export function BotRoleTable({ brand = 'MOONSHOT', sub, badges = [], rows, columns, hint, caption = "Each role MOONSHOT has given him, judged on that role's job. Small samples: a lead, not a fact.", Table = DenseTable, theme = C, numFont = NUM_FONT, accent = theme.orange }) {
   return (
-    <section style={{ marginTop: 14 }} aria-label="MOONSHOT on him">
+    <section style={{ marginTop: 14 }} aria-label={`${brand} on him`}>
       <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', marginBottom: 6 }}>
-        <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.1em', color: C.text2, fontFamily: NUM_FONT }}>MOONSHOT ON HIM</span>
-        <span style={{ fontSize: 12, color: C.text3 }}>{d.player.games} games on the clean pregame record, {day(d.since)}–{day(d.through)}<HelpTip label="Role record" text="Each role MOONSHOT has given him, judged on that role's job. Small samples: a lead, not a fact." /></span>
+        <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.1em', color: theme.text2, fontFamily: numFont }}>{brand} ON HIM</span>
+        <span style={{ fontSize: 12, color: theme.text3 }}>{sub}</span>
       </div>
-      {d.badges.length ? (
+      {badges.length ? (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-          {d.badges.map((b) => (
-            <span key={b.key} title={`${b.label}: ${b.text} (bar: ${b.job})`} style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, color: b.kind === 'perfect' ? C.green : C.orange, border: `1px solid ${b.kind === 'perfect' ? C.green : C.orange}66`, borderRadius: 6, padding: '3px 8px' }}>
+          {badges.map((b) => (
+            <span key={b.key} title={`${b.label}: ${b.text} (bar: ${b.job})`} style={{ fontFamily: numFont, fontSize: 11, fontWeight: 800, color: b.kind === 'perfect' ? theme.green : accent, border: `1px solid ${b.kind === 'perfect' ? theme.green : accent}66`, borderRadius: 6, padding: '3px 8px' }}>
               {b.label} · {b.text}
             </span>
           ))}
         </div>
       ) : null}
-      <ScrollHint hint="Swipe for vs LHP / vs RHP, Home, Away">
-        <DenseTable rows={rows} columns={columns} heatMode="none" maxRows={rows.length} maxHeight={9999}
-          caption="Each role MOONSHOT has given him, judged on that role's job. Small samples: a lead, not a fact." />
+      <ScrollHint hint={hint}>
+        <Table rows={rows} columns={columns} heatMode="none" maxRows={rows.length} maxHeight={9999} caption={caption} />
       </ScrollHint>
     </section>
   )
