@@ -11,6 +11,7 @@ import { useFollowing } from '../../lib/dash/follow'
 import { useLiveFetch } from '../../lib/useLiveFetch'
 import { lampQuoteOf, lampAlsoPriced } from '../../lib/nhl/lampQuote'
 import { fmtOdds, impliedPct, payoutWords } from '../../lib/odds'
+import GoalCompare from './GoalCompare'
 
 // 🏒 LAMP PROPS, MOONSHOT'S PAGE (2026-10-04, Donovan: "make sure the props
 // pages look like the mlb one"). The shared grid (components/props/PropCards.js)
@@ -126,7 +127,10 @@ export default function LampProps({ date = null, onOpenPlayer, children = null }
   return (<>
     <PropCards a={a} rows={rows} onOpen={(r) => onOpenPlayer?.(r.id)}
       onWatch={(r) => following.toggle({ id: r.id, name: r.name, team: r.team, position: r.pos })}
-      watchIds={following.ids} theme={C} numFont={NUM_FONT} accent={C.ice} accentWash={`color-mix(in srgb, ${C.ice} 14%, transparent)`} />
+      watchIds={following.ids}
+      hero find={{ nameOf: (r) => r.name || '', teamOf: (r) => r.team || '', placeholder: 'Search player or team…' }}
+      compareOf={(pool) => <GoalCompare rows={pool.filter((r) => r.goal).map((r) => r.goal)} onOpenPlayer={onOpenPlayer} />}
+      theme={C} numFont={NUM_FONT} accent={C.ice} accentWash={`color-mix(in srgb, ${C.ice} 14%, transparent)`} />
     {children}
   </>)
 }

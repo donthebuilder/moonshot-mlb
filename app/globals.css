@@ -190,6 +190,8 @@ button {
 
 /* FILTER PILLS ON A PHONE (2026-10-13): TUDDY / LAMP / BUCKETS pills and segments are 44px tall on a touch screen (components/Filters.js adds .fp-themed there; MOONSHOT's are not themed and stay 32). */
 @media (pointer: coarse) { .fp-themed { min-height: 44px !important; min-width: 44px; } }
+/* a pill in a scrolling rail keeps its width (2026-10-17): on TUDDY / LAMP the Props rails squeezed the pills into each other. Themed pills only; MOONSHOT's are untouched. */
+.fp-themed { flex-shrink: 0; }
 
 /* THE FOOTER'S LINKS ON A PHONE (2026-10-13): five text links, each a 44px-tall row item (they were 31px). Page-bottom chrome; nothing above it moves. */
 @media (pointer: coarse) { .dash-foot-nav { row-gap: 0 !important; } .dash-foot-nav > a, .dash-foot-nav > button { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; justify-content: center; } }
