@@ -60,7 +60,7 @@ export default function NflHeadlineStrip({ players, games, markets, matchup, log
     <>
       <HeadlineStrip sport="nfl" cards={cards} onOpen={open} theme={C} numFont={NUM_FONT} accent={C.green} speed={30} onOpenGame={openGame} faceOf={(c) => (c.p ? <PlayerFace sport="nfl" espnId={c.p?.espn_id} team={c.p?.team} name={c.p?.name} size={22} /> : null)} />
       <HistoryWatch sport="nfl" unit="TD" reach="within reach this week" step="next" theme={C} numFont={NUM_FONT} onPlayerClick={(p) => { const row = byId(p.player_id); if (row) onPlayerClick?.(row, 'TD') }} />
-      <LongshotsPreview sport="nfl" theme={C} numFont={NUM_FONT} accent={C.green} onSeeAll={() => setTab?.('longshots')}
+      <LongshotsPreview plain sport="nfl" theme={C} numFont={NUM_FONT} accent={C.green} onSeeAll={() => setTab?.('longshots')}
         onOpenPlayer={(id) => { const row = byId(id); if (row) onPlayerClick?.(row, 'TD') }} />
     </>
   )
