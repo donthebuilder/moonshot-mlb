@@ -82,7 +82,10 @@ export function useWhySheet({ theme, accent, numFont }) {
 // `tidy` (MLB, 2026-10-07): the sentence in two lines of a whole-pixel height with the › at its right edge,
 // so every row is the same whole-pixel height (a 16.2px line made fractional rows and a 1px stair-step in the
 // row rules) and the arrow no longer drops to a third line. Absent: the markup every other sport has.
-export function whyColumn({ textOf, itemOf, open, theme: C, numFont, group, w = 230, tidy = false }) {
+const WHY_MAX = 150
+export function whyColumn({ textOf, itemOf, open, theme: C, numFont, group, w: wide = 230, tidy = false }) {
+  // ONE width for every sport (2026-10-17, Donovan: the Why was too big): two clamped lines, never wider than WHY_MAX
+  const w = Math.min(wide, WHY_MAX)
   return {
     key: 'why', label: 'Why', w, heat: false, numeric: false, ...(group ? { group } : {}),
     title: 'Why he is ranked here, in one line. Tap it for the numbers behind it and where to look next.',
