@@ -461,6 +461,19 @@ function B2BStrip({ list, verified, loading, cashed, onPlayerClick }) {
  *   · powerInitial — forwarded as PowerTab's own `initial` prop, so #tab=due
  *                    can still open Overdue specifically. Power's default.
  */
+const LANDSCAPE_CSS = `
+@media (orientation: landscape) and (max-height: 500px) {
+  .lens-rows { flex-wrap: nowrap !important; overflow-x: auto; column-gap: 12px !important; margin-bottom: 0 !important; scrollbar-width: none; }
+  .lens-rows::-webkit-scrollbar { display: none; }
+  .lens-rows > * { flex: 0 0 auto; }
+  .quiet-note { display: flex !important; flex-wrap: wrap; align-items: center; column-gap: 10px; margin-bottom: 2px !important; }
+  .quiet-note p { margin: 0 !important; }
+  .dash-controls { margin: 4px 0 !important; }
+  .rk-head { padding-bottom: 4px !important; }
+  .rk-sub { display: none !important; }
+  .board-filters { margin-bottom: 4px !important; }
+}
+`
 export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, onWatch, watchIds, onPlayerClick, onOpenCard = null, slateDate = null, results = null, initialView = 'boards', powerInitial = 'longest', onNavigate = null, runAt = null }) {
   const [bview, setBview] = useState(() => (GROUPS.some(([k]) => k === initialView) ? initialView : 'boards'))
   const [view, setView] = useState('hr')
@@ -637,6 +650,10 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
         <BoardFilters state={state} total={boardPlayers.length} shown={filtered.length} compact beside={phoneBeside} lead={phoneLead} ledger={rankings ? 'mlb' : null}
           share={rankings && players.length > 0 && CARD_TYPES.has(viewKey) ? <ShareCardButton sport="mlb" what="this board" url={shareUrl({ kind: 'ranked', sport: 'mlb', type: viewKey })} filename={`board-${slug(viewKey)}_${stamp(slateDate)}.png`} /> : null} />
       )}
+      {/* A PHONE TURNED SIDEWAYS (2026-10-17): 844 x 390 is wider than the phone layout's cut but has 390px of height, and the stack above the table put the first
+          row at y=604 (below the fold). Landscape on a short screen only: Market + Angle share one scrolling line, the sentence and its proof button share a line,
+          the "who we rank" line goes and the gaps shrink. Every control is still there; portrait and desktop are untouched. */}
+      {rankings && <style>{LANDSCAPE_CSS}</style>}
       {boards && !phoneRank && (
         // ── ONE ROW, NOT TWO (2026-09-14, MOONSHOT batch 3) ────────────────
         // Donovan, off the brand audit: "three rows of filter pills ... one

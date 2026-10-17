@@ -1,5 +1,5 @@
 'use client'
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { alpha, score as fmtScore } from '../lib/scales'
 import { useIsPhone } from './MobileFold'
 import { useSportTheme } from './SportTheme'
@@ -204,6 +204,48 @@ function FaceCircle({ photo, size }) {
   )
 }
 
+// THE 44px TAP BOX of the name / club / opponent / Game links in the hero (2026-10-17). The links are 20px of text on lines that cannot move (the look is
+// fixed), so each gets an invisible ::after hit box and heroTapBoxes() splits the space between them so no two boxes overlap: the name's runs up into the
+// hero's own padding (as far as it needs) and a few px below its line, the clubs' / Game's start where the name's ends and run 44px down (over the plain
+// position line, which is text, not a link). The name sits in a span that clips for the two-line clamp, so that span carries the extra room as padding with
+// the opposite negative margin (layout unchanged); the head line clips sideways only. Nothing here changes a pixel of what is drawn.
+const HERO_TAP_CSS = `
+.vh-title{padding:30px 0 14px;margin:-30px 0 -14px}
+.vh-title a,.vh-meta a,.vh-meta button{position:relative}
+.vh-title a::after,.vh-meta a::after,.vh-meta button::after{content:'';position:absolute;left:0;right:0;width:auto;top:var(--vh-t,calc(50% - 22px));height:46px;transform:none;pointer-events:auto}
+.vh-meta button{pointer-events:none}
+.vh-meta button::after{left:-4px;right:-4px}
+`
+const TAP = 46
+/** Measure the hero's links and write each one's hit-box top (--vh-t, px from the link's own top) so the 44px boxes do not overlap. */
+function heroTapBoxes(hero) {
+  if (!hero) return
+  const H = hero.getBoundingClientRect()
+  let floor = H.top   // the lowest edge a box above has reached: the next box starts here
+  const lines = [...hero.querySelectorAll('.vh-title a, .vh-meta a, .vh-meta button')].filter((e) => e.getClientRects().length)
+    .map((e) => ({ e, r: e.getBoundingClientRect(), name: !!e.closest('.vh-title') })).sort((a, b) => a.r.top - b.r.top || a.r.left - b.r.left)
+  const belows = [...hero.querySelectorAll('.vh-meta2 a, .vh-meta2 button')].filter((e) => e.getClientRects().length).map((e) => e.getBoundingClientRect().top)
+  const below = belows.length ? Math.min(...belows) : null
+  const rowEnd = new Map()   // a line of links side by side shares one box top
+  for (const l of lines) {
+    const mid = Math.round(l.r.top + l.r.height / 2)
+    const key = [...rowEnd.keys()].find((k) => Math.abs(k - mid) < 8)
+    let top
+    if (key != null) top = rowEnd.get(key)
+    else {
+      if (l.name) top = Math.max(H.top + 1, l.r.top - Math.max(0, TAP - l.r.height - 4))   // up as far as the hero's top allows, 4px below its line at least
+      else top = Math.max(floor, l.r.top + l.r.height / 2 - TAP / 2)
+      top = Math.min(top, H.bottom - 1 - TAP)
+      // a link on the line below (MLB's pitcher) keeps its own box: this one stops where that one starts and grows upward instead
+      if (!l.name && below != null && top + TAP > below) top = below - TAP
+      if (!l.name) top = Math.max(top, floor)
+      rowEnd.set(key ?? mid, top)
+      floor = top + TAP
+    }
+    l.e.style.setProperty('--vh-t', `${Math.round(top - l.r.top)}px`)
+  }
+}
+
 export default function VerdictHero({
   col, score, max, dialTitle, dp,
   title, badge, badgeQuiet, meta, meta2, metaRight, market, line, line2, facts, right,
@@ -214,6 +256,13 @@ export default function VerdictHero({
   const NUM_FONT = numFont || sport.NUM_FONT
   const faceLeads = lead === 'face'
   const phone = useIsPhone()
+  const heroRef = useRef(null)
+  useEffect(() => {
+    heroTapBoxes(heroRef.current)
+    const on = () => heroTapBoxes(heroRef.current)
+    window.addEventListener('resize', on)
+    return () => window.removeEventListener('resize', on)
+  })
   const badgeLeads = lead === 'badge' || faceLeads
   // A fact the chips above already assert is not worth a second bubble --
   // "HRW 88 ⚡" as a flag and "HRW 88" as a measurement are the same sentence
@@ -226,7 +275,8 @@ export default function VerdictHero({
     : []
   return (
     <ThemeCtx.Provider value={{ C, NUM_FONT }}>
-    <div style={{
+    <style>{HERO_TAP_CSS}</style>
+    <div ref={heroRef} style={{
       position: 'relative', overflow: 'hidden',
       border: `1px solid ${alpha(col, 0.26)}`, borderRadius: 18, padding: '14px 14px 13px',
       background: `linear-gradient(158deg, ${alpha(col, 0.13)}, ${C.bg2} 54%)`,
@@ -257,7 +307,7 @@ export default function VerdictHero({
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
             {/* Wraps to a second line rather than "Kyle Fre…" beside the badge
                 and the ✕ (audit 00A: the pitcher card's header on a phone). */}
-            <span style={{
+            <span className="vh-title" style={{
               fontSize: 16.5, fontWeight: 900, letterSpacing: '-.01em', minWidth: 0, lineHeight: 1.15,
               overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
             }}>{title}</span>
@@ -270,12 +320,12 @@ export default function VerdictHero({
           </div>
           {meta && (
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0, ...(meta2 ? { lineHeight: '20px' } : null) }}>
-              <span style={{
+              <span className="vh-meta" style={{
                 flex: 1, minWidth: 0, fontSize: 10, color: C.text3, fontFamily: NUM_FONT,
                 whiteSpace: 'nowrap', textOverflow: 'ellipsis',
                 // a two-line head clips sideways only, so a link's padded tap area
-                // isn't cut to the 10px text height (meta2, 2026-10-04)
-                ...(meta2 ? { overflowX: 'clip', overflowY: 'visible', paddingLeft: 17, marginLeft: -17 } : { overflow: 'hidden' }),   // 17px: the first link's left pad
+                // isn't cut to the 10px text height (meta2, 2026-10-04); every head now, so the 44px hit box (HERO_TAP_CSS) is not cut either
+                overflowX: 'clip', overflowY: 'visible', ...(meta2 ? { paddingLeft: 17, marginLeft: -17 } : null),   // 17px: the first link's left pad
               }}>{meta}</span>
               {/* SUBTLE, as asked: "odds are cool make subtle". The book's own
                   number, dimmed, at the end of the line the matchup is already
@@ -290,7 +340,7 @@ export default function VerdictHero({
           {/* `meta2`: a second matchup line (MOONSHOT's card, 2026-10-04: clubs + game
               on the first, lineup / hand / pitcher on this one, so neither clips) */}
           {meta && meta2 && (
-            <div style={{
+            <div className="vh-meta2" style={{
               fontSize: 10, lineHeight: '20px', color: C.text3, fontFamily: NUM_FONT, minWidth: 0,
               whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflowX: 'clip', overflowY: 'visible',
             }}>{meta2}</div>

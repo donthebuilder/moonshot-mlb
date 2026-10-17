@@ -2,7 +2,8 @@
 import { useMemo, useRef } from 'react'
 import TickerPill from '../TickerPill'
 import { useAutoScroll } from '../../lib/headlines'
-import { useBucketsBoard, useBucketsLeaders } from '../../lib/nba/useBuckets'
+import { useBucketsLeaders } from '../../lib/nba/useBuckets'
+import { useGatedBoard } from './useGatedBoard'
 import { C, NUM_FONT } from '../../lib/nba/theme'
 import { fmtDay } from './ui'
 import { localTime } from '../../lib/localTime'
@@ -13,7 +14,7 @@ import { localTime } from '../../lib/localTime'
 // render (no estimate, no placeholder). Taps: a player opens his page, an NBA
 // score its game, another sport's score switches product.
 export default function BucketsTicker({ date = null, scores, liveScores, onOpenPlayer, onOpenGame }) {
-  const board = useBucketsBoard(date)
+  const board = useGatedBoard(date)
   const leaders = useBucketsLeaders()
   const trackRef = useRef(null)
   useAutoScroll(trackRef, { speed: 55 })
@@ -21,8 +22,12 @@ export default function BucketsTicker({ date = null, scores, liveScores, onOpenP
   const items = useMemo(() => {
     const out = []
     const on = date ? ` · ${fmtDay(date).toUpperCase()}` : ''
-    const top = (board.data?.rows || []).filter((r) => r.score != null).sort((a, b) => (a.nightRank ?? 9999) - (b.nightRank ?? 9999))[0]
-    if (top) out.push({ k: 'top', icon: '🎯', label: `${top.locked ? "PTS BOARD'S #1" : "PTS BOARD'S #1 · PREVIEW"}${on}`, value: `${top.name} ${top.score}`, color: C.purple, title: 'Highest score on the night’s points board. PREVIEW until his game locks — a preview is not a call.', onClick: () => onOpenPlayer?.(top.playerId) })
+    const ranked = (board.data?.rows || []).filter((r) => r.score != null).sort((a, b) => (a.nightRank ?? 9999) - (b.nightRank ?? 9999))
+    // MEMBER GATE (2026-10-17): a CALLED pick a non-member may not read (useGatedBoard marks it _callHidden) is never named; the pill names the best man who is
+    // not hidden, drops the #1 claim from its label when somebody hidden ranks above him (no hint of why), and is skipped when nobody is left. Members and unknown viewers see no change.
+    const top = ranked.find((r) => !r._callHidden)
+    const skipped = Boolean(top) && ranked[0] !== top
+    if (top) out.push({ k: 'top', icon: '🎯', label: `${skipped ? 'PTS BOARD · ON THE BOARD' : top.locked ? "PTS BOARD'S #1" : "PTS BOARD'S #1 · PREVIEW"}${on}`, value: `${top.name} ${top.score}`, color: C.purple, title: 'Highest score on the night’s points board. PREVIEW until his game locks — a preview is not a call.', onClick: () => onOpenPlayer?.(top.playerId) })
     const pl = leaders.data?.categories?.find((c) => c.key === 'pts')?.leaders?.[0]
     if (pl) out.push({ k: 'ppg', icon: '🏀', label: `SCORING LEADER${leaders.data.seasonLabel ? ` · ${leaders.data.seasonLabel}` : ''}`, value: `${pl.name} ${pl.value}`, color: C.text, title: 'League points-per-game leader.', onClick: () => onOpenPlayer?.(pl.id) })
     const day = scores?.data

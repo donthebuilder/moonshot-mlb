@@ -319,7 +319,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
       {/* Section header — refreshed dress (2026-08-08, modest): the title
           wears the board's ember signature as a gradient underline, and the
           count moves into a pill. Structure unchanged — "I like the lead". */}
-      {!compact && <><div style={{
+      {!compact && <><div className="rk-head" style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -336,7 +336,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               borderRadius: 999, padding: '1px 9px',
             }} title="Rows this board ranks. The filter bar's own count is the pool those rows are drawn from, which is a longer list.">{ranked.length} ranked</span>
           </div>
-          <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>{rankings ? `Who we rank tonight, and why.${type === 'hr' ? '' : ` ${title}: ${sub}.`}` : sub}</div>
+          <div className="rk-sub" style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>{rankings ? `Who we rank tonight, and why.${type === 'hr' ? '' : ` ${title}: ${sub}.`}` : sub}</div>
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           {/* COLUMNS (2026-10-07): the same board laid out the way he reads it; rides the address as cols= */}
