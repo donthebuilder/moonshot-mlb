@@ -14,8 +14,8 @@ import { useState } from 'react'
 import { TYPE } from '../../lib/theme'
 import { fmtOdds, impliedPct, profitOn } from '../../lib/odds'
 import HelpTip from '../HelpTip'
+import { combined } from '../../lib/slip/core'
 
-const decimal = (am) => { const v = Number(am); return v > 0 ? 1 + v / 100 : 1 + 100 / -v }
 /** "8 of these picks are in the DET · ARI game." (one sentence for the slip and the cards; the (?) holds what we measured). */
 export function sameGameLine(list) {
   const top = [...list].sort((a, b) => b.n - a.n)[0]
@@ -28,9 +28,11 @@ export default function BetSlip({ legs, onRemove, onClear, pairNotes = [], partn
   const [stake, setStake] = useState(10)
   if (!legs.length) return null
   const s = Number.isFinite(Number(stake)) && Number(stake) > 0 ? Number(stake) : 0
-  const singlesWin = legs.reduce((t, l) => t + (profitOn(l.price, s) || 0), 0)
-  const parlayDec = legs.reduce((t, l) => t * decimal(l.price), 1)
-  const parlayChance = legs.reduce((t, l) => t * ((impliedPct(l.price) || 0) / 100), 1)
+  // A leg with no real book price shows without one and adds nothing to the money lines; a combined price needs EVERY leg priced.
+  const pr = combined(legs)
+  const singlesWin = legs.reduce((t, l) => t + (l.price != null ? profitOn(l.price, s) || 0 : 0), 0)
+  const parlayDec = pr.decimal ?? 1
+  const parlayChance = pr.allPriced ? legs.reduce((t, l) => t * ((impliedPct(l.price) || 0) / 100), 1) : 0
   const games = new Map()
   for (const l of legs) if (l.game?.key) games.set(l.game.key, { label: l.game.label, n: (games.get(l.game.key)?.n || 0) + 1 })
   const shared = [...games.values()].filter((g) => g.n >= 2)
@@ -52,16 +54,19 @@ export default function BetSlip({ legs, onRemove, onClear, pairNotes = [], partn
           <div key={l.key} style={{ display: 'flex', alignItems: 'center', gap: 8, borderTop: `1px solid ${C.border}`, minHeight: 44, fontSize: 12.5 }}>
             <b style={{ color: C.text, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.name}</b>
             <span style={{ color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap' }}>{l.market}</span>
-            <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, color: C.text, whiteSpace: 'nowrap' }}>{fmtOdds(l.price)}</span>
-            <span style={{ fontFamily: NUM_FONT, color: C.text3, whiteSpace: 'nowrap' }}>{s ? `wins ${money(profitOn(l.price, s))}` : ''}</span>
+            <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, color: C.text, whiteSpace: 'nowrap' }}>{l.price != null ? fmtOdds(l.price) : 'no price'}</span>
+            <span style={{ fontFamily: NUM_FONT, color: C.text3, whiteSpace: 'nowrap' }}>{s && l.price != null ? `wins ${money(profitOn(l.price, s))}` : ''}</span>
             <button type="button" onClick={() => onRemove(l.key)} aria-label={`Remove ${l.name} from the slip`}
               style={{ minHeight: 44, minWidth: 44, border: 'none', background: 'transparent', color: C.text3, fontSize: 16, cursor: 'pointer' }}>×</button>
           </div>
         ))}
       </div>
       <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 8, fontSize: 12.5, lineHeight: 1.6, color: C.text2 }}>
-        <div><b style={{ color: C.text }}>As singles:</b> {money(s * legs.length)} at risk · {money(singlesWin)} profit if every one hits</div>
-        {legs.length >= 2 && (
+        {pr.priced > 0 && <div><b style={{ color: C.text }}>As singles:</b> {money(s * pr.priced)} at risk · {money(singlesWin)} profit if every one hits</div>}
+        {legs.length >= 2 && !pr.allPriced && (
+          <div><b style={{ color: C.text }}>Combined price, if every leg is priced:</b> {pr.priced} of {legs.length} legs have a posted price, so there is no combined price yet.</div>
+        )}
+        {legs.length >= 2 && pr.allPriced && (
           <div><b style={{ color: C.text }}>As one parlay (an estimate from the leg prices, not a real parlay price):</b> {money(s)} wins about {money(s * (parlayDec - 1))} · the books' prices put all {legs.length} landing at {(100 * parlayChance) < 1 ? '<1' : (100 * parlayChance).toFixed(1)}% (implied, so it includes the book's margin and reads high)</div>
         )}
         {shared.length > 0 && (

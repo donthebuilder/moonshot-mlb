@@ -9,6 +9,7 @@ import { useLampBoard } from '../../lib/nhl/useLamp'
 import { nhlMug, fmtSec } from '../../lib/nhl/format'
 import { useFollowing } from '../../lib/dash/follow'
 import { useLiveFetch } from '../../lib/useLiveFetch'
+import { lampQuoteOf } from '../../lib/nhl/lampQuote'
 import { fmtOdds, impliedPct, payoutWords } from '../../lib/odds'
 
 // 🏒 LAMP PROPS, MOONSHOT'S PAGE (2026-10-04, Donovan: "make sure the props
@@ -29,13 +30,6 @@ const WORD = { GOAL: 'Goal', SOG: 'Shots 3+', NONE: 'On the board' }
 const BAR = { GOAL: '1+ goal', SOG: '3+ shots', NONE: '1+ goal' }
 const f2 = (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(2) : '—')
 const ord = (p) => (Number.isFinite(Number(p)) ? `${Math.round(Number(p))}th` : '—')
-
-const ODDS_MARKET = { GOAL: ['player_anytime_goal', 0.5], SOG: ['player_shots_on_goal', 2.5], NONE: ['player_anytime_goal', 0.5] }
-const quoteOf = (odds, r, k) => {
-  const [mk, line] = ODDS_MARKET[k] || []
-  const q = mk ? odds?.by_player_id?.[String(r.id)]?.[mk] : null
-  return q && Math.abs(Number(q.line) - line) < 1e-9 && Number.isFinite(Number(q.best_over ?? q.over)) ? q : null
-}
 
 function lampAdapter(season, odds) {
   const color = (k) => (k === 'SOG' ? (C.teal || C.cyan) : k === 'GOAL' ? C.ice : C.text3)
@@ -62,7 +56,7 @@ function lampAdapter(season, odds) {
       // the result, once graded: goals for GOAL, shots (value) for SHOTS 3+
       if (x.hit === true || x.hit === false) chips.push({ t: k === 'SOG' ? `${x.hit ? '✓' : '✗'} ${x.value ?? '—'} ${Number(x.value) === 1 ? 'shot' : 'shots'}` : `${x.hit ? '✓' : '✗'} ${x.goals ?? 0} goal${Number(x.goals) === 1 ? '' : 's'}`, warn: !x.hit })
       else if (x.preview) chips.push({ t: '⏳ preview — not locked yet', warn: true })
-      const q = !(x.hit === true || x.hit === false) ? quoteOf(odds, r, k) : null
+      const q = !(x.hit === true || x.hit === false) ? lampQuoteOf(odds, r, k) : null
       if (q) { const px = q.best_over ?? q.over; chips.push({ t: `${payoutWords(px)} · ${q.best_book || 'best book'} · needs ${impliedPct(px)}%`, warn: false }) }
       if (x.context?.b2b) chips.push({ t: 'back-to-back', warn: false })
       if (Number(x.ppg) > 0 && chips.length < 2) chips.push({ t: `${x.ppg} PP goal${Number(x.ppg) === 1 ? '' : 's'}`, warn: false })
@@ -80,19 +74,20 @@ function lampAdapter(season, odds) {
           <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>· {r.pos}</span>
         </span>,
         // the price, and where it opened when it has moved (lib/odds/lineMove.js: the feed's opening price against our newest read; no opening price, no chip)
-        metaRight: (() => { const q = quoteOf(odds, r, k); return q ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{fmtOdds(q.best_over ?? q.over)}<LineMoveChip quote={q} theme={C} numFont={NUM_FONT} compact /></span> : null })(),
+        metaRight: (() => { const q = lampQuoteOf(odds, r, k); return q ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{fmtOdds(q.best_over ?? q.over)}<LineMoveChip quote={q} theme={C} numFont={NUM_FONT} compact /></span> : null })(),
         line: x.why || null,
         facts: null,
         chips: chips.slice(0, 2),
         tiles,
       }
     },
-    priced: (r, k) => Boolean(quoteOf(odds, r, k)),
-    priceNum: (r, k) => { const q = quoteOf(odds, r, k); return q ? Number(q.best_over ?? q.over) : null },
+    priced: (r, k) => Boolean(lampQuoteOf(odds, r, k)),
+    priceNum: (r, k) => { const q = lampQuoteOf(odds, r, k); return q ? Number(q.best_over ?? q.over) : null },
     startsAt: (r) => Date.parse(r.startUtc || ''),
     gameOf: (r) => (r?.gameId ? { key: String(r.gameId), label: r.home ? `${r.opp}@${r.team}` : `${r.team}@${r.opp}` } : null),
     // the pair history the slip quotes (lib/slipPairHist.js): two GOAL legs, from the file the Pairs page draws
     pairHist: { sport: 'nhl', idOf: (r) => String(r.id), nameOf: (r) => r.name, isEventLeg: (k) => k === 'GOAL' },
+    sportKey: 'nhl',
     precisionKey: 'lamp_precision_v1',
     sortTimeLabel: 'Puck drop',
     picksTitle: 'every skater called tonight, on goals or shots',

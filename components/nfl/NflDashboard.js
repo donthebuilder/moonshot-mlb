@@ -30,6 +30,7 @@ import { withLive } from '../../lib/nfl/liveMerge'
 import NflHeader from './NflHeader'
 import NflPlayerModal from './NflPlayerModal'
 import MobileCSS from '../MobileCSS'
+import Slip from '../Slip'
 import MobileTabBarNfl from './MobileTabBarNfl'
 import QuickSearch from '../QuickSearch'
 import NflWire from './NflWire'
@@ -594,6 +595,7 @@ export default function NflDashboard({ palettePass = 0 }) {
       {/* ONE SEARCH, EVERY PRODUCT (2026-10-07): players, clubs and games; Ctrl/Cmd-K, "/" or the header's search button */}
       <QuickSearch sport="nfl" />
       <MobileTabBarNfl tab={missingTab ? null : tab} setTab={setTab} />
+      <Slip sport="nfl" C={C} NUM_FONT={NUM_FONT} accent={C.green} onOpenProps={() => setTab('picks')} />
       {/* The live wire. Renders nothing until something actually happens to
           one of your names, and polls nothing unless a game is in progress or
           about to start — see components/nfl/NflWire.js. */}

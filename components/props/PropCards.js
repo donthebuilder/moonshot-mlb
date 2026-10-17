@@ -4,6 +4,8 @@ import { C as MLB_C, NUM_FONT as MLB_NUM, TYPE } from '../../lib/theme'
 import VerdictHero, { PeriodTiles } from '../VerdictHero'
 import MobileFold from '../MobileFold'
 import { FilterPill } from '../Filters'
+import { useSlip } from '../../lib/slip/store'
+import { useCalledForSlip } from './slipCalls'
 import BetSlip, { sameGameLine } from './BetSlip'
 import { fetchJSON } from '../../lib/data'
 import { pairHistV2Paths } from '../../lib/dataSource'
@@ -154,13 +156,9 @@ export default function PropCards({
   const [upcomingPick, setOnlyUpcoming] = useState(null)
   const [onlyWatched, setOnlyWatched] = useState(false)
   const [sortBy, setSortBy] = useState('score')
-  // THE SLIP: legs kept in this browser for a day (components/props/BetSlip.js)
-  const slipKey = `${a.precisionKey}_slip_v1`
-  const [slip, setSlip] = useState([])
-  useEffect(() => {
-    try { const v = JSON.parse(window.localStorage.getItem(slipKey) || '[]'); setSlip(Array.isArray(v) ? v.filter((l) => Date.now() - (l.at || 0) < 864e5) : []) } catch { /* private mode */ }
-  }, [slipKey])
-  const saveSlip = (next) => { setSlip(next); try { window.localStorage.setItem(slipKey, JSON.stringify(next)) } catch { /* private mode */ } }
+  // THE SLIP: ONE store per sport (lib/slip/store.js), the same slip the floating slip bar (components/Slip.js) and every player page add to.
+  const sport = aIn.sportKey
+  const { legs: slip, toggle: toggleLeg, remove: removeLeg, clear: clearSlip, addMany } = useSlip(sport)
   const slipKeyOf = (r, k) => `${a.keyOf(r)}|${k}`
   // PAIRING HELP ON THE SLIP (the deleted Parlay Builder's useful parts, lib/slipPairs.js): only a product whose
   // adapter has the rules (MOONSHOT) gets the pair notes and the suggested partners; the rest are unchanged.
@@ -193,32 +191,33 @@ export default function PropCards({
     if (!a.acceptsSeed || !rawRows?.length) return
     const seed = takeSlipSeed()
     if (!seed) return
-    let cur = []
-    try { const v = JSON.parse(window.localStorage.getItem(slipKey) || '[]'); cur = Array.isArray(v) ? v.filter((l) => Date.now() - (l.at || 0) < 864e5) : [] } catch { /* private mode */ }
     const byId = new Map(rawRows.map((r) => [String(a.idOf(r)), r]))
     let added = 0
-    const next = [...cur]
+    const found = []
     for (const sr of seed) {
       const r = byId.get(String(a.idOf(sr))) || rawRows.find((x) => String(a.keyOf(x)) === String(a.keyOf(sr)))
       if (!r) continue
       const k = (a.rolesOf(r) || []).find((m) => a.priceNum(r, m) != null)
       if (!k) continue
       const key = `${a.keyOf(r)}|${k}`
-      if (next.some((l) => l.key === key)) continue
-      next.push({ key, name: a.card(r, k).title, market: a.pillLabel(k), price: a.priceNum(r, k), game: a.gameOf ? a.gameOf(r) : null, at: Date.now() })
+      if (slip.some((l) => l.key === key)) continue
+      found.push(legFor(r, k, 'seed'))
       added += 1
     }
-    setSlip(next)
-    try { window.localStorage.setItem(slipKey, JSON.stringify(next)) } catch { /* private mode */ }
+    addMany(found)
     setSeedNote(`${added} of the ${seed.length} names you checked ${added === 1 ? 'is' : 'are'} on your slip${added < seed.length ? `; the other ${seed.length - added} have no price posted yet` : ''}.`)
-  }, [a, rawRows, slipKey])   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [a, rawRows])   // eslint-disable-line react-hooks/exhaustive-deps
+  // a leg: the price is the book's real one on this pick's own bar, never made up
+  const legFor = (r, k, source) => ({
+    key: slipKeyOf(r, k), sport, id: String(a.idOf(r)), name: a.card(r, k).title, team: r?.team ?? r?.team_abbr ?? null, market: a.pillLabel(k),
+    line: a.card(r, k).market ?? null, side: 'over', price: a.priceNum(r, k), game: a.gameOf ? a.gameOf(r) : null, source,
+  })
   const toggleSlip = (r, k) => {
-    const key = slipKeyOf(r, k)
-    if (slip.some((l) => l.key === key)) return saveSlip(slip.filter((l) => l.key !== key))
     const price = a.priceNum(r, k)
-    if (price == null) return
-    saveSlip([...slip, { key, name: a.card(r, k).title, market: a.pillLabel(k), price, game: a.gameOf ? a.gameOf(r) : null, at: Date.now() }])
+    if (price == null && !slip.some((l) => l.key === slipKeyOf(r, k))) return
+    toggleLeg(legFor(r, k, 'card'))
   }
+  useCalledForSlip({ a: aIn, rows: rawRows, legFor: (r, k, src) => ({ ...legFor(r, k, src) }) })
   const now = useMemo(() => Date.now(), [rawRows, upcomingPick]) // eslint-disable-line react-hooks/exhaustive-deps
   const anyUpcoming = useMemo(() => (rawRows || []).some((r) => { const t = a.startsAt(r); return Number.isFinite(t) && t > now }), [rawRows, a, now])
   const onlyUpcoming = upcomingPick ?? anyUpcoming
@@ -360,7 +359,7 @@ export default function PropCards({
 
       {gateOf && <HiddenCalledLine n={gateOf.hidden} C={C} NUM_FONT={NUM_FONT} style={{ marginTop: 2 }} />}
       {seedNote && <div role="status" style={{ fontSize: TYPE.body, color: C.text2, margin: '4px 0 6px', lineHeight: 1.5 }}>{seedNote}</div>}
-      <BetSlip pairNotes={pairNotes} partners={partnerPicks} onAdd={(p) => toggleSlip(p.r, p.k)} legs={slip} onRemove={(key) => saveSlip(slip.filter((l) => l.key !== key))} onClear={() => saveSlip([])} C={C} NUM_FONT={NUM_FONT} accent={accent} />
+      <BetSlip pairNotes={pairNotes} partners={partnerPicks} onAdd={(p) => toggleSlip(p.r, p.k)} legs={slip} onRemove={removeLeg} onClear={clearSlip} C={C} NUM_FONT={NUM_FONT} accent={accent} />
       {sameGame.length > 0 && (
         <div style={{ fontSize: TYPE.body, color: C.text2, margin: '4px 0 6px', lineHeight: 1.5 }}>
           {sameGameLine(sameGame.map((x) => ({ label: x.label, n: x.ids.size })))}
