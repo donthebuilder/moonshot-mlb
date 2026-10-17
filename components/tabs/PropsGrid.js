@@ -234,6 +234,7 @@ function mlbAdapter(odds, pairSummary = null) {
       },
     }),
     acceptsSeed: true,                       // names checked on Numerology land on the slip (lib/slipSeed.js)
+    sportKey: 'mlb',
     precisionKey: 'moonshot_precision_v1',
     sortTimeLabel: 'First pitch',
     picksTitle: 'every bat wearing a badge tonight',

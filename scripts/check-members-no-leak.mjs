@@ -52,7 +52,7 @@ const run = async (members, extra = {}) => {
   calls.length = 0
   n += 1
   const db = fakeDb()
-  const out = await postMembers(db, { day: `2099-01-${String(n).padStart(2, '0')}`, kind: 'mlb_members_board', build: async () => ({ text: 'TEST MEMBERS BOARD (test data)', payload: { picks: [] } }) })
+  const out = await postMembers(db, { day: `2099-01-${String(n).padStart(2, '0')}`, kind: 'card_members_mlb', build: async () => ({ text: 'TEST MEMBERS BOARD (test data)', payload: { picks: [] } }) })
   return { out, calls: [...calls], claimed: db.rows.length }
 }
 
@@ -62,13 +62,13 @@ for (const [label, v] of [['unset', undefined], ['empty string', ''], ['spaces o
   check(`A. members webhook ${label} + every public webhook set -> sends nothing`, r.calls.length === 0, `result "${r.out}", ${r.calls.length} network call(s)`)
 }
 { // and with POST_KINDS_ON naming the members kind
-  setEnv({ POST_KINDS_ON: 'mlb_members_board' }); calls.length = 0
-  const out = await postMembers(fakeDb(), { day: '2099-02-01', kind: 'mlb_members_board', build: async () => ({ text: 'TEST', payload: {} }) })
+  setEnv({ POST_KINDS_ON: 'card_members_mlb' }); calls.length = 0
+  const out = await postMembers(fakeDb(), { day: '2099-02-01', kind: 'card_members_mlb', build: async () => ({ text: 'TEST', payload: {} }) })
   check('A. unset + POST_KINDS_ON lists the members kind -> sends nothing', calls.length === 0, `result "${out}"`)
 }
 { // and with NOTHING configured at all
   for (const k of ENV_KEYS) delete process.env[k]; calls.length = 0
-  const out = await postMembers(fakeDb(), { day: '2099-02-02', kind: 'nfl_members_board', build: async () => ({ text: 'TEST', payload: {} }) })
+  const out = await postMembers(fakeDb(), { day: '2099-02-02', kind: 'card_members_nhl', build: async () => ({ text: 'TEST', payload: {} }) })
   check('A. nothing configured at all -> sends nothing', calls.length === 0, `result "${out}"`)
 }
 check('A. membersWebhook() is "" when unset', (setEnv(), membersWebhook() === ''))
@@ -94,7 +94,7 @@ check('A. membersWebhook() is "" when unset', (setEnv(), membersWebhook() === ''
     }
   }
   walk(join(root, 'app')); walk(join(root, 'lib'))
-  const allowed = new Set(['lib/dash/membersPost.js', 'app/admin/page.js', 'lib/dash/discordChannels.js'])
+  const allowed = new Set(['lib/dash/membersPost.js', 'app/admin/page.js', 'lib/dash/discordChannels.js', 'lib/dash/routeHooks.js'])
   const extra = hits.filter((h) => !allowed.has(h))
   check('C. only membersPost.js (and the /admin status line) read DISCORD_MEMBERS_WEBHOOK', extra.length === 0, extra.length ? `also: ${extra.join(', ')}` : hits.join(', '))
 }
@@ -130,7 +130,7 @@ for (const [label, v] of [[',', ','], ['", ,\n,"', ', ,\n,'], ['not a URL', 'hel
   for (const w of ['', ',', '  ']) {
     setEnv(); calls.length = 0; n += 1
     const db = fakeDb()
-    const out = await postOnce(db, { day: `2099-03-${String(n).padStart(2, '0')}`, kind: 'mlb_members_board', build: async () => ({ text: 'TEST', payload: {} }), webhooks: w, toX: false })
+    const out = await postOnce(db, { day: `2099-03-${String(n).padStart(2, '0')}`, kind: 'card_members_mlb', build: async () => ({ text: 'TEST', payload: {} }), webhooks: w, toX: false })
     check(`F. postOnce webhooks=${JSON.stringify(w)} -> nothing sent, nothing claimed`, calls.length === 0 && db.rows.length === 0, `result "${out}"`)
   }
   setEnv(); calls.length = 0
@@ -188,7 +188,7 @@ for (const [label, v] of [[',', ','], ['", ,\n,"', ', ,\n,'], ['not a URL', 'hel
   const publicHooks = Object.values(PUBLIC_ENV)
 
   setEnv(); seen.length = 0
-  check('H. sendMembers with no members webhook sends nothing', (await sendMembers(SECRET, { sport: 'nfl', kind: 'writeup_nfl_T1' })) === false && seen.length === 0)
+  check('H. sendMembers with no members webhook sends nothing', (await sendMembers(SECRET, { sport: 'nfl', kind: 'writeup_nhl_T1' })) === false && seen.length === 0)
   { // BUCKETS is hidden (lib/openSwitch.js): #members gets NO NBA write-up until BUCKETS_PUBLIC=on either (Donovan 2026-10-12)
     setEnv({ DISCORD_MEMBERS_WEBHOOK: M }); seen.length = 0
     delete process.env.BUCKETS_PUBLIC
@@ -198,22 +198,24 @@ for (const [label, v] of [[',', ','], ['", ,\n,"', ', ,\n,'], ['not a URL', 'hel
   for (const sport of ['mlb', 'nfl', 'nhl', 'nba']) {
     setEnv({ DISCORD_MEMBERS_WEBHOOK: M }); seen.length = 0
     const ok = await sendMembers(SECRET, { sport, kind: `writeup_${sport}_T1` })
-    check(`H. ${sport}: sendMembers -> exactly the members URL, nothing public`, ok === true && seen.length === 1 && seen[0][0] === M && !publicHooks.includes(seen[0][0]))
+    // NFL write-ups are CUT by the routing table (lib/dash/routing.js, Donovan 2026-10-16): reported as sent (the row is still recorded) but nothing goes anywhere
+    if (sport === 'nfl') check('H. nfl: the write-up is cut by the routing table: nothing sent to any room, members included', ok === true && seen.length === 0)
+    else check(`H. ${sport}: sendMembers -> exactly the members URL, nothing public`, ok === true && seen.length === 1 && seen[0][0] === M && !publicHooks.includes(seen[0][0]))
   }
   delete process.env.BUCKETS_PUBLIC
   { // a members URL that is also a public hook (paste mistake): refused, nothing sent anywhere
     setEnv({ DISCORD_MEMBERS_WEBHOOK: PUBLIC_ENV.DISCORD_NFL_WEBHOOKS }); seen.length = 0
     const errs = console.error; console.error = () => {}
-    const ok = await sendMembers(SECRET, { sport: 'nfl', kind: 'writeup_nfl_T1' }); console.error = errs
+    const ok = await sendMembers(SECRET, { sport: 'nfl', kind: 'writeup_nhl_T1' }); console.error = errs
     check('H. sendMembers with a members URL equal to a public hook sends nothing', ok === false && seen.length === 0)
   }
   { // the free path: a game that is NOT featured sends nothing; a featured one goes to the hooks it was given and never to members
     setEnv({ DISCORD_MEMBERS_WEBHOOK: M }); seen.length = 0
-    const none = await sendFree(SECRET, { sport: 'nfl', kind: 'writeup_nfl_T2', featured: false, hooks: PUBLIC_ENV.DISCORD_NFL_WEBHOOKS })
+    const none = await sendFree(SECRET, { sport: 'nfl', kind: 'writeup_nhl_T2', featured: false, hooks: PUBLIC_ENV.DISCORD_NFL_WEBHOOKS })
     check('H. sendFree for a non-featured game sends nothing', none === null && seen.length === 0)
     const nohook = await sendFree(SECRET, { sport: 'nba', kind: 'writeup_nba_T2', featured: true, hooks: '' })
     check('H. sendFree with no free hook (BUCKETS before launch) sends nothing', nohook === null && seen.length === 0)
-    const yes = await sendFree(SECRET, { sport: 'nfl', kind: 'writeup_nfl_T3', featured: true, hooks: PUBLIC_ENV.DISCORD_NFL_WEBHOOKS })
+    const yes = await sendFree(SECRET, { sport: 'nfl', kind: 'writeup_nhl_T3', featured: true, hooks: PUBLIC_ENV.DISCORD_NFL_WEBHOOKS })
     check('H. sendFree for the featured game -> the free hook only, never the members URL', yes?.ok === true && seen.length === 1 && seen[0][0] === PUBLIC_ENV.DISCORD_NFL_WEBHOOKS && seen[0][0] !== M)
   }
   { // the free channel lists (what the runners pass to sendFree) can never contain the members URL

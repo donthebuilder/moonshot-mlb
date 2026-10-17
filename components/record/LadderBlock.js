@@ -33,7 +33,7 @@ const THEMES = {
 }
 
 /** Mounts the product's theme for a server page (no provider above it); inside the app it is a no-op re-provide. */
-function Themed({ sport, children }) {
+export function Themed({ sport, children }) {
   const t = THEMES[sport] || THEMES.mlb
   return <SportTheme theme={t.theme} accent={t.accent} numFont={t.numFont}>{children}</SportTheme>
 }

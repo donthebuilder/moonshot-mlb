@@ -31,7 +31,7 @@ export default function MembersPage() {
           <h2 style={h2}>Free, for everyone</h2>
           <ul style={ul}>
             <li>The whole site: every board, every player, every page, for all four sports.</li>
-            <li>The top calls on tonight&apos;s board, posted before the game starts.</li>
+            <li>The first four called picks per sport on tonight&apos;s board. Every other pick reads as a plain ON THE BOARD player until its game starts; then it shows its real call.</li>
             <li>Lineup, scratch and goalie alerts on your phone for the players you follow.</li>
             <li>Every call graded in public, hits and misses.</li>
             <li>The free Discord: <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer">join here</a>, with the featured game and the community.</li>
@@ -44,7 +44,7 @@ export default function MembersPage() {
             <li>Every game&apos;s write-up for {isSportOpen('nba') ? 'all four sports (MLB, NFL, NHL, NBA)' : 'every sport we cover (MLB, NFL, NHL)'}, in a private Discord channel. Free Discord gets the featured game only.</li>
             <li>The board at lock, in the same channel: MOONSHOT&apos;s top {MLB_MEMBERS_N} before first pitch, TUDDY&apos;s top {NFL_MEMBERS_N} before kickoff.</li>
             <li>That board graded after the games, in the same channel.</li>
-            <li>Nothing on the site is locked. What you pay for is delivery to one place at lock, not access.</li>
+            <li>Every called pick of tonight on the site, with its score and why, not just the first four.</li>
           </ul>
         </div>
 

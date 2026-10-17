@@ -28,6 +28,7 @@ import { setSport } from '../lib/sport'
 import TabExplainer from './TabExplainer'
 import Controls from './Controls'
 import Slip from './Slip'
+import { slipAdd } from '../lib/slip/store'
 import MobileCSS from './MobileCSS'
 import StaleBanner from './StaleBanner'
 import MobileTabBar from './MobileTabBar'
@@ -149,7 +150,6 @@ export default function Dashboard({ palettePass = 0 }) {
   // The top bar's team and game ride the address (fteam= / fgame=, lib/filterHash).
   const [team, setTeam] = useHashFilter('fteam')
   const [game, setGame] = useHashFilter('fgame')
-  const [slip, setSlip] = useState([])
   const [watch, setWatch] = useState([])
   const [modalPlayer, setModalPlayerRaw] = useState(null)
   // A table row is often a DERIVED object that carries the slate record as `_raw`
@@ -698,7 +698,9 @@ export default function Dashboard({ palettePass = 0 }) {
   // picked "one star + memory" -- a star clears with its night, and a past
   // star shows on his card (components/watch/StarMemory.js) instead.
 
-  const addSlip = (p, bet) => setSlip((s) => [...s, { p, bet }])
+  // The ONE slip (lib/slip/store.js): the same slip the Props tab's '+ slip' fills. These bets (HR / Hit / HRR / TB) carry no book price here,
+  // so the leg shows without one; the price stays null rather than guessed.
+  const addSlip = (p, bet) => slipAdd('mlb', { key: `${playerId(p)}|${bet}`, sport: 'mlb', id: String(playerId(p)), name: nameOf(p), team: teamOf(p), market: bet, price: null, source: 'mlb' })
 
   // Jump to Pairs focused on a player. This USED TO BE what every click on
   // the Bot tab did, including on the Picks board — 2026-08-11, Donovan:
@@ -1134,7 +1136,7 @@ export default function Dashboard({ palettePass = 0 }) {
       <QuickSearch players={allPlayers} onPick={setModalPlayer} />
       {/* no tab lit on NO SUCH TAB (audit 14 B7b) */}
       <MobileTabBar tab={missingTab ? null : tab} setTab={setTab} />
-      <Slip slip={slip} setSlip={setSlip} />
+      <Slip sport="mlb" C={C} NUM_FONT={NUM_FONT} accent={C.orange} onOpenProps={() => setTab('props')} />
       {/* slateMode is passed EXPLICITLY, not left to the module-level default
           in dataSource.js. That default is set by an effect, so flipping
           Today↔Tomorrow with a card open changed the global without changing

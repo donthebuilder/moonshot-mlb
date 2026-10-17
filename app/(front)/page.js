@@ -1,60 +1,53 @@
 // 🏠 THE FRONT DOOR.
 //
-// 2026-08-28, Donovan: "we dont have a front door." He's right, and the
-// floating switcher wasn't one: a button in a corner that already assumes
-// you know what MOONSHOT is. (That switcher is gone entirely as of
-// 2026-08-29 — its three destinations live in the bottom bar's More sheet
-// now, via components/NetworkSwitch.js. This page is unchanged by that; it
-// was never where the switcher belonged.)
+// 2026-08-28, Donovan: "we dont have a front door." Rebuilt top to bottom 2026-10-17 ("the front page needs to be audited and built cohesively"): the plain
+// link https://dashnetwork.vercel.app/ has to hold everything someone needs, in the order they need it:
 //
-// This page answers three questions in the order a person actually asks them:
+//   1. header      the mark, Sign in, ONE "Start free" button
+//   2. hero        one line and the one primary button, "Sign up free"
+//   3. free picks  tonight's called players, a MOONSHOT table per sport (4 rows each, the rest counted for members; gated on the server)
+//   4. the record  how the bot is doing, from the one locked record
+//   5. the offer   Founding members, the one paid button (a member sees a line and a link to the app)
+//   6. sign up     the free form, open
+//   7. the boards  one row of links into the app, the free Discord, the footer
 //
-//   1. WHAT IS THIS — one line, three products, no scrolling required.
-//   2. WHAT'S ON RIGHT NOW — tonight's baseball, this week's football, and
-//      your leagues, with real numbers off the live payloads (lib/dash/pulse).
-//   3. WHERE DO I GO — a jump-in link on every card, and the account block
-//      that makes what you save follow you.
+// WHAT IT IS NOT: a gate. Nothing here is required to use the site; MOONSHOT, TUDDY and LAMP stay open to anyone, signed in or not.
 //
-// WHAT IT IS NOT: a gate. Nothing here is required to use the site — MOONSHOT
-// and TUDDY stay open to anyone, signed in or not.
+// NOTHING ON THIS PAGE MAY NAME A CALLED PLAYER BEYOND WHAT lib/members/access.js previewOf ALLOWS. The product cards that used to sit here (TUDDY's Six,
+// LAMP's #1 per game, MOONSHOT's top calls) printed unlimited CALLED names in the page for everyone, which defeated the server-side gate; they are gone
+// and the app has them. The pulse still carries those lists server-side; only counts and the record are read from it here.
 //
-// IT IS `/` AS OF 2026-08-28. The board moved to /app. Every link ever posted
-// in the old shape (`/#sport=nfl&tab=home`) still opens the board on the right
-// tab: components/LegacyHashRedirect.js reads the fragment in the browser —
-// the only place a fragment exists — and forwards it. Reverting is two moves
-// and a deleted component; nothing about the board itself changed.
+// IT IS `/` AS OF 2026-08-28. The board moved to /app. Every link ever posted in the old shape (`/#sport=nfl&tab=home`) still opens the board on the right
+// tab: components/LegacyHashRedirect.js reads the fragment in the browser (the only place a fragment exists) and forwards it.
 //
-// LIVE NUMBERS OR NO NUMBERS. Every figure on this page comes from the same
-// published payloads the boards read. Where a payload is missing — preseason,
-// a bot that hasn't run yet — the card renders without the figure rather than
-// with a placeholder. A front door that invents a number to look alive is
-// worse than one that admits it's early.
+// LIVE NUMBERS OR NO NUMBERS. Every figure on this page comes from the same published payloads the boards read. Where a payload is missing (preseason, a
+// bot that hasn't run yet) its block renders without the figure rather than with a placeholder.
 
-import LocalAt from '../../components/LocalAt'
 import Link from 'next/link'
+import { Suspense } from 'react'
 
 import AlertsPanel from '../../components/AlertsPanel'
 import DashAuthCard from '../../components/DashAuthCard'
 import LegacyHashRedirect from '../../components/LegacyHashRedirect'
+import OpenOnHash from '../../components/OpenOnHash'
 import SubmitButton from '../../components/SubmitButton'
+import QuickPicksLoader from '../../components/home/QuickPicksLoader'
+import RecordBlocks from '../../components/home/RecordBlocks'
 import { getNetworkPulse, liveProduct } from '../../lib/dash/pulse'
-import { appHref, BRAND, playerHref, SPORT_KEYS } from '../../lib/routes'
-import { ledgerAppHref } from '../../lib/ledger/views'
-import { easternDate } from '../../lib/data'
+import { appHref, BRAND, SPORT_KEYS } from '../../lib/routes'
+import { C, NUM_FONT } from '../../lib/theme'
 import { SPORT_ACCENT } from '../../lib/sportAccent'
 import { nextLine } from '../../lib/mlbNext'
-import { wilson } from '../../lib/interval'
+import { recordBlocks } from '../../lib/dash/recordBlocks'
+import { readCalibrationAny } from '../../lib/calibration/readAny'
+import { marketLadderFrom } from '../../lib/record/ladder'
 import { hasSupabaseConfig } from '../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../lib/supabase/server'
+import { DISCORD_URL, MEMBERS_PRICE, MEMBERS_TRIAL, membersUrl } from '../../lib/members'
+import { isMember } from '../../lib/members/access'
 import { dashSignOut } from './actions'
 import styles from './dash.module.css'
 import './scroll-anchor.css' // css-loader pure-selector fix, 2026-09-06
-import OpenOnHash from '../../components/OpenOnHash'
-import LadderBlock, { LadderAside } from '../../components/record/LadderBlock'
-import QuickPicksLoader from '../../components/home/QuickPicksLoader'
-import FoundingMembersCard from '../../components/FoundingMembersCard'
-import { DISCORD_URL } from '../../lib/members'
-import { Suspense } from 'react'
 
 export const metadata = {
   alternates: { canonical: '/' },
@@ -66,66 +59,21 @@ export const metadata = {
 // getNetworkPulse carry their own revalidate.
 export const dynamic = 'force-dynamic'
 
-
-function timeUntil(iso) {
-  if (!iso) return null
-  const ms = new Date(iso).getTime() - Date.now()
-  if (!Number.isFinite(ms)) return null
-  // A kickoff already in the past means the card is showing a finished or
-  // in-progress slate; the label ("Preseason · Aug 21") says more than "under
-  // way" would, so fall through to it rather than printing a countdown of a
-  // game that has already happened.
-  if (ms <= 0) return null
-  const hours = Math.round(ms / 3600000)
-  if (hours < 48) return `in ${hours}h`
-  return `in ${Math.round(hours / 24)}d`
+// The page's palette is the network's theme (lib/theme C, the sport accents), handed to the stylesheet as variables: no colour is typed in the css this page uses.
+const PAGE_VARS = {
+  '--bg': C.bg, '--panel': C.bg2, '--surface': C.bg3, '--field': C.bg, '--line': C.border,
+  '--ink': C.text, '--dim': C.text2, '--faint': C.text3,
+  '--mlb': SPORT_ACCENT.mlb, '--nfl': SPORT_ACCENT.nfl, '--nhl': SPORT_ACCENT.nhl,
+  '--err-line': C.red, '--err-ink': C.red, '--msg-line': C.blue, '--msg-ink': C.blue, '--bad': C.red,
+  '--num': NUM_FONT,
 }
-
-// Hockey's clock text starts in ET: this renders on the server (UTC on Vercel), which has no
-// viewer time zone; <LocalAt> then shows the viewer's zone. ET is the league's calendar and
-// the one the Board page's day is cut on.
-// "Tue 9/29" for a league calendar day (the date string is already ET).
-const dayWord = (ymd) => (ymd ? new Date(`${ymd}T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'short', month: 'numeric', day: 'numeric' }).replace(',', '') : null)
-// Why LAMP's panel has no number (Part A3): the season opener while it's
-// ahead, else the next day with games. Null when there are games tonight
-// and the season is on (the lock count says the rest).
-function lampWhy(nhl) {
-  if (!nhl) return null
-  const opens = nhl.regularSeasonStart && nhl.date < nhl.regularSeasonStart ? `Season opens ${dayWord(nhl.regularSeasonStart)}` : null
-  if (nhl.games) return opens
-  return [opens || 'No NHL games tonight', !opens && nhl.next ? `next games ${dayWord(nhl.next)}` : null, 'calls lock before each puck drop'].filter(Boolean).join(' · ')
-}
-// "12 of 34 were on the board at lock" (Part A1): homer_feed's labels, the
-// same reader /called uses. No share when the locked read is missing.
-const lockedLine = (l) => (l && l.total ? `${l.onBoard} of ${l.total} were on the board at lock` : null)
-// (2026-10-07, audit X11) The front door renders on the server, where there is no viewer zone:
-// the ET text is the server HTML and the first paint; <LocalAt> redraws the same instant in the
-// viewer's zone once mounted. The day KEYS above stay on the league's ET date.
-const etText = (iso) => `${new Date(iso).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })} ET`
-const etClock = (iso) => (iso ? <LocalAt iso={iso} fallback={etText(iso)} /> : null)
 
 async function account() {
-  if (!hasSupabaseConfig()) return { configured: false, user: null, leagues: [], teams: [] }
+  if (!hasSupabaseConfig()) return { configured: false, user: null }
   const supabase = await createSupabaseServerClient()
-  if (!supabase) return { configured: false, user: null, leagues: [], teams: [] }
-
+  if (!supabase) return { configured: false, user: null }
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { configured: true, user: null, leagues: [], teams: [] }
-
-  const { data: memberships } = await supabase
-    .from('fantasy_league_memberships')
-    .select('league_id, role')
-    .eq('user_id', user.id)
-
-  const ids = (memberships || []).map((row) => row.league_id)
-  if (!ids.length) return { configured: true, user, leagues: [], teams: [] }
-
-  const [{ data: leagues }, { data: teams }] = await Promise.all([
-    supabase.from('fantasy_leagues').select('id,name,status,team_count').in('id', ids).order('created_at'),
-    supabase.from('fantasy_teams').select('id,league_id,owner_id,name').in('league_id', ids),
-  ])
-
-  return { configured: true, user, leagues: leagues || [], teams: teams || [] }
+  return { configured: true, user: user || null }
 }
 
 export default async function DashHome({ searchParams }) {
@@ -134,425 +82,104 @@ export default async function DashHome({ searchParams }) {
   const welcomeName = typeof params.welcome === 'string' && params.welcome ? params.welcome.slice(0, 40) : ''
   const [pulse, me] = await Promise.all([getNetworkPulse(), account()])
   const { mlb, nfl, nhl, record } = pulse
+  const member = await isMember(me.user)
   const displayName = me.user?.user_metadata?.display_name || me.user?.email?.split('@')[0] || null
-  // The one primary button: the board that's on today (funnel step 1).
+  // The board that's on today (lib/dash/pulse liveProduct): where a signed-in visitor's one button goes.
   const live = liveProduct(pulse)
-  // A day with no MLB games: the slate on hand is an earlier day's, and the
-  // next game day is later (lib/mlbNext.js).
+  // A day with no MLB games: the slate on hand is an earlier day's, and the next game day is later (lib/mlbNext.js).
   const mlbOff = Boolean(mlb?.date && mlb?.today && mlb.date < mlb.today && nextLine(mlb?.next, mlb.today))
-  // Football on tonight = a kickoff today (ET) or one under way (4 h). Else
-  // one line: "next game Thu 8:15 PM ET".
-  // football's picks are shown only while the week still has a game to play (one under way counts for 4 hours)
+  // Football's picks are shown only while the week still has a game to play (one under way counts for 4 hours).
   const nflLive = (nfl?.kickoffs || []).map((k) => Date.parse(k)).some((t) => Number.isFinite(t) && t > Date.now() - 4 * 3600e3)
-  const nflOff = (() => {
-    const ks = (nfl?.kickoffs || []).map((k) => Date.parse(k)).filter(Number.isFinite).sort((a, b) => a - b)
-    const now = Date.now()
-    // the same ET-date reader liveProduct uses (0g D8: one clock for "is football on")
-    // the NFL slate's own date (lib/slateNight.js via the pulse), not the ET wall clock
-    const todayEt = pulse.nights?.nfl || easternDate(now)
-    const on = ks.some((t) => easternDate(t) === todayEt || (t <= now && now - t < 4 * 3600e3))
-    if (on || !ks.length) return null
-    const next = ks.find((t) => t > now)
-    return next ? <>next game <LocalAt iso={next} day fallback={`${new Date(next).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' })} ET`} /></> : 'no game left this week'
-  })()
-  // THE LEDGER'S TONIGHT LINE, PER SPORT: only figures the cards below already print. A sport with
-  // nothing on says so in the words its own card uses, or leaves the line off. (BUCKETS: not in SPORT_KEYS
-  // until it opens, so it is never listed here.)
-  const LEDGER_LINE = {
-    mlb: mlbOff ? `no games tonight` : mlb?.started ? `${mlb.cleared ?? 0} of ${mlb.started} calls cleared` : mlb?.calls ? `${mlb.calls} calls tonight` : null,
-    nfl: nflOff || (nfl?.games ? `${nfl.games} games this week` : null),
-    nhl: nhl?.games ? `${nhl.lockedGames}/${nhl.games} games locked` : (lampWhy(nhl) ? 'no games tonight' : null),
-  }
-  const ledgerLines = SPORT_KEYS.map((k) => ({ k, line: LEDGER_LINE[k] })).filter((l) => l.line)
-  // The sign-up fold opens by itself when someone is mid-flow: a failed
-  // attempt, a confirm-your-email return, or the welcome after sign-up.
-  const authOpen = Boolean(welcomeName || params.error || params.message || params.confirm || params.em)
+  // THE RECORD, one block per sport. TUDDY's rows are the calibration reader's market ladder (shares the /called cache entry); a failed read is just no block.
+  const nflCal = await readCalibrationAny('nfl', pulse.nights?.nfl || null).catch(() => null)
+  const blocks = recordBlocks({ record, nflLadder: marketLadderFrom(nflCal, { sport: 'nfl' }), nflRecord: pulse.nflRecord, nhlLadder: pulse.nhlLadder, nhlRecord: pulse.nhlRecord })
 
   return (
-    // each product's accent from its own theme (R2a): dash.module.css reads --mlb / --nfl / --nhl
-    <main className={styles.page} id="top" style={{ '--mlb': SPORT_ACCENT.mlb, '--nfl': SPORT_ACCENT.nfl, '--nhl': SPORT_ACCENT.nhl }}>
-      {/* Old /#sport=…&tab=… links land here now. This sends them on to the
-          board with the hash intact — see the component for why it cannot be
-          done on the server. */}
-      {/* BEFORE ANYTHING LOADS (2026-10-04 perf audit): an old /#sport=… link
-          used to download the whole front door, hydrate, and only then
-          location.replace() to /app -- the JS, the icon, analytics and the
-          state call twice (~240 KB, ~450 ms more on a phone). This runs as the
-          HTML is parsed; LegacyHashRedirect still covers a same-page hashchange.
-          Same rule: only a hash carrying sport or tab is a board link. */}
+    <main className={styles.page} id="top" style={PAGE_VARS}>
+      {/* Old /#sport=…&tab=… links land here now. This sends them on to the board with the hash intact (a fragment is only ever readable in the browser). */}
+      {/* BEFORE ANYTHING LOADS (2026-10-04 perf audit): an old /#sport=… link used to download the whole front door, hydrate, and only then
+          location.replace() to /app. This runs as the HTML is parsed; LegacyHashRedirect still covers a same-page hashchange. Only a hash
+          carrying sport or tab is a board link. */}
       <script dangerouslySetInnerHTML={{ __html: "(function(){try{var r=location.hash.slice(1);if(!r)return;var p=new URLSearchParams(r);if(p.get('sport')||p.get('tab'))location.replace('/app#'+r)}catch(e){}})()" }} />
       <LegacyHashRedirect />
+
+      {/* 1. HEADER. A link, not a div: #top rather than "/" so it does not reload the page you are on. ONE button for a stranger: Start free
+          (it was labelled "Sign in" once and a first-time visitor never found sign-up; 2026-08-31). Signed in: Account and Sign out. */}
       <header className={styles.bar}>
-        {/* A link, not a div. On the network's other surfaces the mark went
-            home in pass 19; here — the one page where somebody stuck in a form
-            reaches for it — it was inert. #top rather than "/" so it does not
-            reload the page you are already on. */}
         <a className={styles.brand} href="#top" aria-label="Back to the top of DASH Network">
           <img src="/icon-192.png" alt="" width="34" height="34" />
           <div><small>DASH</small><strong>NETWORK</strong></div>
         </a>
         <nav className={styles.barNav}>
-          <a className={styles.barNavSection} href="#tonight">Tonight</a>
-          <a className={styles.barNavSection} href="#products">Products</a>
-          <a className={styles.barNavSection} href="#alerts">Alerts</a>
           {me.user
             ? <><Link href="/account">Account</Link><form action={dashSignOut}><input type="hidden" name="next" value="/" /><SubmitButton className={styles.ghost} pendingLabel="Signing out…">Sign out</SubmitButton></form></>
             : <>
-              {/* ── THE LABEL WAS THE BUG (2026-08-31) ────────────────────
-                  Donovan, on a 45+ user: "couldn't find sign-up at all."
-                  He was right, and it was not buried — it was MISLABELLED.
-                  The only auth control on this page read "Sign in", and it
-                  pointed at a card whose DEFAULT TAB is Create an account.
-                  A first-time visitor reads "Sign in", concludes it is for
-                  people who already have accounts, and never clicks the one
-                  thing that would have signed them up.
-                  Two controls now, and the one a stranger needs is the one
-                  wearing the button. */}
               <a href="#sign-in">Sign in</a>
-              <a className={styles.barCta} href="#create-account">Create account</a>
+              <a className={styles.barCta} href="#create-account">Start free</a>
             </>}
         </nav>
       </header>
 
-      {/* Still here for anyone who lands at the top — but this used to be the
-          ONLY place a sign-up error appeared, roughly 1,500px above the form
-          it was describing. The card carries its own copy now. */}
       {(params.error || params.message) && (
         <p className={params.error ? styles.error : styles.message}>{params.error || params.message}</p>
       )}
 
-      <section className={styles.hero}>
-        <p className={styles.eyebrow}><span>●</span> ONE NETWORK. FOUR WAYS TO PLAY.</p>
+      {/* 2. HERO. One line, one button. The glossary that sat here is this line now: a call is locked before the game, graded in public after. */}
+      <section className={`${styles.hero} ${styles.heroTight}`}>
         <h1>{displayName ? <>Welcome back, {displayName}.</> : <>Every call, <em>graded in public.</em></>}</h1>
-        <p className={styles.heroCopy}>
-          Baseball, football and hockey picks, checked in public after every game.
-        </p>
-        {/* THE WORDS, BEFORE THE NUMBERS (2026-09-26, stranger test F1/F7).
-            A first-timer met "board", "call" and "the bot" in every tile below
-            and nothing here said what they were. Worded from /start's own
-            lines, so the two pages say it the same way. */}
-        {/* SIGNED IN (front door F, 2026-09-27): the three definitions are for a
-            first visit, so a returning account gets them folded; a stranger
-            still sees them open. */}
-        {(() => {
-          const words = (
-            <dl className={styles.words}>
-              <div><dt>The board</dt><dd>every player rated before the game, ranked.</dd></div>
-              <div><dt>A call</dt><dd>a pick we lock before the game.</dd></div>
-              <div><dt>Graded</dt><dd>after the game, every call is checked in public, wins and misses alike.</dd></div>
-            </dl>
-          )
-          return me.user ? <details className={styles.wordsFold}><summary>What the words mean</summary>{words}</details> : words
-        })()}
+        <p className={styles.heroCopy}>Baseball, football and hockey picks, locked before the game and graded in public after.</p>
         <div className={styles.heroActions}>
-          {/* /start is the page that explains a product and carries the
-              sign-up; CALLED IT is the public record. Neither had a door here
-              (stranger test F1). The board is one tap further, from either,
-              and from every product card below; the header keeps the
-              account button. */}
-          {/* FUNNEL STEP 1 (2026-09-26): ONE primary, and it moves forward --
-              into the product that's live today. /start and the record stay
-              as the quieter doors beside it. */}
-          <Link href={appHref(live)}>Open tonight&apos;s board <b>→</b><small className={styles.heroWhich}>{BRAND[live].name} · {BRAND[live].league}</small></Link>
-          {/* Signed in (F): the other two products, as two small links. */}
-          {me.user ? (
-            <span className={styles.otherProducts}>or {SPORT_KEYS.filter((k) => k !== live).map((k, i) => <span key={k}>{i ? ' · ' : ''}<Link href={appHref(k)}>{BRAND[k].name}</Link></span>)}</span>
-          ) : null}
-          {/* THE LEDGER IS A PRIMARY DOOR (2026-10-07, Donovan: "the ledger is a core product feature ... that's a big
-              thing my site has that a lot of people don't"): beside the board, wearing the same button, the public
-              all-sports Ledger every call is graded in. Each sport's tonight line is under it, from the numbers this
-              page already reads (lib/dash/pulse) -- nothing new is fetched or invented. */}
-          <Link href="/called" className={styles.ledgerBtn}>The Ledger <b>→</b><small className={styles.heroWhich}>EVERY CALL, GRADED IN PUBLIC</small></Link>
+          {me.user
+            ? <Link className={styles.cta} href={appHref(live)}>Open tonight&apos;s board <b>→</b></Link>
+            : <a className={styles.cta} href="#create-account">Sign up free <b>→</b></a>}
         </div>
-        {/* (2026-10-16: the per-sport 'tonight' lines that sat here repeated the tiles in "ON RIGHT NOW" below, so they are gone.) */}
       </section>
 
-      {/* QUICK PICKS (2026-10-16): tonight's called players + how the bot is doing + sign up, right under the hero. MLB's ledger only (the sport with a per-game
-          called list today); a sport without one is still one tap away in the cards below. */}
+      {/* 3. THE FREE TASTE. Fetched after the page starts to render; the gate is applied on the server inside (components/home/QuickPicks.js). */}
       <Suspense fallback={null}>
-        <QuickPicksLoader styles={styles} mlbDate={mlb?.date || null} mlbOff={mlbOff} nflLive={nflLive} nhlDate={nhl?.date || null} recordLine={record?.callsLine || null} user={me.user} />
+        <QuickPicksLoader styles={styles} mlbDate={mlb?.date || null} mlbOff={mlbOff} nflLive={nflLive} nhlDate={nhl?.date || null} member={member} />
       </Suspense>
 
-      {/* THE OFFER, ON THE FRONT DOOR (2026-10-16, Donovan: the plain link is what gets shared, and the Founding members ask lived only inside the app).
-          Right under the picks and the record line: the person has just seen what is called and that it is graded in public. Nothing here is locked on the site. */}
-      <div className={styles.quick}><FoundingMembersCard /></div>
-
-      <section className={styles.slate} id="tonight">
-        <div className={styles.slateHead}><p className={styles.kicker}>ON RIGHT NOW</p><h2>The whole network, one glance.</h2></div>
-        {/* GROUPED BY PRODUCT (front door C, 2026-09-27): was eight tiles in a
-            6 + 2 grid, three colours mixed in one row, LAMP's two empty. Now one
-            column per product in its own colour, the whole column a link into
-            it; a product with nothing on tonight is one line saying why and
-            when, instead of zeros. Phone: one product per row, tiles two across. */}
-        <div className={styles.productCols}>
-          {mlbOff ? (
-            <Link href={appHref('mlb')} className={`${styles.productOff} ${styles.mlb}`}><b>MOONSHOT</b> · No MLB games tonight · {nextLine(mlb.next, mlb.today)}</Link>
-          ) : (
-            <Link href={appHref('mlb')} className={`${styles.productCol} ${styles.mlb}`} aria-label="MOONSHOT, tonight's baseball">
-              <span className={styles.productColHead}>MOONSHOT · MLB</span>
-              <span className={styles.productColTiles}>
-                <Tile label="GAMES" value={mlb?.games} sub={mlb?.live ? `${mlb.live} live` : mlb?.final ? `${mlb.final} final` : 'pre-game'} accent="mlb" />
-                <Tile label="CALLS TONIGHT" value={mlb?.calls} sub={mlb?.started ? `${mlb.cleared ?? 0} cleared, of ${mlb.started} that batted` : 'HR · HIT · HRR · CONTACT'} accent="mlb" />
-                <Tile label="HRs ON THE SLATE" value={mlb?.locked?.total || mlb?.homers} sub={lockedLine(mlb?.locked)} accent="mlb" />
-              </span>
-            </Link>
-          )}
-          {nflOff ? (
-            <Link href={appHref('nfl')} className={`${styles.productOff} ${styles.nfl}`}><b>TUDDY</b> · {nflOff}</Link>
-          ) : (
-            <Link href={appHref('nfl')} className={`${styles.productCol} ${styles.nfl}`} aria-label="TUDDY, the football week">
-              <span className={styles.productColHead}>TUDDY · NFL</span>
-              <span className={styles.productColTiles}>
-                <Tile label="GAMES THIS WEEK" value={nfl?.games} sub={timeUntil(nfl?.kickoff) || nfl?.label} accent="nfl" />
-                <Tile label="PLAYERS RATED" value={nfl?.players} sub={nfl?.label} accent="nfl" />
-              </span>
-            </Link>
-          )}
-          {/* Hockey: the count and the lock. A preview never counts (lib/nhl/pulse.js). */}
-          {!nhl?.games ? (
-            <Link href={appHref('nhl')} className={`${styles.productOff} ${styles.nhl}`}><b>LAMP</b> · {lampWhy(nhl) || nhl?.label || 'No NHL games tonight'}</Link>
-          ) : (
-            <Link href={appHref('nhl')} className={`${styles.productCol} ${styles.nhl}`} aria-label="LAMP, tonight's hockey">
-              <span className={styles.productColHead}>LAMP · NHL</span>
-              <span className={styles.productColTiles}>
-                <Tile label="GAMES" value={nhl.games} sub={nhl.live ? `${nhl.live} live` : nhl.final ? `${nhl.final} final` : <>first puck {etClock(nhl.firstStart)}</>} accent="nhl" />
-                <Tile label="LOCKED" value={`${nhl.lockedGames}/${nhl.games}`} sub={nhl.lockedGames ? 'games with a locked call' : <>locks from {etClock(nhl.locksFromUtc)}</>} accent="nhl" />
-              </span>
-            </Link>
-          )}
-        </div>
-        <p className={styles.stamp}>
-          Updated every 2 minutes.
-        </p>
-      </section>
-
-      {/* ── THE RECORD (2026-08-31) ────────────────────────────────────────
-          The headline on this page is "Every call, graded in public." What a
-          stranger actually got underneath it was tonight's COUNTS — 14 games,
-          56 called slots, 31 homers — and not one number about whether any of
-          it has ever been right. The most persuasive thing this site can show
-          was the one thing the front door was withholding, and it has been in
-          backtest_summary.json all along. (2026-10-01: that file adds up the
-          post-game graded archive, so the rows now come from the clean pregame
-          record, lib/record/lockedRecord.js, via lib/dash/pulse.js recordFrom --
-          2026-10-06: the locked record the calibration table reads, not the
-          hard-coded Sep 9-30 rates.)
-
-          EACH ROW ON ITS OWN BAR. An HR call is graded on homers, a HIT call
-          on getting a hit, an HRR call on 2+ H+R+RBI, a CONTACT call on 2+
-          total bases. Reading 69% against 16% would be comparing four
-          different questions, so every rate prints the bar beside it and the
-          rows are never ranked against each other.
-
-          AND EVERY ROW CARRIES ITS INTERVAL. A percentage with no denominator
-          is the thing this whole site exists not to do — lib/interval.js's
-          Wilson bounds are the same ones the Results page uses, on the same
-          counts. */}
-      {/* ALL THREE (front door D, 2026-09-27): MOONSHOT's call precision, then
-          TUDDY's board coverage and LAMP's called scorers from the readers
-          /called uses, each naming its own question and linking to its record
-          page; "How this is counted" folds the small print. */}
-      {record?.rows?.length || pulse.nflRecord || nhl ? (
-        <section className={styles.record} id="record">
+      {/* 4. HOW THE BOT IS DOING. One block per sport, the same shape (components/home/RecordBlocks.js, rows from lib/dash/recordBlocks.js): MOONSHOT's rows are the
+          ONE locked record (lib/record/lockedRecord.js via lib/dash/pulse.js recordFrom: only calls whose board row was stamped before first pitch), TUDDY's the
+          calibration reader's market ladder, LAMP's the status ladder. The label rules stay: every rate names its bar and carries its n and 95% range, MOONSHOT's
+          and TUDDY's rows are never ranked against each other, and each block's fold says what is counted and what is set aside. */}
+      {blocks.length ? (
+        <section className={styles.record} id="record" aria-label="How the bot is doing">
           <div className={styles.slateHead}>
             <p className={styles.kicker}>THE RECORD</p>
-            <h2>Graded in public means this.</h2>
+            <h2>How the bot is doing.</h2>
           </div>
-          {record?.rows?.length ? <p className={styles.recordQ}><b className={styles.mlbInk}>MOONSHOT</b> · did each call clear the bar it was made for? · <Link href="/called?sport=mlb">the record&nbsp;→</Link></p> : null}
-          {record?.rows?.length ? <p className={styles.recordLine}>Locked record: {record.callsLine} · regular season, {record.window}.</p> : null}
-          <div className={styles.recordRows}>
-            {(record?.rows || []).map((r) => {
-              // wilson() returns [lo, hi] ALREADY IN PERCENT, not a
-              // {lo, hi} in 0..1. The first cut of this block assumed the
-              // object form and printed "95% band NaN–NaN%" on all four rows —
-              // caught in render, which is the only place it could have been.
-              const ci = wilson(r.ok, r.n)
-              const [lo, hi] = ci || [null, null]
-              if (lo == null) return null
-              return (
-                <div key={r.key} className={styles.recordRow}>
-                  <div className={styles.recordHead}>
-                    <strong>{r.label}</strong>
-                    <span>graded on {r.bar}{r.base != null ? ` · every hitter ${r.base.toFixed(1)}%` : ''}</span>
-                  </div>
-                  <div className={styles.recordNum}>
-                    <b>{r.pct.toFixed(1)}%</b>
-                    <span>{r.ok} of {r.n}</span>
-                  </div>
-                  {/* The bar is the RATE; the paler band behind its right edge
-                      is the 95% interval, drawn at the same scale. A reader
-                      should not have to take the point estimate on faith when
-                      the uncertainty can simply be shown. */}
-                  <div className={styles.recordBar} title={`${r.ok} of ${r.n} cleared ${r.bar}. 95% interval ${lo.toFixed(1)}% to ${hi.toFixed(1)}%.`}>
-                    <span className={styles.recordCi} style={{ left: `${lo}%`, width: `${hi - lo}%` }} />
-                    <span className={styles.recordFill} style={{ width: `${r.pct}%` }} />
-                  </div>
-                  <div className={styles.recordCiText}>
-                    95% band {lo.toFixed(1)}–{hi.toFixed(1)}%
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-          <p className={styles.recordQ}><b className={styles.nflInk}>TUDDY</b> · of the touchdown scorers, how many were on the board? · <Link href="/called?sport=nfl">the record&nbsp;→</Link></p>
-          <p className={styles.recordLine}>
-            {pulse.nflRecord
-              ? <><b>{pulse.nflRecord.onBoard} of {pulse.nflRecord.total}</b> on the board ({Math.round((100 * pulse.nflRecord.onBoard) / pulse.nflRecord.total)}%) · {pulse.nflRecord.called} of them CALLED · {pulse.nflRecord.days} game days with the board rank recorded</>
-              : 'The football record fills in once three game days have their pregame board rank recorded.'}
-          </p>
-          <p className={styles.recordQ}><b className={styles.nhlInk}>LAMP</b> · did the skaters we called score? · <Link href="/called?sport=nhl">the record&nbsp;→</Link></p>
-          {/* THE LADDER LEADS (2026-10-10, LAMP hero plan item 1): CALLED against ON THE BOARD against NOT ON THE BOARD against
-              every dressed skater, n and a 95% range on each row (lib/record/ladder.js, the calibration reader's rows). The
-              capture count this line used to lead with is a different question -- how many of the scorers we had called --
-              and follows, labelled. */}
-          {pulse.nhlLadder ? (
-            <LadderBlock ladder={pulse.nhlLadder} sport="nhl" compact>
-              {pulse.nhlRecord ? (
-                <LadderAside label="CAPTURE">
-                  {pulse.nhlRecord.called} of {pulse.nhlRecord.total} goal scorers were CALLED ({Math.round((100 * pulse.nhlRecord.called) / pulse.nhlRecord.total)}%), last {pulse.nhlRecord.days} nights: coverage, not how often a call scores.
-                </LadderAside>
-              ) : null}
-            </LadderBlock>
-          ) : (
-            <p className={styles.recordLine}>
-              {pulse.nhlRecord
-                ? <><b>Capture</b>: {pulse.nhlRecord.called} of {pulse.nhlRecord.total} goal scorers were CALLED ({Math.round((100 * pulse.nhlRecord.called) / pulse.nhlRecord.total)}%) · {pulse.nhlRecord.onBoard} on the board · {pulse.nhlRecord.days} regular-season nights</>
-                : 'No graded regular-season night yet.'}
-            </p>
-          )}
-          <details className={styles.recordFold}>
-            <summary>How this is counted</summary>
-            <p className={styles.stamp}>
-              MOONSHOT: the {record?.source || 'locked record'}: only calls whose board row was stamped before first
-              pitch, graded on what happened (nights stamped after first pitch{record?.lateNights?.length ? ` — ${record.lateNights.map((d) => d.slice(5).replace('-', '/')).join(', ')} --` : ''} are not counted),
-              the same numbers as the tier table on the record page. &quot;Every hitter&quot; is the rate for everyone on
-              the board on the same bar, which is the number a call has to beat. Each row is scored on the bar that call
-              was made for, so the rows are different questions and are never ranked against each other; a call type
-              with under 30 graded calls is left off until it has them. TUDDY leads with board coverage because its ladder names five
-              players a week against two dozen touchdowns. LAMP leads with its ladder: every dressed skater on the board, grouped by the status locked
-              before puck drop, regular season only, with the count and a 95% range on each row; its capture line is separate. Every night behind these numbers is on the{' '}
-              <Link href={ledgerAppHref('mlb', 'record')}>Ledger&apos;s Record tab</Link> and each product&apos;s own, one row at a time.
-            </p>
-          </details>
+          <p className={styles.recordLine}>Every call, graded in public. Locked before the game starts.{record?.callsLine ? ` MOONSHOT: ${record.callsLine}.` : ''}</p>
+          <RecordBlocks blocks={blocks} />
+          <Link className={styles.moreLink} href="/called">Every call, night by night, in the Ledger →</Link>
         </section>
       ) : null}
 
-      <section className={styles.products} id="products">
-        <article className={`${styles.product} ${styles.mlb}`}>
-          <header><i>M</i><div><strong>MOONSHOT</strong><small>MLB</small></div></header>
-          <h3>Tonight&apos;s board, graded by morning.</h3>
-          <p>HR, HIT, HRR and CONTACT calls, the full ranked board, and every receipt the next morning.</p>
-          {/* THE SAME SHAPE AS TUDDY'S (front door E, 2026-09-27): tonight's HR
-              calls as a list, top five by score, a homer marked -- was three
-              numbers the tiles above already show. */}
-          {mlb?.topCalls?.length && !mlbOff ? (
-            <ul className={styles.six}>
-              {mlb.topCalls.map((c) => (
-                <li key={c.id}><small>HR CALL</small><b>{c.id ? <Link href={playerHref('mlb', c.id)} className="tap-link" style={{ color: 'inherit' }}>{c.name}</Link> : c.name}</b><span>{c.team ? `${c.team} · ` : ''}{Math.round(c.score)}{c.homered ? ' · 🏠 HOMERED' : ''}</span></li>
-              ))}
-            </ul>
-          ) : (
-            <p className={styles.muted}>{mlbOff ? `No MLB games tonight · ${nextLine(mlb.next, mlb.today)}.` : 'Tonight’s calls post with the board.'}</p>
-          )}
-          <footer>
-            <Link href="/app#sport=mlb&tab=home">Open MOONSHOT →</Link>
-            <Link href={ledgerAppHref('mlb')}>The Ledger</Link>
-            <Link href="/app#sport=mlb&tab=watch">Your watchlist</Link>
-          </footer>
-        </article>
-
-        <article className={`${styles.product} ${styles.nfl}`}>
-          <header><i>T</i><div><strong>TUDDY</strong><small>NFL</small></div></header>
-          <h3>The Six, one call per market.</h3>
-          <p>{nfl?.label ? `${nfl.label} — ` : ''}anytime TD, receiving yards, rushing yards, receptions, passing yards and kicker points.</p>
-          {nfl?.six?.length ? (
-            <ul className={styles.six}>
-              {nfl.six.map((call) => (
-                <li key={call.key}><small>{call.label}</small><b>{call.player_id ? <Link href={playerHref('nfl', call.player_id)} className="tap-link" style={{ color: 'inherit' }}>{call.name}</Link> : call.name}</b><span>{call.team} · {Math.round(call.score)}</span></li>
-              ))}
-            </ul>
-          ) : (
-            // no week loaded (off-season, or the slate not published): one sentence, not two dashes (0g D7)
-            nfl?.games ? (
-              <dl><div><dt>Games</dt><dd>{nfl.games}</dd></div><div><dt>Players rated</dt><dd>{nfl?.players ?? 0}</dd></div></dl>
-            ) : (
-              <p className={styles.muted}>{nflOff ? <>No board this week yet · {nflOff}.</> : 'This week’s board posts once the slate is set.'}</p>
-            )
-          )}
-          <footer>
-            <Link href="/app#sport=nfl&tab=home">Open TUDDY →</Link>
-            <Link href="/app#sport=nfl&tab=boards">Boards</Link>
-            <Link href={ledgerAppHref('nfl')}>The Ledger</Link>
-            <Link href="/app#sport=nfl&tab=watchlist">Your watchlist</Link>
-          </footer>
-        </article>
-
-        <article className={`${styles.product} ${styles.nhl}`}>
-          <header><i>L</i><div><strong>LAMP</strong><small>NHL</small></div></header>
-          <h3>One called per team, every game, locked before puck drop.</h3>
-          <p>Shots, goals and ice time per game, ranked for tonight&apos;s skaters and graded after the game.</p>
-          {nhl?.calls?.length ? (
-            // The #1 called in each LOCKED game. Once graded, the lamp on a scorer.
-            <ul className={styles.six}>
-              {nhl.calls.map((call) => (
-                <li key={call.gameId}><small>{call.away} @ {call.home}</small><b>{call.playerId ? <Link href={playerHref('nhl', call.playerId)} className="tap-link" style={{ color: 'inherit' }}>{call.name}</Link> : call.name}</b><span>{call.team} · {Math.round(call.score)}{call.graded ? (call.hit ? ' · 🚨 SCORED' : call.dressed === false ? ' · VOID' : ' · no goal') : ''}</span></li>
-              ))}
-            </ul>
-          ) : nhl?.games ? (
-            <dl>
-              <div><dt>Games</dt><dd>{nhl.games}</dd></div>
-              <div><dt>Locked</dt><dd>{`${nhl.lockedGames} / ${nhl.games}`}</dd></div>
-              <div><dt>First lock</dt><dd>{nhl.lockedGames ? 'done' : etClock(nhl.locksFromUtc)}</dd></div>
-            </dl>
-          ) : (
-            // No games tonight: say why, from the schedule (Part A3), not three dashes.
-            <p>{lampWhy(nhl) || 'No NHL games tonight.'}</p>
-          )}
-          <footer>
-            <Link href="/app#sport=nhl&tab=home">Open LAMP →</Link>
-            <Link href="/app#sport=nhl&tab=board">Board</Link>
-            <Link href={ledgerAppHref('nhl')}>The Ledger</Link>
-            <Link href="/nhl/standings">Standings</Link>
-          </footer>
-        </article>
-
-        <article className={`${styles.product} ${styles.fantasy}`}>
-          <header><i>F</i><div><strong>FRANCHISE</strong><small>FANTASY</small></div></header>
-          <h3>Your league, with DASH reading it.</h3>
-          {me.user && me.leagues.length ? (
-            <ul className={styles.leagues}>
-              {me.leagues.map((league) => {
-                const mine = me.teams.find((team) => team.league_id === league.id && team.owner_id === me.user.id)
-                return (
-                  <li key={league.id}>
-                    <Link href={`/fantasy/league/${league.id}`}>
-                      <b>{league.name}</b>
-                      <span>{mine?.name || 'your team'} · {league.status}</span>
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
-          ) : (
-            <p className={styles.muted}>
-              {me.user ? 'No leagues yet — create one or enter an invite code.' : 'Draft with friends, run waivers and trades, and get a straight answer when you are stuck.'}
-            </p>
-          )}
-          <footer>
-            <Link href="/fantasy">Open FRANCHISE →</Link>
-          </footer>
-        </article>
+      {/* 5. THE OFFER. The one paid button on the page. The site stays free; members pay for delivery (lib/members.js). A member sees a line and a way
+          into the app instead; a signed-out visitor who already pays has a way to sign in. */}
+      <section className={styles.offer} id="offer" aria-label="Founding members">
+        {member ? (
+          <>
+            <p className={styles.kicker}>FOUNDING MEMBER</p>
+            <h2>You&apos;re a member.</h2>
+            <p className={styles.muted}>Every called player is delivered at lock. Each list above shows up to 8; all of them are in the app.</p>
+            <div className={styles.offerActions}><Link className={styles.cta} href={appHref(live)}>Open the app <b>→</b></Link></div>
+          </>
+        ) : (
+          <>
+            <p className={styles.kicker}>FOUNDING MEMBERS</p>
+            <h2>{MEMBERS_PRICE}.</h2>
+            <p className={styles.muted}>{MEMBERS_TRIAL[0].toUpperCase() + MEMBERS_TRIAL.slice(1)}. Delivered to a private Discord: every game&apos;s write-up, plus the board at lock and its grade. Everything on the site stays free.</p>
+            <div className={styles.offerActions}><a className={styles.cta} href={membersUrl()}>Join Founding members <b>→</b></a></div>
+            {me.user ? null : <p className={styles.already}>Already a member? <a href="#sign-in">Sign in</a></p>}
+          </>
+        )}
       </section>
 
+      {/* 6. FREE SIGN-UP, OPEN. #sign-in is this section and #create-account the anchor inside the card (login, the header and the actions' redirects
+          still land on them). WHAT NOW (2026-08-31, "didn't know what to do after signing up"): the welcome panel names three destinations. */}
       <section className={styles.auth} id="sign-in">
-        {/* ── WHAT NOW (2026-08-31) ────────────────────────────────────────
-            Donovan's third sign-up report: "didn't know what to do after
-            signing up." The old flow redirected to `/` — the very page they
-            were already on — with no acknowledgement that anything had
-            happened. An account was created and the site said nothing.
-            Three destinations, because three is a choice and eight is a
-            menu, and each one names what it is FOR rather than where it
-            goes. */}
         {welcomeName ? (
           <div className={styles.welcome}>
             <p className={styles.kicker}>YOU&apos;RE IN</p>
@@ -563,7 +190,7 @@ export default async function DashHome({ searchParams }) {
               in on. Here is where most people go first.
             </p>
             <div className={styles.welcomeSteps}>
-              <Link href="/app#sport=mlb&tab=home">Open MOONSHOT<span>MOONSHOT&apos;s read on tonight&apos;s baseball, graded by morning.</span></Link>
+              <Link href={appHref('mlb')}>Open MOONSHOT<span>MOONSHOT&apos;s read on tonight&apos;s baseball, graded by morning.</span></Link>
               <Link href="/app#sport=mlb&tab=bot">Star a few hitters<span>The ☆ on any player saves him to your watchlist — that is the thing an account is for.</span></Link>
               <Link href="/account">Turn on alerts<span>Get told when one of your names goes deep, on this device or off it.</span></Link>
             </div>
@@ -583,14 +210,9 @@ export default async function DashHome({ searchParams }) {
             </div>
           </div>
         ) : me.configured ? (
-          // Folded behind one button (funnel step 1): the form was ~900px of
-          // a 4,000px phone page. #sign-in / #create-account open it (the
-          // header links, /login, the actions' redirects), and it opens by
-          // itself when someone is mid-sign-up.
-          <details className={styles.authFold} id="auth" open={authOpen || undefined}>
-            <summary className={styles.barCta}>Create free account</summary>
+          <>
             <div className={styles.authIntro}>
-              <p className={styles.kicker}>ONE ACCOUNT, WHOLE NETWORK</p>
+              <p className={styles.kicker}>FREE ACCOUNT</p>
               <h2>Keep your list when you switch devices.</h2>
               <span>
                 Free, and it changes nothing about reading the site — MOONSHOT, TUDDY and LAMP are
@@ -599,11 +221,8 @@ export default async function DashHome({ searchParams }) {
               </span>
             </div>
             <div className={styles.authGrid}>
-              {/* notice/defaults come from back() in actions.js: a failed
-                  attempt returns here with the name and email already typed,
-                  the right tab open, and the reason next to the field rather
-                  than at the top of the page. The password is deliberately
-                  never carried in a URL. */}
+              {/* notice/defaults come from back() in actions.js: a failed attempt returns here with the name and email already typed, the right tab open,
+                  and the reason next to the field rather than at the top of the page. The password is deliberately never carried in a URL. */}
               <DashAuthCard
                 next="/"
                 notice={params.error || params.message || null}
@@ -612,22 +231,25 @@ export default async function DashHome({ searchParams }) {
                 defaultName={typeof params.nm === 'string' ? params.nm : ''}
                 confirmEmail={typeof params.confirm === 'string' ? params.confirm : ''}
               />
-              <p className={styles.authEscape}>
-                Don&apos;t want an account? <Link href="/app#sport=mlb&tab=home">Open MOONSHOT anyway →</Link>{' '}
-                Everything on MOONSHOT, TUDDY and LAMP is readable without one.
-              </p>
             </div>
-          </details>
+          </>
         ) : (
           <p className={styles.muted}>Accounts aren&apos;t configured on this deploy — everything you save stays in this browser.</p>
         )}
-        <OpenOnHash id="auth" also={['sign-in', 'create-account']} />
       </section>
 
-      {/* Thirty-six switches are for somebody who has already decided; a
-          stranger scrolled past two screens of them (stranger test F2). One
-          tap opens it, and so does the header's #alerts link (OpenOnHash --
-          a browser won't open a <details> just because a link targets it). */}
+      {/* 7. THE BOARDS, ONE ROW (the registry's sports, lib/routes.js), then the free Discord. */}
+      <nav className={styles.sports} aria-label="The boards">
+        {SPORT_KEYS.map((k) => (
+          <Link key={k} href={appHref(k)} style={{ '--accent': SPORT_ACCENT[k] }}>
+            <strong>{BRAND[k].name}</strong><small>{BRAND[k].league} board</small>
+          </Link>
+        ))}
+      </nav>
+      <a className={styles.discord} href={DISCORD_URL} target="_blank" rel="noopener noreferrer">Join the free Discord <b>→</b></a>
+
+      {/* Alerts (the 36 switches) live here and nowhere else: /account, the app's AlertsQuick and old links point at /#alerts. Folded; the footer link and the
+          hash open it (OpenOnHash: a browser won't open a <details> just because a link targets it). */}
       <section className={styles.alertsSection}>
         <details className={styles.alertsFold} id="alerts">
           <summary>Alerts &mdash; tell me when my players do something</summary>
@@ -639,22 +261,10 @@ export default async function DashHome({ searchParams }) {
       <footer className={styles.foot}>
         <span>DASH NETWORK</span>
         <Link href="/called">CALLED IT</Link>
-        <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer">Discord</a>
-        <Link href="/app#sport=mlb&tab=home">MOONSHOT · MLB</Link>
-        <Link href="/app#sport=nfl&tab=home">TUDDY · NFL</Link>
-        <Link href="/app#sport=nhl&tab=home">LAMP · NHL</Link>
-        <Link href="/fantasy">FRANCHISE · FANTASY</Link>
+        <Link href="/members">MEMBERS</Link>
+        <a href="#alerts">ALERTS</a>
+        <Link href="/fantasy">FRANCHISE</Link>
       </footer>
     </main>
-  )
-}
-
-function Tile({ label, value, sub, accent }) {
-  return (
-    <div className={`${styles.tile} ${styles[accent] || ''}`}>
-      <small>{label}</small>
-      <strong>{value ?? '—'}</strong>
-      <span>{sub || ''}</span>
-    </div>
   )
 }

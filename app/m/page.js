@@ -11,6 +11,9 @@ import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { BRAND, SPORT_KEYS, sportKey, appHref, watchHash, playerHref } from '../../lib/routes'
 import { RECORD_LINE } from '../../lib/record/publicLine'
 import { mlbTodayCalls } from '../../lib/phone/todayCalls'
+import { viewerIsMember } from '../../lib/members/viewer'
+import { gateCalls, isOpenCall } from '../../lib/members/hide'
+import { membersUrl } from '../../lib/members'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'DASH Network phone app', robots: { index: false } }
@@ -53,7 +56,13 @@ export default async function PhoneApp({ searchParams }) {
   const line = RECORD_LINE[sport] ? await RECORD_LINE[sport]() : null
   const ResearchTable = RESEARCH_TABLE[sport]
   const on = (key) => key === tab || (tab === 'card' && key === 'research')
-  const calls = tab === 'today' && TODAY_CALLS[sport] ? await TODAY_CALLS[sport]() : null
+  const rawCalls = tab === 'today' && TODAY_CALLS[sport] ? await TODAY_CALLS[sport]() : null
+  // TONIGHT'S CALLS, FOR THIS VISITOR (2026-10-17): the real hiding, on the server, like the front door. A non-member gets the first four (the front page's four) and
+  // every call whose game has started; the rest are counted, never sent. A member sees the list as before.
+  const member = rawCalls ? await viewerIsMember() : false
+  const gated = rawCalls ? gateCalls(rawCalls.items, { member, byPlace: true, isPublic: (it) => !isOpenCall({ status: 'called', startMs: it.firstPitch }) }) : null
+  const calls = rawCalls ? { ...rawCalls, items: gated.items } : null
+  const hiddenCalls = gated ? gated.hidden : 0
   return (
     <main style={{ background: C.bg, color: C.text, minHeight: '100dvh', paddingBottom: 'calc(96px + env(safe-area-inset-bottom))' }}>
       <header style={{ position: 'sticky', top: 0, zIndex: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 14px', paddingTop: 'calc(10px + env(safe-area-inset-top))', background: C.bg, borderBottom: `1px solid ${C.border}` }}>
@@ -72,7 +81,13 @@ export default async function PhoneApp({ searchParams }) {
         {tab === 'today' ? (
           <>
             {calls ? <CardSwipe sport={sport} items={calls.items} /> : <CardLandingImage src={`/api/card/share?kind=ranked&sport=${sport}&w=720`} alt={`${brand.name} ${brand.league} board card`} />}
-            <p style={{ margin: '6px 2px 0', fontWeight: 800, fontSize: TYPE.title }}>{brand.icon} {brand.name}: {calls ? `${calls.items.length} calls tonight, locked before the game.` : "tonight's calls, locked before the game."}</p>
+            <p style={{ margin: '6px 2px 0', fontWeight: 800, fontSize: TYPE.title }}>{brand.icon} {brand.name}: {calls ? `${calls.items.length + hiddenCalls} calls tonight, locked before the game.` : "tonight's calls, locked before the game."}</p>
+            {hiddenCalls > 0 ? (
+              <p data-pm="hidden-called" style={{ margin: '0 2px', ...sub }}>
+                {hiddenCalls} more called {hiddenCalls === 1 ? 'pick is' : 'picks are'} for members.{' '}
+                <a href={membersUrl()} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 44, minWidth: 44, padding: '0 8px', fontWeight: 900, color: C.text, textDecoration: 'underline' }}>Join</a>
+              </p>
+            ) : null}
             <Tile to={appHref(sport)} title="Open tonight's full board" note="Opens the full site" />
           </>
         ) : null}
