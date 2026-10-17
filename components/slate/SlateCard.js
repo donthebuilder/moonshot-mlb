@@ -3,6 +3,7 @@ import { C, NUM_FONT } from '../../lib/theme'
 import { alpha, verdictInk } from '../../lib/scales'
 import { Dial } from '../VerdictHero'
 import TeamMark from '../TeamMark'
+import { ANGLE_TAG } from '../../lib/slate/angles'
 
 // ONE GAME CARD, ANY SPORT (2026-09-28). MOONSHOT's game card
 // (components/GameStrip.js, "the same style as the prop cards", 2026-08-23)
@@ -20,17 +21,27 @@ import TeamMark from '../TeamMark'
 //   extra: node,                       // one more meta clause (the air…)
 //   score: { away, home, awayScore, homeScore, live } | null,
 //   chips: [{ key, tag, color, name, score, title, onClick, leg, style, locked }],   // locked (members gate): a CALLED headline the viewer may not read is not drawn at all
+//   weak: 'Weak spot: ...',            // THE WEAK SPOT (one line of public analysis); with weak / angles the card draws BEST ANGLES instead of the chips
+//   angles: [{ key, kind: 'matchup' | 'form', name, team, why, href, onClick }],   // lib/slate/angles.js pickAngles: chosen by matchup and form, never by call status
 // }
 // card.large (LAMP, 2026-10-06, Donovan: "you can't read that"): the meta line and
 // the chips at 12px (the tag 11) and a 62px dial; absent, every size below is
 // exactly what it was, so MOONSHOT's and TUDDY's strips are unchanged.
 export default function SlateCard({ card: c, on = false, accent = C.orange, onSelect, target = null, sport = 'mlb' }) {
   const L = Boolean(c.large)
+  // BEST ANGLES (2026-10-17): the angle rows are real links (a player is a link), and a link cannot live inside a <button>; so a card that carries them
+  // is a role=button div with the same style. Every card without angles stays the button it was.
+  const withAngles = c.weak !== undefined || c.angles !== undefined
+  const Root = withAngles ? 'div' : 'button'
+  const rootProps = withAngles
+    ? { role: 'button', tabIndex: 0, onKeyDown: (e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelect(c.id) } } }
+    : {}
   const ink = verdictInk(c.heat >= 0.55 ? true : c.heat <= 0.25 ? false : null)
   const col = on ? accent : ink.color
   const wash = alpha(col, 0.05 + 0.11 * c.heat)
   return (
-    <button
+    <Root
+      {...rootProps}
       onClick={() => onSelect(c.id)}
       title={c.tooltip}
       style={{
@@ -109,8 +120,34 @@ export default function SlateCard({ card: c, on = false, accent = C.orange, onSe
         )
       })()}
 
+      {/* THE WEAK SPOT, then BEST ANGLES: two rows chosen by matchup and by form (lib/slate/angles.js), no call stamp, no model number */}
+      {c.weak ? (
+        <div style={{ fontSize: 12, lineHeight: 1.4, color: C.text2, fontFamily: NUM_FONT, fontWeight: 600, minWidth: 0 }}>{c.weak}</div>
+      ) : null}
+      {c.angles?.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.1em', color: C.text3, fontFamily: NUM_FONT }}>BEST ANGLES</div>
+          {c.angles.map((a) => (
+            <a key={`${a.kind}-${a.key}`} href={a.href} title={a.title}
+              onClick={(e) => { e.stopPropagation(); if (a.onClick) { e.preventDefault(); a.onClick(e) } }}
+              style={{
+                display: 'flex', gap: 8, alignItems: 'center', minWidth: 0, minHeight: 44, boxSizing: 'border-box',
+                padding: '4px 8px', borderRadius: 10, border: `1px solid ${C.border}`, background: C.glass,
+                color: C.text2, textDecoration: 'none', fontFamily: NUM_FONT,
+              }}>
+              {a.team ? <TeamMark sport={sport} abbr={a.team} variant="logo" px={20} /> : null}
+              <span style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <b style={{ fontSize: 11, letterSpacing: '.08em', color: accent }}>{ANGLE_TAG[a.kind]}</b>
+                <span style={{ fontSize: 13, fontWeight: 800, color: C.text, overflowWrap: 'anywhere' }}>{a.leg ? '🔗 ' : ''}{a.name}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.3, color: C.text2 }}>{a.why}</span>
+              </span>
+            </a>
+          ))}
+        </div>
+      )}
+
       {/* THE EITHER/OR ROW, in the prop card's tile language */}
-      {c.chips?.some((k) => !k.locked) && (
+      {!withAngles && c.chips?.some((k) => !k.locked) && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
           {c.chips.filter((k) => !k.locked).map((k) => (
             <span key={k.key}
@@ -135,6 +172,6 @@ export default function SlateCard({ card: c, on = false, accent = C.orange, onSe
           ))}
         </div>
       )}
-    </button>
+    </Root>
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 import TeamMark, { MatchLogos } from '../TeamMark'
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import { C, NUM_FONT, TYPE, gradeFor } from '../../lib/nfl/theme'
+import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { useHashFilter } from '../../lib/filterHash'
 import { useIsPhone } from '../MobileFold'
 import Tap from '../Tap'
@@ -26,8 +26,7 @@ import WriteupBlock from './WriteupBlock'
 import GameLedgerLine from '../ledger/GameLedgerLine'
 import { easternDate } from '../../lib/data'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
-import { useCallGate } from '../MemberGate'
-import { lockedFor } from '../../lib/members/gate'
+import { useCallGate, useLockOf } from '../MemberGate'
 import { localDayTime } from '../../lib/localTime'
 import { slateTotals, TD_WORD, TD_WORD_SHORT } from '../../lib/nfl/teamTdModel'
 import { expectedClause } from '../../lib/expectedLine'
@@ -35,6 +34,9 @@ import InjuryOut from '../injuries/InjuryOut'
 import { useOutCounts } from '../injuries/InjuryLayer'
 import { nameKey } from '../../lib/injuries/lookup'
 import { depthRole } from '../../lib/nfl/roles'
+import { nflGameAngles } from '../../lib/nfl/gameAngles'
+import { pickAngles } from '../../lib/slate/angles'
+import { playerHref } from '../../lib/routes'
 
 // TUDDY'S SLATE (2026-09-28). Donovan: "there's no breakdown page like the
 // slate page for mlb ... I should be able to see each game and get a good
@@ -55,7 +57,6 @@ import { depthRole } from '../../lib/nfl/roles'
 // scores, calls and the defense data are the week file's and the matchup file's own.
 
 const HEADLINE_MARKETS = ['TD', 'REC_YDS', 'RUSH_YDS', 'REC', 'PASS_YDS', 'KICK_PTS']
-const MARKET_TAG = { TD: 'TD', REC_YDS: 'REC YDS', RUSH_YDS: 'RUSH YDS', REC: 'REC', PASS_YDS: 'PASS YDS', KICK_PTS: 'KICK' }
 // the pills, their order and their words: lib/game/sections.js (the 'nfl' slate list)
 const PANELS = panelPairs('nfl')
 const SUBS = panelSubs('nfl')
@@ -147,20 +148,26 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
 
   const top = games.reduce((a, g) => ((xOf(g) ?? -1) > ((a ? xOf(a) : null) ?? -1) ? g : a), null)
 
-  // MEMBERS LOCK (components/MemberGate.js): the headline calls printed on the game cards, keyed by player (the TD board's key) with the game's kickoff; null for everyone but a free viewer
-  const gateOf = useCallGate({
-    rows: () => shownGames.flatMap((g) => callsIn(picks, g).map(({ call }) => ({ pid: String(call.player_id), kickoff: g.kickoff }))), source: [shownGames, picks],
+  // MEMBERS LOCK (components/MemberGate.js): publishes the free four over the headline calls (keyed by player, the TD board's key, with the game's kickoff) so the cards' angle rows (useLockOf below) and the tables agree on who a non-member may read
+  // the source is a STABLE token (a fresh array each render would recompute the free set every render, and now that this component also READS the free set
+  // (useLockOf below) that republish would loop: React error #185)
+  const gateSig = shownGames.map((g) => `${g.game_id}@${g.kickoff}`).join(',')
+  const gateSource = useMemo(() => ({ shownGames, picks }), [gateSig, picks])   // eslint-disable-line react-hooks/exhaustive-deps
+  useCallGate({
+    rows: () => shownGames.flatMap((g) => callsIn(picks, g).map(({ call }) => ({ pid: String(call.player_id), kickoff: g.kickoff }))), source: gateSource,
     statusOf: () => 'called', keyOf: (x) => x.pid, timeOf: (x) => x.kickoff,
   })
+  // BEST ANGLES (Donovan 2026-10-17): the card's two rows are chosen by MATCHUP and FORM (lib/nfl/gameAngles.js + lib/slate/angles.js), never by call status.
+  // The status below is only the member gate's question: a CALLED, not-started pick a non-member may not read is skipped (the next best takes his place).
+  const lockOf = useLockOf()
+  const callStatusOf = useMemo(() => tdStatusFor({ picksCard: picks?.card, gameCalls, games: allGames, board: pool.rows }).statusOf, [picks, gameCalls, allGames, pool])
   const cards = games.map((g) => {
     const x = xOf(g)
     const heat = heatOf(g)
-    const calls = callsIn(picks, g)
-    const chipsFrom = calls.length
-      ? calls.slice(0, 3).map(({ market, call }) => ({ market, name: call.name, score: call.score, pid: call.player_id }))
-      : players.filter((p) => (p.team === g.away || p.team === g.home) && Number.isFinite(p.scores?.TD)).sort((a, b) => b.scores.TD - a.scores.TD).slice(0, 2)
-        .map((p) => ({ market: 'TD', name: p.name, score: p.scores.TD, pid: p.player_id }))
     const live = g.state === 'in'
+    const ang = nflGameAngles({ matchup, game: g, players, logs, hrefOf: (id) => playerHref('nfl', id) })
+    const hiddenOf = (c) => { const p = playersById[c.key]; return Boolean(p) && lockOf({ status: callStatusOf(p), key: c.key, time: g.kickoff, graded: Boolean(g.completed) }).locked }
+    const angles = pickAngles({ matchup: ang.matchup, form: ang.form, hiddenOf }).map((a) => ({ ...a, onClick: () => { const p = playersById[a.key]; if (p) onPlayerClick?.(p, 'TD') } }))
     return {
       id: String(g.game_id), title: <MatchLogos sport="nfl" away={g.away} home={g.home} px={26} gap={5} />, past: Boolean(g.completed), heat,
       tooltip: `${g.away} @ ${g.home}${g.venue ? ` · ${g.venue}` : ''}`,
@@ -176,13 +183,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
         return line || tot ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>{line}{tot}</span> : null
       })(),
       score: (live || g.completed) ? { away: g.away, home: g.home, awayScore: g.away_score, homeScore: g.home_score, live } : null,
-      chips: chipsFrom.map((k) => ({
-        key: `${k.market}-${k.pid}`, tag: MARKET_TAG[k.market] || k.market, color: gradeFor(k.score).color,
-        name: k.name, score: Math.round(k.score ?? 0),
-        title: calls.length ? `TUDDY's ${MARKET_TAG[k.market] || k.market} call in this game` : "Top TD score in this game (no headline call lands here)",
-        ...(calls.length && gateOf && (() => { const gt = gateOf({ pid: String(k.pid), kickoff: g.kickoff }); return lockedFor({ status: 'called', started: gt.started, graded: gt.graded, key: gt.key, free: gt.free, memberState: 'free' }) })() ? { locked: true, title: 'Members see tonight\u2019s call and why' } : null),
-        onClick: (e) => { e.stopPropagation(); const p = playersById[String(k.pid)]; if (p) onPlayerClick?.(p, k.market) },
-      })),
+      weak: ang.weak, angles,
     }
   })
 
@@ -195,7 +196,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
       <GameFilterRail value={gfilter} onChange={setGfilter} counts={counts} />
       <SlateStrip sport="nfl" isPhone={isPhone} rememberKey="tuddy_games_fold_v1" accent={C.green} theme={C}
         open={g ? { away: g.away, home: g.home } : null} cards={cards} activeId={activeId} onSelect={select}
-        legend={`Ring = ${TD_WORD}.`} />
+        legend={`Ring = ${TD_WORD}. Best angles: the best matchup against the weak spot, and the best last three games.`} />
       <GameSwitcher sport="nfl" games={switcherGames} activeGame={activeId} onSelect={select} live={switcherLive} accent={C.green} stickyTop="0px" />
 
       {g && (() => {

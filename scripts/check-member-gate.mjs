@@ -158,5 +158,37 @@ for (const f of ['components/CallStatusBadge.js', 'components/MemberGate.js', 'c
   ok(/FREE_CALLS_PER_SPORT = 4\b/.test(readFileSync(new URL('../lib/members/limits.js', import.meta.url), 'utf8')), 'lib/members/limits.js: the free taste is no longer 4 (a test value left in?)')
 }
 
+// 11. BEST ANGLES ON THE GAME CARDS (Donovan 2026-10-17). The card's two rows are chosen by matchup and form (lib/slate/angles.js) and pass through this gate:
+//     a hidden CALLED pick (tonight's not-started CALLED man outside the free four, for a non-member) is never chosen, the next best takes his place; the free four,
+//     members and unknown viewers are chosen as ever; a started / graded pick is public. TEST DATA.
+{
+  const { pickAngles } = await import('../lib/slate/angles.js')
+  const free4 = new Set(['test-1'])
+  // TEST candidates: test-1 is the best matchup AND a free-four CALLED man; test-2 the next best matchup, CALLED and hidden; test-5 the best form, CALLED and hidden
+  const cands = {
+    matchup: [{ key: 'test-2', name: 'Test Two', why: 'w', fit: 90, status: 'called' }, { key: 'test-3', name: 'Test Three', why: 'w', fit: 80, status: 'board' }, { key: 'test-1', name: 'Test One', why: 'w', fit: 95, status: 'called' }],
+    form: [{ key: 'test-5', name: 'Test Five', why: 'f', form: 9, status: 'called' }, { key: 'test-6', name: 'Test Six', why: 'f', form: 7, status: 'board' }, { key: 'test-1', name: 'Test One', why: 'f', form: 8, status: 'called' }],
+  }
+  const hiddenFor = (memberState, over = {}) => (c) => lockedFor({ status: c.status, started: false, graded: false, key: c.key, free: free4, memberState, ...over })
+  const names = (rows) => rows.map((r) => `${r.kind}:${r.key}`)
+  eq(names(pickAngles({ ...cands, hiddenOf: hiddenFor('free') })), ['matchup:test-1', 'form:test-6'], 'angles: a free viewer gets the free-four man (test-1) as the matchup row; the hidden CALLED best form (test-5) is skipped for the next best (test-6)')
+  eq(names(pickAngles({ ...cands, hiddenOf: hiddenFor('member') })), ['matchup:test-1', 'form:test-5'], 'angles: a member gets every row as chosen (test-5 is the best form)')
+  eq(names(pickAngles({ ...cands, hiddenOf: hiddenFor('unknown') })), ['matchup:test-1', 'form:test-5'], 'angles: unknown membership fails open')
+  const noFree = (memberState) => (c) => lockedFor({ status: c.status, started: false, graded: false, key: c.key, free: new Set(), memberState })
+  eq(names(pickAngles({ ...cands, hiddenOf: noFree('free') })), ['matchup:test-3', 'form:test-6'], 'angles: with no free four, every hidden CALLED man (test-1, test-2, test-5) is skipped and the next best (test-3, test-6) takes the rows')
+  eq(names(pickAngles({ ...cands, hiddenOf: hiddenFor('free', { started: true }) })), ['matchup:test-1', 'form:test-5'], 'angles: a started game is public, so its called men are chosen')
+  eq(names(pickAngles({ ...cands, hiddenOf: hiddenFor('free', { graded: true }) })), ['matchup:test-1', 'form:test-5'], 'angles: a graded pick is public')
+  const allHidden = pickAngles({ matchup: [cands.matchup[0]], form: [cands.form[0]], hiddenOf: noFree('free') })
+  eq(allHidden, [], 'angles: when every candidate is a hidden CALLED man the card has no rows (nobody is invented to fill them)')
+  // nothing in the rows says "called"
+  const shown = pickAngles({ ...cands, hiddenOf: hiddenFor('member') })
+  ok(shown.every((r) => !/called/i.test(JSON.stringify({ k: r.kind, w: r.why, n: r.name }))), 'angles: a row never carries the word called')
+  for (const f of ['components/nfl/NflSlate.js', 'components/GameStrip.js', 'components/lamp/LampSlate.js', 'components/buckets/tabs/Slate.js']) {
+    const src = readFileSync(new URL(`../${f}`, import.meta.url), 'utf8')
+    ok(/pickAngles\(/.test(src) && /hiddenOf/.test(src), `${f}: the game card's angle rows no longer go through pickAngles + hiddenOf (the member gate)`)
+    ok(/useLockOf|lampLocked/.test(src), `${f}: the game card's angle rows no longer ask the member gate`)
+  }
+}
+
 if (fails.length) { console.error('check-member-gate FAILED:\n - ' + fails.join('\n - ')); process.exit(1) }
 console.log('check-member-gate: ok')

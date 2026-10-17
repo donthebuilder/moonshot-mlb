@@ -2,7 +2,7 @@
 import { Fragment, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
 import { heatOf as heatIn, heatTier, dialInk, leagueHeat } from '../../lib/nhl/slateHeat'
-import { useLampBoard } from '../../lib/nhl/useLamp'
+import { useLampBoard, useLampGoalieWeakMany } from '../../lib/nhl/useLamp'
 import { useHashFilter } from '../../lib/filterHash'
 import { useIsPhone } from '../MobileFold'
 import PageHeader from '../PageHeader'
@@ -31,6 +31,9 @@ import { nhlNickname } from '../../lib/nhl/teams'
 import ShareCardButton from '../card/ShareCardButton'
 import GameTotalLine, { GameTotalMark, totalRowFor, useGameTotals } from '../GameTotalLine'
 import { shareUrl, slug, stamp } from '../../lib/cards/saveCard'
+import { nhlGameAngles, confirmedGoalies } from '../../lib/nhl/gameAngles'
+import { pickAngles } from '../../lib/slate/angles'
+import { playerHref } from '../../lib/routes'
 
 // LAMP'S SLATE (2026-09-28). MOONSHOT's Slate (components/tabs/Games.js,
 // Games view) built from its own pieces -- components/slate/* -- with the
@@ -141,11 +144,19 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
         : "Each club's goals a game and what the other side lets in (the shot history is not in yet). ")
       + 'The ring fills against all games, not just tonight.'
   }
+  // BEST ANGLES (Donovan 2026-10-17): one read of the confirmed starters' weak zones for the whole slate (lib/nhl/goalieWeak.js, the write-up's source); no poll.
+  // The rows are chosen by matchup and form (lib/nhl/gameAngles.js + lib/slate/angles.js), never by call status; a CALLED skater a non-member may not read is skipped.
+  const weakIds = useMemo(() => (view === 'games' ? allGames.flatMap((g) => confirmedGoalies(g).map((x) => x.id)) : []), [allGames, view])
+  const weakQ = useLampGoalieWeakMany(weakIds, allGames.find((g) => g.game?.season)?.game?.season || null, view === 'games')
+  // one goalie answers as his own block, several as { goalies } (app/api/lamp/goalieweak)
+  const goalieWeak = weakQ.data?.goalies || (weakQ.data?.goalie != null ? { [String(weakQ.data.goalie)]: weakQ.data } : null)
   const cards = games.map((g) => {
     const best = bestOf(g)
+    const ang = nhlGameAngles({ bg: g, goalieWeak, hrefOf: (id) => playerHref('nhl', id) })
+    const angles = pickAngles({ matchup: ang.matchup, form: ang.form, hiddenOf: (c) => c.row?.status === 'called' && lampLocked(gateOf, { _row: c.row, _g: g }) })
+      .map((a) => ({ ...a, onClick: () => onOpenPlayer?.(a.pid) }))
     const heat = heatFor(g)
     const st = stateOf(g)
-    const called = g.rows.filter((r) => r.status === 'called').sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99))
     return {
       large: true,
       id: String(g.game.id), title: <CardTitle g={g} st={st} />, past: st === 'final', heat,
@@ -160,11 +171,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
         return tr ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>{base}<GameTotalMark row={tr} /></span> : base
       })(),
       score: null,   // the title carries it: each club once, with its score beside it
-      chips: called.map((r) => ({
-        key: String(r.playerId), tag: 'CALL', color: C.ice, name: r.name, score: Math.round(r.score ?? 0),
-        ...(lampLocked(gateOf, { _row: r, _g: g }) ? { locked: true, title: 'Members see tonight\u2019s call and why' } : { title: `${STATUS_WORD.called} — #${r.rank} in this game${g.graded ? (r.hit ? ', scored' : ', did not score') : ''}` }),
-        onClick: (e) => { e.stopPropagation(); onOpenPlayer?.(r.playerId) },
-      })),
+      weak: ang.weak, angles,
     }
   })
 
@@ -216,7 +223,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
           <GameFilterRail value={gfilter} onChange={setGfilter} counts={counts} />
           <SlateStrip sport="nhl" isPhone={isPhone} rememberKey="lamp_games_fold_v1" accent={C.ice} theme={C}
             open={g ? { away: g.game.away.abbrev, home: g.game.home.abbrev } : null} cards={cards} activeId={activeId} onSelect={select}
-            legend={<>Ring = {XG_WORDS}, from each club&apos;s shots. 🔒 locked, ◻ preview.</>} />
+            legend={<>Ring = {XG_WORDS}, from each club&apos;s shots. Best angles: the best matchup against the weak spot, and the hottest shooter. 🔒 locked, ◻ preview.</>} />
           <GameSwitcher sport="nhl" games={switcherGames} activeGame={activeId} onSelect={select} live={switcherLive} accent={C.ice} stickyTop="0px" />
         </>
       )}
