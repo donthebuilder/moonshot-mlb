@@ -43,6 +43,7 @@ import { namedInText, withNamed, isRetiredForever } from '../../../../../lib/das
 import { resolveNaming, mlbNamingProblem } from '../../../../../lib/dash/namingChecks'
 import { primeInjuries } from '../../../../../lib/injuries/read'
 import { postSlateOnce } from '../../../../../lib/posts/slate'
+import { foldedForDiscord } from '../../../../../lib/posts/sportPlans'
 import { periodsDue, postPeriodOnce, postReceiptOnce } from '../../../../../lib/posts/receipt'
 import { receiptLoader } from '../../../../../lib/posts/receiptLoad'
 import { phxClock } from '../../../../../lib/dash/xSchedule'
@@ -1880,7 +1881,7 @@ async function mlbTick(request) {
           if (boardClaim) {
             const text = boardRoleText(boardPicks, { day, ...tailFor('board') })
             const patch = { payload: withNamed({ picks: boardPicks }, pregameCalled(boardPicks, text)) }
-            const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
+            const d = foldedForDiscord('board') ? { ok: false } : await postToDiscord(text, {}, FEED_WEBHOOKS())   // SPORT_PLANS_ON: recorded, not delivered to the rooms
             if (d.ok) patch.discord_sent = true
             if (hasX()) {
               const r = await postToX(text, { kind: 'board' })
