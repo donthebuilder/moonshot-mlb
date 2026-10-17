@@ -76,7 +76,7 @@ const vs = (r) => `${r.home ? 'vs' : '@'} ${r.opp}`
 // games since his last goal, from the season's game log (newest first); '—' with no log
 const droughtOf = (rows = []) => { if (!rows.length) return '—'; const i = rows.findIndex((r) => Number(r.g) > 0); return String(i < 0 ? rows.length : i) }
 
-export default function Player({ id, onOpenTeam, onOpenGame, onBack, backLabel = 'Players', onStep = null, peek = false }) {
+export default function Player({ id, onOpenTeam, onOpenGame, onBack, backLabel = 'Players', onStep = null, peek = false, lead = null }) {
   const { data: p, error, loading } = useLampPlayer(id)
   if (!id) return <EmptyState title="NO PLAYER PICKED" note="Open a player from a roster, the directory, a leaders table, or a goal."><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   if (!/^\d{7}$/.test(String(id))) return <EmptyState title="NO SUCH PLAYER" note={`“${String(id)}” is not an NHL player id -- the link may be old or cut short.`} tone={C.text3}><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
@@ -85,7 +85,7 @@ export default function Player({ id, onOpenTeam, onOpenGame, onBack, backLabel =
     const nobody = error?.status === 400 || error?.status === 404
     return <EmptyState title={nobody ? 'NO SUCH PLAYER' : 'LIVE DATA DELAYED'} note={nobody ? 'We don’t know a player with that id.' : 'We’re still loading his file. Try again in a moment.'} tone={nobody ? C.text3 : C.amber}><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   }
-  return <PlayerBody key={p.id} p={p} error={error} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} onBack={onBack} backLabel={backLabel} onStep={onStep} peek={peek} />
+  return <PlayerBody key={p.id} p={p} error={error} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} onBack={onBack} backLabel={backLabel} onStep={onStep} peek={peek} lead={lead} />
 }
 
 // HIS ROW ON TONIGHT'S BOARD (2026-09-28, plan C3): the header is MOONSHOT's
@@ -136,7 +136,7 @@ function SeasonToggle({ value, onChange, p }) {
   return <SharedSeasonToggle options={options} value={value} onChange={onChange} theme={C} numFont={NUM_FONT} accent={C.ice} />
 }
 
-function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onStep, peek }) {
+function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onStep, peek, lead = null }) {
   const goalie = p.goalie
   const { data: board } = useLampBoardOnce()
   const spot = boardSpot(board, p)
@@ -234,8 +234,8 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* THE TOP ROW: Back on the left, his card at the right end: the flip Card and Save (the same baseball card the alerts use: his word, score and night rank,
           his rates, season line, form and drought). A goalie has no goal board, so no card. */}
-      {(onBack || !goalie) && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: onBack ? 'space-between' : 'flex-end', gap: 8 }}>
+      {(onBack || !goalie || lead) && (
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: onBack ? 'space-between' : 'flex-end', gap: 8 }}>
           {onBack ? <BackBtn onBack={onBack} label={backLabel} /> : null}
           {!goalie && (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -243,10 +243,13 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
               <ShareCardButton sport="nhl" what="his card" url={playerUrl({ sport: 'nhl', id: p.id })} filename={`${slug(p.name, 'player')}_${stamp(board?.date)}.png`} />
             </span>
           )}
+          {/* the card in a peek: the previous / next / compare / search arrows and Full page / close share this ONE row (was three stacked rows) */}
+          {lead && onStep && peers.length > 1 && <Navigator peers={peers} cur={cur} noun="player" onNavigate={(x) => onStep(x.id)} />}
+          {lead}
         </div>
       )}
       <DelayedBanner error={error} what="his file" />
-      {onStep && peers.length > 1 && (
+      {!lead && onStep && peers.length > 1 && (
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <Navigator peers={peers} cur={cur} noun="player" onNavigate={(x) => onStep(x.id)} />
         </div>
@@ -480,3 +483,6 @@ function BackBtn({ onBack, label }) {
   if (!onBack) return null   // inside the player card (PlayerPeek) the card's × is the way out
   return <div><button type="button" onClick={onBack} style={{ minHeight: 44, padding: '0 14px', borderRadius: 8, cursor: 'pointer', border: `1px solid ${C.border2}`, background: C.bg2, color: C.text2, font: `800 12px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>‹ {label}</button></div>
 }
+
+// PlayerPeek: this page carries the card's Full page / close buttons in its own top row (one toolbar)
+Player.peekToolbar = true
