@@ -63,11 +63,11 @@ eq('locked row: goals = 0 and hit = false survive the shape (a graded 0 is a res
 eq('locked row: the player id is the log\'s player_id, so id joins hold', locked.playerId, 910)
 
 // 5. a started or final game: the season line is blank BY DESIGN today (joinLines `started`)
-gap('started game still shows his season line (joinLines blanks it; the lead is fixing seasonLine.js)', joinLines(910, { lines, form, started: true }).szn != null)
+eq('started game still shows his season line (season to date)', joinLines(910, { lines, form, started: true }).szn != null, true)
 
 // 6. a rookie (under the model's minimum games): the board's legs are null, but his games played are real
 const rookie = shapeRow({ playerId: 920, name: 'Test Rookie', pos: 'L', team: 'AAA', opp: 'BBB', home: false, status: 'off', reason: 'fewer than 3 NHL games on file (1)', legs: { ok: false, gpPooled: 1, gpCur: 1, gpPrev: 0, prevWeight: 0 } }, true)
-gap('rookie / off-board row keeps GP and GP used (shapeRow nulls the whole legs object)', nhlBoardRow(rookie).gp === 1)
+eq('rookie / off-board row keeps GP and GP used, legs stay null', [nhlBoardRow(rookie).gp, rookie.legs], [1, null])
 eq('rookie: the reason is carried so the row says why it is not scored', rookie.reason, 'fewer than 3 NHL games on file (1)')
 
 // 7. the player file: a traded man's blank ice time / a traded goalie's counts come from his club rows
