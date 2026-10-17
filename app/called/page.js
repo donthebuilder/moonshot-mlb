@@ -51,6 +51,8 @@ import { NBA_MIN_NIGHTS, trackingWords } from '../../lib/record/nbaFloor'
 import { ladderFrom, marketLadderFrom } from '../../lib/record/ladder'
 import LadderBlock, { LadderOddsNote, MarketLadderBlock } from '../../components/record/LadderBlock'
 import { easternToday } from '../../lib/data'
+import { viewerIsMember } from '../../lib/members/viewer'
+import { gateCalls } from '../../lib/members/hide'
 
 // 2026-09-20 — FOOTBALL MOVED IN, IT DIDN'T GET ITS OWN HOUSE. Donovan:
 // "can you not just build it on the same side of the site." Right call, and
@@ -513,7 +515,12 @@ export default async function CalledPage({ searchParams }) {
   const members = membersUrl()
   const params = (await searchParams) || {}
   const key = calledKey(params.sport)
-  const { sport, today, rows, outRows = [], picks, picksDay = null, calledIds, history: historyRaw, byDay, configured } = await load(key)
+  const { sport, today, rows, outRows = [], picks: allPicks, picksDay = null, calledIds, history: historyRaw, byDay, configured } = await load(key)
+  // TONIGHT'S CALLS ARE THE MEMBERS' (2026-10-17, Donovan: fix every page the way the front door is fixed). Decided here, on the server, for THIS visitor: a non-member
+  // gets the first FREE_CALLS_PER_SPORT calls that have no result yet, and every call that already scored or was graded (public proof). The rest are counted, never
+  // named, so their names are not in the page. The page was already per-request (force-dynamic); only the data read is cached, and it holds no viewer.
+  const member = await viewerIsMember()
+  const { items: picks, hidden: hiddenPicks } = gateCalls(allPicks, { member, isPublic: (p) => calledIds.has(String(p.player_id)) || Boolean(p.outcome) })
   // CALLS LANDED LEADS (2026-10-10, one MLB record): of the calls we made, how many did what they were called to
   // do -- the lock-enforced calibration reader (the same body /api/calibration serves, one cache entry). The
   // event capture below it is a different measure and is labelled so.
@@ -661,7 +668,7 @@ export default async function CalledPage({ searchParams }) {
         <p className={styles.whatIs}><a href={ledgerAppHref(sport.key)}>The same Ledger, in the app, with every table →</a></p>
       </section>
 
-      {picks.length ? (
+      {picks.length || hiddenPicks ? (
         <section id="calls" className={styles.panel}>
           <h2 className={styles.h2}>{sport.callsHead} <span className={styles.pill}>{sport.callsPill}{picksDay && picksDay !== today ? ` · ${shortDay(picksDay)}` : ''}</span></h2>
           <ol className={styles.calls}>
@@ -676,6 +683,12 @@ export default async function CalledPage({ searchParams }) {
                 {picks.slice(PREVIEW).map((p, i) => <Pick key={p.player_id || i} p={p} i={i + PREVIEW} sport={sport} calledIds={calledIds} />)}
               </ol>
             </details>
+          ) : null}
+          {hiddenPicks > 0 ? (
+            <p className={styles.sub} data-pm="hidden-called">
+              {hiddenPicks} more called {hiddenPicks === 1 ? 'pick' : 'picks'} tonight {hiddenPicks === 1 ? 'is' : 'are'} for members.{' '}
+              <a href={members} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 8px', fontWeight: 900, textDecoration: 'underline' }}>Join</a>
+            </p>
           ) : null}
         </section>
       ) : null}
