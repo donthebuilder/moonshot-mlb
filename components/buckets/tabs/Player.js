@@ -7,7 +7,17 @@ import BucketsPriceHistory from '../BucketsPriceHistory'
 import VerdictBlock from '../../player/VerdictBlock'
 import StatRow from '../../player/StatRow'
 import ScrollHint from '../../player/ScrollHint'
-import { nbaVerdict, nbaStatRow } from '../../player/nbaAdapter'
+import { nbaVerdict, nbaStatRow, nbaPickWord } from '../../player/nbaAdapter'
+import VerdictHero from '../../VerdictHero'
+import CardShell from '../../CardShell'
+import BucketsOnHim from '../BucketsOnHim'
+import BucketsCompare from '../BucketsCompare'
+import BucketsPickStamp from '../BucketsPickStamp'
+import { createPortal } from 'react-dom'
+import { fmtOdds } from '../../../lib/odds'
+import { nbaQuote } from '../../../lib/nba/oddsQuote'
+import { useLiveFetch } from '../../../lib/useLiveFetch'
+import { LEG_LABEL, fmtLeg } from '../../../lib/nba/legs'
 import HisNumbers from '../../HisNumbers'
 import InTheLedger from '../../ledger/InTheLedger'
 import PlayerNotes from '../../PlayerNotes'
@@ -29,7 +39,7 @@ import { playerHref } from '../../../lib/routes'
 import { DETAIL_MARK, PEEK_MARK, VIEWS_KEY } from '../../../lib/useShellRoute'
 import { etToday } from '../../../lib/freshness'
 import { bornLine } from '../../../lib/birthday'
-import { BirthdayChip } from '../../player/BirthdayChip'
+import BornLine from '../../player/BirthdayChip'
 import { useBucketsPlayer, useBucketsBoard, useBucketsDefense } from '../../../lib/nba/useBuckets'
 import { PLAYER_ID_RE } from '../../../lib/nba/ids'
 import { NBA_MARKETS } from '../../../lib/nba/legs'
@@ -58,8 +68,11 @@ import PlayerInjuryChip from '../../injuries/PlayerInjuryChip'
 // of a box-score count (lib/nba/expectedPoints.js), said so where it is shown.
 const VIEWS = [
   { key: 'overview', label: 'Overview' },
+  // THE READ and NUMBERS, their own pills as on MOONSHOT's card (2026-10-17): the sentences and the shape of his night; the season, model and opponent rows
+  { key: 'read', label: 'The Read' },
   { key: 'splits', label: '📅 Splits' },
   { key: 'log', label: '📋 Game log' },
+  { key: 'numbers', label: '🔢 Numbers' },
   { key: 'vs', label: '🆚 VS' },
   { key: 'shots', label: '🎯 Shots' },
   { key: 'board', label: 'The board' },
@@ -81,24 +94,23 @@ const lineCols = [
   { key: 'fta', label: 'FTA', group: 'Shooting', w: 44, heat: false, mono: true, dp: 1 },
 ]
 
-export default function Player({ id, onBack, backLabel = 'Players', onOpenTeam, onOpenGame, onStep = null, peek = false }) {
+export default function Player({ id, onBack, backLabel = 'Players', onOpenTeam, onOpenGame, onStep = null, peek = false, lead = null }) {
   const ok = PLAYER_ID_RE.test(String(id || ''))
   const { data, error, loading } = useBucketsPlayer(ok ? id : null)
   if (!id) return <EmptyState title="NO PLAYER PICKED" note="Open a player from Players, a board or a box score."><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   if (!ok) return <EmptyState title="NO SUCH PLAYER" note={`“${String(id).slice(0, 20)}” isn’t an NBA player id.`}><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   if (loading && !data) return <div style={{ display: 'grid', gap: 10 }}><BackBtn onBack={onBack} label={backLabel} /><Loading what="his file" /></div>
   if (!data?.card) return <div style={{ display: 'grid', gap: 10 }}><BackBtn onBack={onBack} label={backLabel} />{error && error.status !== 404 && error.status !== 400 ? <DelayedBanner error={error} what="player data" /> : <EmptyState title="NO SUCH PLAYER" note="The league has no NBA player with that id — the link may be old or cut short." />}</div>
-  return <PlayerBody key={data.card.id} data={data} error={error} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} onBack={onBack} backLabel={backLabel} onStep={onStep} peek={peek} />
+  return <PlayerBody key={data.card.id} data={data} error={error} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} onBack={onBack} backLabel={backLabel} onStep={onStep} peek={peek} lead={lead} />
 }
 
-function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, onStep, peek }) {
+function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, onStep, peek, lead }) {
   const { card, lines } = data
   const pid = String(card.id)
   // ── the board's row on him (tonight's PTS board): the card's score, word and why ──
   const { data: board } = useBucketsBoard(null, 'pts')
   const row = useMemo(() => (board?.rows || []).find((r) => String(r.playerId) === pid) || null, [board, pid])
   const game = row ? (board?.games || []).find((g) => g.id === row.gameId) : null
-  const called = row?.status === 'called'
   const oppTxt = row ? `${row.home ? 'vs' : '@'} ${row.opp}` : data.nextGame ? `${data.nextGame.home ? 'vs' : '@'} ${data.nextGame.opp}` : null
   const tip = game?.start || data.nextGame?.start || null
   const gamePos = oppTxt ? `${oppTxt}${tip ? ` · ${game?.state === 'live' ? 'LIVE' : game?.state === 'final' ? 'FINAL' : fmtTip(tip)}` : ''}` : null
@@ -137,12 +149,18 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
   const seasonWord = lines.cur ? lines.curLabel : lines.prevLabel
   const stale = !lines.cur && Boolean(lines.prev)
   const lineRows = [[lines.curLabel, lines.cur], [lines.prevLabel, lines.prev]].filter(([, l]) => l).map(([label, l]) => ({ _id: label, label, ...l, tp: l.tpaTot ? `${((100 * l.tpTot) / l.tpaTot).toFixed(1)}%` : '—' }))
-  const keyNums = season1 ? [['PTS', season1.pts], ['REB', season1.reb], ['AST', season1.ast]].filter(([, v]) => v != null).map(([k, v]) => [k, Number(v).toFixed(1)]) : []
   const next = !stale && Number.isFinite(lines.cur?.ptsTot) ? lines.cur.ptsTot + 1 : null
   const dateNow = board?.date || etToday()
-  const [whyOpen, setWhyOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)   // the folded More section (as MOONSHOT's 10-17 trim), closed until tapped
+  const [compareOpen, setCompareOpen] = useState(false)
+  const { data: odds } = useLiveFetch('/api/odds/latest?sport=nba')
   const whyLine = row ? (row.status === 'off' && row.reason ? `Not on the board: ${row.reason}` : row.why || null) : null
-  const bio = [card.pos, bornLine(card.birthDate, dateNow) || (card.age ? `age ${card.age}` : null), card.height, card.weight, card.status && card.status !== 'Active' ? card.status : null].filter(Boolean).join(' · ')
+  const meta2 = [card.pos, card.height, card.weight, row?.starter === true ? 'Starter' : null, card.status && card.status !== 'Active' ? card.status : null].filter(Boolean).join(' · ')
+  // the price, subtle, at the end of the matchup line: only when the book quotes the same bar the call has to clear (lib/nba/oddsQuote.js)
+  const ptsQuote = nbaQuote(odds, pid, 'pts')
+  const heroPrice = ptsQuote && Number.isFinite(Number(ptsQuote.best_over ?? ptsQuote.over)) ? fmtOdds(Number(ptsQuote.best_over ?? ptsQuote.over)) : null
+  const homeOf = useMemo(() => Object.fromEntries(allLog.map((g) => [String(g.id), g.atVs === 'vs'])), [allLog])
+  const ptsMarket = NBA_MARKETS.pts
 
   // ── tables ──
   const logRows = games.slice().sort((a, b) => (a.date < b.date ? 1 : -1)).map((g) => {
@@ -191,111 +209,114 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
   return (
     <SportTheme theme={C} accent={C.purple} numFont={NUM_FONT}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {/* THE TOP ROW: Back on the left, his card (the board's word, score and night rank, PTS / REB / AST a game, projected points, his last five) at the right end */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: onBack ? 'space-between' : 'flex-end', gap: 8 }}>
+        {/* THE ONE TOOLBAR ROW, as MOONSHOT's card: Back at the left; at the right his flip Card and Save (a PREVIEW sport, shown only to a visitor
+            BUCKETS' gate lets in, and only for a player on tonight's board), the compare scale, previous / n of m / next, the group and the search, and
+            in a peek Full page. The card's close is in the header below (the `lead` mechanism LAMP's card uses, components/PlayerPeek.js). */}
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: onBack ? 'space-between' : 'flex-end', gap: 8 }}>
           {onBack ? <BackBtn onBack={onBack} label={backLabel} /> : null}
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            {/* his BASEBALL-CARD (front and back): a PREVIEW sport, shown only to a visitor BUCKETS' gate lets in, and only for a player on tonight's board (lib/card/core.js PREVIEW_CARD_SPORTS) */}
+          <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6, minWidth: 0 }}>
             {row && <CardFlip sport="nba" id={String(card.id)} name={card.name} />}
-          <ShareCardButton sport="nba" what="his card" url={shareUrl({ kind: 'pick', sport: 'nba', id: card.id, market: 'pts', date: board?.date || null })} filename={`${slug(card.name, 'player')}_${stamp(board?.date)}.png`} />
+            <ShareCardButton sport="nba" what="his card" url={shareUrl({ kind: 'pick', sport: 'nba', id: card.id, market: 'pts', date: board?.date || null })} filename={`${slug(card.name, 'player')}_${stamp(board?.date)}.png`} />
+            {peers.length > 1 && (
+              <button type="button" onClick={() => setCompareOpen(true)} title="Compare this player against another on tonight’s board" aria-label="Compare two players"
+                style={{ minWidth: 44, minHeight: 44, background: 'transparent', border: `1px solid ${C.border2}`, color: C.text2, borderRadius: 7, fontSize: 14, lineHeight: 1, cursor: 'pointer' }}>⚖</button>
+            )}
+            {onStep && peers.length > 1 && <Navigator peers={peers} cur={cur} noun="player" onNavigate={(p) => onStep(p.id)} />}
+            {lead?.full}
           </span>
         </div>
         <DelayedBanner error={error} what="player data" />
-        {onStep && peers.length > 1 && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Navigator peers={peers} cur={cur} noun="player" onNavigate={(p) => onStep(p.id)} />
-          </div>
-        )}
-        {/* THE STICKY HEADER: who, which club, the board's word and his numbers never scroll away. */}
-        <header style={{ position: 'sticky', top: peek ? 0 : 'var(--lamp-sticky, 0px)', zIndex: 20, background: C.bg2, margin: '0 -2px', padding: '8px 2px 0', borderBottom: `1px solid ${C.border2}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-            <PlayerFace sport="nba" id={card.id} photo={card.headshot} name={card.name} size={44} />
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, lineHeight: 1.2, color: C.text }}>
-                {card.jersey ? <span style={{ color: C.text3, fontFamily: NUM_FONT }}>#{card.jersey} </span> : null}<a href={playerHref('nba', pid)} style={{ color: 'inherit', textDecoration: 'none' }}>{card.name}</a><PlayerInjuryChip who={{ player_id: card.id, name: card.name, team: card.team }} />
-              </h2>
-              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px 8px', fontSize: 12, color: C.text2, marginTop: 2 }}>
-                {card.team && (
-                  <Tap onClick={() => onOpenTeam?.(card.team)} title={`Open ${card.team}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, minHeight: 44, margin: '-12px 0', color: C.text }}>
-                    <TeamMark sport="nba" abbr={card.team} variant="logo" px={18} /><b style={{ font: `900 12px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>{card.team}</b>
-                  </Tap>
-                )}
-                <span>{[card.pos, card.status && card.status !== 'Active' ? card.status : null].filter(Boolean).join(' · ')}</span>
-                <span style={{ color: C.text3 }}>NBA</span>
-              </div>
-            </div>
-            <div style={{ flex: '0 0 auto' }}><FollowButton sport="nba" id={pid} name={card.name} team={card.team} position={card.pos} compact /></div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 12px', margin: '6px 0 2px' }}>
-            {board && view !== 'overview' && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <CallStatusBadge status={row ? row.status : 'off'} accent={C.purple} size={11} variant="stamp" />
-                {row?.score != null && <b style={{ font: `900 14px/1 ${NUM_FONT}`, color: called ? C.purple : C.text }}>{Math.round(row.score)}</b>}
-              </span>
-            )}
-            {view !== 'overview' && <button type="button" aria-expanded={whyOpen} onClick={() => setWhyOpen((v) => !v)} style={{ minHeight: 44, margin: '-10px 0', padding: '0 6px', background: 'transparent', border: 'none', color: C.purple, font: `800 12px/1 ${NUM_FONT}`, cursor: 'pointer', textDecoration: 'underline dotted' }}>Why?</button>}
-            {gamePos && <span style={{ color: C.text3, fontSize: 12 }}>{gamePos}</span>}
-            <span style={{ display: 'inline-flex', gap: 10, marginLeft: 'auto' }}>
-              {keyNums.map(([k, v]) => <span key={k} style={{ fontFamily: NUM_FONT, fontSize: 12, color: C.text3 }}><b style={{ color: C.text, fontSize: 15, fontWeight: 900 }}>{v}</b> {k}</span>)}
-            </span>
-          </div>
-          {whyOpen && view !== 'overview' && (
-            <div role="region" aria-label="Why this word" style={{ maxHeight: '38vh', overflowY: 'auto', margin: '4px 0 6px', padding: '8px 10px', border: `1px solid ${C.border2}`, borderRadius: 10, background: C.bg, fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
-              {!board ? 'Loading tonight’s board…' : !row ? 'No game on the board tonight, so he is not on it.' : (
-                <>
-                  <div>{whyLine || 'On tonight’s board.'}</div>
-                  {row.injury ? <div style={{ color: C.text3, marginTop: 4 }}>Injury report: {row.injury}</div> : null}
-                </>
-              )}
-            </div>
-          )}
-          <div className="chip-row" role="tablist" aria-label="Player tabs" style={{ display: 'flex', gap: 5, flexWrap: 'nowrap', overflowX: 'auto', padding: '6px 2px 8px' }}>
-            {VIEWS.map((t) => <TabBtn key={t.key} tall active={view === t.key} onClick={() => pick(t.key)}>{t.label}</TabBtn>)}
-          </div>
-        </header>
+
+        {/* THE OUTCOME LEADS once his called row is graded (MOONSHOT's PickVerdictStamp) */}
+        <BucketsPickStamp row={row} />
+
+        {/* THE HEADER CARD (MOONSHOT's VerdictHero): his face inside the score ring, #number + name + injury chip, the market's badge, the club vs the
+            opponent and Game ›, his position line, the book's price at the end, and the card's close at the right. */}
+        <VerdictHero
+          style={{ marginBottom: 0 }} theme={C} numFont={NUM_FONT}
+          photo={card.headshot || null}
+          col={row?.score != null ? C.purple : C.text3}
+          score={row?.score ?? null}
+          title={<>
+            {card.jersey ? <span style={{ color: C.text3, fontWeight: 700, fontFamily: NUM_FONT }}>#{card.jersey} </span> : null}
+            <a href={playerHref('nba', pid)} style={{ color: 'inherit', textDecoration: 'none' }}>{card.name}</a>
+            <PlayerInjuryChip who={{ player_id: card.id, name: card.name, team: card.team }} />
+          </>}
+          badge={row ? ptsMarket.label : 'NO GAME'} badgeQuiet={!row || row.status !== 'called'}
+          meta={<>
+            {card.team ? <Tap onClick={onOpenTeam ? () => onOpenTeam(card.team) : null} title={`Open ${card.team}`}><TeamMark sport="nba" abbr={card.team} variant="logo" px={14} /> {card.team}</Tap> : null}
+            {oppTxt ? <>{' '}{row?.home ?? data.nextGame?.home ? 'vs' : '@'}{' '}<Tap onClick={onOpenTeam ? () => onOpenTeam(row?.opp || data.nextGame?.opp) : null} title={`Open ${row?.opp || data.nextGame?.opp}`}>{row?.opp || data.nextGame?.opp}</Tap></> : null}
+            {row?.gameId && onOpenGame ? <>{' · '}<Tap onClick={() => onOpenGame(row.gameId)} title="Open his game">Game ›</Tap></> : null}
+          </>}
+          meta2={[meta2, tip ? (game?.state === 'live' ? 'LIVE' : game?.state === 'final' ? 'FINAL' : fmtTip(tip)) : null].filter(Boolean).join(' · ') || null}
+          metaRight={heroPrice}
+          market={row ? `${ptsMarket.bar}+ points` : 'not on tonight’s board'}
+          right={lead?.close || null}
+        />
+        {/* HIS BIRTHDAY (the real date from the league's athlete file; nothing when unknown) */}
+        {card.birthDate
+          ? <BornLine birth={card.birthDate} on={dateNow} accent={C.purple} C={C} font={NUM_FONT} style={{ marginTop: -6, marginBottom: 0 }} />
+          : card.age ? <div style={{ color: C.text3, fontSize: 12, lineHeight: '17px', marginTop: -6 }}>age {card.age}</div> : null}
+
+        {/* BUCKETS ON HIM (components/player/): the word, the score, the why, the flags, his record on the locked board and last week; no game says so in one line. */}
+        <VerdictBlock sport="nba" style={{ margin: 0 }} {...nbaVerdict({ board, row, whyLine, calls: data.calls, today: dateNow })} />
+        <StatRow stats={nbaStatRow({ line: season1, xpts: x, seasonWord, stale })} noun="players" style={{ marginBottom: 0 }} />
+
+        {/* THE WATCH ROW (MOONSHOT's): Watch, ADD TO SLIP with a + for each market the books quote at the card's bar, and the pick. No price, no button. */}
+        <div data-pm="watch-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+          <FollowButton sport="nba" id={pid} name={card.name} team={card.team} position={card.pos} />
+          <BucketsSlipAdd id={pid} name={card.name} team={card.team} opp={row?.opp || data.nextGame?.opp || null} style={{ margin: 0 }} />
+          <span style={{ fontSize: 12, color: C.text3 }}>
+            BUCKETS&apos; pick: <b style={{ color: C.text2 }}>{nbaPickWord(row, ptsMarket.label)}</b>
+          </span>
+        </div>
+
+        {/* PILL TABS, the tab in the address (view=) */}
+        <div className="chip-row" role="tablist" aria-label="Player tabs" style={{ display: 'flex', gap: 5, flexWrap: 'nowrap', overflowX: 'auto', padding: '2px 2px 8px', borderBottom: `1px solid ${C.border}` }}>
+          {VIEWS.map((t) => <TabBtn key={t.key} tall active={view === t.key} onClick={() => pick(t.key)}>{t.label}</TabBtn>)}
+        </div>
 
         {view === 'overview' && (
           <>
-            {/* BUCKETS ON HIM (components/player/): tonight's points-board word and score, why, his record on the locked board; no game says so in one line. */}
-            <VerdictBlock sport="nba" {...nbaVerdict({ board, row, whyLine, calls })} />
-            <BucketsSlipAdd id={pid} name={card.name} team={card.team} />
+            {/* PRICE, then BUCKETS ON HIM (each market's locked record on him, MOONSHOT's BotOnHim), My note, the ledger, his numbers, his last five */}
             <BucketsPriceHistory id={pid} />
-            <StatRow stats={nbaStatRow({ line: season1, xpts: x, seasonWord, stale })} />
-            <PlayerDdTd playerId={pid} />
-            {xRows.length > 0 ? (
-              <section aria-label="Projected points">
-                <Kicker>PROJECTED POINTS · NEXT GAME</Kicker>
-                <BucketsTable rows={xRows} columns={xCols} heatMode="none" maxHeight={9999} maxRows={1} caption={x.line} />
-              </section>
-            ) : x?.reason ? <p style={{ margin: 0, fontSize: 12, color: C.text3 }}>No projected points: {x.reason}.</p> : null}
-            <section aria-label="Season line">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <Kicker>THE LINE · PER GAME</Kicker>
-              </div>
-              {stale && <p style={{ margin: '0 0 8px', fontSize: 12, color: C.text3, lineHeight: 1.5 }}>The new season has no regular-season games yet, so this is last season’s line ({seasonWord}).</p>}
-              {lineRows.length > 0
-                ? <ScrollHint><BucketsTable rows={lineRows} columns={lineCols} heatMode="none" maxHeight={9999} maxRows={2} caption="Per game, this season beside last season." /></ScrollHint>
-                : <EmptyState title="NO NBA LINES ON FILE" note="No regular-season games this season or last." />}
-            </section>
+            <BucketsOnHim calls={data.calls} homeOf={homeOf} style={{ marginTop: 0 }} />
+            <PlayerNotes playerId={pid} scope="nba" accent={C.purple} />
             {last5.length > 0 && (
               <section aria-label="Last five">
                 <Kicker>LAST FIVE</Kicker>
                 <ScrollHint><BucketsTable rows={last5} columns={logCols} onRowClick={(r) => onOpenGame?.((r?._raw ?? r).id)} heatMode="standouts" maxHeight={9999} maxRows={5} caption="His last five games, newest first. Each row opens the game." /></ScrollHint>
               </section>
             )}
-            <BucketsPropsMatrix log={data.log || []} logSeason={data.logSeason} />
-            <PlayerBars log={data.log || []} logSeason={data.logSeason} nextGame={data.nextGame} onOpenTeam={onOpenTeam} />
-            <div style={{ color: C.text3, fontSize: 12, lineHeight: 1.5 }}>{bio}<BirthdayChip birth={card.birthDate} on={dateNow} accent={C.purple} textColor={C.text2} font={NUM_FONT} /></div>
-            <StarMemory sport="nba" id={pid} />
             <InTheLedger sport="nba" id={pid} name={card.name} jersey={card.jersey} birthDate={card.birthDate} next={next} date={dateNow} />
             <HisNumbers name={card.name} jersey={card.jersey} birthDate={card.birthDate} next={next} nextWord="point" date={dateNow} theme={C} accent={C.purple} numFont={NUM_FONT} />
-            <PlayerNotes playerId={pid} scope="nba" accent={C.purple} />
-            {/* CARDS EARNED, at the END of the page (the first useful row never moves): his 30-point / 40-point / double-double / triple-double / 10-threes cards from his GRADED regular-season rows; no section until he has one */}
-            <CardsEarned sport="nba" id={pid} name={card.name} />
           </>
         )}
 
-        {view !== 'overview' && view !== 'board' && opts.length > 0 && <SeasonToggle options={opts} value={seasonKey} onChange={setSeason} theme={C} numFont={NUM_FONT} accent={C.purple} yearLabel={yearLabel} />}
+        {/* THE READ: tonight's sentence, the projected points and the bars he faces */}
+        {view === 'read' && (
+          <>
+            <section aria-label="The read">
+              <Kicker>THE READ</Kicker>
+              <p style={{ margin: '0 0 6px', fontSize: 13, lineHeight: 1.5, color: C.text2 }}>{whyLine || (board ? (row ? 'On tonight’s board.' : 'No game on tonight’s board, so there is no read for tonight.') : 'Reading tonight’s board…')}</p>
+              {row?.injury ? <p style={{ margin: 0, fontSize: 12, color: C.text3 }}>Injury report: {row.injury}</p> : null}
+            </section>
+            {xRows.length > 0 ? (
+              <section aria-label="Projected points">
+                <Kicker>PROJECTED POINTS · NEXT GAME</Kicker>
+                <BucketsTable rows={xRows} columns={xCols} heatMode="none" maxHeight={9999} maxRows={1} caption={x.line} />
+              </section>
+            ) : x?.reason ? <p style={{ margin: 0, fontSize: 12, color: C.text3 }}>No projected points: {x.reason}.</p> : null}
+            <PlayerBars log={data.log || []} logSeason={data.logSeason} nextGame={data.nextGame} onOpenTeam={onOpenTeam} />
+          </>
+        )}
+
+        {/* NUMBERS: the evidence behind the read -- the season line, the legs the board scored him on, the club he faces */}
+        {view === 'numbers' && (
+          <NumbersTab row={row} stale={stale} seasonWord={seasonWord} lineRows={lineRows} oppAbbrev={row?.opp || data.nextGame?.opp || null} />
+        )}
+
+        {['splits', 'log', 'vs', 'shots'].includes(view) && opts.length > 0 && <SeasonToggle options={opts} value={seasonKey} onChange={setSeason} theme={C} numFont={NUM_FONT} accent={C.purple} yearLabel={yearLabel} />}
 
         {view === 'splits' && <PlayerSplits games={games} label={windowLabel} onOpenTeam={onOpenTeam} />}
 
@@ -333,8 +354,79 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
               : <p style={{ margin: 0, fontSize: 12, color: C.text3 }}>No locked board rows on him yet. They start with the first night his game locks.</p>}
           </section>
         )}
+
+        {/* ── MORE: ONE fold, closed until tapped (MOONSHOT's 10-17 trim), holding the secondary blocks: your star and its memory, his props grid and his
+            double-double / triple-double lines. Nothing was deleted; they mount only when it is open. The header is a 44px row. ── */}
+        <section aria-label="More about him" style={{ margin: '4px 0 0' }}>
+          <h2 style={{ margin: 0, fontSize: 'inherit', fontWeight: 'inherit' }}>
+            <button type="button" className="tap-box" onClick={() => setMoreOpen((v) => !v)} aria-expanded={moreOpen}
+              style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', minHeight: 44, padding: '10.5px 12px', cursor: 'pointer', textAlign: 'left', background: moreOpen ? 'transparent' : C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text }}>
+              <span style={{ fontSize: 12, fontWeight: 900, letterSpacing: '.03em' }}>More</span>
+              <span style={{ fontSize: 12, color: C.text3, fontFamily: NUM_FONT, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>props grid, double-doubles, your star</span>
+              <span style={{ marginLeft: 'auto', fontSize: 12, color: C.purple, fontFamily: NUM_FONT, fontWeight: 800, flexShrink: 0 }}>{moreOpen ? '▴' : '▾'}</span>
+            </button>
+          </h2>
+          {moreOpen && (
+            <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12, minWidth: 0 }}>
+              <StarMemory sport="nba" id={pid} />
+              <BucketsPropsMatrix log={data.log || []} logSeason={data.logSeason} />
+              <PlayerDdTd playerId={pid} />
+            </div>
+          )}
+        </section>
+
+        {/* CARDS EARNED, at the END of the card (the first useful row never moves): his 30-point / 40-point / double-double / triple-double / 10-threes cards from his GRADED regular-season rows; no section until he has one */}
+        <CardsEarned sport="nba" id={pid} name={card.name} />
       </div>
+      {/* ⚖ COMPARE (MOONSHOT's PlayerCompare): a sheet over the card, on the board's own rows. Portalled to the body: the card is itself a blurred, scrolling layer. */}
+      {compareOpen && typeof document !== 'undefined' && createPortal(
+        <CardShell onClose={() => setCompareOpen(false)} width={620} label="Compare two players" theme={C} accent={C.purple}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+            <button type="button" onClick={() => setCompareOpen(false)} aria-label="Close compare" style={{ minHeight: 44, minWidth: 44, borderRadius: 10, border: `1px solid ${C.border2}`, background: C.bg, color: C.text2, fontSize: 20, cursor: 'pointer' }}>×</button>
+          </div>
+          <BucketsCompare rows={board?.rows || []} onOpenPlayer={(id) => { setCompareOpen(false); onStep?.(id) }} />
+        </CardShell>,
+        document.body,
+      )}
     </SportTheme>
+  )
+}
+
+// 🔢 THE NUMBERS TAB (MOONSHOT's Numbers pill): the evidence behind the read. The season line (this season beside last), the legs the points board
+// scored him on with the board's own percentile among tonight's players, and what the club he faces allows (the league's own opponent stats,
+// ranked among the 30). Every value is ESPN's or the board's; nothing is modelled here.
+function NumbersTab({ row, stale, seasonWord, lineRows, oppAbbrev }) {
+  const { data: def } = useBucketsDefense(null)
+  const legKeys = NBA_MARKETS.pts.legs
+  const legRows = row?.legs ? legKeys.filter((k) => row.legs[k] != null).map((k) => ({ _id: k, leg: LEG_LABEL[k] || k, val: Number(row.legs[k]), _k: k, pct: row.pct?.[k] ?? null })) : []
+  const legCols = [
+    { key: 'leg', label: 'Leg', group: 'Points board', w: 84, heat: false, sticky: true, bold: true, numeric: false },
+    { key: 'val', label: 'Value', group: 'Points board', w: 64, mono: true, numeric: true, fmt: (v, r) => fmtLeg(r._k, v) },
+    { key: 'pct', label: 'Tonight %ile', group: 'Points board', w: 84, mono: true, title: 'Where the leg ranks among tonight’s players (100 = highest)' },
+  ]
+  const allow = (def?.teams || []).slice().sort((a, b) => (b.oppPts ?? 0) - (a.oppPts ?? 0))
+  const al = oppAbbrev ? allow.find((t) => t.abbrev === oppAbbrev) : null
+  const rank = al ? allow.findIndex((t) => t.abbrev === oppAbbrev) + 1 : 0
+  const f1 = (v) => (v == null ? '—' : Number(v).toFixed(1))
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12, minWidth: 0 }}>
+      <section aria-label="Season line">
+        <Kicker>THE LINE · PER GAME</Kicker>
+        {stale && <p style={{ margin: '0 0 8px', fontSize: 12, color: C.text3, lineHeight: 1.5 }}>The new season has no regular-season games yet, so this is last season’s line ({seasonWord}).</p>}
+        {lineRows.length > 0
+          ? <ScrollHint><BucketsTable rows={lineRows} columns={lineCols} heatMode="none" maxHeight={9999} maxRows={2} caption="Per game, this season beside last season." /></ScrollHint>
+          : <EmptyState title="NO NBA LINES ON FILE" note="No regular-season games this season or last." />}
+      </section>
+      <section aria-label="Model legs">
+        <Kicker>WHAT THE POINTS BOARD SCORED HIM ON</Kicker>
+        {legRows.length > 0
+          ? <BucketsTable rows={legRows} columns={legCols} heatMode="standouts" maxHeight={9999} maxRows={legRows.length} caption="The legs behind tonight’s PTS score, each with its rank among tonight’s players." />
+          : <p style={{ margin: 0, fontSize: 12, color: C.text3 }}>{row ? 'The board holds no legs for him.' : 'Not on tonight’s board, so there are no legs to show.'}</p>}
+      </section>
+      {al && (
+        <p style={{ margin: 0, fontSize: 12, color: C.text2, lineHeight: 1.5 }}>Opp defence: {oppAbbrev} allows <b style={{ color: C.text, fontFamily: NUM_FONT }}>{f1(al.oppPts)}</b> points a game, <b style={{ color: C.text, fontFamily: NUM_FONT }}>#{rank}</b> most of 30 (1 = gives up the most), and {f1(al.oppReb)} rebounds, {f1(al.oppAst)} assists, {f1(al.oppTpm)} threes. The league’s own opponent stats; nothing modelled.</p>
+      )}
+    </div>
   )
 }
 
@@ -386,3 +478,6 @@ function VsTab({ card, games, logRows, nextGame, row, onOpenTeam, onOpenGame, lo
     </section>
   )
 }
+
+// PlayerPeek: this page carries the card's Full page button in its one toolbar row and the close in its header (as MOONSHOT's card, and LAMP's)
+Player.peekToolbar = true
