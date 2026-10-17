@@ -103,6 +103,7 @@ function nflAdapter({ players, card, markets, odds, games }) {
     gameOf: (r) => (r?.team && r?.opp ? { key: [r.team, r.opp].sort().join('-'), label: [r.team, r.opp].sort().join(' · ') } : null),
     // the pair history the slip quotes (lib/slipPairHist.js): two anytime-touchdown legs, from the file the Pairs page draws
     pairHist: { sport: 'nfl', idOf: (r) => String(r.player_id), nameOf: (r) => r.name, isEventLeg: (k) => k === 'TD' },
+    sportKey: 'nfl',
     precisionKey: 'tuddy_precision_v1',
     sortTimeLabel: 'Kickoff',
     picksTitle: "everyone on this week's card",

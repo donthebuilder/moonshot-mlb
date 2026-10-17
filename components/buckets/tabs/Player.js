@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { SportTheme } from '../../SportTheme'
 // THE SHARED PLAYER MODEL (components/player/): the verdict first, then ONE row of his numbers; BUCKETS' words in nbaAdapter.js
+import BucketsSlipAdd from '../BucketsSlipAdd'
 import VerdictBlock from '../../player/VerdictBlock'
 import StatRow from '../../player/StatRow'
 import ScrollHint from '../../player/ScrollHint'
@@ -256,6 +257,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
           <>
             {/* BUCKETS ON HIM (components/player/): tonight's points-board word and score, why, his record on the locked board; no game says so in one line. */}
             <VerdictBlock sport="nba" {...nbaVerdict({ board, row, whyLine, calls })} />
+            <BucketsSlipAdd id={pid} name={card.name} team={card.team} />
             <StatRow stats={nbaStatRow({ line: season1, xpts: x, seasonWord, stale })} />
             <PlayerDdTd playerId={pid} />
             {xRows.length > 0 ? (

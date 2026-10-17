@@ -16,6 +16,7 @@ import TabNotFound from '../TabNotFound'
 import MobileCSS from '../MobileCSS'
 import TabExplainer from '../TabExplainer'
 import LampHeader from './LampHeader'
+import Slip from '../Slip'
 import MobileTabBarLamp from './MobileTabBarLamp'
 import QuickSearch from '../QuickSearch'
 import { NHL_TEXTS } from './tabExplainerTexts'
@@ -223,6 +224,7 @@ export default function LampDashboard({ palettePass = 0 }) {
       {/* ONE SEARCH, EVERY PRODUCT (2026-10-07): players, clubs and games; Ctrl/Cmd-K, "/" or the header's search button */}
       <QuickSearch sport="nhl" />
       <MobileTabBarLamp tab={missingTab ? null : tab} setTab={setTab} />
+      <Slip sport="nhl" C={C} NUM_FONT={NUM_FONT} accent={C.ice} onOpenProps={() => setTab('board')} />
     </AccentProvider>
   )
 }

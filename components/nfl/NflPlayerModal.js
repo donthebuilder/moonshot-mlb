@@ -13,6 +13,7 @@ const nflIdOf = (x) => String(x?.player_id ?? '')
 import { C, NUM_FONT, MARKETS, gradeFor } from '../../lib/nfl/theme'
 import PropsGrid from './PropsGrid'
 import { STAT_KEY } from './HitRate'
+import SlipAdd from '../SlipAdd'
 import PlayerNotes from '../PlayerNotes'
 import HisNumbers from '../HisNumbers'
 import InTheLedger from '../ledger/InTheLedger'
@@ -434,7 +435,8 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
       {(() => {
         const q = cardLocked ? null : quoteFor(odds, player, market)
         if (!q) return null
-        return (
+        const px = q.matches !== false && q.over != null ? Number(q.best_over ?? q.over) : null
+        return (<>
           <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', margin: '4px 0 6px', fontSize: 12, color: C.text2, fontFamily: NUM_FONT }}>
             <b style={{ color: C.text3, fontSize: 11, letterSpacing: '.08em' }}>PRICE</b>
             <span>o{q.line} <b style={{ color: C.text }}>{fmtOdds(q.over)}</b></span>
@@ -444,7 +446,12 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             {q.matches !== false && <LineMoveChip quote={q} theme={C} numFont={NUM_FONT} />}
             {!q.matches && <span style={{ color: C.yellow }}>a different line from the bar</span>}
           </div>
-        )
+          {/* the one slip (lib/slip/store.js): only when the book's line IS the bar, at the book's real price */}
+          {px != null && Number.isFinite(px) && (
+            <SlipAdd sport="nfl" C={C} NUM_FONT={NUM_FONT} accent={C.green}
+              leg={{ key: `${player.player_id}|${market}`, id: String(player.player_id), name: player.name, team: player.team ?? null, market: spec?.short || spec?.label || market, line: `o${q.line}`, side: 'over', price: px, game: player.team && player.opp ? { key: [player.team, player.opp].sort().join('-'), label: [player.team, player.opp].sort().join(' · ') } : null }} />
+          )}
+        </>)
       })()}
       {/* TAB BAR (MOONSHOT's: pills, a rule under them). Phone: sideways chip row. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, borderBottom: `1px solid ${C.border}`, paddingBottom: 10, flexWrap: 'wrap' }}>
