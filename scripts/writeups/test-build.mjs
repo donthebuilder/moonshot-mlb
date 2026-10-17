@@ -37,7 +37,7 @@ for (const g of calls?.games || []) {
   ok(r.ok, `${g.game_id}: checker passes -- ${r.why.join('; ')}`)
   ok(r.short.length <= 280, `${g.game_id}: X short text <= 280 (${r.short.length})`)
   for (const n of w.noCall) ok(['called', 'board', 'off'].includes(n.status) && !w.players.some((p) => p.team === n.team), `${g.game_id}: no-call side ${n.team} has a real status, no filled slot`)
-  for (const p of w.players) ok(p.price || !/PRICE/.test(r.full.split(p.name.toUpperCase())[1]?.split('\n\n')[0] || ''), `${g.game_id}: ${p.name} no stored price -> no PRICE line`)
+  for (const p of w.players) ok(p.price || !/Price:/.test(r.full.split(p.name.toUpperCase())[1]?.split('\n\n')[0] || ''), `${g.game_id}: ${p.name} no stored price -> no PRICE line`)
   if (arg('--print') === String(g.game_id) || arg('--print') === 'all') console.log(`\n----- ${g.away} @ ${g.home} (${g.game_id}) -----\n${r.full}\n\n[X ${r.xIsLong ? 'long' : 'short'} ${r.x.length} chars]\n${r.x}\n`)
 }
 // the checker is live: a number nobody gave it is refused
