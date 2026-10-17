@@ -543,7 +543,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {/* PICKS OPENS LIKE MLB's PROPS (2026-10-17, Donovan: "everything needs to look like the MLB Props page"): the shared
                 call cards + filters + slip first (NflProps), then the calls as one table (NflCalls), then the Bot. Same three
                 components, same data, same member gate; only the order changed (the cards were in a fold). */}
-            {!oddsHold && tab === 'picks' && <NflProps data={slate} picks={picks} odds={odds} onPlayerClick={openPlayer} />}
+            {!oddsHold && tab === 'picks' && <NflProps data={slate} picks={picks} odds={odds} matchup={matchup} onPlayerClick={openPlayer} />}
             {!oddsHold && tab === 'picks' && (
               <section aria-label="The picks behind the cards" style={{ marginTop: 26, paddingTop: 18, borderTop: `1px solid ${C.border}` }}>
                 <NflCalls data={slate} picks={picks} onPlayerClick={openPlayer} />

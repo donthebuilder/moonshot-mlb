@@ -10,6 +10,7 @@ import { kickoffFor } from '../../lib/nfl/kickoff'
 import { boardReason } from '../../lib/nfl/boardReason'
 import { baselineFor } from '../../lib/nfl/tdPool'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
+import TdCompare from './TdCompare'
 
 // 🏈 TUDDY PROPS, MOONSHOT'S PAGE (2026-10-04, Donovan: "make sure the props
 // pages look like the mlb one"). The shared grid (components/props/PropCards.js)
@@ -111,7 +112,7 @@ function nflAdapter({ players, card, markets, odds, games }) {
   }
 }
 
-export default function NflProps({ data, picks, odds, onPlayerClick }) {
+export default function NflProps({ data, picks, odds, matchup = null, onPlayerClick }) {
   const players = useMemo(() => (data?.players || []).filter((p) => p && p.player_id && !p.on_bye), [data])
   const watchlist = useNflWatchlist(data)
   const watchIds = useMemo(() => new Set((watchlist.pins || []).map((p) => String(p.player_id ?? p.id))), [watchlist.pins])
@@ -119,6 +120,8 @@ export default function NflProps({ data, picks, odds, onPlayerClick }) {
   if (!players.length) return null
   return (
     <PropCards a={a} rows={players} onOpen={onPlayerClick} onWatch={(p) => watchlist.toggle(p)} watchIds={watchIds}
+      hero find={{ nameOf: (r) => r.name || '', teamOf: (r) => r.team || '', placeholder: 'Search player or team…' }}
+      compareOf={(pool) => <TdCompare rows={pool} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} />}
       theme={C} numFont={NUM_FONT} accent={C.green} accentWash={`color-mix(in srgb, ${C.green} 14%, transparent)`} />
   )
 }
