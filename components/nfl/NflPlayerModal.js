@@ -14,6 +14,7 @@ import { C, NUM_FONT, MARKETS, gradeFor } from '../../lib/nfl/theme'
 import PropsGrid from './PropsGrid'
 import { STAT_KEY } from './HitRate'
 import SlipAdd from '../SlipAdd'
+import PriceHistory from '../PriceHistory'
 import PlayerNotes from '../PlayerNotes'
 import HisNumbers from '../HisNumbers'
 import InTheLedger from '../ledger/InTheLedger'
@@ -434,7 +435,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
       {/* THE PRICE: the line for the market on screen, the best book, the break-even. */}
       {(() => {
         const q = cardLocked ? null : quoteFor(odds, player, market)
-        if (!q) return null
+        if (!q) return cardLocked ? null : <PriceHistory quote={null} marketLabel={spec?.short || market} theme={C} numFont={NUM_FONT} />
         const px = q.matches !== false && q.over != null ? Number(q.best_over ?? q.over) : null
         return (<>
           <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', margin: '4px 0 6px', fontSize: 12, color: C.text2, fontFamily: NUM_FONT }}>
@@ -451,6 +452,8 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             <SlipAdd sport="nfl" C={C} NUM_FONT={NUM_FONT} accent={C.green}
               leg={{ key: `${player.player_id}|${market}`, id: String(player.player_id), name: player.name, team: player.team ?? null, market: spec?.short || spec?.label || market, line: `o${q.line}`, side: 'over', price: px, game: player.team && player.opp ? { key: [player.team, player.opp].sort().join('-'), label: [player.team, player.opp].sort().join(' · ') } : null }} />
           )}
+          {/* MOONSHOT's price timeline (components/OddsTimeline.js), the book's opening price to now, same place as PlayerModal's */}
+          <PriceHistory quote={q.matches !== false ? q : null} marketLabel={spec?.short || market} theme={C} numFont={NUM_FONT} />
         </>)
       })()}
       {/* TAB BAR (MOONSHOT's: pills, a rule under them). Phone: sideways chip row. */}

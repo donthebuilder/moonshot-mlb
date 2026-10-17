@@ -8,13 +8,17 @@ import { NBA_MARKETS } from '../../lib/nba/model'
 import { RAW_OF } from '../../lib/nba/legs'
 import { useBucketsBoard } from '../../lib/nba/useBuckets'
 import { useFollowing } from '../../lib/dash/follow'
+import { useLiveFetch } from '../../lib/useLiveFetch'
+import { nbaQuote } from '../../lib/nba/oddsQuote'
+import { fmtOdds } from '../../lib/odds'
+import LineMoveChip from '../LineMoveChip'
 
 // 🏀 BUCKETS PROPS, MOONSHOT'S PAGE (2026-10-04, Donovan: "make sure the props
 // pages look like the mlb one"). The shared grid (components/props/PropCards.js)
 // on BUCKETS' eight markets, one /api/buckets/board read each -- the same rows the
 // board below uses. CALLED / ON THE BOARD come from the board (lib/nba/model
 // scoreNight), the why line from the board's own whyNba, the tiles from the
-// legs the market's score is built from. No per-player price on the board.
+// legs the market's score is built from. The price is the book's, only at the card's own bar (nbaQuote).
 
 const KEYS = ['pts', 'reb', 'ast', '3pm', 'pra', 'dd', 'td', 'first']
 const MARKETS = [...KEYS, 'NONE']
@@ -27,7 +31,9 @@ const fmt = (leg, v) => {
   return (Math.round(n * 10) / 10).toFixed(1)
 }
 
-function bucketsAdapter(startOf) {
+function bucketsAdapter(startOf, odds) {
+  // the book's price at the card's own bar (lib/nba/oddsQuote.js, as BucketsCard); DD / TD / first basket have no book line here: unpriced
+  const quoteOf = (r, k) => nbaQuote(odds, r.id, k === 'NONE' ? KEYS.find((m) => r[m]) : k)
   const color = (k) => (k === 'NONE' ? C.text3 : C.purple)   // ONE accent (2026-10-07 colour diet): the market's name says which market it is
   const rowOf = (r, k) => (k === 'NONE' ? KEYS.map((m) => r[m]).find(Boolean) : r[k])
   return {
@@ -63,15 +69,15 @@ function bucketsAdapter(startOf) {
           <TeamMark sport="nba" abbr={r.opp} variant="logo" px={16} />
           {r.pos ? <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>· {r.pos}</span> : null}
         </span>,
-        metaRight: null,
+        metaRight: (() => { const q = quoteOf(r, k); return q ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{fmtOdds(q.best_over ?? q.over)}<LineMoveChip quote={q} theme={C} numFont={NUM_FONT} compact /></span> : null })(),
         line: x.why || null,
         facts: null,
         chips: chips.slice(0, 2),
         tiles: legs.map((l) => { const rk = RAW_OF[l] || l; return { k: LEG[rk] || LEG[l] || l, v: fmt(rk, x.legs?.[rk]) } }),
       }
     },
-    priced: () => false,
-    priceNum: () => null,
+    priced: (r, k) => Boolean(quoteOf(r, k)),
+    priceNum: (r, k) => { const q = quoteOf(r, k); return q ? Number(q.best_over ?? q.over) : null },
     startsAt: (r) => startOf.get(String(r.gameId)) ?? NaN,
     gameOf: (r) => (r?.gameId ? { key: String(r.gameId), label: r.home ? `${r.opp}@${r.team}` : `${r.team}@${r.opp}` } : null),
     // the pair history the slip quotes (lib/slipPairHist.js): two 25-point (points market) legs, from our own graded games
@@ -81,7 +87,7 @@ function bucketsAdapter(startOf) {
     sortTimeLabel: 'Tip-off',
     picksTitle: 'everyone called tonight, in any market',
     unit: 'call',
-    copy: { priced: 'BUCKETS prices live on the Odds page; the board carries no per-player price, so this finds nobody.' },
+    copy: { priced: "Cards where a book's line is this card's own bar (PTS 25+, REB 10+, ...). Double-double, triple-double and first basket have no book line." },
   }
 }
 
@@ -106,7 +112,8 @@ export default function BucketsProps({ date = null, onOpenPlayer }) {
     })
     return { rows: [...m.values()], startOf: st }
   }, datas) // eslint-disable-line react-hooks/exhaustive-deps
-  const a = useMemo(() => bucketsAdapter(startOf), [startOf])
+  const { data: odds } = useLiveFetch('/api/odds/latest?sport=nba')   // once, no timer (as BucketsCard)
+  const a = useMemo(() => bucketsAdapter(startOf, odds), [startOf, odds])
   if (!rows.length) return null
   return (
     <PropCards a={a} rows={rows} onOpen={(r) => onOpenPlayer?.(r.id)}

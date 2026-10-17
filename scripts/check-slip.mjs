@@ -3,6 +3,8 @@
 //   node --import ./scripts/_esm-resolve.mjs scripts/check-slip.mjs
 import { SLIP_KEYS, CALLED_CAP, readLegs, withLeg, withLegs, withoutLeg, toggledLeg, combined, calledLegs } from '../lib/slip/core.js'
 import { landedTogether, LANDED_TOGETHER_START, MIN_NIGHTS } from '../lib/slip/landed.js'
+import { lampAlsoPriced } from '../lib/nhl/lampQuote.js'
+import { nbaQuote } from '../lib/nba/oddsQuote.js'
 let fail = 0
 const eq = (name, got, want) => { const ok = JSON.stringify(got) === JSON.stringify(want); fail += !ok; console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${ok ? '' : `: got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`}`) }
 const NOW = Date.parse('2026-10-20T18:00:00Z')
@@ -80,5 +82,15 @@ eq('calls with no score cannot be ordered, so that night is not used', landedTog
 eq('MIN_NIGHTS is 5', MIN_NIGHTS, 5)
 eq('no model probability is printed anywhere in the messages', JSON.stringify(four).includes('%'), false)
 
-if (fail) { console.error(`\n${fail} FAILED`); process.exit(1) }
+if (fail) { console.error(`\n${fail} FAILED`); // PARITY (2026-10-17): the NHL "also priced" words, BUCKETS' card price, and the price-history gate. TEST data only.
+const TEST_NHL = { by_player_id: { T1: { player_points: { line: 0.5, over: -150 }, player_assists: { line: 1.5, over: 200 } }, T2: { player_points: { line: 0.5, best_over: 120, over: 110 } } } }
+eq('NHL also-priced: only a 0.5 book line counts', lampAlsoPriced(TEST_NHL, 'T1'), [{ word: '1+ pt', price: -150 }])
+eq('NHL also-priced: best price wins', lampAlsoPriced(TEST_NHL, 'T2'), [{ word: '1+ pt', price: 120 }])
+eq('NHL also-priced: nobody / no feed is empty', [lampAlsoPriced(TEST_NHL, 'T9'), lampAlsoPriced(null, 'T1')], [[], []])
+const TEST_NBA = { by_player_id: { N1: { player_points: { line: 24.5, over: -110 }, player_rebounds: { line: 9.5, over: 120 } } } }
+eq('NBA quote: PTS 25+ is the 24.5 line', nbaQuote(TEST_NBA, 'N1', 'pts')?.over, -110)
+eq('NBA quote: REB 10+ is the 9.5 line', nbaQuote(TEST_NBA, 'N1', 'reb')?.over, 120)
+eq('NBA quote: double-double has no book line; another line is no quote', [nbaQuote(TEST_NBA, 'N1', 'dd'), nbaQuote(TEST_NBA, 'N1', 'ast')], [null, null])
+
+process.exit(1) }
 console.log('\nall ok')

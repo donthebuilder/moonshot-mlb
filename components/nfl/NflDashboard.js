@@ -75,7 +75,6 @@ import DashFooter from '../DashFooter'
 import SkipLink from '../SkipLink'
 import NflProps from './NflProps'
 import NflCalls from './NflCalls'
-import Fold from '../Fold'
 import NflTeam from './tabs/Team'
 import { boardPicks } from '../binder/boardPicks'
 import { useTabView } from '../../lib/tabView'
@@ -541,17 +540,18 @@ export default function NflDashboard({ palettePass = 0 }) {
                 first table row at y 2503 on a phone. Now: the calls as one table row per market (NflCalls), then the ONE board
                 (the Bot: Shortlist / The card / Next week), and MOONSHOT's call cards (NflProps, the Props look from 10-04)
                 one tap away in a fold. Nothing deleted: same three components, same data. */}
-            {!oddsHold && tab === 'picks' && <NflCalls data={slate} picks={picks} onPlayerClick={openPlayer} />}
+            {/* PICKS OPENS LIKE MLB's PROPS (2026-10-17, Donovan: "everything needs to look like the MLB Props page"): the shared
+                call cards + filters + slip first (NflProps), then the calls as one table (NflCalls), then the Bot. Same three
+                components, same data, same member gate; only the order changed (the cards were in a fold). */}
+            {!oddsHold && tab === 'picks' && <NflProps data={slate} picks={picks} odds={odds} onPlayerClick={openPlayer} />}
+            {!oddsHold && tab === 'picks' && (
+              <section aria-label="The picks behind the cards" style={{ marginTop: 26, paddingTop: 18, borderTop: `1px solid ${C.border}` }}>
+                <NflCalls data={slate} picks={picks} onPlayerClick={openPlayer} />
+              </section>
+            )}
             {!oddsHold && tab === 'picks' && <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.border}`, font: `900 11px/1 ${NUM_FONT}`, letterSpacing: '.16em', color: C.green, marginBottom: 10 }}>THE SHORTLIST · THE CARD · NEXT WEEK</div>}
             {!oddsHold && tab === 'picks' && <Bot data={slate} picks={picks} results={nflResults} logs={logs} matchup={matchup} odds={odds}
               oddsStatus={oddsRaw?.source === 'sportsgameodds' && !oddsRaw?.empty ? null : oddsStatus} onPlayerClick={openPlayer} />}
-            {!oddsHold && tab === 'picks' && (
-              <div style={{ marginTop: 14 }}>
-                <Fold id="tuddy-picks-cards" title="🃏 The call cards" meta="one card per call, filters and slip">
-                  <NflProps data={slate} picks={picks} odds={odds} onPlayerClick={openPlayer} />
-                </Fold>
-              </div>
-            )}
             {!oddsHold && tab === 'research' && (
               <BoardHub onTitle={setHubTitle} onView={() => {}} slate={slate} data={data} logs={logs} matchup={matchup} odds={odds} oddsStatus={oddsRaw?.source === 'sportsgameodds' && !oddsRaw?.empty ? null : oddsStatus}
                 picks={picks} results={nflResults} liveSnap={liveSnap} onPlayerClick={openPlayer} initialView="board" />
