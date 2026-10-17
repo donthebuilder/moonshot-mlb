@@ -38,7 +38,7 @@ export const GET = bucketsRoute('player', async (q) => {
     gamelogFor(id, sn.prev).then(reduceGamelog).then(real).catch(() => []),
     seasonStats(sn.cur), seasonStats(sn.prev),
     db ? shotsOf(db, id) : { data: [] },
-    db ? db.from('buckets_log').select('game_date, market, status, role, score, hit, actual, opp, void_reason').in('model_version', LIVE_VERSIONS).eq('player_id', id).order('game_date', { ascending: false }).limit(200) : { data: [] },
+    db ? db.from('buckets_log').select('game_id, game_date, market, model_version, status, role, score, hit, actual, opp, void_reason').in('model_version', LIVE_VERSIONS).eq('player_id', id).order('game_date', { ascending: false }).limit(200) : { data: [] },
   ])
   const card = card0 ? { ...card0, birthDate } : card0
   // his club's schedule, both seasons: the next game (any season type) for "his games against them", and every FINAL
