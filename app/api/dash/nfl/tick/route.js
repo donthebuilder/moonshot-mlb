@@ -86,6 +86,7 @@ import { logXBudget } from '../../../../../lib/dash/xBudget'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 import { momentAfterTick } from '../../../../../lib/posts/momentTick'
 import { recapAfterTick } from '../../../../../lib/posts/recapTick'
+import { foldedForDiscord } from '../../../../../lib/posts/sportPlans'
 import { sendMembers } from '../../../../../lib/writeups/discordRoute'
 import { postLongshotsOnce } from '../../../../../lib/dash/longshotsPost'
 import { postMultiClubOnce } from '../../../../../lib/dash/multiClubPost'
@@ -676,6 +677,7 @@ async function runWeeklyContentTick(db, day) {
       // nfl_whyboard goes to #members only, never the free feed (the X post below is unchanged).
       const sent = sl.kind === 'nfl_whyboard'
         ? await sendMembers(text, { sport: 'nfl', kind: sl.kind })
+        : foldedForDiscord(sl.kind) ? false   // SPORT_PLANS_ON: nfl_board is recorded, not delivered to the room (foldedForDiscord is false for every other slot)
         : (await postToDiscord(text, { png }, FEED_WEBHOOKS())).ok
       if (sent) patch.discord_sent = true
       // The daily cap, by tier (lib/dash/xPolicy): the board is exempt, the results
