@@ -382,6 +382,23 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
         <button type="button" onClick={() => setViewMode('list')} style={{ minHeight: 44, margin: '0 0 8px', padding: '0 14px', borderRadius: 8, cursor: 'pointer', fontSize: TYPE.label, fontWeight: 700, border: `1px solid ${C.border}`, background: 'transparent', color: C.orange }}>☰ Back to the list</button>
       )}
 
+      {/* PHONE: the column switch rides ABOVE the table, in the box (2026-10-17). Rankings opens on the Short list; Read and All are one tap, and every player is in the list either way. */}
+      {compact && rankings && onColsView && viewMode === 'list' && (
+        <div role="group" aria-label="Columns" style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '0 0 6px', minWidth: 0 }}>
+          <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>{ranked.length} players</span>
+          <span style={{ flex: 1 }} />
+          {[...COLUMN_VIEWS].reverse().map((v) => {
+            const on = columnViewKey(colsView) === v.key
+            return (
+              <button key={v.key} type="button" onClick={() => onColsView(v.key)} aria-pressed={on} title={v.title} style={{
+                minHeight: 44, minWidth: 44, padding: '0 10px', fontSize: TYPE.label, fontWeight: 700, borderRadius: 8, cursor: 'pointer',
+                border: `1px solid ${on ? C.orange : C.border}`, background: on ? 'rgba(249,115,22,.12)' : 'transparent', color: on ? C.orange : C.text3,
+              }}>{v.key === 'lean' ? 'Short' : v.key === 'read' ? 'Read' : 'All'}</button>
+            )
+          })}
+        </div>
+      )}
+
       {/* One line, only on a doubleheader slate. Empty string otherwise. */}
       {dhNote && (
         <div style={{ fontSize: TYPE.micro, color: C.text3, lineHeight: 1.6, maxWidth: 800, marginBottom: 8 }}>
@@ -579,7 +596,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
                 )
               } },
             ...categoryColumns(type, { omit: catOmit }).map((c) => (rankings && CAT_GROUP[c.key.replace(/^cat_/, '')] ? { ...c, group: BOARD_GROUPS[CAT_GROUP[c.key.replace(/^cat_/, '')]] } : c)),
-          ]), { onWatch, dhOn: dh.size > 0 }), rankings), colsView)}
+          ]), { onWatch, dhOn: dh.size > 0 }), rankings), colsView, { phone: compact })}
           onRowClick={onPlayerClick}
           // THE PLAYER NAME CELL on Rankings (2026-10-13, Donovan: player rows): face, a name that fits, one line of chips, one row height (58px phone / 52px desktop)
           // via the shared components/table/PlayerNameCell.js; the other boards keep their own cell.

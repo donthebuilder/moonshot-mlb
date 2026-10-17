@@ -15,6 +15,9 @@ import {
 import { tone, alpha } from '../../lib/scales'
 import { hr9Color } from '../../lib/hr9'
 import { useTeamNav } from '../../lib/teamNav'
+import Fold from '../Fold'
+import PennantRace from '../PennantRace'
+import ComebackBoard from '../ComebackBoard'
 import { isKnownTeam } from '../../lib/mlbTeams'
 
 // League Leaders — SEASON STATS ONLY.
@@ -647,6 +650,15 @@ key={lens}
           caption={`Season stats, straight from the box score. Minimum ${minPA} PA, because rates on a small sample are noise. K% and PA/HR are flipped so bright is always good for the hitter. TB is worked out as SLG × (PA × (1 − BB%)), so it runs slightly light: rank by it, don't quote it.`}
         />
       )}
+      {/* SEASON-LONG, MOVED OFF HOME (2026-10-17): October odds and the Comeback board lived in Home's More fold; this is their page now (More > Leaders). Closed until opened, so neither fetches until then. */}
+      <div style={{ marginTop: 18 }}>
+        <Fold id="october" title="🏆 October odds" meta="playoff field and a World Series pick, simulated">
+          <PennantRace />
+        </Fold>
+        <Fold id="comebacks" title="🔄 Comeback board" meta="who wins after falling behind — and who gives it away">
+          <ComebackBoard />
+        </Fold>
+      </div>
     </div>
   )
 }
