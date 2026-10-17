@@ -17,6 +17,7 @@ import { stampArg, gameDayOf } from '../card/useStamps'
 import { poolOverNhl } from '../../lib/nhl/poolWords'
 import { canonPos } from '../../lib/positions'
 import { nhlShareRows } from '../../lib/nhl/boardColumns'
+import { nhlSeasonRows } from '../../lib/nhl/sznRow'
 
 // ── LAMP'S CARDS VIEW (2026-09-28, MLB-PARITY-BOARDS plan C2) ──────────────
 // The List | Cards toggle MOONSHOT and TUDDY have. The card is TUDDY's board
@@ -108,7 +109,7 @@ export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen, rank
     ...(sog ? [['OPP SA/60', fin(r.legs?.oppSaPg, 1)]] : []),
     ...(market === 'PTS' || market === 'AST' ? [['OPP GA/GP', fin(r.legs?.oppGaPg, 2)]] : []),
     ['PP goals', r.ppg ?? null], ['Power play', facts.pp ? `${facts.pp}%` : null], ['Their penalty kill', facts.pk ? `${facts.pk}%` : null], ['Rest', facts.rest || null],
-  ].filter(([, v]) => v != null && v !== '').map(([label, value]) => ({ label, value })).concat(nhlShareRows(r))   // + his share of his club (lib/shares.js)
+  ].filter(([, v]) => v != null && v !== '').map(([label, value]) => ({ label, value })).concat(nhlSeasonRows(r), nhlShareRows(r))   // + his season line and form (lib/nhl/sznRow.js), his share of his club (lib/shares.js)
   return (
     <SportTheme theme={C} accent={C.ice} numFont={NUM_FONT}>
       <RankCard accent={C.ice} status={r.status} rankMove={rankMove} pos={canonPos('nhl', r.pos)} rank={rank} sport="nhl" club={r.team} name={r.name} opp={opp}
@@ -116,7 +117,7 @@ export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen, rank
         face={<PlayerFace sport="nhl" variant="tile" photo={nhlMug(g.game.season, r.team, r.playerId)} team={null} name="" size={84} theme={C} />}
         score={Math.round(r.score ?? 0)} scoreWord="LAMP" explain={noteOf(market, gameDayOf(g.game.startUtc) || null)}
         reason={r.why && !stats.length ? r.why : null}
-        stats={stats} back={rows.length ? { rows, note: `Per game ${poolOverNhl(gameDayOf(g.game.startUtc) || null)}. A ranking, not a percentage. Share rows are a percent of his club this season.` } : null}
+        stats={stats} back={rows.length ? { rows, note: `Per game ${poolOverNhl(gameDayOf(g.game.startUtc) || null)}. A ranking, not a percentage. Season and last-5/10 rows are his regular season before tonight (season to date once the game has started). Share rows are a percent of his club this season.` } : null}
         dim={graded && r.dressed === false} onClick={() => onOpen?.(r.playerId)}
         foot={<>
           <FollowButton sport="nhl" id={String(r.playerId)} name={r.name} team={r.team} position={r.pos} />

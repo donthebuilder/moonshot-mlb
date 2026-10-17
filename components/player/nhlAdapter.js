@@ -35,7 +35,7 @@ export function nhlVerdict({ goalie, board, spot, row, w, whyLine }) {
 }
 
 /** The one-row stat strip: a skater's per-game rates (ranked against tonight's board only when 30+ skaters are on it) and his recent goals; a goalie's record. */
-export function nhlStatRow({ goalie, fr, board, row, l10, drought, seasonLabel, stale }) {
+export function nhlStatRow({ goalie, fr, board, row, l10, l10n = null, drought, seasonLabel, stale }) {
   if (!fr) return []
   const sz = `${seasonLabel || ''} regular season${stale ? ' (last season)' : ''}`
   if (goalie) {
@@ -57,7 +57,7 @@ export function nhlStatRow({ goalie, fr, board, row, l10, drought, seasonLabel, 
     { id: 'spg', label: 'S/GP', text: spg == null ? null : Number(spg).toFixed(1), title: `Shots on goal a game, ${sz}.`, rank: legRank('shotsPg', spg) },
     { id: 'toi', label: 'TOI', text: toi == null ? null : fmtSec(toi), title: `Average time on ice, ${sz}.`, rank: legRank('toi', toi) },
     { id: 'shp', label: 'S%', text: Number.isFinite(fr.shPct) ? (Number(fr.shPct) * 100).toFixed(1) : null, title: `Shooting percentage, ${sz}.`, rank: null },
-    { id: 'l10', label: 'L10 G', text: l10 == null ? null : String(l10), title: 'Goals in his last 10 games.', rank: null },
+    { id: 'l10', label: 'L10 G', text: l10 == null ? null : String(l10), title: l10n != null && l10n < 10 ? `Goals in his last ${l10n} ${l10n === 1 ? 'game' : 'games'} (all he has played this season).` : 'Goals in his last 10 games.', rank: null },
     { id: 'drt', label: 'DRT', text: drought == null ? null : String(drought), title: 'Games since his last goal.', rank: null },
   ]
   return items.filter((s) => s.text != null)

@@ -139,6 +139,7 @@ export default function Players({ goaliesOnly = false, onOpenTeam, onOpenGame })
           if (p.pos === 'G') return starts(p) == null ? 'No NHL line this season yet' : `${starts(p)} starts, ${goals(p) ?? 0} wins this season`
           const r = sc(p)
           const g = goals(p)
+          if (g == null) return `${r ? `Goal score ${r.score}, #${r.rank} of ${r.of} tonight · ` : ''}${stats.data ? 'No game in the league’s season report yet, so no goals to show' : 'Season goals are still loading'}`
           return `${r ? `Goal score ${r.score}, #${r.rank} of ${r.of} tonight` : 'No goal score tonight'}${g == null ? '' : ` · ${g} goals this season`}`
         }}
         asks={asks}

@@ -11,6 +11,7 @@ import { useFollowing } from '../../lib/dash/follow'
 import { useLiveFetch } from '../../lib/useLiveFetch'
 import { lampQuoteOf, lampAlsoPriced } from '../../lib/nhl/lampQuote'
 import { fmtOdds, impliedPct, payoutWords } from '../../lib/odds'
+import { nhlSeasonFacts } from '../../lib/nhl/sznRow'
 import GoalCompare from './GoalCompare'
 
 // 🏒 LAMP PROPS, MOONSHOT'S PAGE (2026-10-04, Donovan: "make sure the props
@@ -79,7 +80,7 @@ function lampAdapter(season, odds) {
         // the price, and where it opened when it has moved (lib/odds/lineMove.js: the feed's opening price against our newest read; no opening price, no chip)
         metaRight: (() => { const q = lampQuoteOf(odds, r, k); return q ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{fmtOdds(q.best_over ?? q.over)}<LineMoveChip quote={q} theme={C} numFont={NUM_FONT} compact /></span> : null })(),
         line: x.why || null,
-        facts: null,
+        facts: nhlSeasonFacts(x),   // his season line and form (the board row's szn / form), so a card never hides season goals
         chips: chips.slice(0, 3),
         tiles,
       }

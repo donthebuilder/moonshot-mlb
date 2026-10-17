@@ -213,7 +213,8 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
   const logNewest = p.log?.rows || []
   const goalsIn = (n) => {
     const g = logNewest.slice(0, n)
-    return g.length === n ? { num: g.reduce((t, r) => t + (Number(r.g) || 0), 0), den: n } : null
+    // the games he has, up to n (early season: L10 over his 6 games, said so in the strip's title), never nothing while he has played
+    return g.length ? { num: g.reduce((t, r) => t + (Number(r.g) || 0), 0), den: g.length } : null
   }
 
   // ‹ › walk tonight's board in its own order (the ranking is what he was reading)
@@ -320,7 +321,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
               <Kicker>{goalie ? 'RECORD' : 'THE LINE'} · {f.seasonLabel}{stale ? ' (LAST SEASON)' : ''}</Kicker>
             </div>
             {stale && <div style={{ marginBottom: 10 }}><StaleSeasonNote label={f.seasonLabel} opens={p.opens} what="line" /></div>}
-            <StatRow noun="skaters" stats={nhlStatRow({ goalie, fr, board, row, l10: goalsIn(10)?.num ?? null, drought: /^\d+$/.test(droughtOf(p.log?.rows)) ? Number(droughtOf(p.log?.rows)) : null, seasonLabel: f.seasonLabel, stale })} />
+            <StatRow noun="skaters" stats={nhlStatRow({ goalie, fr, board, row, l10: goalsIn(10)?.num ?? null, l10n: goalsIn(10)?.den ?? null, drought: /^\d+$/.test(droughtOf(p.log?.rows)) ? Number(droughtOf(p.log?.rows)) : null, seasonLabel: f.seasonLabel, stale })} />
             {!fr && <EmptyState title="NO NHL LINE YET" note="No regular-season line for him yet. A camp invite or a prospect, most likely." />}
           </section>
           {p.last5.length > 0 && (

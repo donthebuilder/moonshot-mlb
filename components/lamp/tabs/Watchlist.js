@@ -18,7 +18,9 @@ import usePositionFilter from '../../../lib/usePositionFilter'
 import { canonPos } from '../../../lib/positions'
 import { useFollowing, follow } from '../../../lib/dash/follow'
 import { useLampBoardOnce } from '../../../lib/nhl/useLamp'
-import { withNhlFullSet } from '../../../lib/nhl/boardColumns'
+import { useLiveFetch } from '../../../lib/useLiveFetch'
+import { withNhlFullSet, nhlBoardRow } from '../../../lib/nhl/boardColumns'
+import { sznFromLeagueRow } from '../../../lib/nhl/sznRow'
 import { nhlMug } from '../../../lib/nhl/format'
 import { fmtPuckDrop } from '../ui'
 import { STATUS_WORD } from '../../../lib/callStatus'
@@ -64,6 +66,14 @@ export default function Watchlist({ onOpenPlayer }) {
     rows: all, statusOf: (x) => x.r?.status, keyOf: (x) => `${x.g?.game?.id}|${x.r?.playerId}`, timeOf: (x) => x.g?.game?.startUtc ?? null,
     gradedOf: (x) => Boolean(x.g?.graded), rankOf: (x) => x.r?.rank,
   })
+  // A SKATER WITH NO GAME TONIGHT has no board row, so he used to show nothing but his name. His season line comes from the league's
+  // season report (one cached route, the Leaders table's) -- asked for only when someone you watch has no row, and only the CURRENT season's.
+  const needLine = Boolean(board) && all.some((x) => !x.r)
+  const { data: seasonStats } = useLiveFetch(needLine ? '/api/lamp/seasonstats' : null, { enabled: needLine })
+  const lineOf = useMemo(() => {
+    if (!seasonStats || seasonStats.stale) return new Map()
+    return new Map((seasonStats.skaters || []).map((s) => [String(s.id), s]))
+  }, [seasonStats])
   const pf = usePositionFilter('nhl', all, { posOf: (x) => (x.r?.pos || x.f.position ? canonPos('nhl', x.r?.pos || x.f.position) : null) })
   const rows = useMemo(() => all.filter(pf.test), [all, pf.test])
   const called = all.filter((x) => x.r?.status === 'called').length
@@ -86,6 +96,8 @@ export default function Watchlist({ onOpenPlayer }) {
       status: r?.status || '', score: r?.score != null ? Math.round(r.score) : null,
       puck: game?.startUtc ? Date.parse(game.startUtc) : null,
       _row: r || null, _x: x,
+      // no board row: the season line from the league report (only keys with a real value, so nothing blanks a column)
+      ...(!r ? nhlBoardRow({ szn: sznFromLeagueRow(lineOf.get(String(f.id))) }) : {}),
     }
   })
   const table = withNhlFullSet(tableRows, [
