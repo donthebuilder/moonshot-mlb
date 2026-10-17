@@ -19,15 +19,21 @@ const split = (c) => (c?.g ? `${c.hrG}/${c.g}` : '—')
 
 // `data` (2026-10-08, the player model): the card fetches /api/mlb/boton once for its verdict lines and hands it
 // down; undefined -> this fetches for itself, as before.
-export default function BotOnHim({ pid, data }) {
+// `view` (2026-10-17, the NHL card): another sport hands in its own words and rows ({ brand, C, NUM_FONT, headline, helpLabel, help, badges,
+// rows, columns, hint, caption }, built in components/player/nhlRecordView.js) and gets the same section (BotRoleTable); MOONSHOT passes none.
+export default function BotOnHim({ pid, data, view = null }) {
   const [own, setD] = useState(null)
   const d = data !== undefined ? data : own
   useEffect(() => {
-    if (!pid || data !== undefined) return undefined
+    if (view || !pid || data !== undefined) return undefined
     let live = true
     fetch(`/api/mlb/boton?pid=${encodeURIComponent(pid)}`).then((r) => (r.ok ? r.json() : null)).then((j) => { if (live) setD(j) }).catch(() => {})
     return () => { live = false }
-  }, [pid, data])
+  }, [pid, data, view])
+  if (view) {
+    const sub = <>{view.headline}<HelpTip label={view.helpLabel} text={view.help} /></>
+    return <BotRoleTable brand={view.brand} sub={sub} badges={view.badges || []} rows={view.rows} columns={view.columns} hint={view.hint} caption={view.caption} theme={view.C || C} numFont={view.NUM_FONT || NUM_FONT} accent={(view.C || C).orange} />
+  }
   if (!d?.available || !d.player) return null
   const roles = Object.entries(d.player.roles).sort((a, b) => ROLE_ORDER.indexOf(a[0]) - ROLE_ORDER.indexOf(b[0]))
   const rows = roles.map(([role, R]) => ({
