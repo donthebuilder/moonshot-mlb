@@ -5,7 +5,7 @@ import PageHeader from '../../PageHeader'
 import LampTable from '../LampTable'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampStandings } from '../../../lib/nhl/useLamp'
-import { EmptyState, DelayedBanner, Loading, Pills, SourceLine, Kicker, fmtDay } from '../ui'
+import { EmptyState, DelayedBanner, Loading, Pills, Kicker, fmtDay } from '../ui'
 import Hint from '../Hint'
 
 // 🏒 STANDINGS — division, wild card, conference, league. Four views of one
@@ -127,7 +127,6 @@ export default function Standings({ onOpenTeam }) {
           )}
         </section>
       ))}
-      <SourceLine>Source: NHL (api-web.nhle.com) standings/now and standings-season, read server-side by /api/lamp/standings, cached ten minutes. Season and as-of date are the feed’s own.</SourceLine>
     </div>
   )
 }

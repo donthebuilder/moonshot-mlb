@@ -37,7 +37,6 @@ const Schedule = dynamic(() => import('./tabs/Schedule'), { loading: TabLoading 
 const Standings = dynamic(() => import('./tabs/Standings'), { loading: TabLoading })
 const Game = dynamic(() => import('./tabs/Game'), { loading: TabLoading })
 const Guide = dynamic(() => import('./tabs/Guide'), { loading: TabLoading })
-const Teams = dynamic(() => import('./tabs/Teams'), { loading: TabLoading })
 const Team = dynamic(() => import('./tabs/Team'), { loading: TabLoading })
 const Players = dynamic(() => import('./tabs/Players'), { loading: TabLoading })
 const Player = dynamic(() => import('./tabs/Player'), { loading: TabLoading })
@@ -93,7 +92,7 @@ const DATED_TABS = new Set(['home', 'scores', 'schedule', 'board', 'shots', 'gam
 const ROUTE = {
   sport: 'nhl', nav: NHL_NAV, datedTabs: DATED_TABS,
   ids: { game: /^\d{10}$/, team: /^[A-Z]{3}$/, player: /^\d{7}$/ },
-  keep: { game: ['games'], m: ['fullboard', 'shots'], player: ['players', 'goalies', 'shotmap'] },
+  keep: { game: ['games'], m: ['fullboard', 'shots'], player: ['players', 'shotmap'] },
   // #tab=board&m=sog predates the Shots slot (2026-09-28): it opens there. #tab=board&m=pts|ast|goal
   // predates Boards (2026-10-05: Props is cards only): those open the table they meant.
   rewrite: (r, get) => {
@@ -147,7 +146,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             sport="nhl"
             palette={C}
             onNavigate={setTab}
-            doors={[['home', '\u{1F3E0} TONIGHT'], ['board', '\u{1F3AF} BOARD'], ['scores', '\u{1F4E1} SCORES'], ['schedule', '\u{1F4C5} SCHEDULE'], ['standings', '\u{1F4CA} STANDINGS'], ['players', '\u{1F464} PLAYERS'], ['teams', '\u{1F3DF} TEAMS'], ['leaders', '\u{1F3C6} LEADERS'], ['guide', '\u{1F4D6} GUIDE']]}
+            doors={[['home', '\u{1F3E0} TONIGHT'], ['board', '\u{1F3AF} BOARD'], ['scores', '\u{1F4E1} SCORES'], ['schedule', '\u{1F4C5} SCHEDULE'], ['standings', '\u{1F4CA} STANDINGS'], ['players', '\u{1F464} PLAYERS'], ['leaders', '\u{1F3C6} LEADERS'], ['guide', '\u{1F4D6} GUIDE']]}
           />
         ) : (<>
           {/* ✨ who you highlighted (lib/pickLight.js) -- only while someone is */}
@@ -167,10 +166,8 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'standings' && <Standings onOpenTeam={openTeam} />}
             {tab === 'game' && <Game id={gameId} onOpenPlayer={peekPlayer} onOpenTeam={openTeam} onOpenGame={openGame} backLabel={backLabel('scores')} onBack={() => goBack('scores')} />}
             {tab === 'guide' && <Guide onNavigate={setTab} />}
-            {tab === 'teams' && <Teams onOpenTeam={openTeam} />}
-            {tab === 'team' && <Team abbrev={teamKey} onOpenPlayer={peekPlayer} onOpenGame={openGame} backLabel={backLabel('teams')} onBack={() => goBack('teams')} />}
+            {tab === 'team' && <Team abbrev={teamKey} onOpenPlayer={peekPlayer} onOpenGame={openGame} backLabel={backLabel('standings')} onBack={() => goBack('standings')} />}
             {tab === 'players' && <Players onOpenTeam={openTeam} onOpenGame={openGame} />}
-            {tab === 'goalies' && <Players goaliesOnly onOpenTeam={openTeam} onOpenGame={openGame} />}
             {tab === 'player' && <Player id={playerId} onStep={stepPlayer} onOpenTeam={openTeam} onOpenGame={openGame} backLabel={backLabel('players')} onBack={() => goBack('players')} />}
             {tab === 'leaders' && <Leaders onOpenPlayer={peekPlayer} onOpenTeam={openTeam} />}
             {tab === 'pairs' && <Pairs onOpenPlayer={peekPlayer} />}

@@ -23,7 +23,7 @@ import { bucketsAngles } from '../../../lib/nba/angles'
 import { BucketsCards } from '../BucketsCard'
 import ShareCardButton from '../../card/ShareCardButton'
 import { shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
-import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager, Why, fmtDay, fmtTip, writeHashParam, readHashParam } from '../ui'
+import { EmptyState, DelayedBanner, Loading, Pills, NavBtn, DayPager, Why, fmtDay, fmtTip, writeHashParam, readHashParam } from '../ui'
 import { STATUS_WORD } from '../../../lib/callStatus'
 import { useRankMove } from '../../../lib/useRankMove'
 import { RankMoveNote } from '../../RankMove'
@@ -321,7 +321,6 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
       {mk === 'pts' && m !== ALL && <CalledLastNight lens={cln} accent={C.purple} theme={C} numFont={NUM_FONT} logoSport="nba" onOpen={(r) => onOpenPlayer?.(r.pid)} />}
       </>)}
       {whySheet}
-      <SourceLine>Where this comes from: the league’s rosters, injury reports and season stats. A locked row is written before tip and never changed after it.</SourceLine>
     </div>
   )
 }

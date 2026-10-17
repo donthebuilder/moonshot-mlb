@@ -12,7 +12,7 @@ import ShotChart from '../ShotChart'
 import InjuryOut from '../../injuries/InjuryOut'
 import TeamCards from '../../binder/TeamCards'
 import HeadToHead from '../../h2h/HeadToHead'
-import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, BackBtn } from '../ui'
+import { EmptyState, DelayedBanner, Loading, Kicker, BackBtn } from '../ui'
 
 // 🏀 BUCKETS' TEAM PAGE, on the shared team page (2026-10-10; NBA is the long-term flagship, so it gets the same depth as the
 // other three): the header (record, seed, streak, home / road / last ten, next game, last five), a one-row chips bar and six
@@ -49,7 +49,6 @@ export default function Team({ abbrev, onBack, backLabel = 'Teams', onOpenPlayer
       nav={{ onOpenPlayer, onOpenGame, onOpenTeam: onOpenTeam || teamNav }}
       back={<BackBtn onBack={onBack} label={backLabel} />}
       banner={<><DelayedBanner error={payload ? null : error} what="club data" /><DelayedBanner error={deep ? null : deepError} what="the club’s league numbers" /></>}
-      footer={<SourceLine>Source: ESPN roster, injuries, schedule, standings and season team statistics (/api/buckets/team, /api/buckets/teamdeep); the graded BUCKETS log; tonight’s board; shots /api/buckets/shots. Before the season the numbers are last season’s and say so.</SourceLine>}
     />
   )
 }

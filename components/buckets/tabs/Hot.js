@@ -4,7 +4,7 @@ import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsHot } from '../../../lib/nba/useBuckets'
 import BucketsTable from '../BucketsTable'
-import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, DayPager, LastSeasonNote, Why, fmtDay } from '../ui'
+import { EmptyState, DelayedBanner, Loading, Pills, DayPager, LastSeasonNote, Why, fmtDay } from '../ui'
 
 // 🔥 HOT HANDS -- LAMP's Hot sticks, basketball's: every rotation player in
 // the day's games, his last 5 and last 10 beside his season, from his own
@@ -54,7 +54,6 @@ export default function Hot({ date, setDate, onOpenPlayer, onOpenTeam }) {
           initialSort={{ key: `${k}_d`, dir: 'desc' }} heatMode="sorted" maxHeight={620} maxRows={rows.length}
           caption={`${label}: last 5 and last 10 games beside the season. Column headers sort; each row opens that player.`} />
       )}
-      <SourceLine>Source: each player’s ESPN game log, regular season and playoffs (/api/buckets/hot). Rotation = 15+ minutes a game on the points board’s pooled line.</SourceLine>
     </div>
   )
 }

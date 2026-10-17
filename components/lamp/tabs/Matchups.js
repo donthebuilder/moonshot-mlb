@@ -8,7 +8,7 @@ import LampTable from '../LampTable'
 import ShotPanel from '../ShotPanel'
 import GoalieWeakSpots from '../GoalieWeakSpots'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
-import { DelayedBanner, Loading, SourceLine, EmptyState, PlayerMark } from '../ui'
+import { DelayedBanner, Loading, EmptyState, PlayerMark } from '../ui'
 import { MatchupTitle, SubLabel, BarList, FactLines } from '../../matchup/MatchupParts'
 import { arenaOf } from '../../../lib/nhl/arenas'
 import { nhlMugLatest } from '../../../lib/nhl/format'
@@ -172,7 +172,6 @@ export default function Matchups({ date = null, onOpenPlayer, onOpenTeam = null 
           <Detail row={active} league={league} date={date} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />
         </>
       )}
-      <SourceLine>Goals allowed: the league standings (goalAgainst / gamesPlayed). PK% and PP%: api.nhle.com/stats team reports, regular season; ranks against all 32 clubs, #1 = best for the attacking club (the weakest penalty kill, the strongest power play, the most goals allowed). Rest: each club&apos;s schedule. Who fits: tonight&apos;s LAMP board, the skater called on each team. Goalies: club stats.</SourceLine>
     </div>
   )
 }

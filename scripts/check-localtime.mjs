@@ -33,5 +33,5 @@ for (const k of Object.keys(x)) { const ok = got[k] === x[k]; if (!ok) bad++; co
 // unusable input never throws and never prints a made-up time
 for (const v of [null, undefined, 'junk', NaN]) if (localTime(v) !== '') { bad++; console.log('  FAIL bad input', v) }
 if (localStamp('whenever') !== 'whenever') { bad++; console.log('  FAIL unparseable stamp must come back unchanged') }
-// hydration: the server (no window) and the client's first render both use the fallback; see components/LocalAt.js
+// hydration: the server (no window) and the client's first render both use the fallback
 process.exit(bad ? 1 : 0)

@@ -4,7 +4,7 @@ import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsStandings } from '../../../lib/nba/useBuckets'
 import BucketsTable from '../BucketsTable'
-import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, Pills } from '../ui'
+import { EmptyState, DelayedBanner, Loading, Kicker, Pills } from '../ui'
 
 // 📈 STANDINGS -- both conferences, seeded, the league's own order (ESPN
 // standings). Before opening night it is last season's final table, labelled;
@@ -43,7 +43,6 @@ export default function Standings({ onOpenTeam }) {
             caption={`${c.name}, seeded. Each row opens the club.`} />
         </section>
       ))}
-      <SourceLine>Source: ESPN NBA standings (/api/buckets/standings). Clinch marks are the league’s: x playoff, y division, z conference, e eliminated.</SourceLine>
     </div>
   )
 }

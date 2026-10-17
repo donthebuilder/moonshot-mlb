@@ -19,7 +19,7 @@ import ShotChart from '../ShotChart'
 import BucketsTeamExpected from '../BucketsTeamExpected'
 import NbaWriteupBlock from '../NbaWriteupBlock'
 import InjuryOut from '../../injuries/InjuryOut'
-import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, BackBtn, NavBtn, RimDot, fmtTip, gameDay, fmtDay } from '../ui'
+import { EmptyState, DelayedBanner, Loading, Kicker, BackBtn, NavBtn, RimDot, fmtTip, gameDay, fmtDay } from '../ui'
 
 // the 3D court loads only when opened (next/dynamic, as the other 3D views)
 const CourtArena = dynamic(() => import('../CourtArena'), { ssr: false })
@@ -94,7 +94,6 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
         <ShareCardButton sport="nba" what="this game" style={{ marginLeft: 'auto' }} url={shareUrl({ kind: 'game', sport: 'nba', game: id, market: 'pts', date: gameDay(data.date) })} filename={`game-${slug(away.abbrev)}-${slug(home.abbrev)}_${stamp(gameDay(data.date))}.png`} />
       </div>
       {gameSections('nba', 'page').map((sec) => <Fragment key={sec.id}>{SECTIONS[sec.id]?.()}</Fragment>)}
-      <SourceLine>Source: ESPN’s game summary and play-by-play (/api/buckets/game). Free throws and end-of-quarter heaves are left off the chart, as in the box score.</SourceLine>
     </div>
   )
 }

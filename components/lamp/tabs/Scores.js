@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { sortGames, GoalLines } from '../ScoreTable'
 import GameRow from '../../GameRow'
 import TeamMark from '../../TeamMark'
-import { EmptyState, DelayedBanner, Loading, SourceLine, GameTypeChip, LampDot, fmtDay, shiftDay, zoneAbbrev, fmtPuckDrop } from '../ui'
+import { EmptyState, DelayedBanner, Loading, GameTypeChip, LampDot, fmtDay, shiftDay, zoneAbbrev, fmtPuckDrop } from '../ui'
 import { localTime } from '../../../lib/localTime'
 import Hint from '../Hint'
 
@@ -65,10 +65,6 @@ export default function Scores({ onOpenGame, date = null, setDate = () => {} }) 
       {games.length > 0 && <div>{sortGames(games).map((g) => <LampGameRow key={g.id} g={g} open={open.has(g.id)} onToggle={toggle} onOpenGame={onOpenGame} />)}</div>}
       {!day && error && <EmptyState title="LIVE DATA DELAYED" note="We’re waiting on the scores. Try again in a moment." tone={C.amber} />}
 
-      <SourceLine>
-        Source: NHL (api-web.nhle.com) score/{'{date}'}, read server-side by /api/lamp/scores, refreshed every 15 s at the edge and every 30 s on this page while a game is live.
-        {data?.fetchedAt ? ` Last read ${localTime(data.fetchedAt, { zone: false })}.` : ''}
-      </SourceLine>
     </div>
   )
 }

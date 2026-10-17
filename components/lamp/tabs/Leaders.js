@@ -12,7 +12,7 @@ import { TYPE } from '../../../lib/theme'
 import { alpha } from '../../../lib/scales'
 import { nhlMug } from '../../../lib/nhl/format'
 import { useLampLeaders, useLampSeasonStats } from '../../../lib/nhl/useLamp'
-import { DelayedBanner, Loading, SourceLine, StaleSeasonNote, fmtPct3, fmt2, fmtSec, plusMinus } from '../ui'
+import { DelayedBanner, Loading, StaleSeasonNote, fmtPct3, fmt2, fmtSec, plusMinus } from '../ui'
 
 // 🏒 LEADERS — MOONSHOT'S PAGE, FOR HOCKEY (2026-09-29, Donovan: "make sure
 // the leaders page for nfl and nhl look like mlb"). Same order as MOONSHOT's
@@ -253,7 +253,6 @@ export default function Leaders({ onOpenPlayer }) {
           />
         ))}
 
-        <SourceLine>Source: the NHL stats reports (skater/summary, goalie/summary, regular season) via /api/lamp/seasonstats, and the league&apos;s leaders feed via /api/lamp/leaders, both cached ten minutes. The season shown is the newest one with games in it.</SourceLine>
       </div>
     </SportTheme>
   )

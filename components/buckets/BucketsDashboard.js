@@ -51,7 +51,6 @@ const Ledger = dynamic(() => import('./tabs/Ledger'), { loading: TabLoading })
 const Numerology = dynamic(() => import('./tabs/Numerology'), { loading: TabLoading })
 const Watchlist = dynamic(() => import('./tabs/Watchlist'), { loading: TabLoading })
 const StorylinesPage = dynamic(() => import('../StorylinesPage'), { loading: TabLoading })
-const Teams = dynamic(() => import('./tabs/Teams'), { loading: TabLoading })
 const Team = dynamic(() => import('./tabs/Team'), { loading: TabLoading })
 const Players = dynamic(() => import('./tabs/Players'), { loading: TabLoading })
 const Player = dynamic(() => import('./tabs/Player'), { loading: TabLoading })
@@ -119,7 +118,7 @@ export default function BucketsDashboard() {
         )}
         {missingTab ? (
           <TabNotFound asked={missingTab} sport="nba" palette={C} onNavigate={setTab}
-            doors={[['home', '\u{1F319} TONIGHT'], ['board', '\u{1F0CF} PROPS'], ['scores', '\u{1F4E1} LIVE'], ['standings', '\u{1F4C8} STANDINGS'], ['players', '\u{1F464} PLAYERS'], ['teams', '\u{1F3DF} TEAMS'], ['leaders', '\u{1F3C6} LEADERS'], ['guide', '❓ GUIDE']]} />
+            doors={[['home', '\u{1F319} TONIGHT'], ['board', '\u{1F0CF} PROPS'], ['scores', '\u{1F4E1} LIVE'], ['standings', '\u{1F4C8} STANDINGS'], ['players', '\u{1F464} PLAYERS'], ['leaders', '\u{1F3C6} LEADERS'], ['guide', '❓ GUIDE']]} />
         ) : (<>
           <SportTheme theme={C} accent={C.purple} numFont={NUM_FONT}>
             <HighlightBar sport="nba" onOpen={(id) => peekPlayer(id)} />
@@ -153,8 +152,7 @@ export default function BucketsDashboard() {
             {tab === 'hot' && <Hot date={date} setDate={setDate} {...nav} />}
             {tab === 'matchups' && <Matchups date={date} setDate={setDate} onOpenTeam={openTeam} onOpenGame={openGame} />}
             {tab === 'standings' && <Standings onOpenTeam={openTeam} />}
-            {tab === 'teams' && <Teams onOpenTeam={openTeam} />}
-            {tab === 'team' && <Team abbrev={teamKey} {...nav} backLabel={backLabel('teams')} onBack={() => goBack('teams')} />}
+            {tab === 'team' && <Team abbrev={teamKey} {...nav} backLabel={backLabel('standings')} onBack={() => goBack('standings')} />}
             {tab === 'players' && <Players {...nav} />}
             {tab === 'player' && <Player id={playerId} {...nav} onStep={stepPlayer} backLabel={backLabel('players')} onBack={() => goBack('players')} />}
             {tab === 'power' && <Power date={date} setDate={setDate} {...nav} />}

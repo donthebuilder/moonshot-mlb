@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, RAMP } from '../../../lib/nhl/theme'
 import { useLampPlayers, useLampSeasonStats, useLampBoardOnce } from '../../../lib/nhl/useLamp'
 import { byScore } from '../../../lib/nhl/goalModel'
@@ -11,7 +11,7 @@ import { SportTheme } from '../../SportTheme'
 import PlayerBoardFrame from '../../players/PlayerBoardFrame'
 import { useLiveFetch } from '../../../lib/useLiveFetch'
 import { nhlGoalLeg } from '../../../lib/slip/rowLegs'
-import { DelayedBanner, Loading, TeamMark } from '../ui'
+import { DelayedBanner, Loading, TeamMark, readHashParam, writeHashParam } from '../ui'
 import Player from './Player'
 
 // 🏒 PLAYERS / GOALIES, MOONSHOT'S PAGE (2026-09-30, Donovan: "the mlb players
@@ -32,11 +32,19 @@ import Player from './Player'
 // goals. Season goals stay on the row as the quiet second number and as the other
 // sort (Score | Goals). GOALIES have no goal score: they are ordered by games
 // started (the starter first), then wins; the chip is his starts, the quiet line his
-// save %. `goaliesOnly` is the GOALIES tab: the same page opened on goalies.
+// save %. `goaliesOnly` is the Goalies pill (hash gk=1; #tab=goalies is an alias that opens it, lib/routes.js ALIAS_PARAMS).
 
 const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 
-export default function Players({ goaliesOnly = false, onOpenTeam, onOpenGame }) {
+export default function Players({ onOpenTeam, onOpenGame }) {
+  const [goaliesOnly, setGoalies] = useState(false)
+  useEffect(() => {   // the address owns the pill: a link or Back can flip it
+    const read = () => setGoalies(readHashParam('gk') === '1')
+    read()
+    window.addEventListener('hashchange', read)
+    return () => window.removeEventListener('hashchange', read)
+  }, [])
+  const flipGoalies = () => { const on = !goaliesOnly; setGoalies(on); writeHashParam('gk', on ? '1' : null) }
   const { data, error, loading } = useLampPlayers()
   const stats = useLampSeasonStats()
   const board = useLampBoardOnce()
@@ -92,7 +100,6 @@ export default function Players({ goaliesOnly = false, onOpenTeam, onOpenGame })
     ...(goaliesOnly ? [] : [
       { key: 'F', label: 'Forwards', test: (p) => ['C', 'L', 'R'].includes(p.pos), why: 'Centres and wingers' },
       { key: 'D', label: 'Defence', test: (p) => p.pos === 'D', why: 'Defencemen' },
-      { key: 'G', label: 'Goalies', test: (p) => p.pos === 'G', why: 'Goaltenders' },
     ]),
   ]
 
@@ -104,14 +111,19 @@ export default function Players({ goaliesOnly = false, onOpenTeam, onOpenGame })
       {noBoard && !goaliesOnly ? <div style={{ color: C.text3, fontSize: 11, marginBottom: 6 }}>Tonight&apos;s goal scores aren&apos;t out yet, so the list is in season goals.</div> : null}
       <PlayerBoardFrame
         ramp={RAMP}
-        sideTop={goaliesOnly || noBoard ? null : (
-          <div role="group" aria-label="Sort" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-            <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, color: C.text3, letterSpacing: '.06em' }}>SORT</span>
-            {[['score', 'Score'], ['goals', 'Goals']].map(([k, label]) => (
-              <button key={k} type="button" aria-pressed={sort === k} onClick={() => setSort(k)}
-                style={{ minHeight: 44, minWidth: 64, padding: '0 14px', borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: 800, fontFamily: NUM_FONT,
-                  border: `1px solid ${sort === k ? C.ice : C.border}`, background: sort === k ? alpha(C.ice, 0.14) : 'transparent', color: sort === k ? C.ice : C.text3 }}>{label}</button>
-            ))}
+        sideTop={(
+          <div role="group" aria-label="Sort and filter" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
+            {goaliesOnly || noBoard ? null : (<>
+              <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, color: C.text3, letterSpacing: '.06em' }}>SORT</span>
+              {[['score', 'Score'], ['goals', 'Goals']].map(([k, label]) => (
+                <button key={k} type="button" aria-pressed={sort === k} onClick={() => setSort(k)}
+                  style={{ minHeight: 44, minWidth: 64, padding: '0 14px', borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: 800, fontFamily: NUM_FONT,
+                    border: `1px solid ${sort === k ? C.ice : C.border}`, background: sort === k ? alpha(C.ice, 0.14) : 'transparent', color: sort === k ? C.ice : C.text3 }}>{label}</button>
+              ))}
+            </>)}
+            <button type="button" aria-pressed={goaliesOnly} onClick={flipGoalies} title="Goaltenders only, in order of starts"
+              style={{ minHeight: 44, minWidth: 64, padding: '0 14px', borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: 800, fontFamily: NUM_FONT,
+                border: `1px solid ${goaliesOnly ? C.ice : C.border}`, background: goaliesOnly ? alpha(C.ice, 0.14) : 'transparent', color: goaliesOnly ? C.ice : C.text3 }}>Goalies</button>
           </div>
         )}
         rows={rows}

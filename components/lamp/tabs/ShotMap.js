@@ -5,7 +5,7 @@ import ShotPanel from '../ShotPanel'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { NHL_TEAMS } from '../../../lib/nhl/teams'
 import { useLampPlayers } from '../../../lib/nhl/useLamp'
-import { SourceLine, readHashParam } from '../ui'
+import { readHashParam } from '../ui'
 import { arenaOf } from '../../../lib/nhl/arenas'
 
 // 🏒 SHOT MAP (lamp research step 3, 2026-09-26) — More → League. Pick a
@@ -59,7 +59,6 @@ export default function ShotMap({ onOpenPlayer }) {
         {picked && <button type="button" onClick={() => onOpenPlayer?.(picked.id)} style={{ background: 'none', border: 'none', color: C.ice, cursor: 'pointer', font: `800 10px/1 ${NUM_FONT}` }}>open his file →</button>}
       </div>
       <ShotPanel sel={sel} who={sel.player ? 'He' : 'They'} height={540} seasonSwitch venue={arenaOf(sel.team || picked?.team)?.name} />
-      <SourceLine>gamecenter/{'{id}'}/play-by-play: shot-on-goal, goal, missed-shot and blocked-shot events (xCoord, yCoord, shotType, situationCode), regular season, shootouts left out. Stored in lamp_shots after each graded game; 2025-26 backfilled.</SourceLine>
     </div>
   )
 }
