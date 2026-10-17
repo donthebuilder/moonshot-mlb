@@ -245,7 +245,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
           )}
           {/* the card in a peek: the previous / next / compare / search arrows and Full page / close share this ONE row (was three stacked rows) */}
           {lead && onStep && peers.length > 1 && <Navigator peers={peers} cur={cur} noun="player" onNavigate={(x) => onStep(x.id)} />}
-          {lead}
+          {lead?.full}
         </div>
       )}
       <DelayedBanner error={error} what="his file" />
@@ -276,6 +276,8 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
             </div>
           </div>
           <div style={{ flex: '0 0 auto' }}><FollowButton sport="nhl" id={String(p.id)} name={p.name} team={p.team} position={p.pos} compact /></div>
+          {/* the card's close sits in the header at the right, as on MOONSHOT's card */}
+          {lead?.close}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 12px', margin: '6px 0 2px' }}>
           {goalie ? <span style={{ color: C.text2, fontSize: 12 }}>Goalie</span> : (
@@ -484,5 +486,5 @@ function BackBtn({ onBack, label }) {
   return <div><button type="button" onClick={onBack} style={{ minHeight: 44, padding: '0 14px', borderRadius: 8, cursor: 'pointer', border: `1px solid ${C.border2}`, background: C.bg2, color: C.text2, font: `800 12px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>‹ {label}</button></div>
 }
 
-// PlayerPeek: this page carries the card's Full page / close buttons in its own top row (one toolbar)
+// PlayerPeek: this page carries the card's Full page button in its one toolbar row and the close in its header (as MOONSHOT's card)
 Player.peekToolbar = true
