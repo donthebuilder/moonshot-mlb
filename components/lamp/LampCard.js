@@ -16,6 +16,7 @@ import RankCard from '../card/RankCard'
 import { stampArg, gameDayOf } from '../card/useStamps'
 import { canonPos } from '../../lib/positions'
 import { nhlShareRows } from '../../lib/nhl/boardColumns'
+import { nhlSeasonRows } from '../../lib/nhl/sznRow'
 
 // ── LAMP'S CARDS VIEW (2026-09-28, MLB-PARITY-BOARDS plan C2) ──────────────
 // The List | Cards toggle MOONSHOT and TUDDY have. The card is TUDDY's board
@@ -106,7 +107,7 @@ export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen, rank
     ...(sog ? [['OPP SA/60', fin(r.legs?.oppSaPg, 1)]] : []),
     ...(market === 'PTS' || market === 'AST' ? [['OPP GA/GP', fin(r.legs?.oppGaPg, 2)]] : []),
     ['PP goals', r.ppg ?? null], ['Power play', facts.pp ? `${facts.pp}%` : null], ['Their penalty kill', facts.pk ? `${facts.pk}%` : null], ['Rest', facts.rest || null],
-  ].filter(([, v]) => v != null && v !== '').map(([label, value]) => ({ label, value })).concat(nhlShareRows(r))   // + his share of his club (lib/shares.js)
+  ].filter(([, v]) => v != null && v !== '').map(([label, value]) => ({ label, value })).concat(nhlSeasonRows(r), nhlShareRows(r))   // + his season line and form (lib/nhl/sznRow.js), his share of his club (lib/shares.js)
   return (
     <SportTheme theme={C} accent={C.ice} numFont={NUM_FONT}>
       <RankCard accent={C.ice} status={r.status} rankMove={rankMove} pos={canonPos('nhl', r.pos)} rank={rank} sport="nhl" club={r.team} name={r.name} opp={opp}
@@ -114,7 +115,7 @@ export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen, rank
         face={<PlayerFace sport="nhl" variant="tile" photo={nhlMug(g.game.season, r.team, r.playerId)} team={null} name="" size={84} theme={C} />}
         score={Math.round(r.score ?? 0)} scoreWord="LAMP" explain={SCORE_NOTE[market] || SCORE_NOTE.GOAL}
         reason={r.why && !stats.length ? r.why : null}
-        stats={stats} back={rows.length ? { rows, note: 'Per game over his last 82 NHL games. A ranking, not a percentage. Share rows are a percent of his club this season.' } : null}
+        stats={stats} back={rows.length ? { rows, note: 'Per game over his last 82 NHL games. A ranking, not a percentage. Season and last-5/10 rows are his regular season before tonight. Share rows are a percent of his club this season.' } : null}
         dim={graded && r.dressed === false} onClick={() => onOpen?.(r.playerId)}
         foot={<>
           <FollowButton sport="nhl" id={String(r.playerId)} name={r.name} team={r.team} position={r.pos} />

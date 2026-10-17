@@ -28,6 +28,10 @@ const ROWS = [
   ['Shots / game', (p) => (Number.isFinite(p.legs?.shotsPg) ? `${p.legs.shotsPg.toFixed(2)}${pctTag(p.pct?.shotsPg)}` : '—'), false],
   ['Goals / game', (p) => (Number.isFinite(p.legs?.goalsPg) ? `${p.legs.goalsPg.toFixed(2)}${pctTag(p.pct?.goalsPg)}` : '—'), false],
   ['Ice time', (p) => (Number.isFinite(p.legs?.toi) ? `${fmtSec(p.legs.toi)}${pctTag(p.pct?.toi)}` : '—'), false],
+  ['Season goals', (p) => (Number.isFinite(p.szn?.g) ? `${p.szn.g}${Number.isFinite(p.szn.gp) ? ` · ${p.szn.gp} GP` : ''}` : '—'), false],
+  ['Season points', (p) => (Number.isFinite(p.szn?.pts) ? String(p.szn.pts) : '—'), false],
+  ['Last 5 goals', (p) => (Number.isFinite(p.form?.l5) ? String(p.form.l5) : '—'), false],
+  ['Games since a goal', (p) => (Number.isFinite(p.form?.drought) ? `${p.form.drought}${p.form.droughtPlus ? '+' : ''}` : '—'), false],
   ['Opp goals allowed / game', (p) => (Number.isFinite(p.context?.oppGaPg) ? p.context.oppGaPg.toFixed(2) : '—'), false],
 ]
 

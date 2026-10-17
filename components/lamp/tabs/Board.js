@@ -453,6 +453,7 @@ const RATE_COLS = {
 const rateCols = (market) => (RATE_COLS[market] || RATE_COLS.GOAL).map(({ key, label, dp, w }) => ({ key, label, primary: true, dp, w }))
 const rateVals = (r, market) => Object.fromEntries((RATE_COLS[market] || RATE_COLS.GOAL).map((c) => [c.key, r.legs ? r.legs[c.leg] ?? null : null]))
 
+const PPG_WHY = 'Power-play goals this regular season, all clubs he played for, as of now. Blank on a finished game on purpose: the report already counts that game’s goals, so it is not shown as a before-puck-drop number.'
 function columnsFor(g, onOpenTeam, market = 'GOAL', gateOf = null) {
   const graded = g.graded
   const sog = market === 'SOG'
@@ -474,7 +475,7 @@ function columnsFor(g, onOpenTeam, market = 'GOAL', gateOf = null) {
     // in it. PP G is his season's power-play goals; PP v PK is his club's
     // power play against tonight's opponent's penalty kill; REST is full days
     // off before tonight (B2B = played yesterday).
-    { key: 'ppg', group: G.st, label: 'PP G', cset: 'read', primary: true, w: 44 },
+    { key: 'ppg', group: G.st, label: 'PP G', cset: 'read', primary: true, w: 44, explain: PPG_WHY },
     { key: 'ppvpk', group: G.st, label: 'PP v PK', heat: false, mono: true, w: 84, fmt: (v) => v || '—' },
     { key: 'rest', group: G.st, label: 'REST', heat: false, mono: true, w: 48, fmt: (v) => v || '—' },
     { answers: 'called', key: 'result', group: G.call, cset: 'lean', label: graded ? marketOf(market).result : 'STATUS', heat: false, w: 96, fmt: (v, r) => {
@@ -547,7 +548,7 @@ function lampSlateColumns(g, market = 'GOAL', onOpenTeam, gateOf = null) {
     ...(graded ? result : []),
     ...(RATE_COLS[market] || RATE_COLS.GOAL).map(({ key, label, dp, w }, i) => ({ key, label, cset: i === 0 ? 'lean' : 'read', primary: true, dp, w: Math.max(w, 56), group: G.rate })),
     { key: 'toi', label: 'TOI', cset: 'read', primary: true, w: 56, group: G.rate, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
-    { key: 'ppg', label: 'PP G', cset: 'read', primary: true, w: 52, group: G.st, explain: 'Power-play goals this season.' },
+    { key: 'ppg', label: 'PP G', cset: 'read', primary: true, w: 52, group: G.st, explain: PPG_WHY },
     ...(graded ? [] : result),
   ]
 }
