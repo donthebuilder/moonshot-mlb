@@ -40,7 +40,8 @@ import { lockedFor } from '../../lib/members/gate'
 // cols: { wide, mid } -- an even grid instead of auto-fit (which left
 //   MOONSHOT's CONTACT alone on a second row): `wide` lanes across from
 //   1100px, `mid` from 561px, one column on a phone. Omitted -> auto-fit.
-export default function HeadlinePicks({ theme, numFont, title, subtitle, record = null, lanes: lanesProp = [], onPick, whatThis = null, collapsePhone = false, gridClass = 'bot-picks-grid', cols = null, foldWhy = false, sport = null }) {
+const NO_LANES = []   // one array, so an omitted `lanes` is not a new source every render (useCallGate)
+export default function HeadlinePicks({ theme, numFont, title, subtitle, record = null, lanes: lanesProp = NO_LANES, onPick, whatThis = null, collapsePhone = false, gridClass = 'bot-picks-grid', cols = null, foldWhy = false, sport = null }) {
   // MEMBERS GATE (2026-10-16): lanes are every product's CALLED picks. A pick may carry lock = { key, time, graded? } (the sport's board key and his game's start);
   // the free taste is counted over the lanes' picks in order, shared with the boards, and a pick a non-member may not read is left out of the lane and counted
   // in the one line under it. Picks without a lock (BUCKETS) and everyone who is not a confirmed non-member: the lanes exactly as handed in.
