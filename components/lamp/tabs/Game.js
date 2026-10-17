@@ -36,16 +36,16 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
   const { data: g, error, loading } = useLampGame(id)
   const gameTotals = useGameTotals('nhl')   // this game's own Top Totals row, on its header (components/GameTotalLine.js)
   // none given vs a bad one (audit 14 N2: a mistyped id read 'NO GAME PICKED')
-  if (!id) return <EmptyState title="NO GAME PICKED" note="Open a game from Scores or the Schedule."><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
+  if (!id) return <EmptyState title="NO GAME PICKED" note="Open a game from Scores."><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   if (!/^\d{10}$/.test(String(id))) {
-    return <EmptyState title="NO SUCH GAME" note={`“${String(id).slice(0, 20)}” isn’t an NHL game id. Open one from Scores or the Schedule.`}><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
+    return <EmptyState title="NO SUCH GAME" note={`“${String(id).slice(0, 20)}” isn’t an NHL game id. Open one from Scores.`}><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   }
   if (loading && !g) return <Loading what="the game" />
   if (!g) {
     // A 400/404 from the route is an answer, not a delay: there is no such game.
     const notAGame = error?.status === 400 || error?.status === 404
     return (
-      <EmptyState title={notAGame ? 'NO SUCH GAME' : 'LIVE DATA DELAYED'} note={notAGame ? 'That is not a game id the league knows. Open one from Scores or the Schedule.' : 'We’re waiting on this game’s numbers.'} tone={notAGame ? C.text3 : C.amber}>
+      <EmptyState title={notAGame ? 'NO SUCH GAME' : 'LIVE DATA DELAYED'} note={notAGame ? 'That is not a game id the league knows. Open one from Scores.' : 'We’re waiting on this game’s numbers.'} tone={notAGame ? C.text3 : C.amber}>
         <BackBtn onBack={onBack} label={backLabel} />
       </EmptyState>
     )

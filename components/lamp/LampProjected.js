@@ -3,7 +3,8 @@ import { useMemo, useState } from 'react'
 import { C } from '../../lib/nhl/theme'
 import ProjectedView, { sortClick, rankRows } from '../slate/ProjectedView'
 import { lampAngles } from './tabs/Board'
-import Hint from './Hint'
+import NflNote from '../nfl/NflNote'
+import { LAMP_SUBS } from './tabExplainerTexts'
 
 // LAMP'S PROJECTED OUTPUT (2026-09-28, parity plan 00Q step 1). MOONSHOT's
 // panel (components/slate/ProjectedView.js) with the night's goal board in it:
@@ -70,11 +71,7 @@ export default function LampProjected({ items = [], games = [], stale = false, o
     <ProjectedView
       lenses={lenses} active={active} setActive={setActive} shownCount={pool.length} totalCount={items.length} noun="skaters" sport="nhl"
       by={by} setBy={setBy}
-      note={<>
-        Projected goals come from the team model: each club&apos;s shots, shot quality, the other side&apos;s defence and goalie.
-        {stale ? ' Last season’s skater rates, until the new season’s tables open.' : ''}
-        <Hint label="The columns" text="Proj goals is the team model’s goals for the game or the club, the same number the Slate prints; the chips do not move it. Proj shots adds each scored skater’s shots on goal a game. Called goals adds the goals a game of the called skaters only." />
-      </>}
+      note={<NflNote tab="projected" subs={LAMP_SUBS} why={stale ? `Last season’s skater rates are used until the new season’s tables open. ${LAMP_SUBS.projected.why}` : undefined} />}
       rows={rows} primary="Proj goals" unit="goals" columns={COLS}
       sortCol={sortCol} sortDir={sortDir} onSort={sortClick(sortCol, setSortCol, setSortDir)}
       podiumTip={(r) => `${r._count} scored skaters · ${r.values['Proj shots'].toFixed(1)} skater shots · ${r.values['Called goals'].toFixed(1)} goals a game from the called`}

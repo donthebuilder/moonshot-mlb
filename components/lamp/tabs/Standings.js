@@ -6,7 +6,8 @@ import LampTable from '../LampTable'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampStandings } from '../../../lib/nhl/useLamp'
 import { DelayedBanner, Loading, Pills, Kicker, fmtDay } from '../ui'
-import Hint from '../Hint'
+import NflNote from '../../nfl/NflNote'
+import { LAMP_SUBS } from '../tabExplainerTexts'
 import { NHL_TEAMS } from '../../../lib/nhl/teams'
 
 // 🏒 STANDINGS — division, wild card, conference, league. Four views of one
@@ -111,7 +112,7 @@ export default function Standings({ onOpenTeam }) {
       <PageHeader
         eyebrow="LAMP · STANDINGS"
         title={data?.seasonLabel ? `${data.seasonLabel} standings` : 'Standings'}
-        note={<>League order: points, then regulation wins. <Hint label="Standings order" text="Ordered the way the league orders them: points, then regulation wins, then regulation-plus-overtime wins. Tap a column’s ⓘ for what it means." /></>}
+        note={<NflNote tab="standings" subs={LAMP_SUBS} />}
         theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={data ? [{ value: rows.length, label: 'TEAMS', tone: C.text2 }, data.date ? { value: fmtDay(data.date), label: 'AS OF', tone: C.text2 } : null] : null}
         right={noTable ? null : <Pills ariaLabel="Standings view" value={view} onChange={setView} options={VIEWS} />}
