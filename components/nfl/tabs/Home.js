@@ -33,6 +33,7 @@ import { toRailGame, toMlbRailGames, mergeGamesSorted, combinedRenderState, Comb
 // that now also ride TUDDY's own header ticker (2026-09-16).
 import NflHeadlineStrip from '../NflHeadlineStrip'
 import HeadlinePicks from '../../headline/HeadlinePicks'
+import { kickoffFor } from '../../../lib/nfl/kickoff'
 import { defenseLeaks } from '../../../lib/nfl/defenseLeaks'
 import PageHeader from '../../PageHeader'
 import { NFL_NAV } from '../../../lib/routes'
@@ -122,7 +123,7 @@ const recordWord = (t) => {
   return `${t.hit} of ${t.n} over ${t.weeks} wk${t.weeks === 1 ? '' : 's'}${t.n >= 20 && t.pct != null ? ` · ${Math.round(t.pct)}%` : ''}`
 }
 
-function TheSix({ picks, playersById, players = [], markets = [], onPlayerClick, onPicks, totals }) {
+function TheSix({ picks, playersById, games = [], players = [], markets = [], onPlayerClick, onPicks, totals }) {
   const colors = MARKET_COLOR()
   // WHY ON EACH #1 (2026-09-30, BATCH-SIGNAL-WHY S2): lib/nfl/boardReason.js,
   // the Boards card's own line -- his top component with the number behind
@@ -152,6 +153,7 @@ function TheSix({ picks, playersById, players = [], markets = [], onPlayerClick,
         const w = i === 0 && player && whyBy[key] ? boardReason(player, whyBy[key].spec.weights, whyBy[key].base, key, whyBy[key].pool) : null
         return {
           key: String(call.player_id), raw: { player, key }, name: call.name,
+          lock: { key: String(call.player_id), time: player ? kickoffFor(games, player) : null },
           face: i === 0 && player ? <PlayerFace sport="nfl" espnId={player?.espn_id} team={player?.team} name={player?.name} size={28} /> : null,
           score: Number.isFinite(call.score) ? Math.round(call.score) : '—',
           lines: i === 0 ? [PROOF[key](st).filter(Boolean).join(' · '), `${call.team} vs ${call.opp} · ${call.position}${tag}`] : [],
@@ -437,7 +439,7 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
         <button onClick={() => setTab('accountability')} title={recLoading ? 'Loading the season record' : recFailed ? "The season record could not be loaded. Tap to open the record page." : record.n ? `${record.hit} of ${record.n} card rungs this season cleared their own bar — every market blended, ${keys.length} graded week${keys.length === 1 ? '' : 's'}. Anytime TD on its own: ${tdRec?.hit ?? 0} of ${tdRec?.n ?? 0}.${bookLine.n ? ` Against the book's own line (weeks ${bookLine.from}–${bookLine.to}): ${bookLine.hit} of ${bookLine.n}.` : ''} Tap for every market's record.${regradeNotes(keys).map((t) => ` ${t}`).join('')}` : undefined}><small>RECORD · ALL</small><strong style={{ color: recLoading || recFailed || record.pct == null ? C.text3 : record.pct >= 55 ? C.green : record.pct < 45 ? C.text3 : C.text }}>{recLoading || recFailed || record.pct == null ? '—' : `${record.pct}%`}</strong><span>{recLoading ? 'loading' : recFailed ? "couldn't load" : record.n ? <>{record.hit}/{record.n} · own bar</> : 'nothing graded yet'}</span>{!recLoading && !recFailed && bookLine.n ? <span>book line {Math.round(bookLine.pct)}% · wk {bookLine.from}{bookLine.to !== bookLine.from ? `–${bookLine.to}` : ''}</span> : null}</button>
         <button onClick={() => topTd && onPlayerClick?.(topTd, 'TD')}><small>TOP TD SCORE</small><strong>{topTd ? Math.round(topTd.scores.TD) : '—'}</strong><span>{topTd?.name || 'awaiting slate'}</span></button>
       </section>
-      <TheSix picks={picks} playersById={playersById} players={players} markets={data?.markets || []} onPlayerClick={onPlayerClick} onPicks={() => setTab('picks')} totals={seasonTotals(keys.map((k) => archive[k]))} />
+      <TheSix picks={picks} playersById={playersById} games={data?.games || []} players={players} markets={data?.markets || []} onPlayerClick={onPlayerClick} onPicks={() => setTab('picks')} totals={seasonTotals(keys.map((k) => archive[k]))} />
       {/* TONIGHT'S NUMBERS (numerology v2 step 6b): one line under the calls, taps to Numerology. */}
       <HotNumbers compact sport="nfl" date={nextGameDay} theme={C} numFont={NUM_FONT} accent={C.green} onOpen={() => setTab('numerology')} eventWord="TDs" />
 

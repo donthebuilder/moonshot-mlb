@@ -27,7 +27,7 @@ import SharedSeasonToggle from '../../nfl/SeasonToggle'
 import { SportTheme } from '../../SportTheme'
 // THE SHARED PLAYER MODEL (components/player/): the verdict first, then ONE row of his numbers; LAMP's words in nhlAdapter.js
 import VerdictBlock from '../../player/VerdictBlock'
-import { useCardLock, CardLockLine } from '../../MemberGate'
+import { useCardLock, useMemberState, CardLockLine } from '../../MemberGate'
 import StatRow from '../../player/StatRow'
 import ScrollHint from '../../player/ScrollHint'
 import { nhlVerdict, nhlStatRow } from '../../player/nhlAdapter'
@@ -143,6 +143,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
   const called = row?.status === 'called'
   // MEMBERS (2026-10-16): the card's lock; same key as the goal board's (`${game id}|${playerId}`), the puck drop, the game's graded flag
   const lockIn = row && spot?.g ? { key: `${spot.g.game?.id}|${row.playerId}`, time: spot.g.game?.startUtc, graded: Boolean(spot.g.graded) } : null
+  const nonMember = useMemberState() === 'free'
   const cl = useCardLock({ status: row?.status || null, key: lockIn?.key, time: lockIn?.time, graded: lockIn?.graded })
   const locked = Boolean(lockIn) && cl.locked
   const f = p.featured
@@ -291,8 +292,9 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
           <div role="region" aria-label="Why this word" style={{ maxHeight: '38vh', overflowY: 'auto', margin: '4px 0 6px', padding: '8px 10px', border: `1px solid ${C.border2}`, borderRadius: 10, background: C.bg, fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
             {goalie ? 'Goalies are not on the goal board.' : !board ? 'Loading tonight’s board…' : !spot ? 'No game tonight, so he is not on the board.' : (
               <>
-                {locked ? <CardLockLine C={C} NUM_FONT={NUM_FONT} /> : <div>{whyLine || (row ? 'On tonight’s board.' : 'Not on tonight’s board.')}</div>}
+                {locked ? null : <div>{whyLine || (row ? 'On tonight’s board.' : 'Not on tonight’s board.')}</div>}
                 {!locked && w && <WhyLines theme={C} numFont={NUM_FONT} accent={C.ice} why={[w.why]} watch={w.watch} explain={w.explain} />}
+                {nonMember && <CardLockLine C={C} NUM_FONT={NUM_FONT} />}
               </>
             )}
           </div>

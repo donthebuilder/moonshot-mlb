@@ -7,7 +7,6 @@
 import { STATUS_WORD } from '../lib/callStatus'
 import { useSportTheme } from './SportTheme'
 import { lockedFor } from '../lib/members/gate'
-import { membersUrl } from '../lib/members'
 import { useMemberState, useCardLock } from './MemberGate'
 
 // THREE LOOKS, ONE SET OF WORDS (R2c, 2026-10-02). variant:
@@ -19,30 +18,21 @@ import { useMemberState, useCardLock } from './MemberGate'
 // theme / numFont override the SportTheme when a caller passes its own.
 //
 // gate (2026-10-16, optional): { key, started, graded, free } from components/MemberGate.js useCallGate. Tonight's CALLED label of a viewer who is not
-// a member, outside the free taste, draws as the grey lock chip below instead of the stamp (lib/members/gate.js lockedFor). No gate, or any viewer
+// a member, outside the free taste, draws as the plain ON THE BOARD stamp (lib/members/gate.js lockedFor). No gate, or any viewer
 // who is not a confirmed non-member: this draws EXACTLY as before.
-export default function CallStatusBadge({ status, accent = null, size = 9, short = false, style, variant = 'stamp', score = null, theme = null, numFont = null, gate = null }) {
+export default function CallStatusBadge({ status: statusIn, accent = null, size = 9, short = false, style, variant = 'stamp', score: scoreIn = null, theme = null, numFont = null, gate = null }) {
   const sport = useSportTheme()
   const memberState = useMemberState()
   const C = theme || sport.C
   const NUM_FONT = numFont || sport.NUM_FONT
-  if (!STATUS_WORD[status]) return null
-  if (gate && lockedFor({ status, started: gate.started, graded: gate.graded, key: gate.key, free: gate.free, memberState })) {
-    // a 44px tap area around a stamp-sized chip: the negative margin keeps the row exactly as tall as the stamp made it
-    return (
-      <a href={membersUrl()} target="_blank" rel="noopener noreferrer" role="link" aria-label="Members only. Join to see this pick." title="Members only. Join to see this pick."
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box', minWidth: 44, minHeight: 44, margin: '-15px -6px',
-          padding: '0 6px', verticalAlign: 'middle', textDecoration: 'none', whiteSpace: 'nowrap', fontFamily: NUM_FONT, fontSize: Math.max(size, 10), fontWeight: 900,
-          letterSpacing: '.04em', color: C.text2, ...style,
-        }}>
-        <span style={{ border: `1px solid ${C.border2}`, borderRadius: 4, padding: '1px 5px', lineHeight: 1.3 }}>{'\u{1F512}'} Members</span>
-      </a>
-    )
-  }
+  if (!STATUS_WORD[statusIn]) return null
+  // THE MEMBERS GATE (Donovan 2026-10-16: "don't show them as locked, just show them as ON THE BOARD"): a CALLED label the viewer may not read is drawn
+  // as the ordinary ON THE BOARD stamp (quiet tone, no lock, not a link, no score), word and title included. Nothing else about it differs.
+  const hidden = Boolean(gate) && lockedFor({ status: statusIn, started: gate.started, graded: gate.graded, key: gate.key, free: gate.free, memberState })
+  const status = hidden ? 'board' : statusIn
+  const score = hidden ? null : scoreIn
   const ac = accent || sport.accent
-  if (variant === 'chip') {
+  if (variant === 'chip' && !hidden) {
     return <span style={{ marginRight: 7, background: ac, color: C.bg, font: `900 7.5px/1 ${NUM_FONT}`, letterSpacing: '.12em', borderRadius: 4, padding: '2px 5px', verticalAlign: '1px', whiteSpace: 'nowrap', ...style }}>{STATUS_WORD[status]}</span>
   }
   if (variant === 'text') {
@@ -63,7 +53,7 @@ export default function CallStatusBadge({ status, accent = null, size = 9, short
 /**
  * A status stamp in a LIST (2026-10-16, Donovan: lock the rest of the cards too) that has no board of its own to hand it a gate: lockIn = { key, time, graded?, slateDate? },
  * the SAME key and game start the sport's table gate uses, and the free four are read from the boards (components/MemberGate.js useCardLock). Locked = a confirmed
- * non-member's tonight, not-started, not-graded CALLED pick outside the free four, drawn as the lock chip. Anyone else, or no lockIn: the stamp exactly as before.
+ * non-member's tonight, not-started, not-graded CALLED pick outside the free four, drawn as ON THE BOARD. Anyone else, or no lockIn: the stamp exactly as before.
  * A separate component so only the stamps that can lock subscribe to the free-four store.
  */
 export function GatedCallBadge({ lockIn = null, status, ...rest }) {

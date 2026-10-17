@@ -7,9 +7,9 @@
 // useCallGate(...) is what a board calls: it returns null for everyone but a free viewer (so the table draws as it always did), else gateOf(row) ->
 // { key, started, graded, free } for CallStatusBadge's `gate` prop. It decides nothing about CALLED itself: the status still comes from the sport's one
 // rule (lib/callStatus, tdCallStatus, scoreNight); this only says which already-CALLED labels are drawn as the lock.
-import { createContext, useContext, useEffect, useMemo, useSyncExternalStore } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useSyncExternalStore } from 'react'
 import { useDashAccount } from '../lib/dash/sync'
-import { memberStateOf, freeCalledKeys, startedAt, cardGate, storyLockKey } from '../lib/members/gate'
+import { memberStateOf, freeCalledKeys, hiddenCalledCount, startedAt, cardGate, storyLockKey } from '../lib/members/gate'
 import { membersUrl } from '../lib/members'
 import { etToday } from '../lib/freshness'
 
@@ -59,6 +59,8 @@ export function useCallGate({ rows, source, statusOf, timeOf, keyOf, rankOf = nu
     const free = freeCalledKeys(typeof rows === 'function' ? rows() : rows, { keyOf, startedOf, statusOf, rankOf })
     const fn = (r) => ({ key: keyOf(r), started: startedOf(r), graded: gradedOf ? Boolean(gradedOf(r)) : false, free })
     fn.free = free
+    // how many CALLED, not-started picks this board draws as ON THE BOARD for this viewer: a count, never a name (HiddenCalledLine)
+    fn.hidden = hiddenCalledCount(typeof rows === 'function' ? rows() : rows, { keyOf, startedOf, statusOf, free })
     return fn
   // the callbacks are the caller's inline functions of `rows`; the rows, the viewer and the slate day are what change the answer
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -87,7 +89,7 @@ export function useCardLock({ status, key, time, graded = false, slateDate = nul
 export function useLockOf() {
   const memberState = useMemberState()
   const free = useFreeKeys()
-  return (x) => cardGate({ status: x.status, time: x.time, graded: Boolean(x.graded), key: x.key, free, memberState, slateIsToday: !x.slateDate || x.slateDate === etToday() })
+  return useCallback((x) => cardGate({ status: x.status, time: x.time, graded: Boolean(x.graded), key: x.key, free, memberState, slateIsToday: !x.slateDate || x.slateDate === etToday() }), [free, memberState])
 }
 
 /**
@@ -100,22 +102,33 @@ export function useStoryLock({ sport, stories, games, date = null }) {
     const g = gameOf.get(String(s.game_id))
     return { key: storyLockKey(sport, s.player_id, s.game_id), time: g?.start ?? null, graded: g?.state === 'final', slateDate: date }
   }
-  useCallGate({
+  const gateOf = useCallGate({
     rows: () => (stories || []).filter((s) => s.board?.status === 'called'), source: stories, slateDate: date,
     statusOf: (s) => s.board?.status, keyOf: (s) => storyLockKey(sport, s.player_id, s.game_id), timeOf: (s) => gameOf.get(String(s.game_id))?.start ?? null,
     gradedOf: (s) => gameOf.get(String(s.game_id))?.state === 'final', rankOf: (s) => s.board?.rank,
   })
+  lockIn.hidden = gateOf ? gateOf.hidden : 0
   return lockIn
 }
 
-/** The one line and the join button that stand in for tonight's call and why on a locked card (display only; the join link is membersUrl()). */
+/** On a player CARD, for EVERY non-member and whoever the player is (Donovan 2026-10-16), so the line itself never says who is called. */
 export function CardLockLine({ C, NUM_FONT, style }) {
+  return <JoinLine C={C} NUM_FONT={NUM_FONT} style={style} text={'Members see tonight\u2019s called picks and why.'} dataPm="lock" />
+}
+
+/** The one quiet line under a board, list or table, for a non-member only, only when at least one CALLED pick is drawn as ON THE BOARD: a count, no names. */
+export function HiddenCalledLine({ n, C, NUM_FONT, style }) {
+  if (!(n > 0)) return null
+  return <JoinLine C={C} NUM_FONT={NUM_FONT} style={style} text={`${n} more called pick${n === 1 ? '' : 's'} tonight ${n === 1 ? 'is' : 'are'} for members.`} dataPm="hidden-called" />
+}
+
+function JoinLine({ C, NUM_FONT, style, text, dataPm }) {
   return (
-    <div data-pm="lock" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '2px 10px', fontFamily: NUM_FONT, fontSize: 12, lineHeight: 1.45, color: C.text2, ...style }}>
-      <span>Members see tonight&rsquo;s call and why</span>
+    <div data-pm={dataPm} style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0 10px', fontFamily: NUM_FONT, fontSize: 12, lineHeight: 1.45, color: C.text2, ...style }}>
+      <span>{text}</span>
       <a href={membersUrl()} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
-        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box', minWidth: 44, minHeight: 44, padding: '0 8px', fontWeight: 900, letterSpacing: '.04em', color: C.text, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-        <span style={{ border: `1px solid ${C.border2}`, borderRadius: 4, padding: '1px 6px' }}>{'\u{1F512}'} Join</span>
+        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box', minWidth: 44, minHeight: 44, padding: '0 8px', fontWeight: 900, letterSpacing: '.04em', color: C.text, textDecoration: 'underline', whiteSpace: 'nowrap' }}>
+        Join
       </a>
     </div>
   )

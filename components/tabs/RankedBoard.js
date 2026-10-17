@@ -25,6 +25,8 @@ import { shareUrl, slug, stamp } from '../../lib/cards/saveCard'
 import { usePreview, ShowMoreButton } from '../ListPreview'
 import { callStatus, boardOfRows } from '../../lib/callStatus'
 import { useCallGate } from '../MemberGate'
+import { lockedFor } from '../../lib/members/gate'
+import { membersUrl } from '../../lib/members'
 import { reasonContext, boardReasonFor } from '../../lib/mlb/boardReason'
 import { useWhySheet, whyColumn } from '../WhySheet'
 import { ordinal } from '../../lib/format'
@@ -228,6 +230,8 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
     const p = r._raw
     const w = r._why || { why: [], watch: null }
     const id = mlbId(p)
+    // a CALLED row the viewer may not read: its sheet carries no why, numbers or research links (2026-10-16)
+    if (r._locked) return { name: nameOf(p), rank: r.rank, lead: 'Members see tonight\u2019s called picks and why.', parts: [], links: [{ label: 'Join', href: membersUrl() }] }
     const parts = WHY_PARTS.map((c) => {
       const v = c.get(p)
       const pct = v == null ? null : pctAmong(partVals[c.key], v)
@@ -275,6 +279,12 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
     rows: () => whyPool, source: whyPool, slateDate, statusOf: (x) => { const p = x._raw ?? x; return callStatus({ role: p?.game_pick_role, board_rank: slateRank?.get(mlbId(p)), board_of: boardOf }) },
     keyOf: (x) => { const p = x._raw ?? x; return `${playerId(p)}|${p?.game_pk ?? ''}` }, timeOf: (x) => (x._raw ?? x)?.game_time, rankOf: (x) => slateRank?.get(mlbId(x._raw ?? x)),
   })
+ // is this CALLED row one the viewer may not read? (the same lockedFor the table's stamp asks; false for everyone but a confirmed non-member)
+  const isLocked = (p) => {
+    if (!gateOf) return false
+    const g = gateOf(p)
+    return lockedFor({ status: callStatus({ role: p?.game_pick_role, board_rank: slateRank?.get(mlbId(p)), board_of: boardOf }), started: g.started, graded: g.graded, key: g.key, free: g.free, memberState: 'free' })
+  }
   // RANK MOVES (2026-10-10): the arrow beside the # (components/RankMove.js). The board's DEFAULT order over the whole
   // slate (the bot's board_rank on The Board, the market's own score on Hits / HRR / Contact), never the user's sort or filter.
   const rankPool = slate || players
@@ -405,12 +415,15 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             // endorsement the bot never made — that's how confidence gets
             // spent on the wrong bet.
             const wantRole = { top: 'TOP', hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }[type]
+            // a CALLED row the viewer may not read reads as ON THE BOARD: no robot, no Pick word, no why (real values still rank the board)
+            const locked = isLocked(p)
             return {
               ...base,
               cln: state.cln?.on ? state.cln.cell(mlbId(p)) : '',
               _key: `${playerId(p)}-${p?.game_pk ?? ''}-${i}`,
               _raw: p,
-              _why: whyOn ? boardReasonFor(p, rctx) : null,
+              _locked: locked,
+              _why: whyOn && !locked ? boardReasonFor(p, rctx) : null,
               // Lights the watch column below. DenseTable's action column
               // reads the row's own truthy field, and hands `_raw ?? row` to
               // onAction — so the real slate row reaches toggleWatch, which
@@ -422,8 +435,8 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               team: teamOf(p),
               g: gameNumOf(p, dh),
               facing: clean(p?.pitcher_name, 'TBD'),
-              isPick: pick && pick === wantRole ? 1 : 0,
-              otherPick: pick && pick !== wantRole ? pick : '',
+              isPick: !locked && pick && pick === wantRole ? 1 : 0,
+              otherPick: !locked && pick && pick !== wantRole ? pick : '',
               b2b: b2bIds && b2bIds.has(mlbId(p)) && !(Number(p?.games_since_last_hr) > 0) ? 1 : 0,
               weak: p?.weak_spot_flag ? 1 : 0,
               multiHit: p?.multi_hit_flag ? 1 : 0,
@@ -487,7 +500,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               fmt: (v) => (v ? `G${v}` : '—'),
               title: 'Which game of a doubleheader. G1 is the earlier first pitch. A hitter whose team plays twice appears once per game and both rows are real — his board rank is the same in both.' }] : []),
             ...(whyOn ? [{ ...whyColumn({
-              textOf: (r) => (r._why?.why?.[0] ? `${r._why.why[0].text}.` : r._why?.watch ? `Against him: ${r._why.watch.text}.` : ''),
+              textOf: (r) => r._locked ? '' : (r._why?.why?.[0] ? `${r._why.why[0].text}.` : r._why?.watch ? `Against him: ${r._why.watch.text}.` : ''),
               itemOf: whyItem, open: openWhy, theme: C, numFont: NUM_FONT, w: compact ? 168 : 230, group: WHY_GROUP, tidy: true,
             }), fold: false }] : []),
             // The pitcher opens the PITCHER, not the hitter whose row he's in

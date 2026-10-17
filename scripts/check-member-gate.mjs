@@ -5,7 +5,7 @@
 import './_esm-resolve.mjs'
 import { readFileSync } from 'node:fs'
 
-const { memberStateOf, startedAt, freeCalledKeys, lockedFor, cardGate, storyLockKey } = await import('../lib/members/gate.js')
+const { memberStateOf, startedAt, freeCalledKeys, hiddenCalledCount, lockedFor, cardGate, storyLockKey } = await import('../lib/members/gate.js')
 const { FREE_CALLS_PER_SPORT } = await import('../lib/members/limits.js')
 const access = readFileSync(new URL('../lib/members/access.js', import.meta.url), 'utf8')
 
@@ -103,6 +103,29 @@ const sk = (sport, key) => lockedFor({ status: 'called', started: false, graded:
 eq(sk('mlb', storyLockKey('mlb', 'test-1', 'test-g1')), false, 'list: the man in the free set is unlocked')
 eq(sk('mlb', storyLockKey('mlb', 'test-2', 'test-g1')), true, 'list: any other called man locks')
 eq(sk('mlb', 'test-1'), true, 'list: a key that matches no board only ever LOCKS a man, it never reveals one')
+
+// 9. THE LOOK (Donovan 2026-10-16: "don't show them as locked, just show them as ON THE BOARD"). A hidden CALLED pick is an ON THE BOARD pick to everything downstream;
+//    the join prompt is one count line under the list, never a per-row lock. TEST DATA.
+const effective = (r, memberState = 'free') => (lockedFor({ status: r.status, started: false, graded: false, key: r.id, free, memberState }) ? 'board' : r.status)
+eq(board.map((r) => effective(r)), ['called', 'called', 'board', 'called', 'called', 'board', 'board', 'off', 'board'], 'free viewer: the free four stay CALLED, the rest read ON THE BOARD, board/off unchanged')
+eq(board.map((r) => effective(r, 'member')), board.map((r) => r.status), 'member: every status is the real one')
+eq(board.map((r) => effective(r, 'unknown')), board.map((r) => r.status), 'unknown membership: every status is the real one (fail open)')
+eq(board.filter((r) => effective(r) === 'called').length, FREE_CALLS_PER_SPORT, 'a free viewer counts exactly FREE_CALLS_PER_SPORT CALLED rows (a status filter or sort cannot find more)')
+const hOpts = { keyOf: opts.keyOf, startedOf: opts.startedOf, statusOf: opts.statusOf, free }
+eq(hiddenCalledCount(board, hOpts), 3, 'the count line: 7 called minus the free four is 3 (a number, no names)')
+eq(hiddenCalledCount(board, { ...hOpts, startedOf: () => true }), 0, 'started games are never counted as hidden')
+eq(hiddenCalledCount([], hOpts), 0, 'an empty board hides nothing')
+eq(hiddenCalledCount(board, { ...hOpts, free: new Set(board.map((r) => r.id)) }), 0, 'nothing hidden when everyone is free')
+eq(hiddenCalledCount([mk(61, 'called'), mk(61, 'called')], { ...hOpts, free: new Set() }), 1, 'a man listed twice (two lanes) counts once')
+for (const f of ['components/CallStatusBadge.js', 'components/MemberGate.js', 'components/table/v2.js', 'components/card/RankCard.js', 'components/TonightStrip.js']) {
+  const src = readFileSync(new URL(`../${f}`, import.meta.url), 'utf8')
+  ok(!/1F512|\u{1F512}|Members only\. Join/.test(src), `${f} still draws a lock icon or "Members only" per row`)
+}
+{
+  const mg = readFileSync(new URL('../components/MemberGate.js', import.meta.url), 'utf8')
+  ok(/Members see tonight\\u2019s called picks and why/.test(mg), 'the card line is the generic "Members see tonight\u2019s called picks and why."')
+  ok(/more called pick/.test(mg), 'the list line is the count line "N more called picks tonight are for members."')
+}
 
 if (fails.length) { console.error('check-member-gate FAILED:\n - ' + fails.join('\n - ')); process.exit(1) }
 console.log('check-member-gate: ok')

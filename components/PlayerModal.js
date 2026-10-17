@@ -33,7 +33,7 @@ import MultiLine from './ledger/MultiLine'
 import { Chip } from './ui'
 import Explain from './Explain'
 import VerdictBlock from './player/VerdictBlock'
-import { useCardLock, CardLockLine } from './MemberGate'
+import { useCardLock, useMemberState, CardLockLine } from './MemberGate'
 import StatRow from './player/StatRow'
 import HelpTip from './HelpTip'
 import { useMlbBot, mlbStatus, mlbRecordLine, mlbLastLine, mlbStatRow } from './player/mlbAdapter'
@@ -498,6 +498,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   // MEMBERS (2026-10-16): the card's lock. Same key as the boards' (playerId|game_pk); his game's own start; the sport's one status word.
   const cardLockKey = `${playerId(player || {})}|${player?.game_pk ?? ''}`
   const cardLockIn = { key: cardLockKey, time: player?.game_time, graded: player?.graded === true }
+  const nonMember = useMemberState() === 'free'
   const cardLocked = useCardLock({ status: player && !player.api_only ? mlbStatus(player) : null, ...cardLockIn }).locked
   if (!player) return null
   // IDENTITY FIELDS NEVER COME FROM detail (2026-08-24, Donovan: "the add to
@@ -993,7 +994,8 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
           {/* THE READ (2026-10-07): the sentences, his homer shape, the cold case -- one accent */}
           {tab === 'read' && (
             <>
-              {!apiOnly && (cardLocked ? <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ margin: '4px 0 8px' }} /> : <PlayerRead p={p} odds={odds} />)}
+              {!apiOnly && (cardLocked ? null : <PlayerRead p={p} odds={odds} />)}
+              {!apiOnly && nonMember && <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ margin: '4px 0 8px' }} />}
               <HomerShape player={p} />
               <ColdCase playerId={pid} player={player} />
             </>

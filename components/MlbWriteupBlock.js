@@ -7,6 +7,7 @@ import { C, NUM_FONT, TYPE } from '../lib/theme'
 import { SPORT_ACCENT } from '../lib/sportAccent'
 import { buildMlbWriteup } from '../lib/writeups/mlb'
 import GameWriteupBlock from './GameWriteupBlock'
+import { playerId } from '../lib/player'
 
 const THEME = { C, NUM_FONT, TYPE, accent: SPORT_ACCENT.mlb }
 const WORDS = {
@@ -18,5 +19,7 @@ const WORDS = {
 export default function MlbWriteupBlock({ rows, onPlayerClick }) {
   const w = useMemo(() => buildMlbWriteup(rows || []), [rows])
   const byId = useMemo(() => new Map((rows || []).map((r) => [String(r.player_id), r])), [rows])
-  return <GameWriteupBlock w={w} theme={THEME} words={WORDS} onOpen={onPlayerClick ? (p) => onPlayerClick(byId.get(p.player_id) || { player_id: p.player_id, name: p.name }) : null} />
+  // members gate: the board's own key for the row (components/MemberGate.js), his game's start
+  const lockIn = (p) => { const r = byId.get(String(p.player_id)); return { key: `${playerId(r || {})}|${r?.game_pk ?? ''}`, time: r?.game_time, graded: r?.graded === true } }
+  return <GameWriteupBlock w={w} theme={THEME} words={WORDS} lockIn={lockIn} onOpen={onPlayerClick ? (p) => onPlayerClick(byId.get(p.player_id) || { player_id: p.player_id, name: p.name }) : null} />
 }

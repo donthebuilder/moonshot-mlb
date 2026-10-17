@@ -2,7 +2,7 @@
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import {
-  clean, nameOf, teamOf, hrScore, hitScore, prodScore, tbScore, PLATE_BAR,
+  clean, nameOf, teamOf, hrScore, hitScore, prodScore, tbScore, PLATE_BAR, playerId,
 } from '../lib/player'
 import HeadlinePicks from './headline/HeadlinePicks'
 import { rankBuckets, fourGrade } from '../lib/mlbFour'
@@ -245,6 +245,7 @@ export default function BotPicksStrip({ players = [], onPlayerClick, onFullCard 
     record: null,
     picks: f.picks.map((p, i) => ({
       key: p?.player_id ?? i,
+      lock: { key: `${playerId(p)}|${p?.game_pk ?? ''}`, time: p?.game_time, graded: p?.graded === true },
       raw: p,
       name: nameOf(p),
       // The #1's face (BATCH-FACES step 8), mlbstatic by MLBAM id.

@@ -12,8 +12,7 @@ import { useSportTheme } from './SportTheme'
 import { surname } from '../lib/player'
 import { STATUS_WORD } from '../lib/callStatus'
 import { publishLedgerCount } from '../lib/ledger/chip'
-import { useCallGate } from './MemberGate'
-import CallStatusBadge from './CallStatusBadge'
+import { useCallGate, HiddenCalledLine } from './MemberGate'
 import { lockedFor } from '../lib/members/gate'
 
 // a surname keeps its particle ("Amon-Ra St. Brown" -> "St. Brown", not "Brown")
@@ -51,7 +50,7 @@ function Row({ label, items, onOpen, C, NUM_FONT, kind, accent, gateOf = null })
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', columnGap: 12, rowGap: 20, minWidth: 0, marginTop: 2 }}>
         {shown.map((x) => {
           // MEMBERS LOCK (components/MemberGate.js): a CALLED, not-started name the viewer may not see keeps his name and drops the CALLED colour, the score and the
-          // word; the lock chip (CallStatusBadge, a 44px join link) stands where the call was. Not locked: drawn exactly as before.
+          // word; he reads as any ON THE BOARD name (the count line under the strip says some are for members). Not locked: drawn exactly as before.
           const locked = kind === 'still' && isLocked(gateOf, x)
           return (
             <Fragment key={x.id}>
@@ -65,7 +64,6 @@ function Row({ label, items, onOpen, C, NUM_FONT, kind, accent, gateOf = null })
                 {kind === 'still' && <span aria-hidden="true" style={{ fontSize: 11 }}>{x.when === 'now' ? '⚡' : '⏳'}</span>}
                 {x.note && !locked && <span style={{ fontSize: 11, fontFamily: NUM_FONT, color: C.text3, fontWeight: 700 }}>{x.note}</span>}
               </button>
-              {locked && <CallStatusBadge status="called" gate={gateOf(x)} accent={accent} size={11} />}
             </Fragment>
           )
         })}
@@ -108,6 +106,7 @@ export default function TonightStrip({ data, onOpen, onLedger, words = {}, sport
       <Row label={words.went || 'WENT'} items={data.went} onOpen={onOpen} C={C} NUM_FONT={NUM_FONT} accent={accent} kind="went" />
       <Row label="LINING UP" items={data.lining} onOpen={onOpen} C={C} NUM_FONT={NUM_FONT} accent={accent} kind="lining" />
       <Row label="STILL TO GO" items={data.still} onOpen={onOpen} C={C} NUM_FONT={NUM_FONT} accent={accent} kind="still" gateOf={gateOf} />
+      {gateOf && <HiddenCalledLine n={gateOf.hidden} C={C} NUM_FONT={NUM_FONT} style={{ marginTop: 2 }} />}
     </section>
   )
 }

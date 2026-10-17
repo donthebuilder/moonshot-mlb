@@ -32,7 +32,7 @@ function Slide({ sport, item, index, flipped, onFlip, gate = null }) {
       </div>
       {locked ? (
         <div style={{ width: '100%', maxWidth: 360, aspectRatio: '4 / 5', display: 'grid', placeItems: 'center', border: `1px solid ${C.border}`, borderRadius: 14, background: C.bg2, textAlign: 'center', padding: 16 }}>
-          <div><a href={playerHref(sport, item.id)} style={{ display: 'inline-block', minHeight: 44, lineHeight: '44px', fontSize: TYPE.title, fontWeight: 800, color: C.text, textDecoration: 'none' }}>{item.name}</a><CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ justifyContent: 'center', marginTop: 4 }} /></div>
+          <div><a href={playerHref(sport, item.id)} style={{ display: 'inline-block', minHeight: 44, lineHeight: '44px', fontSize: TYPE.title, fontWeight: 800, color: C.text, textDecoration: 'none' }}>{item.name}</a></div>
         </div>
       ) : bad ? (
         <div style={{ width: '100%', maxWidth: 360, aspectRatio: '4 / 5', display: 'grid', placeItems: 'center', border: `1px solid ${C.border}`, borderRadius: 14, background: C.bg2, textAlign: 'center', padding: 16 }}>
@@ -46,6 +46,7 @@ function Slide({ sport, item, index, flipped, onFlip, gate = null }) {
             style={{ display: 'block', width: '100%', height: 'auto', aspectRatio: '4 / 5', borderRadius: 14 }} />
         </button>
       )}
+      {gate && <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ justifyContent: 'center' }} />}
       <div style={{ color: C.text3, fontSize: TYPE.body }}>{locked || bad ? '' : flipped ? 'Why he was called. Tap to flip back.' : 'Tap the card to see why.'}</div>
     </li>
   )
