@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import { MatchLogos } from '../../TeamMark'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
-import { useBucketsBoard, useBucketsExpected, useBucketsTeamModel } from '../../../lib/nba/useBuckets'
+import { useBucketsBoard, useBucketsExpected, useBucketsTeamModel, useBucketsHot } from '../../../lib/nba/useBuckets'
 import { MARKET_OPTIONS, NBA_MARKETS } from '../../../lib/nba/legs'
 import BucketsTable from '../BucketsTable'
 import { boardRows, boardColumns, faceOf } from '../boardTable'
@@ -11,6 +11,10 @@ import { sortGames } from '../GameList'
 import BucketsProjected from '../BucketsProjected'
 import BucketsWeakSpots from '../BucketsWeakSpots'
 import SlateCard from '../../slate/SlateCard'
+import { nbaGameAngles } from '../../../lib/nba/gameAngles'
+import { pickAngles } from '../../../lib/slate/angles'
+import { playerHref } from '../../../lib/routes'
+import { useLockOf } from '../../MemberGate'
 import { heatTier } from '../../../lib/nhl/slateHeat'
 import { EXPECTED_POINTS_WORDS } from '../../../lib/nba/teamModel'
 import { basisLine } from '../BucketsTeamExpected'
@@ -34,6 +38,8 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
   const xp = useBucketsExpected(date)
   // THE TEAM MODEL (lib/nba/teamModel.js): expected points a game, the Slate dial (NHL's expected goals, NFL's expected touchdowns)
   const tm = useBucketsTeamModel(date)
+  const hot = useBucketsHot(date)   // BEST ANGLES' form row: points over the last 5 games (lib/nba/hot.js)
+  const lockOf = useLockOf()   // the member gate for the angle rows: a CALLED, not-started pick a non-member may not read is skipped
   const gameTotals = useGameTotals('nba')   // each game's own Top Totals row, said on its own game (components/GameTotalLine.js)
   const tmBy = useMemo(() => new Map((tm.data?.games || []).map((x) => [String(x.id), x])), [tm.data])
   const xptsBy = useMemo(() => new Map((xp.data?.rows || []).map((r) => [String(r.playerId), r])), [xp.data])
@@ -88,8 +94,11 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
               const heat = m1?.heat ?? 0
               const tier = heatTier(heat)
               const way = m1?.basis === 'this season' ? '' : ` (${m1?.basis})`
+              const ang = nbaGameAngles({ game: x, rows: data?.rows || [], hot: hot.data?.rows || null, hrefOf: (id) => playerHref('nba', id) })
+              const angles = pickAngles({ matchup: ang.matchup, form: ang.form, hiddenOf: (c) => lockOf({ status: c.row?.status, key: `${x.id}|${c.key}`, time: x.start, graded: st === 'final' }).locked })
+                .map((a) => ({ ...a, onClick: () => onOpenPlayer?.(a.pid) }))
               return <SlateCard key={x.id} sport="nba" accent={C.purple} on={g?.id === x.id} onSelect={choose} card={{
-                large: true,
+                large: true, weak: ang.weak, angles,
                 id: x.id, title: <MatchLogos sport="nba" away={x.away.abbrev} home={x.home.abbrev} px={30} gap={5} />, past: st === 'final',
                 heat, tooltip: `${x.away.abbrev} @ ${x.home.abbrev}`,
                 dial: { value: m1 ? m1.total : null, dp: 0, pct: m1 ? 100 * heat : null, col: tier === 'hot' ? C.purple : tier === 'cold' ? C.text3 : C.text2,

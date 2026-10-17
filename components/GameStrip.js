@@ -15,6 +15,13 @@ import { GameTotalMark, totalRowFor, useGameTotals } from './GameTotalLine'
 import { useClubHr } from '../lib/clubHr'
 import { gameExpHr } from '../lib/teamHr'
 import { expectedClause } from '../lib/expectedLine'
+import { useLockOf } from './MemberGate'
+import { isCalledRole } from '../lib/callStatus'
+import { playerId as mlbPlayerId } from '../lib/player'
+import { playerHref } from '../lib/routes'
+import { rankArms } from '../lib/armLeak'
+import { mlbGameAngles } from '../lib/mlb/gameAngles'
+import { pickAngles } from '../lib/slate/angles'
 
 // Game selector strip — the PropFinder pattern.
 //
@@ -122,7 +129,12 @@ function timeText(t) {
 
 const isPast = (t) => !!t && new Date(t) < new Date(Date.now() - 3 * 60 * 60 * 1000)
 
-export default function GameStrip({ games, activeGame, onSelect, mode, onPairPick, pairIds, sortBy = 'time', live = null, targets = [], onTarget = null, nested = false, onPlayerClick = null }) {
+// BEST ANGLES (Donovan 2026-10-17): the card's rows are chosen by matchup and form (lib/mlb/gameAngles.js + lib/slate/angles.js), never by the bot's call.
+// `rawOf` hands back the RAW rows of a game (the gate-masked ones lose their call fields, so a hidden CALLED pick could not be told from any other bat);
+// `slateRows` is the whole slate's raw rows (the arms are ranked against all of tonight's starters, not the filtered games).
+export default function GameStrip({ games, activeGame, onSelect, mode, onPairPick, pairIds, sortBy = 'time', live = null, targets = [], onTarget = null, nested = false, onPlayerClick = null, rawOf = null, slateRows = null, slateDate = null }) {
+  const lockOf = useLockOf()
+  const arms = useMemo(() => rankArms(slateRows || games.flatMap((g) => g.players || [])), [slateRows, games])
   const gameTotals = useGameTotals('mlb')   // a top-3 game wears 'total #n' (components/GameTotalLine.js)
   const clubHr = useClubHr()   // the league table the TEAM model reads (lib/teamHr.js); null until it arrives, then the cards name each club's expected HR
   // 🔗 CROSS-GAME PAIR BUILDING (2026-08-09, Donovan: "from this view I
@@ -203,6 +215,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
           if (ts.length !== 2) return null
           return { marks: ts.map((t) => byTeam[t] ? '✓' : '◻').join(''), tip: ts.map((t) => `${t} ${byTeam[t] ? 'posted' : 'projected'}`).join(' · ') }
         })(),
+        rows: gp,
         pk: g.game_pk,
         matchup: `${g.away || '—'} @ ${g.home || '—'}`,
         away: g.away || null, home: g.home || null,
@@ -461,18 +474,19 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
               return xhr || tr ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>{wx}{xhr}{tr ? <GameTotalMark row={tr} /> : null}</span> : wx
             })(),
             score: c.liveG ? { away: awayAbbr, home: homeAbbr, awayScore: c.liveG.awayScore, homeScore: c.liveG.homeScore, live: c.liveG.state === 'Live' } : null,
-            chips: [['TOP', c.topPick, C.yellow, "MOONSHOT's TOP pick in this game"],
-              ['HR', c.hrPick, C.orange, "MOONSHOT's HR pick in this game"],
-              ['ALT', c.altPick, C.purple, c.altWhy || "MOONSHOT's secondary HR look in this game"],
-            ].filter(([, pk2]) => pk2).map(([tag, pk2, cc, tip]) => ({
-              key: tag, tag, color: cc, name: pk2.name, score: pk2.score,
-              title: [pairing ? `${tag} — ${tip} — tap to add him as a pair leg` : `${tag} — ${tip}${onPlayerClick ? ' — tap for his card' : ''}`, spotTitle(pk2.p)].filter(Boolean).join('\n'),
-              // A name is a link (CLAUDE.md; nav audit 09-29): outside pair-building
-              // the chip opens his card instead of falling through to the game.
-              onClick: pairing ? (e) => { e.stopPropagation(); onPairPick(pk2.p) }
-                : onPlayerClick ? (e) => { e.stopPropagation(); onPlayerClick(pk2.p) } : undefined,
-              leg: isLeg(pk2.p), style: chipSpot(pk2.p),
-            })),
+            ...(() => {
+              const raw = rawOf ? rawOf(c.rows) : c.rows
+              const ang = mlbGameAngles({ rows: raw, arms, hrefOf: (id) => playerHref('mlb', id) })
+              const hiddenOf = (k) => lockOf({ status: isCalledRole(k.row?.game_pick_role) ? 'called' : 'board', key: `${mlbPlayerId(k.row)}|${k.row?.game_pk ?? ''}`, time: k.row?.game_time, graded: c.liveG?.state === 'Final', slateDate }).locked
+              const angles = pickAngles({ matchup: ang.matchup, form: ang.form, hiddenOf }).map((k) => ({
+                ...k,
+                leg: isLeg(k.row),
+                title: pairing ? 'Tap to add him as a pair leg' : undefined,
+                // a name is a link: outside pair-building it opens his card (the page's own modal), else the plain address
+                onClick: pairing ? () => onPairPick(k.row) : onPlayerClick ? () => onPlayerClick(k.row) : undefined,
+              }))
+              return { weak: ang.weak, angles }
+            })(),
           }
           const target = onTarget ? (
             <span
