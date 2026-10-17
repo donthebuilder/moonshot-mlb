@@ -62,6 +62,7 @@ const StorylinesPage = dynamic(() => import('../StorylinesPage'), { loading: Tab
 const Numerology = dynamic(() => import('./tabs/Numerology'), { loading: TabLoading })
 const Accountability = dynamic(() => import('./tabs/Accountability'), { loading: TabLoading })
 const TuddyLedger = dynamic(() => import('./tabs/TuddyLedger'), { loading: TabLoading })
+import PageViews from '../PageViews'
 const Scores = dynamic(() => import('./tabs/Scores'), { loading: TabLoading })
 const Standings = dynamic(() => import('./tabs/Standings'), { loading: TabLoading })
 const Pairs = dynamic(() => import('./tabs/Pairs'), { loading: TabLoading })
@@ -137,7 +138,7 @@ const cardViewOf = (h) => {
 }
 // the pages that print a price (see the effect that loads the quotes)
 const ODDS_TABS = new Set(['players', 'games', 'picks', 'research'])
-const NFL_TAB_KEEP = { pos: new Set(['research']), lens: new Set(['odds']), player: new Set(['players']), team: new Set(['players', 'team']), game: new Set(['games']), lv: new Set(['ledger']), sec: new Set(['team']), sv: new Set(['team']) }   // sec=: the team page's section (components/team/TeamPage.js); lv=: The Ledger's sub-tab (lib/ledger/views.js)
+const NFL_TAB_KEEP = { pos: new Set(['research']), lens: new Set(['odds', 'live']), player: new Set(['players']), team: new Set(['players', 'team']), game: new Set(['games']), lv: new Set(['ledger']), sec: new Set(['team']), sv: new Set(['team']) }   // sec=: the team page's section (components/team/TeamPage.js); lv=: The Ledger's sub-tab (lib/ledger/views.js)
 
 export default function NflDashboard({ palettePass = 0 }) {
   const [tab, setTabRaw] = useState('home')
@@ -242,7 +243,7 @@ export default function NflDashboard({ palettePass = 0 }) {
     setTabRaw(next)
     // the address rule is lib/useShellRoute.js tabSwitchHash (R7): the Players
     // file keeps player/team, the Slate keeps its open game; a new tab drops the card
-    const { hash, changed } = tabSwitchHash(hashParams().toString(), { sport: 'nfl', next, keep: NFL_TAB_KEEP, clearOnChange: ['card', 'cm', 'view'] })
+    const { hash, changed } = tabSwitchHash(hashParams().toString(), { sport: 'nfl', next, keep: NFL_TAB_KEEP, clearOnChange: ['card', 'cm', 'view', 'lens'] })
     // A card belongs to the page it was opened on: a real tab change drops
     // it; resolving the address you arrived on (same tab) keeps it.
     if (r.status === 'alias' && r.params) for (const [k, v] of Object.entries(r.params)) hash.set(k, v)   // #tab=longshots -> odds + lens=longshots
@@ -574,12 +575,16 @@ export default function NflDashboard({ palettePass = 0 }) {
               record: () => <Accountability data={data} results={nflResults} onPlayerClick={openPlayer} />,
               archive: () => <TuddyLedger data={data} results={nflResults} onPlayerClick={openPlayer} initialView="season" />,
             }} />}
-            {tab === 'scores' && <Scores data={slate} onPlayerClick={openPlayer} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
             {tab === 'team' && <NflTeam data={slate} picks={picks} matchup={matchup} logs={logs} results={nflResults} onOpenPlayer={openPlayer} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
             {tab === 'standings' && <Standings onOpenTeam={openTeamPage} />}
             {tab === 'pairs' && <Pairs data={data} results={nflResults} onPlayerClick={openPlayer} setTab={setTab} />}
             {tab === 'guide' && <Guide onNavigate={setTab} data={data} />}
-            {tab === 'live' && <Live data={slate} picks={picks} live={liveSnap} matchup={matchup} logs={logs} results={nflResults} onPlayerClick={openPlayer} setTab={setTab} />}
+            {/* ONE LIVE PAGE (2026-10-17, simplify audit 14): Scores is its second view; #tab=scores / boxscores / boxes are
+                aliases that land here with lens=scores (lib/routes.js ALIAS_PARAMS). Both read the same merged slate. */}
+            {tab === 'live' && <PageViews views={[
+              { key: 'live', label: 'Live', node: <Live data={slate} picks={picks} live={liveSnap} matchup={matchup} logs={logs} results={nflResults} onPlayerClick={openPlayer} setTab={setTab} /> },
+              { key: 'scores', label: 'Scores', node: <Scores data={slate} onPlayerClick={openPlayer} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} /> },
+            ]} />}
             {tab === 'streaks' && <Streaks data={data} logs={logs} onPlayerClick={openPlayer} />}
             {tab === 'leaders' && <Leaders data={data} onPlayerClick={openPlayer} />}
             {/* By game since 2026-09-27 (BATCH-STORYLINES-PAGE step 2): the story engine's rows, tied to the board.
