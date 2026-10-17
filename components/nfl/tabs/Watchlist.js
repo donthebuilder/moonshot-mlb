@@ -167,7 +167,7 @@ export default function Watchlist({ data, matchup, logs, picks = null, onPlayerC
           <p style={{ margin: '6px 0 0', color: C.text2, fontSize: 13, lineHeight: 1.5 }}>Tap <b style={{ color: C.yellow }}>☆</b> on any player and he lands here, with his status, injury tag and game for the week.</p>
           {sug.length > 0 && (
             <div style={{ marginTop: 12, display: 'grid', gap: 6 }}>
-              <div style={{ font: `800 9px/1 ${NUM_FONT}`, letterSpacing: '.12em', color: C.text3 }}>TOP OF THIS WEEK&apos;S BOARD</div>
+              <div style={{ font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.12em', color: C.text3 }}>TOP OF THIS WEEK&apos;S BOARD</div>
               {sug.map((p) => (
                 <div key={p.player_id} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 48, borderTop: `1px solid ${C.border}` }}>
                   <button type="button" onClick={() => onPlayerClick?.(p, 'TD')} style={{ flex: 1, minWidth: 0, minHeight: 44, display: 'flex', alignItems: 'center', gap: 8, border: 0, background: 'transparent', color: C.text, textAlign: 'left', cursor: 'pointer', font: 'inherit' }}>

@@ -153,10 +153,12 @@ export function Segmented({ value, options, onChange, label, tall = false }) {
 
 // ── the one <select> recipe (Runs' Picker + Controls' team dropdown, unified)
 export function FilterSelect({ label, value, options, onChange, title }) {
+  const themed = !!useSportTheme()?.themed   // 44px on a touch screen in TUDDY / LAMP / BUCKETS (.fp-themed); MOONSHOT unchanged
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} title={title}>
       {label && <FilterLabel>{label}</FilterLabel>}
       <select
+        className={themed ? 'fp-themed' : undefined}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         style={{
@@ -175,8 +177,10 @@ export function FilterSelect({ label, value, options, onChange, title }) {
 // ── search box, same chrome ─────────────────────────────────────────────────
 export function FilterSearch({ value, onChange, placeholder = 'Search…', width = 150 }) {
   const on = useOn()
+  const themed = !!useSportTheme()?.themed   // 44px on a touch screen in TUDDY / LAMP / BUCKETS (.fp-themed); MOONSHOT unchanged
   return (
     <input
+      className={themed ? 'fp-themed' : undefined}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
