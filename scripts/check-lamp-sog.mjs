@@ -6,6 +6,7 @@
 import { readFileSync } from 'node:fs'
 import { saPer60, sogLegs, scoreSogNight, gradeSogRows, toPropRow, BAR, CALLED_K, MODEL_VERSION } from '../lib/nhl/sogModel.js'
 import { pooledLegs } from '../lib/nhl/goalModel.js'
+import { versionsFor } from '../lib/nhl/versions.js'
 
 let failed = 0
 const check = (ok, what) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`); if (!ok) failed += 1 }
@@ -44,7 +45,7 @@ check(graded[0].dressed && graded[0].value === three.sog && graded[0].hit === tr
 check(graded[1].hit === false && graded[1].value === two.sog, `${two.name.default}: ${two.sog} SOG -> miss`)
 check(graded[2].dressed === false && graded[2].hit === null && graded[2].value === null, 'not dressed -> void (hit null), never a miss')
 const pr = toPropRow(rows[0], { id: 1, season: 20262027, gameType: 2, startUtc: '2026-10-01T23:00:00Z' }, { date: '2026-10-01' }, '2026-10-01T22:59:00Z')
-check(pr.market === 'SOG' && pr.model_version === MODEL_VERSION && pr.bar === BAR && pr.legs.oppSaPg === 30, 'row shape: market SOG, lamp-sog-v1, bar 3, legs carry oppSaPg')
+check(pr.market === 'SOG' && pr.model_version === 'lamp-sog-v1' && pr.model_version === versionsFor('2026-10-01').sog && pr.bar === BAR && pr.legs.oppSaPg === 30, 'row shape: market SOG, lamp-sog-v1 (the version of its 10-01 date), bar 3, legs carry oppSaPg')
 
 // ── live, read-only: a real 2025-26 night through buildNight ──────────────
 const { buildNight } = await import('../lib/nhl/goalBoard.js')

@@ -14,6 +14,7 @@ import StarMemory from '../watch/StarMemory'
 import { SportTheme } from '../SportTheme'
 import RankCard from '../card/RankCard'
 import { stampArg, gameDayOf } from '../card/useStamps'
+import { poolOverNhl } from '../../lib/nhl/poolWords'
 import { canonPos } from '../../lib/positions'
 import { nhlShareRows } from '../../lib/nhl/boardColumns'
 
@@ -45,11 +46,12 @@ export const countOf = (row, market) => {
 const COUNT_UNIT = { SOG: 'SOG', PTS: 'PTS', AST: 'AST' }
 const unitOf = (market, n) => COUNT_UNIT[market] || (n === 1 ? 'GOAL' : 'GOALS')
 const SCORE_NOTE = {
-  GOAL: 'The goal board score: the mean of three percentile ranks among tonight’s scored skaters -- shots, goals and ice time per game over his last 82 NHL games. A ranking, not a percentage.',
+  GOAL: (d) => `The goal board score: the mean of three percentile ranks among tonight’s scored skaters -- shots, goals and ice time per game ${poolOverNhl(d)}. A ranking, not a percentage.`,
   SOG: 'The SHOTS 3+ board score: the mean of three percentile ranks among tonight’s scored skaters -- his shots and ice time per game, and how many shots his opponent allows. A ranking, not a percentage.',
   PTS: 'The POINTS 1+ board score (a test): the mean of three percentile ranks among tonight’s scored skaters -- his points and ice time per game, and how many goals his opponent allows. A ranking, not a percentage.',
   AST: 'The ASSISTS 1+ board score (a test): the mean of three percentile ranks among tonight’s scored skaters -- his assists and ice time per game, and how many goals his opponent allows. A ranking, not a percentage.',
 }
+const noteOf = (market, day) => { const n = SCORE_NOTE[market] || SCORE_NOTE.GOAL; return typeof n === 'function' ? n(day) : n }
 export function PctBars({ r, market = 'GOAL', wide = false }) {
   if (!r.pct) return null
   const legs = legsOf(r.pct, market)
@@ -112,9 +114,9 @@ export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen, rank
       <RankCard accent={C.ice} status={r.status} rankMove={rankMove} pos={canonPos('nhl', r.pos)} rank={rank} sport="nhl" club={r.team} name={r.name} opp={opp}
         stampFor={stampArg('nhl', r.playerId, gameDayOf(g.game.startUtc), place)} lockIn={{ key: `${g.game.id}|${r.playerId}`, time: g.game.startUtc, graded: Boolean(g.graded) }}
         face={<PlayerFace sport="nhl" variant="tile" photo={nhlMug(g.game.season, r.team, r.playerId)} team={null} name="" size={84} theme={C} />}
-        score={Math.round(r.score ?? 0)} scoreWord="LAMP" explain={SCORE_NOTE[market] || SCORE_NOTE.GOAL}
+        score={Math.round(r.score ?? 0)} scoreWord="LAMP" explain={noteOf(market, gameDayOf(g.game.startUtc) || null)}
         reason={r.why && !stats.length ? r.why : null}
-        stats={stats} back={rows.length ? { rows, note: 'Per game over his last 82 NHL games. A ranking, not a percentage. Share rows are a percent of his club this season.' } : null}
+        stats={stats} back={rows.length ? { rows, note: `Per game ${poolOverNhl(gameDayOf(g.game.startUtc) || null)}. A ranking, not a percentage. Share rows are a percent of his club this season.` } : null}
         dim={graded && r.dressed === false} onClick={() => onOpen?.(r.playerId)}
         foot={<>
           <FollowButton sport="nhl" id={String(r.playerId)} name={r.name} team={r.team} position={r.pos} />

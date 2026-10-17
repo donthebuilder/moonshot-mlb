@@ -3,6 +3,7 @@ import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { appHref } from '../../../lib/routes'
 import HowItWorks from '../../HowItWorks'
 import { NHL_NAV } from '../../../lib/nhl/routes'
+import { poolGuideWords } from '../../../lib/nhl/poolWords'
 import { GuideTheme, Section, P, Term, StartHere, GuideTitle, PlaybookLink } from '../../guide/GuideParts'
 
 // 🏒 HOW THIS WORKS — LAMP explained to somebody who has never seen it
@@ -70,8 +71,8 @@ export default function Guide({ onNavigate }) {
       </>} />
 
       <Section title="The three words" emoji="🔖" defaultOpen={true}>
-        <P><b style={{ color: C.ice }}>CALLED</b> — one of the three the board picked in his game. <b style={{ color: C.text }}>ON THE BOARD</b> — scored and ranked, but fourth or worse. <b style={{ color: C.text3 }}>NOT ON THE BOARD</b> — on the roster, not scored, and the reason is printed (usually fewer than ten NHL games on file). Same words, same meaning, on MOONSHOT and TUDDY.</P>
-        <P>The score is the average of three percentile ranks among the night’s scored skaters: shots per game, goals per game, ice time per game, each over his last 82 NHL games (this season first, last season for the rest). A board is <b style={{ color: C.amber }}>PREVIEW</b> until 100 minutes before puck drop, <b style={{ color: C.teal }}>LOCKED</b> from the last write before the puck drops, <b style={{ color: C.cream }}>GRADED</b> after the final. A locked row is never rewritten.</P>
+        <P><b style={{ color: C.ice }}>CALLED</b> — one of the three the board picked in his game. <b style={{ color: C.text }}>ON THE BOARD</b> — scored and ranked, but fourth or worse. <b style={{ color: C.text3 }}>NOT ON THE BOARD</b> — on the roster, not scored, and the reason is printed (usually fewer than three NHL games on file). Same words, same meaning, on MOONSHOT and TUDDY.</P>
+        <P>The score is the average of three percentile ranks among the night’s scored skaters: shots per game, goals per game, ice time per game, {poolGuideWords}. A board is <b style={{ color: C.amber }}>PREVIEW</b> until 100 minutes before puck drop, <b style={{ color: C.teal }}>LOCKED</b> from the last write before the puck drops, <b style={{ color: C.cream }}>GRADED</b> after the final. A locked row is never rewritten.</P>
       </Section>
 
       <Section title="Reading a score row" emoji="🚨">

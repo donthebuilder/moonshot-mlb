@@ -7,7 +7,7 @@
 // a later feed. An empty record says so. The rows come through the shared
 // record reader (lib/record/nhl.js), the same one /start and /called use.
 import { addCounts, coverage, coverageFromCounts } from '../../../../lib/nhl/goalModel'
-import { VERSIONS, V3_FROM } from '../../../../lib/nhl/versions'
+import { VERSIONS, V3_FROM, V4_FROM } from '../../../../lib/nhl/versions'
 // one track record across the versions (each night was called by the one it locked under)
 const MODEL_VERSION = VERSIONS.goal.join(' -> ')
 import { readNhlNights, readNhlRecords, isMissingTable, markAnyMarketCalls } from '../../../../lib/record/nhl'
@@ -40,7 +40,7 @@ export async function GET(request) {
       if (r.error) throw new Error(r.error.message)
       sog = { calledN: r.data.length, calledHits: r.data.filter((x) => x.hit === true).length }
     } catch (e) { console.error(`[lamp record] sog: ${e?.message || e}`) }
-    const done = (nights, total) => ok({ modelVersion: MODEL_VERSION, versionFrom: { [VERSIONS.goal[1]]: V3_FROM }, since, days, includePre, nights, total, sog, dbReady: true, fetchedAt: new Date().toISOString() }, 300)
+    const done = (nights, total) => ok({ modelVersion: MODEL_VERSION, versionFrom: { [VERSIONS.goal[1]]: V3_FROM, [VERSIONS.goal[2]]: V4_FROM }, since, days, includePre, nights, total, sog, dbReady: true, fetchedAt: new Date().toISOString() }, 300)
 
     // COUNTED IN POSTGRES (2026-09-26). The per-night numbers come from the
     // lamp_goal_nights view -- one row a night -- and only the rows the two
