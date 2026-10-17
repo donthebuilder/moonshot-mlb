@@ -19,18 +19,25 @@ import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import HisNumbers from '../../HisNumbers'
 import InTheLedger from '../../ledger/InTheLedger'
 import { etToday } from '../../../lib/freshness'
-import { bornLine } from '../../../lib/birthday'
-import { BirthdayChip } from '../../player/BirthdayChip'
-import { useLampPlayer, useLampBoardOnce, useLampSplits } from '../../../lib/nhl/useLamp'
+import { useLampPlayer, useLampBoardOnce, useLampSplits, useLampPlayerRecord } from '../../../lib/nhl/useLamp'
 import { playerHref } from '../../../lib/routes'
 import SharedSeasonToggle from '../../nfl/SeasonToggle'
 import { SportTheme } from '../../SportTheme'
+import VerdictHero from '../../VerdictHero'
+import CardShell from '../../CardShell'
+import BornLine from '../../player/BirthdayChip'
+import BotOnHim from '../../BotOnHim'
+import GoalCompare from '../GoalCompare'
+import LampNumbers from '../LampNumbers'
+import LampMore from '../LampMore'
+import LampResultStamp from '../LampResultStamp'
 // THE SHARED PLAYER MODEL (components/player/): the verdict first, then ONE row of his numbers; LAMP's words in nhlAdapter.js
 import VerdictBlock from '../../player/VerdictBlock'
-import { useCardLock, useMemberState, CardLockLine } from '../../MemberGate'
+import { useCardLock, useMemberState, useCallMask, CardLockLine } from '../../MemberGate'
 import StatRow from '../../player/StatRow'
 import ScrollHint from '../../player/ScrollHint'
-import { nhlVerdict, nhlStatRow } from '../../player/nhlAdapter'
+import { nhlVerdict, nhlStatRow, nhlRecordLine, nhlSignals } from '../../player/nhlAdapter'
+import { nhlBotView } from '../../player/nhlRecordView'
 import { nhlTeam } from '../../../lib/nhl/teams'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
 import { STATUS, Pills, EmptyState, DelayedBanner, Loading, Kicker, StaleSeasonNote, fmtDay, fmtPuckDrop, zoneAbbrev,fmtHeight, fmtPct1, fmtPct3, fmt2, fmtSec, plusMinus, dash } from '../ui'
@@ -114,10 +121,12 @@ function boardSpot(board, p) {
 // shared link and Back all land on the same tab.
 const VIEWS = [
   { key: 'overview', label: 'Overview' },
+  { key: 'read', label: 'The Read', skater: true },
   { key: 'splits', label: '📅 Splits', skater: true },
-  { key: 'shotmap', label: '🗺 Shot map', skater: true },
-  { key: 'vs', label: '🆚 VS', skater: true },
   { key: 'log', label: '📋 Game log' },
+  { key: 'numbers', label: '🔢 Numbers' },
+  { key: 'shotmap', label: '🗺 Shots', skater: true },
+  { key: 'vs', label: '🆚 VS', skater: true },
   { key: 'goals', label: '🥅 Goals', skater: true },
   { key: 'career', label: '🏆 Career' },
 ]
@@ -136,21 +145,27 @@ function SeasonToggle({ value, onChange, p }) {
   return <SharedSeasonToggle options={options} value={value} onChange={onChange} theme={C} numFont={NUM_FONT} accent={C.ice} />
 }
 
+// ── THE HERO'S LINKS (as MOONSHOT's card): the club, the opponent and the game are taps, 44px tall around plain text ──
+const LINK = { background: 'transparent', border: 'none', font: 'inherit', color: 'inherit', cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2, display: 'inline-block', position: 'relative', lineHeight: '10px', padding: '5px 9px', margin: '-5px -9px' }
+
 function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onStep, peek, lead = null }) {
   const goalie = p.goalie
   const { data: board } = useLampBoardOnce()
   const spot = boardSpot(board, p)
   const row = spot?.r || null
-  const opp = spot ? (spot.g.game.home.abbrev === p.team ? `vs ${spot.g.game.away.abbrev}` : `@ ${spot.g.game.home.abbrev}`) : null
+  const oppCode = spot ? (spot.g.game.home.abbrev === p.team ? spot.g.game.away.abbrev : spot.g.game.home.abbrev) : null
   const called = row?.status === 'called'
   // MEMBERS (2026-10-16): the card's lock; same key as the goal board's (`${game id}|${playerId}`), the puck drop, the game's graded flag
   const lockIn = row && spot?.g ? { key: `${spot.g.game?.id}|${row.playerId}`, time: spot.g.game?.startUtc, graded: Boolean(spot.g.graded) } : null
   const nonMember = useMemberState() === 'free'
   const cl = useCardLock({ status: row?.status || null, key: lockIn?.key, time: lockIn?.time, graded: lockIn?.graded })
   const locked = Boolean(lockIn) && cl.locked
+  // the word the viewer may read: a locked CALLED pick is drawn as ON THE BOARD (CallStatusBadge's gate), never as CALLED
+  const shownStatus = row ? (locked && row.status === 'called' ? 'board' : row.status) : (spot && !goalie ? 'off' : null)
   const f = p.featured
   const stale = Boolean(p.current && f.season && f.season < p.current)
   const fr = f.regular
+  const rec = useLampPlayerRecord(goalie ? null : p.id)
 
   // ── the tab, in the address ──
   const tabs = VIEWS.filter((v) => !v.skater || !goalie)
@@ -176,6 +191,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
   // labelled where it is drawn (the shot map's stamp), not hidden behind last season. Only a man with
   // no game yet this season (or a feed still on last season's line) opens on the last two.
   const [season, setSeason] = useState(!stale && (Number(fr?.gp) || 0) >= 1 ? 'this' : p.logPrev?.seasonLabel ? 'both' : 'this')
+  const [compareOpen, setCompareOpen] = useState(false)
   const logThis = p.log?.rows || []
   const logLast = p.logPrev?.rows || []
   const seasonLabels = (() => {
@@ -183,7 +199,6 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
     return season === 'this' ? `${a} regular season` : season === 'last' ? `${b || 'Last season'} regular season` : `${[b, a].filter(Boolean).join(' + ')}`
   })()
 
-  const [whyOpen, setWhyOpen] = useState(false)
   const nhlSeasons = p.seasons.filter((s) => s.league === 'NHL' && s.gameType === 2).slice().reverse()
   const otherLeagues = p.seasons.filter((s) => s.league !== 'NHL')
   const playoffSeasons = p.seasons.filter((s) => s.league === 'NHL' && s.gameType === 3)
@@ -194,12 +209,10 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
   const awardsPrev = usePreview(p.awards.map((a) => ({ ...a, _key: a.trophy, times: a.seasons.length })), 5)
   const team = nhlTeam(p.team)
   const bornOn = board?.date || etToday()   // the slate's own date when there is one
+  const posWord = goalie ? 'Goalie' : { C: 'Centre', L: 'Left wing', R: 'Right wing', D: 'Defence' }[p.pos] || p.pos
+  // the bio line without his birthday (BornLine draws that, right under the hero, as MOONSHOT's card does)
   const bio = [
-    p.pos && `${goalie ? 'Goalie' : { C: 'Centre', L: 'Left wing', R: 'Right wing', D: 'Defence' }[p.pos] || p.pos}`,
-    p.shoots && `${goalie ? 'catches' : 'shoots'} ${p.shoots}`,
-    fmtHeight(p.heightIn) && `${fmtHeight(p.heightIn)}, ${dash(p.weightLb)} lb`,
-    bornLine(p.birthDate, bornOn),
-    p.birthCity && `${p.birthCity}${p.birthCountry ? `, ${p.birthCountry}` : ''}`,
+    p.birthCity && `Born in ${p.birthCity}${p.birthCountry ? `, ${p.birthCountry}` : ''}`,
     p.draft ? `drafted ${p.draft.year} by ${p.draft.team}, round ${p.draft.round} (#${p.draft.overall} overall)` : 'undrafted',
   ].filter(Boolean).join(' · ')
   const seasonLine = (r, label) => (r ? { ...r, seasonLabel: label, team: r.team || '' } : null)
@@ -216,6 +229,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
     // the games he has, up to n (early season: L10 over his 6 games, said so in the strip's title), never nothing while he has played
     return g.length ? { num: g.reduce((t, r) => t + (Number(r.g) || 0), 0), den: g.length } : null
   }
+  const droughtN = /^\d+$/.test(droughtOf(p.log?.rows)) ? Number(droughtOf(p.log?.rows)) : null
 
   // ‹ › walk tonight's board in its own order (the ranking is what he was reading)
   const peers = useMemo(() => {
@@ -224,130 +238,137 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
     return out.sort((a, b) => b.score - a.score)
   }, [board])
   const cur = peers.find((x) => x.id === String(p.id)) || { id: String(p.id), name: p.name, team: p.team }
+  // ⚖ the card's Compare: tonight's board rows (a skater on the board only), the call fields of a locked man taken off for a non-member
+  const { mask } = useCallMask({ statusOf: (r) => r.status, keyOf: (r) => `${r.gameId}|${r.playerId}`, timeOf: (r) => r._start, gradedOf: (r) => r._graded, strip: ['status', 'score', 'rank', 'nightRank', 'pct', 'why', 'reason'] })
+  const compareRows = useMemo(() => {
+    if (!compareOpen) return []
+    const out = []
+    for (const g of board?.games || []) for (const r of g.rows || []) if (r.status !== 'off' && r.score != null) out.push({ ...r, gameId: g.game?.id, _start: g.game?.startUtc, _graded: Boolean(g.graded) })
+    return mask(out)
+  }, [compareOpen, board, mask])
   const whyLine = row ? (row.why || (row.reason ? `Not on the board: ${row.reason}` : null)) : spot && !goalie && (spot.g.rows || []).length ? 'Not on tonight’s board: he isn’t in the posted lineup or on the club’s current roster.' : null
   const w = row && !goalie ? goalWhy(row, board) : null
-  const keyNums = !fr ? [] : goalie ? [['W', dash(fr.w)], ['SV%', fmtPct3(fr.svPct)], ['GAA', fmt2(fr.gaa)]] : [['G', dash(fr.g)], ['A', dash(fr.a)], ['PTS', dash(fr.pts)]]
-  const gamePos = spot ? `${opp} · ${spot.g.game.state === 'pre' ? `${fmtPuckDrop(spot.g.game.startUtc)} ${zoneAbbrev()}` : spot.g.game.statusLine || spot.g.game.state}` : null
+  const gamePos = spot ? (spot.g.game.state === 'pre' ? `${fmtPuckDrop(spot.g.game.startUtc)} ${zoneAbbrev()}` : spot.g.game.statusLine || spot.g.game.state) : null
+  const signals = goalie ? [] : nhlSignals({ row, drought: droughtN, l5: goalsIn(5)?.den >= 5 ? goalsIn(5).num : null })
+  const heroOn = !goalie && shownStatus && shownStatus !== 'off'
+  const heroCol = heroOn ? C.ice : C.text3
+  const pickWord = shownStatus === 'called' ? 'a goal tonight' : shownStatus === 'board' ? 'no call tonight' : 'pass tonight'
+  const nextG = !stale && Number.isFinite(f.regular?.g) ? f.regular.g + 1 : null
+
+  const btn44 = { minHeight: 44, minWidth: 44, borderRadius: 10, border: `1px solid ${C.border2}`, background: C.bg, color: C.text2, cursor: 'pointer', font: `800 15px/1 ${NUM_FONT}` }
 
   return (
     <SportTheme theme={C} accent={C.ice}>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* THE TOP ROW: Back on the left, his card at the right end: the flip Card and Save (the same baseball card the alerts use: his word, score and night rank,
-          his rates, season line, form and drought). A goalie has no goal board, so no card. */}
-      {(onBack || !goalie || lead) && (
+      {/* THE TOOLBAR, ONE ROW, as MOONSHOT's: Card, Save, Compare, ‹ n / m › group search (Navigator), then the peek's Full page. Back on the left of the full page.
+          A goalie has no goal board, so no card, no compare. */}
+      {(onBack || !goalie || lead || (onStep && peers.length > 1)) && (
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: onBack ? 'space-between' : 'flex-end', gap: 8 }}>
           {onBack ? <BackBtn onBack={onBack} label={backLabel} /> : null}
-          {!goalie && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              {row && <CardFlip sport="nhl" id={String(p.id)} name={p.name} />}
-              <ShareCardButton sport="nhl" what="his card" url={playerUrl({ sport: 'nhl', id: p.id })} filename={`${slug(p.name, 'player')}_${stamp(board?.date)}.png`} />
-            </span>
-          )}
-          {/* the card in a peek: the previous / next / compare / search arrows and Full page / close share this ONE row (was three stacked rows) */}
-          {lead && onStep && peers.length > 1 && <Navigator peers={peers} cur={cur} noun="player" onNavigate={(x) => onStep(x.id)} />}
-          {lead?.full}
+          <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6 }}>
+            {!goalie && row && <CardFlip sport="nhl" id={String(p.id)} name={p.name} />}
+            {!goalie && <ShareCardButton sport="nhl" what="his card" url={playerUrl({ sport: 'nhl', id: p.id })} filename={`${slug(p.name, 'player')}_${stamp(board?.date)}.png`} />}
+            {!goalie && row && peers.length > 1 && <button type="button" onClick={() => setCompareOpen(true)} title="Compare this skater against another on tonight’s board" aria-label="Compare two skaters" style={btn44}>⚖</button>}
+            {onStep && peers.length > 1 && <Navigator peers={peers} cur={cur} noun="player" onNavigate={(x) => onStep(x.id)} />}
+            {lead?.full}
+          </span>
         </div>
       )}
       <DelayedBanner error={error} what="his file" />
-      {!lead && onStep && peers.length > 1 && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <Navigator peers={peers} cur={cur} noun="player" onNavigate={(x) => onStep(x.id)} />
-        </div>
-      )}
-      {/* THE STICKY HEADER: who, which club, the board's word and his numbers never scroll away. */}
-      <header style={{ position: 'sticky', top: peek ? 0 : 'var(--lamp-sticky, 0px)', zIndex: 20, background: C.bg2, margin: '0 -2px', padding: '8px 2px 0', borderBottom: `1px solid ${C.border2}` }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-          <div style={{ width: 48, height: 48, borderRadius: '50%', overflow: 'hidden', flex: '0 0 auto', background: C.bg3, border: `2px solid ${called && !locked ? C.ice : C.border2}` }}>
-            {p.headshot ? <img src={p.headshot} alt="" width={48} height={48} style={{ width: 48, height: 48, objectFit: 'cover' }} /> : null}
-          </div>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 18, fontWeight: 800, lineHeight: 1.2, color: C.text }}>
-              {p.number != null && <span style={{ color: C.text3, fontFamily: NUM_FONT }}>#{p.number} </span>}<a href={playerHref('nhl', p.id)} style={{ color: 'inherit', textDecoration: 'none' }}>{p.name}</a><PlayerInjuryChip who={{ player_id: p.id, name: p.name, team: p.team }} />
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px 8px', fontSize: 12, color: C.text2, marginTop: 2 }}>
-              {p.team && (
-                <button type="button" onClick={() => onOpenTeam?.(p.team)} title={team ? team.name : p.teamName} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, minHeight: 44, margin: '-12px 0', background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text, font: 'inherit' }}>
-                  {p.teamLogo && <img src={p.teamLogo} alt="" width={18} height={18} style={{ width: 18, height: 18 }} />}
-                  <b style={{ font: `900 12px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>{team?.nickname ? team.nickname.toUpperCase() : p.team}</b>
-                </button>
-              )}
-              <span>{[{ C: 'Centre', L: 'Left wing', R: 'Right wing', D: 'Defence' }[p.pos] || p.pos, goalie ? 'Goalie' : null, !p.active ? 'not active' : null].filter(Boolean).join(' · ')}</span>
-              <span style={{ color: C.text3 }}>NHL</span>
-            </div>
-          </div>
-          <div style={{ flex: '0 0 auto' }}><FollowButton sport="nhl" id={String(p.id)} name={p.name} team={p.team} position={p.pos} compact /></div>
-          {/* the card's close sits in the header at the right, as on MOONSHOT's card */}
+
+      {/* THE HEADER CARD, MOONSHOT's hero (components/VerdictHero.js): his face in the dial with the board's score round it, #number name, club vs opponent
+          and the game, position / hand / size, the board's word as the badge, and the close inside the card. A goalie has no goal board: an empty dial that says so. */}
+      {!goalie && <LampResultStamp row={row} graded={Boolean(spot?.g?.graded)} />}
+      <VerdictHero lead="dial" theme={C} numFont={NUM_FONT} style={{ marginBottom: 0 }}
+        photo={p.headshot || null} col={heroCol}
+        score={heroOn && !locked && row?.score != null ? row.score : null}
+        dialTitle={goalie ? 'Goalies are not on the goal board.' : 'LAMP’s goal score: a 0-100 rank among tonight’s skaters, not a chance'}
+        title={<>
+          {p.number != null && <span style={{ color: C.text3, fontWeight: 700, fontFamily: NUM_FONT }}>#{p.number} </span>}
+          <a href={playerHref('nhl', p.id)} style={{ color: 'inherit', textDecoration: 'none' }}>{p.name}</a>
+          <PlayerInjuryChip who={{ player_id: p.id, name: p.name, team: p.team }} />
+        </>}
+        meta={<>
+          {p.team ? <button type="button" onClick={() => onOpenTeam?.(p.team)} title={team ? `${team.name} team page` : p.teamName} style={LINK}>{p.team}</button> : null}
+          {oppCode ? <>{' vs '}<button type="button" onClick={() => onOpenTeam?.(oppCode)} title={`${oppCode} team page`} style={LINK}>{oppCode}</button></> : null}
+          {spot?.g?.game?.id ? <>{' · '}<button type="button" onClick={() => onOpenGame?.(spot.g.game.id)} title="Open his game on the Slate" style={LINK}>Game ›</button></> : null}
+          {!spot && !goalie ? ' · no game tonight' : null}
+        </>}
+        metaRight={null}
+        meta2={<>{[posWord, !p.active ? 'not active' : null, p.shoots && `${goalie ? 'catches' : 'shoots'} ${p.shoots}`, fmtHeight(p.heightIn), gamePos].filter(Boolean).join(' · ')}</>}
+        right={<>
+          {!goalie && shownStatus ? <CallStatusBadge status={shownStatus} accent={C.ice} size={11} variant="stamp" gate={lockIn ? cl.gate : null} /> : null}
           {lead?.close}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 12px', margin: '6px 0 2px' }}>
-          {goalie ? <span style={{ color: C.text2, fontSize: 12 }}>Goalie</span> : (
-            <>
-              {board && shown !== 'overview' && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <CallStatusBadge status={row ? row.status : 'off'} accent={C.ice} size={11} variant="stamp" gate={lockIn ? cl.gate : null} />
-                  {!locked && row?.score != null && <b style={{ font: `900 14px/1 ${NUM_FONT}`, color: called ? C.ice : C.text }}>{Math.round(row.score)}</b>}
-                </span>
-              )}
-              {shown !== 'overview' && <button type="button" aria-expanded={whyOpen} onClick={() => setWhyOpen((v) => !v)} style={{ minHeight: 44, margin: '-10px 0', padding: '0 6px', background: 'transparent', border: 'none', color: C.ice, font: `800 12px/1 ${NUM_FONT}`, cursor: 'pointer', textDecoration: 'underline dotted' }}>Why?</button>}
-            </>
-          )}
-          {gamePos && <span style={{ color: C.text3, fontSize: 12 }}>{gamePos}</span>}
-          <span style={{ display: 'inline-flex', gap: 10, marginLeft: 'auto' }}>
-            {keyNums.map(([k, v]) => <span key={k} style={{ fontFamily: NUM_FONT, fontSize: 12, color: C.text3 }}><b style={{ color: C.text, fontSize: 15, fontWeight: 900 }}>{v}</b> {k}</span>)}
+        </>}
+      />
+      {/* HIS BIRTHDAY (the NHL player file's birth date; nothing when unknown) */}
+      <BornLine birth={p.birthDate} on={bornOn} accent={C.ice} C={C} font={NUM_FONT} style={{ marginTop: -6, marginBottom: 0 }} />
+
+      {/* MOONSHOT ON HIM first (the word, the score, why, the flags, his record), then ONE row of his key numbers (components/player/) */}
+      <div>
+        <VerdictBlock sport="nhl" lock={lockIn} style={{ marginBottom: 6 }}
+          {...nhlVerdict({ goalie, board, spot, row, w, whyLine, extraSignals: signals, recordLine: rec.data === undefined || rec.loading ? null : nhlRecordLine(rec.data) })} />
+        {f && fr ? <StatRow noun="skaters" stats={nhlStatRow({ goalie, fr, board, row, l10: goalsIn(10)?.num ?? null, l10n: goalsIn(10)?.den ?? null, drought: droughtN, seasonLabel: f.seasonLabel, stale })} /> : null}
+        {!fr && <EmptyState title="NO NHL LINE YET" note="No regular-season line for him yet. A camp invite or a prospect, most likely." />}
+        {stale && <div style={{ marginTop: 8 }}><StaleSeasonNote label={f.seasonLabel} opens={p.opens} what="line" /></div>}
+      </div>
+
+      {/* WATCH + ADD TO SLIP + the pick (MOONSHOT's row): the star, a + button per market the books price for him (no price, no button), LAMP's word */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <FollowButton sport="nhl" id={String(p.id)} name={p.name} team={p.team} position={p.pos} />
+        {!goalie && <LampSlipAdd id={String(p.id)} name={p.name} team={p.team} opp={oppCode} style={{ margin: 0 }} compact />}
+        {!goalie && shownStatus && (
+          <span style={{ fontSize: 12, color: C.text3 }}>
+            LAMP&apos;s pick: <b style={{ color: C.text2, fontWeight: 700 }}>{pickWord}</b>
           </span>
-        </div>
-        {whyOpen && shown !== 'overview' && (
-          <div role="region" aria-label="Why this word" style={{ maxHeight: '38vh', overflowY: 'auto', margin: '4px 0 6px', padding: '8px 10px', border: `1px solid ${C.border2}`, borderRadius: 10, background: C.bg, fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
-            {goalie ? 'Goalies are not on the goal board.' : !board ? 'Loading tonight’s board…' : !spot ? 'No game tonight, so he is not on the board.' : (
-              <>
-                {locked ? null : <div>{whyLine || (row ? 'On tonight’s board.' : 'Not on tonight’s board.')}</div>}
-                {!locked && w && <WhyLines theme={C} numFont={NUM_FONT} accent={C.ice} why={[w.why]} watch={w.watch} explain={w.explain} />}
-                {nonMember && <CardLockLine C={C} NUM_FONT={NUM_FONT} />}
-              </>
-            )}
-          </div>
         )}
-        <div className="chip-row" role="tablist" aria-label="Player tabs" style={{ display: 'flex', gap: 5, flexWrap: 'nowrap', overflowX: 'auto', padding: '6px 2px 8px' }}>
-          {tabs.map((t) => <TabBtn key={t.key} active={shown === t.key} onClick={() => pick(t.key)}>{t.label}</TabBtn>)}
-        </div>
-      </header>
+      </div>
+
+      {/* THE PILL TABS (MOONSHOT's TabBtn row), the tab in the address as view=; the row stays under the top as the page scrolls */}
+      <div className="chip-row" role="tablist" aria-label="Player tabs" style={{ position: 'sticky', top: peek ? 0 : 'var(--lamp-sticky, 0px)', zIndex: 20, background: C.bg2, display: 'flex', gap: 5, flexWrap: 'nowrap', overflowX: 'auto', padding: '4px 2px 8px', margin: '0 -2px', borderBottom: `1px solid ${C.border}` }}>
+        {tabs.map((t) => <TabBtn key={t.key} tall active={shown === t.key} onClick={() => pick(t.key)}>{t.label}</TabBtn>)}
+      </div>
 
       {shown === 'overview' && (
         <>
-          {/* ONE HEADER (2026-10-07, Donovan: "the player shows twice"): the sticky header above is the player's
-              face, name, club and the board's word. The big hero that repeated them is gone; its one line stays. */}
-          {/* LAMP ON HIM (components/player/): the board's word and score, why, the night rank; a goalie or a man with no game says so in one line. */}
-          <VerdictBlock sport="nhl" lock={lockIn} {...nhlVerdict({ goalie, board, spot, row, w, whyLine })} />
-          {!goalie && <LampSlipAdd id={String(p.id)} name={p.name} team={p.team} opp={spot?.g ? (spot.g.game.home.abbrev === p.team ? spot.g.game.away.abbrev : spot.g.game.home.abbrev) : null} />}
+          {/* the price (MOONSHOT's odds timeline), then LAMP ON HIM on the clean pregame record, then your note, the ledger and his numbers; the rest is folded in More */}
           {!goalie && !locked && <LampPriceHistory id={String(p.id)} />}
-          {!locked && w && row && spot?.g && <PlayerDepthToggle row={row} game={spot.g} />}
-          <section aria-label="Season line">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <Kicker>{goalie ? 'RECORD' : 'THE LINE'} · {f.seasonLabel}{stale ? ' (LAST SEASON)' : ''}</Kicker>
-            </div>
-            {stale && <div style={{ marginBottom: 10 }}><StaleSeasonNote label={f.seasonLabel} opens={p.opens} what="line" /></div>}
-            <StatRow noun="skaters" stats={nhlStatRow({ goalie, fr, board, row, l10: goalsIn(10)?.num ?? null, l10n: goalsIn(10)?.den ?? null, drought: /^\d+$/.test(droughtOf(p.log?.rows)) ? Number(droughtOf(p.log?.rows)) : null, seasonLabel: f.seasonLabel, stale })} />
-            {!fr && <EmptyState title="NO NHL LINE YET" note="No regular-season line for him yet. A camp invite or a prospect, most likely." />}
-          </section>
-          {p.last5.length > 0 && (
-            <section aria-label="Last five">
-              <Kicker>LAST FIVE</Kicker>
-              <LampTable
-                rows={p.last5.map((g) => ({ ...g, _key: g.gameId, vs: vs(g) }))}
-                columns={(goalie ? G_LOG_COLS : SK_LOG_COLS).map((c) => (c.key === 'date'
-                  ? { ...c, fmt: (v, r) => <>{fmtDay(v)}{r.gameType === 3 ? <span style={{ marginLeft: 6, color: C.amber, fontSize: 9, letterSpacing: '.1em' }}>PLAYOFF</span> : null}</>, w: 118 }
-                  : c))}
-                maxHeight={9999} maxRows={5} heatMode="standouts" onRowClick={(r) => onOpenGame?.(r.gameId)}
-                caption="His last five games, newest first. Each row opens the game." />
-            </section>
-          )}
-          <div style={{ color: C.text3, fontSize: 12, lineHeight: 1.5 }}>{bio}<BirthdayChip birth={p.birthDate} on={bornOn} accent={C.ice} textColor={C.text2} font={NUM_FONT} /></div>
-          {!goalie && <MultiLine sport="nhl" playerId={p.id} words={{ G: 'multi-goal' }} color={C.ice} textColor={C.text2} />}
-          <StarMemory sport="nhl" id={String(p.id)} />
-          {!goalie && <InTheLedger sport="nhl" id={p.id} name={p.name} jersey={p.number} birthDate={p.birthDate} next={!stale && Number.isFinite(f.regular?.g) ? f.regular.g + 1 : null} date={etToday()} />}
-          {!goalie && <HisNumbers name={p.name} jersey={p.number} birthDate={p.birthDate} next={!stale && Number.isFinite(f.regular?.g) ? f.regular.g + 1 : null} career={Number.isFinite(p.career?.regular?.g) ? p.career.regular.g + 1 : null} nextWord="goal" date={etToday()} theme={C} accent={C.ice} numFont={NUM_FONT} />}
+          {!goalie && <BotOnHim view={nhlBotView(rec.data)} />}
           <PlayerNotes playerId={String(p.id)} scope="nhl" accent={C.ice} />
+          {!goalie && <InTheLedger sport="nhl" id={p.id} name={p.name} jersey={p.number} birthDate={p.birthDate} next={nextG} date={etToday()} />}
+          {!goalie && <HisNumbers name={p.name} jersey={p.number} birthDate={p.birthDate} next={nextG} career={Number.isFinite(p.career?.regular?.g) ? p.career.regular.g + 1 : null} nextWord="goal" date={etToday()} theme={C} accent={C.ice} numFont={NUM_FONT} />}
+          <LampMore resetKey={p.id} summary={goalie ? 'last five, star memory, bio' : 'last five, star memory, multi-goal, bio'}>
+            {p.last5.length > 0 && (
+              <section aria-label="Last five">
+                <Kicker>LAST FIVE</Kicker>
+                <LampTable
+                  rows={p.last5.map((g) => ({ ...g, _key: g.gameId, vs: vs(g) }))}
+                  columns={(goalie ? G_LOG_COLS : SK_LOG_COLS).map((c) => (c.key === 'date'
+                    ? { ...c, fmt: (v, r) => <>{fmtDay(v)}{r.gameType === 3 ? <span style={{ marginLeft: 6, color: C.amber, fontSize: 9, letterSpacing: '.1em' }}>PLAYOFF</span> : null}</>, w: 118 }
+                    : c))}
+                  maxHeight={9999} maxRows={5} heatMode="standouts" onRowClick={(r) => onOpenGame?.(r.gameId)}
+                  caption="His last five games, newest first. Each row opens the game." />
+              </section>
+            )}
+            <StarMemory sport="nhl" id={String(p.id)} />
+            {!goalie && <MultiLine sport="nhl" playerId={p.id} words={{ G: 'multi-goal' }} color={C.ice} textColor={C.text2} />}
+            <div style={{ color: C.text3, fontSize: 12, lineHeight: 1.5 }}>{bio}</div>
+          </LampMore>
         </>
+      )}
+
+      {/* THE READ: the long form of the WHY (all three legs of the goal score, ranked against tonight), then the full write-up's hockey depth. A member-only read stays hidden. */}
+      {shown === 'read' && !goalie && (
+        <section aria-label="The read">
+          {locked ? null : (
+            <>
+              <div style={{ fontSize: 14, lineHeight: 1.5, color: C.text2, marginBottom: 8 }}>{!board ? 'Loading tonight’s board…' : !spot ? 'No game tonight, so he is not on the board.' : (whyLine || (row ? 'On tonight’s board.' : 'Not on tonight’s board.'))}</div>
+              {w && <WhyLines theme={C} numFont={NUM_FONT} accent={C.ice} why={[w.why]} watch={w.watch} explain={w.explain} />}
+              {w && row && spot?.g && <PlayerDepthToggle row={row} game={spot.g} />}
+            </>
+          )}
+          {nonMember && <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ margin: '4px 0 8px' }} />}
+        </section>
       )}
 
       {shown === 'splits' && !goalie && (
@@ -355,6 +376,10 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
           <SeasonToggle value={season} onChange={setSeason} p={p} />
           <PlayerSplits id={p.id} onOpenTeam={onOpenTeam} season={season} />
         </>
+      )}
+
+      {shown === 'numbers' && (
+        <LampNumbers goalie={goalie} fr={fr} career={p.career?.regular} row={row} locked={locked} statusShown={shownStatus} context={row?.context} log={logNewest} seasonLabel={f.seasonLabel} />
       )}
 
       {shown === 'shotmap' && !goalie && (
@@ -426,6 +451,14 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
       {/* the cards he has earned (his real goals, hat tricks, 3-point nights): at the END of the page, so no row moves; no section when he has none */}
       {!goalie && <CardsEarned sport="nhl" id={String(p.id)} name={p.name} />}
     </div>
+    {compareOpen && (
+      <CardShell onClose={() => setCompareOpen(false)} width={620} label="Compare two skaters" theme={C} accent={C.ice}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+          <button type="button" onClick={() => setCompareOpen(false)} aria-label="Close compare" style={{ ...btn44, fontSize: 20 }}>×</button>
+        </div>
+        <GoalCompare rows={compareRows} anchorId={p.id} onOpenPlayer={onStep ? (id) => { setCompareOpen(false); onStep(String(id)) } : null} />
+      </CardShell>
+    )}
     </SportTheme>
   )
 }

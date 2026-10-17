@@ -3,6 +3,7 @@ import { useMemo } from 'react'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
 import CompareTwo from '../compare/CompareTwo'
 import { STATUS, fmtSec } from './ui'
+import { SIGNALS } from '../../lib/nhl/goalSignals'
 
 // ⚖️ COMPARE TWO SKATERS (2026-10-03, parity) -- MOONSHOT's compare shell
 // (components/compare/CompareTwo.js), LAMP's content. Every number is a field
@@ -12,13 +13,6 @@ import { STATUS, fmtSec } from './ui'
 // leg in the top fifth tonight. LAMP's board carries no price, so the verdict
 // rule is score, then signals, then a coin flip -- said as such.
 
-const TOP = 80
-const SIGNALS = [
-  ['called', 'Called', 'one of the two the board called in his game', (p) => p.status === 'called'],
-  ['shots', 'Shooter', `shots per game in the top fifth tonight (${TOP}th percentile+)`, (p) => (p.pct?.shotsPg ?? 0) >= TOP],
-  ['goals', 'Finisher', `goals per game in the top fifth tonight (${TOP}th percentile+)`, (p) => (p.pct?.goalsPg ?? 0) >= TOP],
-  ['toi', 'Big minutes', `ice time in the top fifth tonight (${TOP}th percentile+)`, (p) => (p.pct?.toi ?? 0) >= TOP],
-]
 const pctTag = (v) => (Number.isFinite(v) ? ` · ${Math.round(v)}th` : '')
 
 const ROWS = [
@@ -36,6 +30,8 @@ const ROWS = [
 ]
 
 function verdictFor(a, b, qa, qb, ca, cb) {
+  // a man a non-member may not read (components/MemberGate.js useCallMask) has no score here: say so, never a verdict built on nothing
+  if (a._callHidden || b._callHidden) return { who: null, why: 'Members see tonight’s called picks and why.' }
   const sa = Number(a.score) || 0, sb = Number(b.score) || 0
   const gap = sa - sb
   if (Math.abs(gap) >= 8) {
@@ -49,14 +45,16 @@ function verdictFor(a, b, qa, qb, ca, cb) {
   return { who: null, why: `coin flip — ${Math.abs(gap).toFixed(0)} points apart, ${ca} signal${ca === 1 ? '' : 's'} each. Nothing here separates them.` }
 }
 
-export default function GoalCompare({ rows = [], onOpenPlayer }) {
+export default function GoalCompare({ rows = [], onOpenPlayer, anchorId = null }) {
   // Board rows are keyed playerId; one row per skater even across a doubleheader day.
   const players = useMemo(() => {
     const seen = new Set()
     return rows.filter((r) => r.playerId && !seen.has(r.playerId) && seen.add(r.playerId)).map((r) => ({ ...r, player_id: r.playerId }))
   }, [rows])
+  const initialA = anchorId ? players.find((p) => String(p.playerId) === String(anchorId)) || null : null
   return (
     <CompareTwo
+      initialA={initialA}
       players={players} nameOf={(p) => p.name || ''} teamOf={(p) => p.team || ''}
       metaSel={(p) => `${p.team} vs ${p.opp}`} metaHit={(p) => `${p.team} vs ${p.opp} · ${p.pos}`}
       rows={ROWS} signals={SIGNALS} quoteOf={() => null} verdictFor={verdictFor}

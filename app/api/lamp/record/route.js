@@ -6,18 +6,20 @@
 // straight off graded lamp_goal_log rows; nothing here is recomputed from
 // a later feed. An empty record says so. The rows come through the shared
 // record reader (lib/record/nhl.js), the same one /start and /called use.
-import { addCounts, coverage, coverageFromCounts } from '../../../../lib/nhl/goalModel'
+import { addCounts, coverage, coverageFromCounts, ALL_VERSIONS } from '../../../../lib/nhl/goalModel'
 import { VERSIONS, V3_FROM, V4_FROM } from '../../../../lib/nhl/versions'
 // one track record across the versions (each night was called by the one it locked under)
 const MODEL_VERSION = VERSIONS.goal.join(' -> ')
 import { readNhlNights, readNhlRecords, isMissingTable, markAnyMarketCalls } from '../../../../lib/record/nhl'
 import { adminClient } from '../../../../lib/supabase/admin'
-import { ok, delayed } from '../../../../lib/nhl/respond'
+import { ok, bad, delayed } from '../../../../lib/nhl/respond'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
+  // ONE SKATER'S RECORD (2026-10-17, the player card's "Record on him" and its LAMP ON HIM table): ?player=<7-digit id>
+  if (searchParams.has('player')) return playerRecord(String(searchParams.get('player') || ''))
   const days = Math.min(120, Math.max(1, Number(searchParams.get('days')) || 30))
   // Preseason is not the season: camp lineups, split squads, three-line
   // rosters. Those nights are locked and graded like any other (the record
@@ -111,5 +113,39 @@ function lists(rs) {
     called: rs.filter((r) => r.status === 'called' && r.dressed).sort((a, b) => a.game_id - b.game_id || a.rank - b.rank).map((r) => ({ playerId: r.player_id, name: r.name, team: r.team, opp: r.opp, rank: r.rank, score: r.score, goals: r.goals, hit: r.hit, calledBy: r.called_by || null })),
     // `scorersOff` is coverage()'s COUNT; the list is `offScorers` (a clash the render harness caught).
     offScorers: rs.filter((r) => r.hit && r.status !== 'called').map((r) => ({ playerId: r.player_id, name: r.name, team: r.team, opp: r.opp, rank: r.rank, status: r.status, goals: r.goals })),
+  }
+}
+
+// HIS GRADED LAMP_GOAL_LOG ROWS, counted per word and per model version (v2 / v3 / v4 each under its own rules, never pooled into one rate).
+// Same table, same version list, same preseason rule as the record above; only dressed, graded games (a scratch is a void, not a miss). The goal
+// board's OWN calls (a model's hit rate counts only its own calls); the any-market CALLED relabel is the night record's, not this model's.
+// Counts only: nothing here is a chance. One indexed read (lamp_goal_log_player_idx), cached an hour.
+async function playerRecord(id) {
+  if (!/^\d{7}$/.test(id)) return bad('player must be the 7-digit NHL player id')
+  try {
+    const db = adminClient()
+    if (!db) return ok({ player: null, dbReady: false }, 60)
+    const { data, error } = await db.from('lamp_goal_log').select('game_id, game_date, game_type, model_version, status, dressed, goals, hit')
+      .eq('player_id', id).in('model_version', ALL_VERSIONS).not('graded_at', 'is', null).neq('game_type', 1)
+      .order('game_date', { ascending: false }).limit(2000)
+    if (error) {
+      if (isMissingTable(error)) return ok({ player: null, dbReady: false }, 60)
+      throw new Error(error.message)
+    }
+    const rows = (data || []).filter((r) => r.dressed !== false && r.hit != null)
+    const cell = () => ({ g: 0, scored: 0, goals: 0 })
+    const byStatus = { called: cell(), board: cell(), off: cell() }
+    const byVersion = {}
+    for (const r of rows) {
+      const k = byStatus[r.status] ? r.status : 'off'
+      const v = (byVersion[r.model_version] ||= { called: cell(), board: cell(), off: cell() })
+      for (const c of [byStatus[k], v[k]]) { c.g += 1; if (r.hit) { c.scored += 1; c.goals += Number(r.goals) || 0 } }
+    }
+    return ok({
+      player: { id, games: rows.length, byStatus, byVersion, since: rows.length ? rows[rows.length - 1].game_date : null, through: rows.length ? rows[0].game_date : null },
+      dbReady: true,
+    }, 3600)
+  } catch (e) {
+    return delayed('record player', e)
   }
 }

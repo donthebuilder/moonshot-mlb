@@ -5,7 +5,7 @@
 import { useSlip } from '../lib/slip/store'
 import { fmtOdds } from '../lib/odds'
 
-export default function SlipAdd({ sport, leg = null, legs = null, C, NUM_FONT, accent, style = null }) {
+export default function SlipAdd({ sport, leg = null, legs = null, C, NUM_FONT, accent, style = null, compact = false }) {   // compact (2026-10-17, the NHL card): '+ Goal +320' for '+ slip · Goal +320', so three markets fit two lines on a phone
   const { has, toggle } = useSlip(sport)
   const list = (legs || [leg]).filter((l) => l && l.key && (l.price != null || l.line != null))
   if (!list.length) return null
@@ -17,7 +17,7 @@ export default function SlipAdd({ sport, leg = null, legs = null, C, NUM_FONT, a
           aria-label={`${on ? 'Take' : 'Add'} ${leg.name} ${leg.market}${on ? ' off' : ' to'} the slip`}
           style={{ minHeight: 44, padding: '0 14px', fontSize: 13, fontWeight: 800, borderRadius: 10, cursor: 'pointer', fontFamily: NUM_FONT,
             border: `1px solid ${on ? accent : C.border}`, background: on ? `color-mix(in srgb, ${accent} 14%, transparent)` : 'transparent', color: on ? accent : C.text2 }}>
-          {on ? '✓ On slip' : '+ slip'} · {leg.market}{leg.price != null ? ` ${fmtOdds(leg.price)}` : ''}
+          {compact ? (on ? '✓' : '+') : (on ? '✓ On slip' : '+ slip') + ' ·'} {leg.market}{!(compact && on) && leg.price != null ? ` ${fmtOdds(leg.price)}` : ''}
         </button>
       ) })}
     </div>
