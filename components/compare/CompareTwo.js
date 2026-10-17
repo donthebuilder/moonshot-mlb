@@ -17,6 +17,7 @@ import { C as MLB_C, NUM_FONT as MLB_NUM } from '../../lib/theme'
 //   quoteOf       (p) => price quote or null
 //   verdictFor    (a, b, qa, qb, ca, cb) => { who, why }
 //   footer        (a, b) => node (optional)
+//   initialA      a player to start the first picker on (the player card's compare button: him against whoever you pick)
 
 function Picker({ players, value, onChange, placeholder, nameOf, teamOf, metaSel, metaHit, accent, accentBg, C, numFont }) {
   const [q, setQ] = useState('')
@@ -58,11 +59,11 @@ export default function CompareTwo({
   rows: rowDefs, signals, quoteOf, verdictFor, footer = null, onPlayerClick,
   title, sub, placeholders = ['first…', 'second…'], signalsTitle,
   accent, accentBg, bgTint, winInk, gridClass = 'pc-grid',
-  theme = MLB_C, numFont = MLB_NUM,
+  theme = MLB_C, numFont = MLB_NUM, initialA = null,
 }) {
   const C = theme
   const NUM_FONT = numFont
-  const [a, setA] = useState(null)
+  const [a, setA] = useState(initialA)
   const [b, setB] = useState(null)
   const pool = useMemo(() => (players || []).filter((p) => p?.player_id && nameOf(p)), [players, nameOf])
   const qa = a ? quoteOf(a) : null

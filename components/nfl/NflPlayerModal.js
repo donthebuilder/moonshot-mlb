@@ -10,7 +10,7 @@ import { TabBtn, Navigator } from '../card/CardNav'
 import CardFlip from '../player/CardFlip'
 import CardsEarned from '../player/CardsEarned'
 const nflIdOf = (x) => String(x?.player_id ?? '')
-import { C, NUM_FONT, MARKETS, gradeFor } from '../../lib/nfl/theme'
+import { C, NUM_FONT, MARKETS, MARKET_SHORT, gradeFor } from '../../lib/nfl/theme'
 import PropsGrid from './PropsGrid'
 import { STAT_KEY } from './HitRate'
 import SlipAdd from '../SlipAdd'
@@ -48,7 +48,11 @@ import { useCardLock, useMemberState, CardLockLine } from '../MemberGate'
 import { kickoffFor } from '../../lib/nfl/kickoff'
 import StatRow from '../player/StatRow'
 import ScrollHint from '../player/ScrollHint'
-import { nflVerdict, nflStatRow } from '../player/nflAdapter'
+import { nflVerdict, nflStatRow, useNflBot, nflRecordLine, nflLastLine } from '../player/nflAdapter'
+import NflOnHim from './NflOnHim'
+import NflCompareSheet from './NflCompareSheet'
+import NflTable from './NflTable'
+import { nflLeg } from '../../lib/slip/rowLegs'
 import { twoBoard } from '../../lib/nfl/twoScore'
 import { tdStatusFor } from '../../lib/nfl/tdStatus'
 import { tdPool } from '../../lib/nfl/tdPool'
@@ -57,7 +61,7 @@ import { boardReason } from '../../lib/nfl/boardReason'
 import { baselineFor } from '../../lib/nfl/tdPool'
 import { nflReadBullets } from './NflPlayerRead'
 import { THIN_G, hasContext } from '../../lib/nfl/gameSplits'
-import { playerHref } from '../../lib/routes'
+import { playerHref, gameHref } from '../../lib/routes'
 import { gameVenue } from '../../lib/nfl/venueOf'
 import DashChip, { useDashLines, DASH_OF } from './DashChip'
 import RoleTag from './RoleTag'
@@ -68,6 +72,14 @@ import { isDefPosition } from '../../lib/nfl/defStats'
 // 44px tap around a club code, text in place; 9px a side so the two clubs
 // either side of " vs " don't share a target (10-04).
 const CLUB_LINK = { color: 'inherit', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2, display: 'inline-block', padding: '17px 9px', margin: '-17px -9px' }
+// MOONSHOT's TWO-LINE HEAD (components/PlayerModal.js, 2026-10-04): line 1 the clubs + the game, line 2 the rest. The lines are 20px apart, so
+// each link's target is its line (20px tall) and ~44px wide; position: relative lifts the padded target over the plain text beside it.
+const ROW_LINK = { ...CLUB_LINK, position: 'relative', lineHeight: '10px', padding: '5px 13px', margin: '-5px -13px' }
+const TEAM_LINK = { ...ROW_LINK, padding: '5px 9px 5px 12px', margin: '-5px -9px -5px -12px' }
+const FIRST_TEAM_LINK = { ...ROW_LINK, padding: '5px 9px 5px 17px', margin: '-5px -9px -5px -17px' }
+const GAME_LINK = { ...ROW_LINK, padding: '5px 13px 5px 5px', margin: '-5px -13px -5px -5px' }
+// his kickoff, in the game's own zone (ET), said once in the head
+const kickWord = (ms) => { try { return `${new Date(ms).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' })} ET` } catch { return null } }
 
 // Why this player scores what he scores — see components/nfl/ScoreAnatomy.js.
 // Since 2026-10-01 (0e b) that is one line: the board card's WHY sentence
@@ -255,6 +267,24 @@ export function ratesFor(player, markets, log) {
 }
 
 
+// ── AT THE BAR, MARKET BY MARKET (2026-10-17, the Numbers pill) ─────────────────────────────────────────
+// ratesFor() above, drawn: every market he has a score in, best score first -- the bar, the score, and how often he reached the bar over his
+// last 5, last 10 and this season, with the games counted. Same log, same rule HitRate grades on. A market he has no stat line for shows dashes.
+function RatesTable({ rows }) {
+  if (!rows?.length) return <div style={{ fontSize: 13, color: C.text3, lineHeight: 1.5 }}>No market has a score for him this week.</div>
+  const of = (pr) => (pr && pr[1] > 0 ? `${pr[0]}/${pr[1]}` : '—')
+  const data = rows.map((r) => ({ _id: r.key, market: r.label, bar: r.bar != null ? `${r.bar}+` : '—', score: Math.round(r.score), l5: of(r.l5), l10: of(r.l10), season: of(r.season) }))
+  const columns = [
+    { key: 'market', label: 'Market', group: 'Market', sticky: true, w: 96, heat: false },
+    { key: 'bar', label: 'Bar', group: 'Market', w: 44, heat: false },
+    { key: 'score', label: 'Score', group: 'Market', w: 50, numeric: true },
+    { key: 'l5', label: 'L5', group: 'Reached the bar', w: 46, heat: false, title: 'Games he reached the bar in, of his last 5 this season' },
+    { key: 'l10', label: 'L10', group: 'Reached the bar', w: 50, heat: false, title: 'Games he reached the bar in, of his last 10 this season' },
+    { key: 'season', label: rows[0]?.seasonYear ? String(rows[0].seasonYear) : 'Season', group: 'Reached the bar', w: 58, heat: false, title: 'Games he reached the bar in, this season' },
+  ]
+  return <ScrollHint><NflTable rows={data} columns={columns} heatMode="none" maxRows={data.length} maxHeight={9999} caption="How often he reached each market's bar, over the games counted." /></ScrollHint>
+}
+
 function Head({ children }) {
   return (
     <div style={{
@@ -298,11 +328,15 @@ function Head({ children }) {
 // Nothing moved between sections and nothing was rewritten -- the same
 // components render in the same order, grouped behind the question they
 // answer, which is the whole of what a tab is.
+// 2026-10-17 (player-portal mirror pass): MOONSHOT's pills in MOONSHOT's order and words -- Overview, The Read, Splits, Game log, Numbers --
+// with TUDDY's own Matchup (the defence he faces) beside them. Each is in the address (view=).
 const TABS = [
   { key: 'overview', label: 'Overview' },
+  { key: 'read', label: 'The Read' },
   { key: 'matchup', label: 'Matchup' },
   { key: 'splits', label: 'Splits' },
-  { key: 'gamelog', label: 'Games' },
+  { key: 'gamelog', label: 'Game log' },
+  { key: 'numbers', label: 'Numbers' },
 ]
 
 
@@ -328,6 +362,11 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
   const [tab, setTab] = useState('overview')
   const [season, setSeason] = useState('')
   const [allStats, setAllStats] = useState(false)
+  const [compareOpen, setCompareOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)   // the folded More section (as MOONSHOT's 2026-10-17 trim), closed until tapped
+  useEffect(() => { setMoreOpen(false); setCompareOpen(false) }, [player?.player_id])
+  // TUDDY ON HIM: his graded calls from the list /called and the Record read (one fetch: the record line, last week and the role table)
+  const bot = useNflBot(player?.player_id != null ? String(player.player_id) : null)
   // A new player opens on Overview unless the caller asked for a view --
   // MOONSHOT's initialTab, same contract, so a deep link can land on the
   // tab that matters instead of the top of the card every time.
@@ -351,6 +390,16 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
   const s0 = player.scores?.[market]
   const g0 = gradeFor(s0)
   const tag = injuryTag(player)
+  const game = (slate?.games || []).find((g) => g.home === player.team || g.away === player.team) || null
+  const kickMs = kickoffFor(slate?.games, player)
+  const saved = watchlist.isPinned(player.player_id)
+  // ⚖ the pool the compare picks from: the list he came from, else the week's TD-scored players
+  const comparePool = defender || !Number.isFinite(player.scores?.TD) ? [] : (peers.length > 1 ? peers : (slate?.players || []).filter((x) => !x.on_bye && Number.isFinite(x?.scores?.TD)))
+  // + a slip leg for each market the book prices at the card's own bar (lib/slip/rowLegs.js nflLeg: a real price or no leg, never a made-up one)
+  const legs = defender ? [] : MARKETS.map(([k]) => nflLeg(odds, player, k, MARKET_SHORT[k] || k)).filter(Boolean)
+  // TUDDY's pick, in his words: only the TD market is called. A not-yet-kicked CALLED pick a free viewer may not read reads as the board's other men do
+  // (the same lock the card's word uses, useCardLock above), so this line never says what the word does not.
+  const pickWord = tdStatus.statusOf(player) === 'called' && !cardLocked ? 'Anytime TD' : 'no call this week'
   const pick = (k) => { setTab(k); onViewChange?.(k) }
   // SIGNAL -> EVIDENCE: the one-line reason and the number against him, in MOONSHOT's
   // Why box; a tap opens every reason in full (components/WhyLines.js).
@@ -363,47 +412,65 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
   const whyExplain = [...whyLines, ...bullets.map((b) => b.text)].join('  ')
   const showSeason = ['splits', 'gamelog'].includes(tab) && seasonOpts.length > 0
 
+  // THE WATCH ROW, MOONSHOT's: Watch, ADD TO SLIP with a + for every market the book actually prices for him (no price, no button), and TUDDY's pick.
+  const watchRow = (
+  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', margin: '4px 0 10px' }}>
+    <button type="button" onClick={() => watchlist.toggle(player)} aria-pressed={saved}
+      aria-label={saved ? `Remove ${player.name} from watchlist` : `Save ${player.name} to watchlist`}
+      title={saved ? 'Remove from watchlist' : 'Add to watchlist'}
+      style={{
+        minHeight: 44, padding: '0 11px', fontSize: 13, fontWeight: 800, borderRadius: 10, cursor: 'pointer', fontFamily: NUM_FONT,
+        border: `1px solid ${saved ? C.green : C.border}`, background: saved ? `${C.green}24` : 'transparent', color: saved ? C.green : C.text3,
+      }}>{saved ? '★ Watching' : '☆ Watch'}</button>
+    {!defender && <SlipAdd sport="nfl" legs={legs} C={C} NUM_FONT={NUM_FONT} accent={C.green} style={{ margin: 0, gap: 6 }} />}
+    {!defender && Number.isFinite(s0) && (
+      <span style={{ fontSize: 12, color: C.text3 }}>
+        TUDDY&apos;s pick: <b style={{ color: C.text2 }}>{pickWord}</b>
+      </span>
+    )}
+  </div>
+  )
+
   return (
     // MOONSHOT's shell (components/CardShell.js, 2026-09-29): same backdrop,
     // focus trap and the .modal-* phone sheet as the MLB card. Width follows the
     // content, as MOONSHOT's does (580 overview / 900 the rest).
+    <>
     <CardShell inline={inline} theme={C} accent={C.green} width={tab === 'overview' ? 580 : 900} onClose={onClose} label={`${player?.name || 'Player'} card`}>
-      {/* THE TOOLBAR, ON ITS OWN LINE -- MOONSHOT's order: share, then the ‹ › / search
-          walk through the list he came from, then the hero. */}
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <button onClick={() => watchlist.toggle(player)}
-          aria-label={watchlist.isPinned(player.player_id) ? `Remove ${player.name} from watchlist` : `Save ${player.name} to watchlist`}
-          title={watchlist.isPinned(player.player_id) ? 'Saved to your watchlist' : 'Save to your watchlist'}
-          style={{
-            background: watchlist.isPinned(player.player_id) ? `${C.yellow}26` : 'transparent',
-            border: `1px solid ${watchlist.isPinned(player.player_id) ? C.yellow + '66' : C.border2}`,
-            color: watchlist.isPinned(player.player_id) ? C.yellow : C.text2,
-            borderRadius: 7, minHeight: 44, minWidth: 44, cursor: 'pointer', fontSize: 18, lineHeight: 1,
-          }}>{watchlist.isPinned(player.player_id) ? '★' : '☆'}</button>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          {Number.isFinite(s0) && player?.player_id != null && <CardFlip sport="nfl" id={String(player.player_id)} name={player.name} />}
-          {/* 📸 his pick card as a picture, ready to post: beside the flip Card button */}
-          <ShareCardButton sport="nfl" what="his pick card" url={shareUrl({ kind: 'pick', sport: 'nfl', id: player.player_id, market })} filename={`pick-${slug(market, 'pick')}-${slug(player.name, 'pick')}_${stamp('')}.png`} />
-          {onNavigate && <Navigator peers={peers} cur={player} onNavigate={onNavigate} idOf={nflIdOf} noun="player" />}
-        </div>
+      {/* THE TOOLBAR, ON ITS OWN LINE -- MOONSHOT's row, in its order: Card, Save (the picture), compare, then the ‹ › / search walk
+          through the list he came from. The watchlist star is the Watch button in the watch row below, as MOONSHOT's. */}
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'flex-end', marginBottom: 8 }}>
+        {Number.isFinite(s0) && player?.player_id != null && <CardFlip sport="nfl" id={String(player.player_id)} name={player.name} />}
+        {/* 📸 his pick card as a picture, ready to post: beside the flip Card button */}
+        <ShareCardButton sport="nfl" what="his pick card" url={shareUrl({ kind: 'pick', sport: 'nfl', id: player.player_id, market })} filename={`pick-${slug(market, 'pick')}-${slug(player.name, 'pick')}_${stamp('')}.png`} />
+        {/* ⚖ COMPARE (components/nfl/NflCompareSheet.js): him against another player on this week's slate, on the TD signals */}
+        {comparePool.length > 1 && (
+          <button type="button" onClick={() => setCompareOpen(true)} title="Compare this player against another on this week's slate" aria-label="Compare"
+            style={{ background: 'transparent', border: `1px solid ${C.border2}`, color: C.text2, borderRadius: 7, padding: '3px 9px', fontSize: 12, lineHeight: 1, cursor: 'pointer', minHeight: 44, minWidth: 44 }}>⚖</button>
+        )}
+        {onNavigate && <Navigator peers={peers} cur={player} onNavigate={onNavigate} idOf={nflIdOf} noun="player" />}
       </div>
 
       {/* graded state comes first once there is one (MOONSHOT's PickVerdictStamp) */}
       <VerdictStamp player={player} results={results} bars={Object.fromEntries((markets || []).map((m) => [m.key, Number(m.bar)]))} />
 
-      {/* THE HERO: face, name, club, position, status -- and the model's grade for the
-          market on screen. The close sits in it, as on MOONSHOT's card. */}
+      {/* THE HEADER CARD, MOONSHOT's: face in the ring, #number and name, the clubs and the game on line 1, his role / kickoff / status on
+          line 2, the word, and the close INSIDE it. */}
       <VerdictHero lead="face" theme={C} numFont={NUM_FONT} style={{ marginBottom: 12 }}
         photo={faceUrl({ sport: 'nfl', espnId: player.espn_id, size: 96 })}
         col={g0.color} score={Number.isFinite(s0) && !cardLocked ? s0 : null}
         // the name is the player's own link (a shared link to his page; check-clickable)
-        title={<><a href={playerHref('nfl', player.player_id)} style={{ color: 'inherit', textDecoration: 'none' }}>{player.name}</a>{!tag && <PlayerInjuryChip who={{ player_id: player.player_id, name: player.name, team: player.team }} C={C} font={NUM_FONT} />}</>} badge={Number.isFinite(s0) ? g0.label : defender ? 'DEFENDER' : 'UNSCORED'} badgeQuiet={!Number.isFinite(s0)}
+        title={<>{player.jersey_number ? <span style={{ color: C.text3, fontWeight: 700, fontFamily: NUM_FONT }}>#{player.jersey_number} </span> : null}<a href={playerHref('nfl', player.player_id)} style={{ color: 'inherit', textDecoration: 'none' }}>{player.name}</a>{!tag && <PlayerInjuryChip who={{ player_id: player.player_id, name: player.name, team: player.team }} C={C} font={NUM_FONT} />}</>} badge={Number.isFinite(s0) ? g0.label : defender ? 'DEFENDER' : 'UNSCORED'} badgeQuiet={!Number.isFinite(s0)}
         market={defender ? 'Defense' : (spec?.label || market)}
         meta={<>
-          {player.jersey_number ? `#${player.jersey_number} · ` : ''}
-          {/* the clubs open their team pages (route audit B6; team page since 10-03) */}
-          <RoleTag player={player} season={matchup?.slate_season || matchup?.season} /> · {player.team ? <a href={`#sport=nfl&tab=team&team=${player.team}`} style={CLUB_LINK} title={`${player.team} team page`}>{player.team}</a> : null}
-          {player.opp ? <>{' vs '}<a href={`#sport=nfl&tab=team&team=${player.opp}`} style={CLUB_LINK} title={`${player.opp} team page`}>{player.opp}</a></> : null}
+          {/* the clubs open their team pages, the game opens his game (route audit B6; team page since 10-03) */}
+          {player.team ? <a href={`#sport=nfl&tab=team&team=${player.team}`} style={FIRST_TEAM_LINK} title={`${player.team} team page`}>{player.team}</a> : null}
+          {player.opp ? <>{' vs '}<a href={`#sport=nfl&tab=team&team=${player.opp}`} style={TEAM_LINK} title={`${player.opp} team page`}>{player.opp}</a></> : null}
+          {game?.game_id ? <>{' · '}<a href={gameHref('nfl', game.game_id)} style={GAME_LINK} title="Open his game on the Slate">Game ›</a></> : null}
+        </>}
+        meta2={<>
+          <RoleTag player={player} season={matchup?.slate_season || matchup?.season} />
+          {kickMs != null && kickWord(kickMs) ? ` · ${kickWord(kickMs)}` : ''}
           {tag && <span title={injuryTitle(tag)} style={{ color: injuryColor(tag, C), fontWeight: 900 }}>{' · '}{tag}</span>}
           {player.low_sample && <span style={{ color: C.text3 }}> · low sample</span>}
         </>}
@@ -420,42 +487,18 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
       {/* TAGS: his ball-security tags and the tags of the defence he faces, each with its number on a tap (lib/nfl/tags.js) */}
       {rowTags.length > 0 && <div style={{ margin: '-4px 0 10px' }}><TagChips tags={rowTags} onPlayerRow /></div>}
 
-      {defender && <DefenderFile player={player} matchup={matchup} slateSeason={slate?.season} />}
+      {defender && <>{watchRow}<DefenderFile player={player} matchup={matchup} slateSeason={slate?.season} /></>}
       {!defender && <>
-      <StarMemory sport="nfl" id={player?.player_id} />
-      {/* MOONSHOT's multi-HR line, TUDDY's words */}
-      <MultiLine sport="nfl" playerId={player?.player_id} words={{ TD: 'multi-TD', PASS_TD: '2+ passing-TD' }} color={C.green} textColor={C.text2} />
-
       {/* THE PLAYER MODEL (components/player/): TUDDY ON HIM first -- the word (TD market only), the score, why, his other
-          markets as chips -- then ONE row of his key numbers (per game, ranked in his position; L10 and season at the bar). */}
+          markets as chips, his record on the locked calls and last week -- then ONE row of his key numbers (per game, ranked in his
+          position; L10 and season at the bar). */}
       <VerdictBlock sport="nfl" style={{ marginTop: 10 }} lock={cardLock}
-        {...nflVerdict({ player, market, spec, score: s0, statusWord: tdStatus.statusOf(player), whyLines, watch: against?.text || null, whyExplain, two: twoRow })} />
+        {...nflVerdict({ player, market, spec, score: s0, statusWord: tdStatus.statusOf(player), whyLines, watch: against?.text || null, whyExplain, two: twoRow })}
+        recordLine={bot === undefined ? null : nflRecordLine(bot)}
+        lastLine={bot === undefined ? null : nflLastLine(bot)} />
       <StatRow noun={`${player.position || 'player'}s`} poolLabel="this week's slate" style={{ marginBottom: 8 }}
         stats={nflStatRow({ player, slate, rate: ratesFor(player, markets, fullLog).find((x) => x.key === market) })} />
-      {/* THE PRICE: the line for the market on screen, the best book, the break-even. */}
-      {(() => {
-        const q = cardLocked ? null : quoteFor(odds, player, market)
-        if (!q) return cardLocked ? null : <PriceHistory quote={null} marketLabel={spec?.short || market} theme={C} numFont={NUM_FONT} />
-        const px = q.matches !== false && q.over != null ? Number(q.best_over ?? q.over) : null
-        return (<>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', margin: '4px 0 6px', fontSize: 12, color: C.text2, fontFamily: NUM_FONT }}>
-            <b style={{ color: C.text3, fontSize: 11, letterSpacing: '.08em' }}>PRICE</b>
-            <span>o{q.line} <b style={{ color: C.text }}>{fmtOdds(q.over)}</b></span>
-            {q.best_over != null && q.best_over !== q.over && <span>best <b style={{ color: C.green }}>{fmtOdds(q.best_over)}</b>{q.best_book ? ` ${q.best_book}` : ''}</span>}
-            {q.implied != null && <span>needs {q.implied}%</span>}
-            {q.books ? <span style={{ color: C.text3 }}>{q.books} book{q.books === 1 ? '' : 's'}</span> : null}
-            {q.matches !== false && <LineMoveChip quote={q} theme={C} numFont={NUM_FONT} />}
-            {!q.matches && <span style={{ color: C.yellow }}>a different line from the bar</span>}
-          </div>
-          {/* the one slip (lib/slip/store.js): only when the book's line IS the bar, at the book's real price */}
-          {px != null && Number.isFinite(px) && (
-            <SlipAdd sport="nfl" C={C} NUM_FONT={NUM_FONT} accent={C.green}
-              leg={{ key: `${player.player_id}|${market}`, id: String(player.player_id), name: player.name, team: player.team ?? null, market: spec?.short || spec?.label || market, line: `o${q.line}`, side: 'over', price: px, game: player.team && player.opp ? { key: [player.team, player.opp].sort().join('-'), label: [player.team, player.opp].sort().join(' · ') } : null }} />
-          )}
-          {/* MOONSHOT's price timeline (components/OddsTimeline.js), the book's opening price to now, same place as PlayerModal's */}
-          <PriceHistory quote={q.matches !== false ? q : null} marketLabel={spec?.short || market} theme={C} numFont={NUM_FONT} />
-        </>)
-      })()}
+      {watchRow}
       {/* TAB BAR (MOONSHOT's: pills, a rule under them). Phone: sideways chip row. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, borderBottom: `1px solid ${C.border}`, paddingBottom: 10, flexWrap: 'wrap' }}>
         <div className="chip-row" style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
@@ -468,21 +511,28 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
       {seasonNote(fullLog, slate?.season) && <div style={{ fontFamily: NUM_FONT, fontSize: 12, color: C.yellow, margin: '0 0 8px', lineHeight: 1.4 }}>{seasonNote(fullLog, slate?.season)}</div>}
       {tab !== 'overview' && showSeason && <SeasonToggle options={seasonOpts} value={seasonKey} onChange={setSeason} />}
 
-      {/* OVERVIEW: the read, then the props grid (MOONSHOT's order), then his own notes */}
+      {/* OVERVIEW, MOONSHOT's order: the price (its timeline), TUDDY ON HIM (the role table), my note, in the ledger, his numbers; the rest is in More */}
       {tab === 'overview' && <>
-        {cardLocked ? null : <NflPlayerRead player={player} market={market} rows={fullLog || []} matchup={matchup} slateSeason={slate?.season} />}
-        {nonMember && <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ margin: '4px 0 8px' }} />}
-        <div style={{ marginTop: 16 }}><SeasonToggle options={seasonOpts} value={seasonKey} onChange={setSeason} /></div>
-        {slog && (() => {
-          // HIS BEST MARKET LEADS: the chart opens on the market he scores highest in.
-          const best = ratesFor(player, markets, slog)[0]
-          const lead = best?.key || market
-          // The market's published bar -- the week's, else the log file's own. Never a made-up 1.
-          const leadBar = Number((markets || []).find((m) => m.key === lead)?.bar ?? logs?.bars?.[lead]?.[1])
-          if (!Number.isFinite(leadBar) || !slog.length) return null
-          return <PropsGrid key={`${player.player_id}-${lead}-${seasonKey}`} log={slog} market={lead} defaultBar={leadBar} scores={player.scores} />
+        {/* THE PRICE: the line for the market on screen, the best book, the break-even. */}
+        {(() => {
+          const q = cardLocked ? null : quoteFor(odds, player, market)
+          if (!q) return cardLocked ? null : <PriceHistory quote={null} marketLabel={spec?.short || market} theme={C} numFont={NUM_FONT} />
+          return (<>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', margin: '4px 0 6px', fontSize: 12, color: C.text2, fontFamily: NUM_FONT }}>
+              <b style={{ color: C.text3, fontSize: 11, letterSpacing: '.08em' }}>PRICE</b>
+              <span>o{q.line} <b style={{ color: C.text }}>{fmtOdds(q.over)}</b></span>
+              {q.best_over != null && q.best_over !== q.over && <span>best <b style={{ color: C.green }}>{fmtOdds(q.best_over)}</b>{q.best_book ? ` ${q.best_book}` : ''}</span>}
+              {q.implied != null && <span>needs {q.implied}%</span>}
+              {q.books ? <span style={{ color: C.text3 }}>{q.books} book{q.books === 1 ? '' : 's'}</span> : null}
+              {q.matches !== false && <LineMoveChip quote={q} theme={C} numFont={NUM_FONT} />}
+              {!q.matches && <span style={{ color: C.yellow }}>a different line from the bar</span>}
+            </div>
+            {/* MOONSHOT's price timeline (components/OddsTimeline.js), the book's opening price to now */}
+            <PriceHistory quote={q.matches !== false ? q : null} marketLabel={spec?.short || market} theme={C} numFont={NUM_FONT} />
+          </>)
         })()}
-        <PutOnCard player={player} market={market} picks={picks} slate={slate} />
+        {/* TUDDY ON HIM: each role TUDDY has called him in, on the graded record (components/nfl/NflOnHim.js, MOONSHOT's BotOnHim table) */}
+        <NflOnHim bot={bot} />
         <PlayerNotes playerId={player.player_id} accent={C.green} />
         {player.position !== 'DEF' && <InTheLedger sport="nfl" id={player.player_id} name={player.name} jersey={player.jersey_number} birthDate={player.birth_date} next={Number.isFinite(player?.season_td) ? player.season_td + 1 : null} date={etToday()} />}
         {player.position !== 'DEF' && <HisNumbers name={player.name} jersey={player.jersey_number} birthDate={player.birth_date} next={Number.isFinite(player?.season_td) ? player.season_td + 1 : null} nextWord="TD" date={etToday()} theme={C} accent={C.green} numFont={NUM_FONT} />}
@@ -491,6 +541,12 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             <b style={{ color: C.text2 }}>Carryover</b> — last season&apos;s per-game baseline.
           </div>
         )}
+      </>}
+
+      {/* THE READ (MOONSHOT's pill): the sentences, and the case against him */}
+      {tab === 'read' && <>
+        {cardLocked ? null : <NflPlayerRead player={player} market={market} rows={fullLog || []} matchup={matchup} slateSeason={slate?.season} />}
+        {nonMember && <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ margin: '4px 0 8px' }} />}
       </>}
 
       {/* MATCHUP: the defense he faces, and how it covers */}
@@ -510,11 +566,17 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         {player?.splits && Object.keys(player.splits).length > 0 && SPLIT_STAT[market] && splitRows(player, SPLIT_STAT[market][0], splitMeta).length === 0 && <div style={{ fontSize: 13, color: C.text3, lineHeight: 1.5 }}>{splitsWhy(player, fullLog, slate?.season)} Only one side of each pair is published for him.</div>}
       </>}
 
-      {/* GAME LOG: the facts, then every game */}
+      {/* GAME LOG: every game, one row each (MOONSHOT's plain game-by-game table) */}
       {tab === 'gamelog' && <>
-        <TheFile player={player} log={slog} />
         <Head>GAME BY GAME</Head>
         <ScrollHint><NflGameLog log={slog} /></ScrollHint>
+      </>}
+
+      {/* NUMBERS (MOONSHOT's pill): the evidence behind the read -- the file, how often he reached each market's bar, his per-game line */}
+      {tab === 'numbers' && <>
+        <TheFile player={player} log={slog} />
+        <Head>AT THE BAR, MARKET BY MARKET</Head>
+        <RatesTable rows={ratesFor(player, markets, slog)} />
         {Object.keys(player.stats || {}).length > 0 && (
           <>
             <Head>SEASON PER GAME</Head>
@@ -536,6 +598,40 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
           </>
         )}
       </>}
+
+      {/* MORE (MOONSHOT's 2026-10-17 fold): ONE fold, closed until tapped, holding the secondary blocks -- your eye for him (star + memory), his
+          multi-TD record, the props grid and your card. They mount only when it is open. The header is a 44px row. */}
+      <section aria-label="More about him" style={{ margin: '12px 0 8px' }}>
+        <h2 style={{ margin: 0, fontSize: 'inherit', fontWeight: 'inherit' }}>
+          <button type="button" className="tap-box" onClick={() => setMoreOpen((v) => !v)} aria-expanded={moreOpen}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 9, width: '100%', minHeight: 44, padding: '10.5px 12px', cursor: 'pointer', textAlign: 'left',
+              background: moreOpen ? 'transparent' : C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text,
+            }}>
+            <span style={{ fontSize: 12, fontWeight: 900, letterSpacing: '.03em' }}>More</span>
+            <span style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>props grid, your card, multi-TD</span>
+            <span style={{ marginLeft: 'auto', fontSize: 11, color: C.green, fontFamily: NUM_FONT, fontWeight: 800, flexShrink: 0 }}>{moreOpen ? '▴' : '▾'}</span>
+          </button>
+        </h2>
+        {moreOpen && (
+          <div style={{ marginTop: 10 }}>
+            <div style={{ marginBottom: 8 }}><StarMemory sport="nfl" id={player?.player_id} /></div>
+            {/* MOONSHOT's multi-HR line, TUDDY's words */}
+            <MultiLine sport="nfl" playerId={player?.player_id} words={{ TD: 'multi-TD', PASS_TD: '2+ passing-TD' }} color={C.green} textColor={C.text2} />
+            <SeasonToggle options={seasonOpts} value={seasonKey} onChange={setSeason} />
+            {slog && (() => {
+              // HIS BEST MARKET LEADS: the chart opens on the market he scores highest in.
+              const best = ratesFor(player, markets, slog)[0]
+              const lead = best?.key || market
+              // The market's published bar -- the week's, else the log file's own. Never a made-up 1.
+              const leadBar = Number((markets || []).find((m) => m.key === lead)?.bar ?? logs?.bars?.[lead]?.[1])
+              if (!Number.isFinite(leadBar) || !slog.length) return null
+              return <PropsGrid key={`${player.player_id}-${lead}-${seasonKey}`} log={slog} market={lead} defaultBar={leadBar} scores={player.scores} />
+            })()}
+            <PutOnCard player={player} market={market} picks={picks} slate={slate} />
+          </div>
+        )}
+      </section>
       </>}
 
       {/* the cards he has earned (his real multi-TD and 100-yard games, a long shot that cashed): at the END of the card, no section when he has none */}
@@ -551,5 +647,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         }
       `}</style>
     </CardShell>
+    {compareOpen && <NflCompareSheet anchor={player} peers={comparePool} matchup={matchup} odds={odds} onClose={() => setCompareOpen(false)} />}
+    </>
   )
 }
