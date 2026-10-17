@@ -94,6 +94,7 @@ function Card({ a, r, k, onOpen, onWatch, watched, onSlip = null, inSlip = false
             {/* + SLIP (2026-10-04, user review #4): only on a card with a price on its own bar */}
             {onSlip && (
               <button
+                className="tap44"
                 onClick={(e) => { e.stopPropagation(); onSlip(r, k) }}
                 title={inSlip ? 'Remove from your slip' : 'Add to your slip'}
                 style={{
@@ -106,6 +107,7 @@ function Card({ a, r, k, onOpen, onWatch, watched, onSlip = null, inSlip = false
             )}
             {onWatch && (
               <button
+                className="tap44"
                 onClick={(e) => { e.stopPropagation(); onWatch(r) }}
                 title={watched ? 'Remove from watchlist' : 'Add to watchlist'}
                 style={{

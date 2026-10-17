@@ -650,7 +650,7 @@ export default async function CalledPage({ searchParams }) {
           <strong>{sport.cta[0]} →</strong>
           <span>{sport.cta[1]}</span>
         </a>
-        <p className={styles.whatIs}><a href={START}>What is this? →</a></p>
+        <p className={styles.whatIs}><a className="tap-link" href={START}>What is this? →</a></p>
         {/* HOW THIS IS COUNTED (2026-10-07 text sweep): the emoji key and the tag-freezing note, one tap away
             instead of a second paragraph on every visit (VISUAL-AUDIT-1006 section 2). A <details>, so it works on a phone. */}
         <details className={styles.howCounted}>
@@ -666,7 +666,7 @@ export default async function CalledPage({ searchParams }) {
           {sport.tierRecord ? <a href="#tiers">{ledgerWord(sport.key, 'record')}</a> : null}
           <a href="#nights">{ledgerWord(sport.key, 'archive')}</a>
         </nav>
-        <p className={styles.whatIs}><a href={ledgerAppHref(sport.key)}>The same Ledger, in the app, with every table →</a></p>
+        <p className={styles.whatIs}><a className="tap-link" href={ledgerAppHref(sport.key)}>The same Ledger, in the app, with every table →</a></p>
       </section>
 
       {picks.length || hiddenPicks ? (
@@ -833,15 +833,15 @@ export default async function CalledPage({ searchParams }) {
         {members ? (
           <p>
             {MEMBERS_LINE}{' '}
-            <a href="/members">What&apos;s in it</a>{' · '}<a href={members} target="_blank" rel="noopener noreferrer">Join →</a>
+            <a className="tap-link" href="/members">What&apos;s in it</a>{' · '}<a className="tap-link" href={members} target="_blank" rel="noopener noreferrer">Join →</a>
           </p>
         ) : null}
       </section>
 
       <footer className={styles.foot}>
         <span>{sport.foot}</span>
-        <span><a href="/playbook">How to use DASH: the Playbook</a></span>
-        <span><a href="/terms">Terms</a>{' · 21+ · information, not advice'}</span>
+        <span><a className="tap-link" href="/playbook">How to use DASH: the Playbook</a></span>
+        <span><a className="tap-link" href="/terms">Terms</a>{' · 21+ · information, not advice'}</span>
       </footer>
     </main>
   )

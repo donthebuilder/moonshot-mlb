@@ -172,6 +172,7 @@ function useOddsPayload(sport, want) {
 export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick, initialView = 'board', sport = 'mlb', theme = null, numFont = null, Table = DenseTable }) {
   const A = oddsAdapter(sport)
   const C = theme || MLB_C
+  const tapCls = theme ? 'fp-themed' : undefined   // TUDDY / LAMP pass their theme: their pills and search are 44px on a touch screen (.fp-themed); MOONSHOT's stay 32
   const NUM_FONT = numFont || MLB_NUM
   const MARKETS = A.markets
   const MK = Object.fromEntries(MARKETS.map((m) => [m.key, m]))
@@ -535,7 +536,7 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
   const viewBar = (
     <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 12 }}>
       {PAGE_VIEWS.map(([k, label]) => (
-        <button key={k} onClick={() => setView(k)} style={btnStyle(C.orange, view === k)}>
+        <button key={k} className={tapCls} onClick={() => setView(k)} style={btnStyle(C.orange, view === k)}>
           {label}
         </button>
       ))}
@@ -982,7 +983,7 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
             return k
           })()
           return (
-            <button key={m.key} onClick={() => setMarket(m.key)}
+            <button key={m.key} className={tapCls} onClick={() => setMarket(m.key)}
               disabled={!cnt}
               style={{ ...pill(market === m.key, m.color), opacity: cnt ? 1 : 0.35 }}>
               {m.label}
@@ -994,11 +995,11 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
 
       {/* the two lenses he asked for by name */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
-        <button onClick={() => setPlusOnly((v) => !v)} style={pill(plusOnly, C.green)}
+        <button className={tapCls} onClick={() => setPlusOnly((v) => !v)} style={pill(plusOnly, C.green)}
           title="Only quotes paying plus money — the book says unlikely. If your board disagrees, this is where the value is.">
           ＋ Plus money only <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro }}>{plusCount}</span>
         </button>
-        <button onClick={() => setOffStd((v) => !v)} style={pill(offStd, C.yellow)}
+        <button className={tapCls} onClick={() => setOffStd((v) => !v)} style={pill(offStd, C.yellow)}
           title={`Only quotes where the book moved OFF the standard ${live.std} bar — the ones where a normal hit-rate column is answering the wrong question.`}>
           ≠ Off the standard line <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro }}>{offCount}</span>
         </button>
@@ -1007,7 +1008,7 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
           const cnt = k === 'any' ? rows.length
             : rows.filter((x) => Number.isFinite(x.line) && Math.round(x.line + 0.5) === Number(k)).length
           return (
-            <button key={k} onClick={() => setNeed(k)} disabled={!cnt && k !== 'any'}
+            <button key={k} className={tapCls} onClick={() => setNeed(k)} disabled={!cnt && k !== 'any'}
               title={k === 'any' ? 'Every line the books posted' : `Only the ${k}+ bet — the book's ${Number(k) - 0.5} line`}
               style={{ ...pill(need === k, C.orange), opacity: cnt || k === 'any' ? 1 : 0.35 }}>
               {k === 'any' ? 'Any line' : `${k}+`}
@@ -1016,22 +1017,22 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
           )
         })}
         {movedCount > 0 && (
-          <button onClick={() => setMovedOnly((v) => !v)} style={pill(movedOnly, C.orange)}
+          <button className={tapCls} onClick={() => setMovedOnly((v) => !v)} style={pill(movedOnly, C.orange)}
             title={`Only quotes that moved: the line itself changed, or the price shortened or drifted ${MOVED_PP} break-even points or more since it opened.`}>
             ▲▼ Moved <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro }}>{movedCount}</span>
           </button>
         )}
         {overFairCount > 0 && (
-          <button onClick={() => setOverFairOnly((v) => !v)} style={pill(overFairOnly, C.green)}
+          <button className={tapCls} onClick={() => setOverFairOnly((v) => !v)} style={pill(overFairOnly, C.green)}
             title={`Only quotes where the best price sits ${OVER_FAIR_PP} break-even points or more past the market's own no-vig fair price.`}>
             Over fair <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro }}>{overFairCount}</span>
           </button>
         )}
-        <button onClick={() => setHideFrozen((v) => !v)} style={pill(hideFrozen, C.orange)}
+        <button className={tapCls} onClick={() => setHideFrozen((v) => !v)} style={pill(hideFrozen, C.orange)}
           title="Hide frozen quotes — games already under way. What's left is still bettable.">
           ⏱ Still bettable
         </button>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="player or team" aria-label="Search the board"
+        <input className={tapCls} value={q} onChange={(e) => setQ(e.target.value)} placeholder="player or team" aria-label="Search the board"
           style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, padding: '4px 9px', borderRadius: 999, border: `1px solid ${q ? C.orange : C.border}`, background: 'transparent', color: C.text, minWidth: 120, outline: 'none' }} />
         <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginLeft: 'auto' }}>
           {shown.length} of {rows.length} shown

@@ -192,6 +192,12 @@ export function LookOutBox({ title, tag, rows = [], foot, accent = C.orange }) {
         .lookout-chips :global(.chip small){color:${C.text3};font-family:${NUM_FONT};font-size:8px;font-weight:800;letter-spacing:.04em}
         .lookout-chips :global(.chip em){color:${C.text2};font-family:${NUM_FONT};font-size:9px;font-weight:900;font-style:normal}
         .lookout-chips :global(.chip-hot em){color:${accent}}
+        /* THE PHONE FLOOR (2026-10-17 phone run): app/globals.css floors inline font-size only, never these classes, so the look-out sat at 8-9px
+           on a phone (all three sports share it). 10px text, 11px numbers; wide screens untouched. */
+        @media (max-width:560px){
+          .lookout-head span,.lookout-head em,.lookout-label i,.lookout-chips :global(.chip small){font-size:10px}
+          .lookout-label,.lookout-chips :global(.chip b),.lookout-chips :global(.chip em){font-size:11px}
+        }
       `}</style>
     </div>
   )

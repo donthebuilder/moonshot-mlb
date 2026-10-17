@@ -34,7 +34,7 @@ export default function MembersPage() {
             <li>The first four called picks per sport on tonight&apos;s board. Every other pick reads as a plain ON THE BOARD player until its game starts; then it shows its real call.</li>
             <li>Lineup, scratch and goalie alerts on your phone for the players you follow.</li>
             <li>Every call graded in public, hits and misses.</li>
-            <li>The free Discord: <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer">join here</a>, with the featured game and the community.</li>
+            <li>The free Discord: <a className="tap-link" href={DISCORD_URL} target="_blank" rel="noopener noreferrer">join here</a>, with the featured game and the community.</li>
           </ul>
         </div>
 
@@ -64,7 +64,7 @@ export default function MembersPage() {
         </div>
 
         <p style={{ fontSize: 13, opacity: 0.75 }}>
-          Information, not advice. 21+ where sports betting is legal. <a href="/terms">Terms</a>
+          Information, not advice. 21+ where sports betting is legal. <a className="tap-link" href="/terms">Terms</a>
           {' '}· Questions: message a Mod in Discord #start-here.
         </p>
       </section>

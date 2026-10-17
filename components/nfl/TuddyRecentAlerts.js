@@ -33,8 +33,8 @@ export default function TuddyRecentAlerts() {
       background: C.bg2, color: C.text2, fontSize: 12, lineHeight: 1.4,
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: account.signedIn ? 0 : 4 }}>
-        <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em', textTransform: 'uppercase' }}>What reached your phone</span>
-        <span style={{ color: C.text3, font: `700 8px/1 ${NUM_FONT}` }}>NFL · sent / bundled / dropped</span>
+        <span style={{ color: C.text3, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.1em', textTransform: 'uppercase' }}>What reached your phone</span>
+        <span style={{ color: C.text3, font: `700 10px/1 ${NUM_FONT}` }}>NFL · sent / bundled / dropped</span>
       </div>
       {account.signedIn
         ? <RecentAlerts enabled sport="nfl" emptyWord="touchdown" />

@@ -1067,6 +1067,13 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           .ledger-forfun-row{display:flex;flex-wrap:wrap;gap:4px 8px;padding:5px 0;border-top:1px solid rgba(255,255,255,.05)}
           .ledger-forfun-label{flex:0 0 auto;font-size:9.5px;font-weight:800;color:${C.text3};letter-spacing:.02em}
           .ledger-forfun-body{flex:1 1 220px;min-width:0;font-size:10px;line-height:1.6;color:${C.text3}}
+          /* THE PHONE FLOOR (2026-10-17 phone run): the global floor (app/globals.css) only reaches inline font-size, never these classes, so the
+             look-out and the chips sat at 8-9px on a phone. Same floor here: 10px text, 11px numbers. Desktop and MOONSHOT's wide layout are untouched. */
+          @media (max-width:560px){
+            .ledger-chip-label i{font-size:10px}
+            .ledger-chip b,.ledger-chip em,.ledger-chip-star{font-size:11px}
+            .ledger-forfun-head span,.ledger-forfun-head em,.ledger-forfun-caveat,.ledger-forfun-label,.ledger-forfun-body{font-size:10px}
+          }
         `}</style>
       </div>
     )
