@@ -40,6 +40,7 @@ import { arenaOf } from '../../../lib/nhl/arenas'
 import PlayerSplits from '../PlayerSplits'
 import GoalTracking from '../GoalTracking'
 import { PlayerDepthToggle } from '../NhlDepth'
+import LampSlipAdd from '../LampSlipAdd'
 import PlayerInjuryChip from '../../injuries/PlayerInjuryChip'
 
 // 🏒 PLAYER — one man's file, at a stable address (#sport=nhl&tab=player&
@@ -310,6 +311,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
               face, name, club and the board's word. The big hero that repeated them is gone; its one line stays. */}
           {/* LAMP ON HIM (components/player/): the board's word and score, why, the night rank; a goalie or a man with no game says so in one line. */}
           <VerdictBlock sport="nhl" lock={lockIn} {...nhlVerdict({ goalie, board, spot, row, w, whyLine })} />
+          {!goalie && <LampSlipAdd id={String(p.id)} name={p.name} team={p.team} opp={spot?.g ? (spot.g.game.home.abbrev === p.team ? spot.g.game.away.abbrev : spot.g.game.home.abbrev) : null} />}
           {!locked && w && row && spot?.g && <PlayerDepthToggle row={row} game={spot.g} />}
           <section aria-label="Season line">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>

@@ -28,6 +28,7 @@ import MobileCSS from '../MobileCSS'
 import TabExplainer from '../TabExplainer'
 import RefreshStamp from '../RefreshStamp'
 import BucketsHeader from './BucketsHeader'
+import Slip from '../Slip'
 import MobileTabBarBuckets from './MobileTabBarBuckets'
 import QuickSearch from '../QuickSearch'
 import { NBA_TEXTS } from './tabExplainerTexts'
@@ -172,6 +173,7 @@ export default function BucketsDashboard() {
       {/* ONE SEARCH, EVERY PRODUCT (2026-10-07): players, clubs and games; Ctrl/Cmd-K, "/" or the header's search button */}
       <QuickSearch sport="nba" />
       <MobileTabBarBuckets tab={missingTab ? null : tab} setTab={setTab} />
+      <Slip sport="nba" C={C} NUM_FONT={NUM_FONT} accent={C.purple} onOpenProps={() => setTab('board')} />
     </AccentProvider>
   )
 }
