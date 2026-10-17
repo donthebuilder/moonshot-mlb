@@ -1,6 +1,7 @@
 'use client'
 import { ShortlistHead, ShortlistPills } from './shortlist/ShortlistParts'
 import { useMemo, useState } from 'react'
+import { useMlbMask } from './MemberGate'
 import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, teamOf, oppOf, playerId, n, clean } from '../lib/player'
 import { hrScore } from '../lib/player'
@@ -90,7 +91,9 @@ const pct1 = (v) => (v == null ? '—' : `${(v * 100).toFixed(1)}%`)
 // line, park. The shared set adds the rest of the TOP set after them.
 const SHORTLIST_OMIT = ['hrw', 'iso', 'k', 'hrL5', 'xbh5', 'pHR9', 'hrBBE']
 
-export default function Shortlist({ players = [], odds = null, onPlayerClick, onWatch, watchIds = null }) {
+export default function Shortlist({ players: playersIn = [], odds = null, onPlayerClick, onWatch, watchIds = null }) {
+  // MEMBERS GATE (2026-10-17): a CALLED man a non-member may not read is an ordinary ON THE BOARD hitter here (no 🤖 / role / pick count). Same array for members.
+  const _mask = useMlbMask(); const players = useMemo(() => _mask(playersIn), [playersIn, _mask])   // eslint-disable-line react-hooks/exhaustive-deps
   const [view, setView] = useState('profile')
   const [pack, setPack] = useState('profile')
   // ── HOW MANY ROWS (2026-09-01) ──────────────────────────────────────────

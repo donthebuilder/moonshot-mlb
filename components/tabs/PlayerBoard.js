@@ -1,5 +1,6 @@
 'use client'
 import { useMemo } from 'react'
+import { useMlbMask } from '../MemberGate'
 import { nameOf, teamOf, oppOf, playerId, mlbId, clean, n } from '../../lib/player'
 import { scoreFor, tierRole } from '../../lib/scoring'
 import PlayerModal from '../PlayerModal'
@@ -30,7 +31,9 @@ const ASKS = [
 
 // The page itself is components/players/PlayerBoardFrame.js now (2026-09-30):
 // the same layout, lifted so TUDDY and LAMP build their Players pages from it.
-export default function PlayerBoard({ players, slate = null, onAdd, onWatch, watchIds, odds = null }) {
+export default function PlayerBoard({ players: playersIn, slate = null, onAdd, onWatch, watchIds, odds = null }) {
+  // MEMBERS GATE (2026-10-17): a CALLED man a non-member may not read is an ordinary ON THE BOARD hitter here (no 🤖 / role / pick count). Same array for members.
+  const _mask = useMlbMask(); const players = useMemo(() => _mask(playersIn), [playersIn, _mask])   // eslint-disable-line react-hooks/exhaustive-deps
   const ranked = useMemo(
     () => [...players].sort((a, b) => scoreFor(b, 'hr') - scoreFor(a, 'hr')),
     [players],

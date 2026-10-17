@@ -11,6 +11,7 @@ import GameSwitcher from '../GameSwitcher'
 import { panelPairs, panelSubs, gameSections } from '../../lib/game/sections'
 import { ViewPills, GameFilterRail, SlateStrip, GamePanelPills, PanelAnchor, GameFrame, PrevNextGame } from '../slate/SlateParts'
 import { FactTiles } from '../matchup/MatchupParts'
+import { CardLockLine } from '../MemberGate'
 import { GameBoard, NavBtn, AllGamesTable, spotOf, pct1, restWord, useLampCallGate, lampLocked } from './tabs/Board'
 import { overallRanks } from '../../lib/positions'
 import LampProjected from './LampProjected'
@@ -102,6 +103,13 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
   // MEMBERS LOCK (components/MemberGate.js): the board's own free taste over every game tonight; null for everyone but a free viewer, and then nothing below changes
   const flatAll = useMemo(() => allGames.filter((g) => !g.noMarketLock).flatMap((g) => g.rows.map((r) => ({ r, g }))), [allGames])
   const gateOf = useLampCallGate(flatAll, overallRanks(flatAll, ({ r, g }) => `${g.game.id}|${r.playerId}`, ({ r }) => r.score ?? 0))
+  // THE GAME SURFACES (2026-10-17, Donovan: "the games on the slate page are showing the called picks"): a CALLED skater the viewer may not read is an ordinary ON THE BOARD
+  // skater in everything that is about a GAME (the Projected goals "called only" lens and "called goals" sum, the weak-spot flags, the calls list and its count). The
+  // tables and boards below keep the raw rows: they carry the gate themselves. null gateOf (members, unknown): the very same arrays.
+  const hideRow = (r, g) => r.status === 'called' && lampLocked(gateOf, { _row: r, _g: g })
+  const gamesM = gateOf ? all.map((g) => (g.rows.some((r) => hideRow(r, g)) ? { ...g, rows: g.rows.map((r) => (hideRow(r, g) ? { ...r, status: 'board' } : r)) } : g)) : all
+  const itemsM = gateOf ? gamesM.filter((g) => !g.noMarketLock).flatMap((g) => g.rows.filter((r) => r.status !== 'off').map((r) => ({ r, g })))
+    .filter(({ r }) => (!fteam || r.team === fteam) && (!needle || `${r.name} ${r.team}`.toLowerCase().includes(needle))) : items
   const lead = games.find((g) => stateOf(g) === 'live') || games.find((g) => stateOf(g) === 'upcoming') || games[0] || null
   const activeId = games.some((g) => String(g.game.id) === hashGame) ? hashGame : (lead ? String(lead.game.id) : null)
   const select = (id) => {
@@ -191,10 +199,10 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
       </div>
       {view === 'table' && all.length > 0 && (
         <>
-          <LampProjected items={items} games={all} stale={Boolean(data?.season?.stale)} onOpenTeam={onOpenTeam}
+          <LampProjected items={itemsM} games={gamesM} stale={Boolean(data?.season?.stale)} onOpenTeam={onOpenTeam}
             onOpenGame={(id) => { setHashGame(String(id)); setView('games') }} />
           {/* WEAK SPOTS, MOONSHOT's "★ Weak spots" cards (00Q step 2). */}
-          <LampWeakSpots items={items} games={all} onOpenPlayer={onOpenPlayer} />
+          <LampWeakSpots items={itemsM} games={gamesM} onOpenPlayer={onOpenPlayer} />
           <AllGamesTable kept={items} market="GOAL" gateOf={gateOf} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} />
         </>
       )}
@@ -217,6 +225,8 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
         const st = stateOf(g)
         const away = g.game.away.abbrev; const home = g.game.home.abbrev
         const called = g.rows.filter((r) => r.status === 'called').sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99))
+        // the calls a free viewer may read (the free four); the rest are not listed, not counted, and the header says nothing of how many there are
+        const shownCalled = called.filter((r) => !hideRow(r, g))
         const gaOf = (team) => g.rows.find((r) => r.team === team)?.context?.oppGaPg ?? null   // what THIS team's opponent allows
         // THE SECTIONS OF THE OPEN GAME, in the registry's order (lib/game/sections.js 'nhl' slate); each id's renderer is below,
         // unchanged from when they were written in place. A section is added with one registry line and one entry here.
@@ -260,10 +270,11 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
           ),
           calls: () => (
                 <PanelAnchor id="calls" gamePk={g.game.id} style={{ marginTop: 14 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.06em', color: C.text3, fontFamily: NUM_FONT, margin: '4px 0 10px' }}>{STATUS_WORD.called} IN THIS GAME · ONE PER TEAM</div>
-                  {called.length
-                    ? <LampCards market="GOAL" onOpen={onOpenPlayer} items={called.map((r) => ({ key: String(r.playerId), r, g, rank: r.rank, facts: { pp: pct1(spotOf(g, r.team, true)?.ppPct), pk: pct1(spotOf(g, r.team, false)?.pkPct), rest: restWord(spotOf(g, r.team, true)) } }))} />
-                    : <p style={{ margin: 0, fontSize: 13, color: C.text3 }}>No skater in this game has played enough NHL games to be called.</p>}
+                  {(shownCalled.length > 0 || called.length === 0) && <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.06em', color: C.text3, fontFamily: NUM_FONT, margin: '4px 0 10px' }}>{STATUS_WORD.called} IN THIS GAME{shownCalled.length === called.length ? ' · ONE PER TEAM' : ''}</div>}
+                  {shownCalled.length
+                    ? <LampCards market="GOAL" onOpen={onOpenPlayer} items={shownCalled.map((r) => ({ key: String(r.playerId), r, g, rank: r.rank, facts: { pp: pct1(spotOf(g, r.team, true)?.ppPct), pk: pct1(spotOf(g, r.team, false)?.pkPct), rest: restWord(spotOf(g, r.team, true)) } }))} />
+                    : called.length ? null : <p style={{ margin: 0, fontSize: 13, color: C.text3 }}>No skater in this game has played enough NHL games to be called.</p>}
+                  {shownCalled.length < called.length && <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ marginTop: 8 }} />}
                 </PanelAnchor>
           ),
           out: () => (
@@ -314,7 +325,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
               </div>
               <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px 14px', background: 'rgba(0,0,0,.15)' }}>
                 <GamePanelPills panels={PANELS} subs={SUBS} panel={panel} setPanel={setPanel} gamePk={g.game.id} isPhone={isPhone} accent={C.ice} stickyTop="var(--gsw-h, 0px)"
-                  badges={{ calls: called.length ? String(called.length) : '', out: (() => { const oc = outCounts([away, home]); return oc?.out ? String(oc.out) : '' })() }} />
+                  badges={{ calls: shownCalled.length && shownCalled.length === called.length ? String(called.length) : '', out: (() => { const oc = outCounts([away, home]); return oc?.out ? String(oc.out) : '' })() }} />
 
                 {gameSections('nhl', 'slate').map((sec) => <Fragment key={sec.id}>{SECTIONS[sec.id]?.()}</Fragment>)}
               </div>

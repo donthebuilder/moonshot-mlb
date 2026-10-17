@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
+import { useMlbMask } from './MemberGate'
 import { C, NUM_FONT } from '../lib/theme'
 import {gradedResultsUrl, dataUrl } from '../lib/dataSource'
 import { sharedFetch } from '../lib/sharedRead'
@@ -33,7 +34,9 @@ const fmtCountdown = (m) => {
   return `${Math.floor(m / 60)}h ${m % 60}m`
 }
 
-export default function SlatePulse({ players = [], slateDate = '', backtest, onPlayerClick }) {
+export default function SlatePulse({ players: playersIn = [], slateDate = '', backtest, onPlayerClick }) {
+  // MEMBERS GATE (2026-10-17): a CALLED man a non-member may not read is an ordinary ON THE BOARD hitter here (no 🤖 / role / pick count). Same array for members.
+  const _mask = useMlbMask(); const players = useMemo(() => _mask(playersIn), [playersIn, _mask])   // eslint-disable-line react-hooks/exhaustive-deps
   // ── unconfirmed designated picks ──
   const unconfirmed = useMemo(() => (
     players

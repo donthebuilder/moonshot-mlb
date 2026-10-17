@@ -9,9 +9,11 @@
 // rule (lib/callStatus, tdCallStatus, scoreNight); this only says which already-CALLED labels are drawn as the lock.
 import { createContext, useCallback, useContext, useEffect, useMemo, useSyncExternalStore } from 'react'
 import { useDashAccount } from '../lib/dash/sync'
-import { memberStateOf, freeCalledKeys, hiddenCalledCount, startedAt, cardGate, storyLockKey } from '../lib/members/gate'
+import { memberStateOf, freeCalledKeys, hiddenCalledCount, startedAt, cardGate, storyLockKey, maskCalledRows, gameCountVisible } from '../lib/members/gate'
 import { membersUrl } from '../lib/members'
 import { etToday } from '../lib/freshness'
+import { isCalledRole } from '../lib/callStatus'
+import { playerId as mlbPlayerId } from '../lib/player'
 
 const Ctx = createContext('unknown')
 
@@ -90,6 +92,35 @@ export function useLockOf() {
   const memberState = useMemberState()
   const free = useFreeKeys()
   return useCallback((x) => cardGate({ status: x.status, time: x.time, graded: Boolean(x.graded), key: x.key, free, memberState, slateIsToday: !x.slateDate || x.slateDate === etToday() }), [free, memberState])
+}
+
+/**
+ * THE GAME SURFACES (2026-10-17). useCallMask({ statusOf, keyOf, timeOf, gradedOf, slateDate, strip }) -> { mask(rows), lockedOf(row), countOk(rows) }.
+ * mask() takes the call fields (`strip`) off every CALLED, not-started man a non-member may not read (the boards' free four stay), so a game's cards, chips,
+ * headers and write-ups built from the masked rows cannot name him; for a member / unknown viewer it returns the rows untouched (same array). countOk(rows)
+ * says whether a per-game COUNT of called picks may be drawn (every called man in it is readable). Boards keep the RAW rows: they compute the free four.
+ */
+export function useCallMask({ statusOf, keyOf, timeOf, gradedOf = null, slateDate = null, strip = [] }) {
+  const lockOf = useLockOf()
+  const lockedOf = useCallback((r) => lockOf({ status: statusOf(r), key: keyOf(r), time: timeOf(r), graded: gradedOf ? gradedOf(r) : false, slateDate }).locked,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [lockOf, slateDate])
+  const mask = useCallback((rows) => maskCalledRows(rows, { lockedOf, strip }), [lockedOf]) // eslint-disable-line react-hooks/exhaustive-deps
+  const countOk = useCallback((rows) => gameCountVisible((rows || []).filter((r) => statusOf(r) === 'called'), { lockedOf }), [lockedOf]) // eslint-disable-line react-hooks/exhaustive-deps
+  return { mask, lockedOf, countOk }
+}
+
+/**
+ * MOONSHOT's rows, for every LIST that prints the bot's designation (🤖, "MOONSHOT pick", a role chip, a pick count) without being a board: mask(players) takes
+ * game_pick_role / best_bet_type / beginner_label off each CALLED, not-started man a non-member may not read (the same key the boards use). Members and unknown
+ * viewers get the very same array. NOT for a board: a board computes the free four from the RAW rows and carries the gate itself (useCallGate).
+ */
+export function useMlbMask(slateDate = null) {
+  const { mask } = useCallMask({
+    statusOf: (p) => (isCalledRole(p?.game_pick_role) ? 'called' : 'board'), keyOf: (p) => `${mlbPlayerId(p)}|${p?.game_pk ?? ''}`, timeOf: (p) => p?.game_time,
+    slateDate, strip: ['game_pick_role', 'best_bet_type', 'beginner_label'],
+  })
+  return mask
 }
 
 /**

@@ -48,6 +48,7 @@ import { shareUrl, slug, stamp, gameDay } from '../../lib/cards/saveCard'
 import ProjectedOutput from '../ProjectedOutput'
 import TeamMark, { MatchLogos } from '../TeamMark'
 import PostseasonRow from '../slate/PostseasonRow'
+import { useMlbMask } from '../MemberGate'
 import { requestLiveRefresh, useLiveRefresh } from '../../lib/liveRefresh'
 import { localTime as sharedLocalTime } from '../../lib/localTime'
 
@@ -638,7 +639,15 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   }, [lineupFocus])
   const gameRefs                = useRef({})
 
-  const allGames = useMemo(() => groupGames(players), [players])
+  // THE MEMBERS GATE ON A GAME (2026-10-17, Donovan: "the games on the slate page are showing the called picks"). Every game card, chip, header, write-up and
+  // pick row below is built from `gamePlayers`: for a non-member the bot's call fields come off every CALLED, not-started man outside the free four (he reads as an
+  // ordinary ON THE BOARD hitter), so no game names or counts who is called. Members / unknown viewers get `players` itself. The boards keep the raw rows.
+  const maskCalls = useMlbMask(slateDate)
+  const gamePlayers = useMemo(() => maskCalls(players), [players, maskCalls])
+  const allGames = useMemo(() => groupGames(gamePlayers), [gamePlayers])
+  // the write-up block does its own gate (it needs the RAW call to leave the man out and say the rest is for members), so it is handed the unmasked rows
+  const rawById = useMemo(() => new Map((players || []).map((p) => [`${playerId(p)}|${p?.game_pk ?? ''}`, p])), [players])
+  const rawRows = (rows) => (gamePlayers === players ? rows : (rows || []).map((p) => rawById.get(`${playerId(p)}|${p?.game_pk ?? ''}`) || p))
 
 
 
@@ -951,7 +960,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           const postedN = inPlay.filter((x) => x.lineupPosted).length
           const moved = []
           const out = []
-          ;(players || []).forEach((p) => {
+          ;(gamePlayers || []).forEach((p) => {
             const st = lineupStatus(live, mlbId(p), p?.game_pk, p?.lineup_spot)
             if (st.scratched) out.push(p)
             else if (st.moved) moved.push({ p, slot: st.slot })
@@ -1642,9 +1651,9 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                             <>
                         <div id={`gp-read-${g.game_pk}`} />
                         {/* THE CALL (2026-10-05): the per-game post's write-up, from the same rows */}
-                        <MlbWriteupBlock rows={g.players} onPlayerClick={onPlayerClick} />
+                        <MlbWriteupBlock rows={rawRows(g.players)} onPlayerClick={onPlayerClick} />
                         <GameLedgerLine sport="mlb" gameId={g.game_pk} day={slateDate} />
-                        <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} results={results} odds={odds} onPlayerClick={onPlayerClick} section="read" />
+                        <GameDeepDive game={g} allPlayers={gamePlayers} slateDate={slateDate} results={results} odds={odds} onPlayerClick={onPlayerClick} section="read" />
                             </>
                           ),
                           postseason: () => <PostseasonRow gamePk={g.game_pk} day={slateDate} />,
@@ -1678,7 +1687,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                           h2h: () => (
                             <>
                         <div id={`gp-h2h-${g.game_pk}`} style={{ borderTop: `1px solid ${C.border}`, marginTop: 14, paddingTop: 12 }}>
-                          <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} results={results} odds={odds} onPlayerClick={onPlayerClick} section="h2h" />
+                          <GameDeepDive game={g} allPlayers={gamePlayers} slateDate={slateDate} results={results} odds={odds} onPlayerClick={onPlayerClick} section="h2h" />
                         </div>
                             </>
                           ),

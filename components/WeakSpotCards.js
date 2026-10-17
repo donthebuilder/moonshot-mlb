@@ -1,5 +1,6 @@
 'use client'
 import { WeakSpotGrid } from './slate/WeakSpotCard'
+import { useMlbMask } from './MemberGate'
 import { n, clean } from '../lib/player'
 
 // ★ WEAK SPOTS, AS CARDS (2026-09-03)
@@ -36,6 +37,7 @@ import { n, clean } from '../lib/player'
 const LG_HR9 = 1.15
 
 export default function WeakSpotCards({ entries = [], onPlayerClick, onOpenPitcher }) {
+  const _mask = useMlbMask()   // MEMBERS GATE (2026-10-17): the role tag of a CALLED man a non-member may not read is left off
   const cards = entries
     .map((e) => {
       const hit = (e.lineup || []).filter((b) => b.weak_spot_flag)
@@ -71,7 +73,7 @@ export default function WeakSpotCards({ entries = [], onPlayerClick, onOpenPitch
           : `${hit.length} soft slots tonight.`,
         damage: damage > 0 ? `Spot damage ${damage.toFixed(0)}.` : null,
         rows: hit.map((b) => {
-          const role = clean(b.raw?.game_pick_role, '').split('/')[0].trim().toUpperCase()
+          const role = clean((b.raw ? _mask([b.raw])[0] : null)?.game_pick_role, '').split('/')[0].trim().toUpperCase()
           const why = clean(b.raw?.pitcher_spot_damage_reason, '') || clean(b.weak_spot_reason, '')
           const l5hr = n(b.raw?.last5_hr, 0)
           // The platoon half of the read: does this hitter stand on the side

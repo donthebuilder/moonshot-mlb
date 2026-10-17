@@ -1,5 +1,6 @@
 'use client'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMlbMask } from '../MemberGate'
 import { C, NUM_FONT } from '../../lib/theme'
 import { playerId, mlbId, nameOf } from '../../lib/player'
 import { dedupeGraded } from '../../lib/graded'
@@ -197,7 +198,9 @@ function GameCard({ g, open, onToggle, watchIds, onPlayerClick, stake }) {
 // (see the pass-16 note). Without it the two graded chips simply do not
 // render — the picks and watchlist counts, which are the useful half, come
 // off the slate and need nothing fetched.
-export default function Boxes({ watchIds, onPlayerClick, players = [], results = null }) {
+export default function Boxes({ watchIds, onPlayerClick, players: playersIn = [], results = null }) {
+  // MEMBERS GATE (2026-10-17): a CALLED man a non-member may not read is an ordinary ON THE BOARD hitter here (no 🤖 / role / pick count). Same array for members.
+  const _mask = useMlbMask(); const players = useMemo(() => _mask(playersIn), [playersIn, _mask])   // eslint-disable-line react-hooks/exhaustive-deps
   // A game handed over from another page (the team page's Last five / Next up:
   // a game that is not on tonight's slate has no lineup page, but it has a box)
   // opens on ITS date with its box already open. Taken once, on mount.
