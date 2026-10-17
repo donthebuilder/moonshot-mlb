@@ -12,7 +12,7 @@ const t = (name, ok) => eq(name, Boolean(ok), true)
 const sk = (gameId, team, id, s, pos = 'C', toi = 900 + s * 100) => ({ gameId, team, opp: team === 'AAA' ? 'BBB' : 'AAA', home: team === 'AAA', playerId: id, name: `Test ${id}`, pos, legs: { ok: true, shotsPg: s, goalsPg: s / 10, toi, gpPooled: 82, gpCur: 0, gpPrev: 82, prevWeight: 1 }, context: {} })
 const off = (gameId, team, id) => ({ gameId, team, playerId: id, name: `Test ${id}`, pos: 'C', legs: { ok: false, reason: 'test: fewer than 3 games' }, context: {} })
 
-eq('version', [MODEL_VERSION, MODEL.version, MARKET], ['lamp-goalw-v1', 'lamp-goalw-v1', 'GOAL'])
+eq('version', [MODEL_VERSION, MODEL.version, MARKET], ['lamp-goalw-v2', 'lamp-goalw-v1', 'GOAL'])
 t('a shadow, beside the live version (not the live one)', MODEL_VERSION !== LIVE)
 eq('the fitted features are the definition\'s four', MODEL.features, ['goalsPg', 'shotsPg', 'toiMin', 'isD'])
 t('the fit window ends before this model existed (no later data in the weights)', MODEL.fitted_on.to < '2026-10-01')
