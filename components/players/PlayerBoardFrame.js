@@ -8,6 +8,7 @@ import { rampColor, inkFor } from '../Heatmap'
 import { useSportTheme } from '../SportTheme'
 import { usePickLight, pickColorOf } from '../../lib/pickLight'
 import { useSport } from '../../lib/sport'
+import SlipPlus from '../SlipPlus'
 
 // MOONSHOT'S PLAYERS PAGE, AS A FRAME (2026-09-30, Donovan: "the mlb players
 // page is the base i like that, use those components"). components/tabs/
@@ -27,12 +28,14 @@ import { useSport } from '../../lib/sport'
 // sideTop    node above the search box (TUDDY's team filter)
 // rankOf     row -> a number shown as "#n" beside the score chip (LAMP's board rank). Left out = nothing.
 // scoreExtra row -> a quiet node under the chip (LAMP: the season goals). Left out = nothing; the row is unchanged.
+// slipOf     row -> a slip leg (lib/slip/rowLegs.js) or null, with slipSport: a 44px '+' beside the row, only where the books
+//            post a real price on the board's bar. Left out (or null for a row) = the row is drawn exactly as before.
 // ramp       the product's score-chip colours, low to high: an array of colours (NFL jade, NHL ice, ...).
 //            Left out = MOONSHOT's own ramp, unchanged.
 export default function PlayerBoardFrame({
   rows, idOf, urlIdOf, nameOf, metaOf, badgesOf = () => null, scoreOf, scoreTitle = () => undefined,
   asks = [], placeholder = 'Search a hitter…', noun = 'hitter', nounPlural = 'hitters',
-  renderDetail, notice = null, listCap = 40, searchText = (r) => nameOf(r), sideTop = null, ramp = null, rankOf = null, scoreExtra = null,
+  renderDetail, notice = null, listCap = 40, searchText = (r) => nameOf(r), sideTop = null, ramp = null, rankOf = null, scoreExtra = null, slipSport = null, slipOf = null,
 }) {
   const { C, NUM_FONT, accent, themed } = useSportTheme()
   // ✨ The tap highlight (lib/pickLight.js) marks his row here too.
@@ -110,6 +113,8 @@ export default function PlayerBoardFrame({
   const selected = phone ? picked : (picked || (unknownWanted ? null : matches[0]) || null)
   const showList = !phone || !selected
   const showDetail = !phone || !!selected
+  // the slip '+' column exists only when somebody in the list has a real price; a row with none keeps the gap so the score chips line up
+  const withSlip = Boolean(slipOf && slipSport) && matches.some((p) => slipOf(p))
   const tint = (a) => (themed ? alpha(accent, a) : `rgba(249,115,22,${String(a).replace(/^0/, '')})`)
 
   return (
@@ -158,17 +163,18 @@ export default function PlayerBoardFrame({
             const sc = scoreOf(p)
             const has = Number.isFinite(Number(sc)) && sc !== null
             const bg = has ? (ramp?.length ? ramp[Math.min(ramp.length - 1, Math.floor((sHi - sLo <= 0 ? 0 : Math.max(0, Math.min(1, (Number(sc) - sLo) / (sHi - sLo)))) * ramp.length))] : rampColor(Number(sc), sLo, sHi)) : null
-            return (
+            // THE SLIP '+' (2026-10-17): a sibling of the row's button (a button inside a button is not valid), only with a real price
+            const slipLeg = withSlip ? slipOf(p) : null
+            const rowButton = (
               <button
                 key={id}
                 onClick={() => setSelectedId(id)}
                 style={{
-                  display: 'flex', width: '100%', alignItems: 'center', gap: 8,
+                  display: 'flex', width: withSlip ? 'auto' : '100%', flex: withSlip ? 1 : undefined, minWidth: withSlip ? 0 : undefined, alignItems: 'center', gap: 8,
                   padding: '8px 10px', border: 'none', cursor: 'pointer',
                   textAlign: 'left', color: on ? C.text : C.text2,
                   background: on ? C.bg3 : 'transparent',
-                  borderLeft: `2px solid ${on ? C.green : lit ? pickColorOf(C) : 'transparent'}`,
-                  borderBottom: `1px solid ${C.border}`,
+                  ...(withSlip ? {} : { borderLeft: `2px solid ${on ? C.green : lit ? pickColorOf(C) : 'transparent'}`, borderBottom: `1px solid ${C.border}` }),
                 }}
               >
                 <span style={{ flex: 1, minWidth: 0 }}>
@@ -197,6 +203,12 @@ export default function PlayerBoardFrame({
                 </span>
               </button>
             )
+            return withSlip ? (
+              <div key={id} style={{ display: 'flex', alignItems: 'center', background: on ? C.bg3 : 'transparent', borderLeft: `2px solid ${on ? C.green : lit ? pickColorOf(C) : 'transparent'}`, borderBottom: `1px solid ${C.border}` }}>
+                {rowButton}
+                {slipLeg ? <SlipPlus sport={slipSport} leg={slipLeg} C={C} NUM_FONT={NUM_FONT} accent={accent} style={{ marginRight: 2 }} /> : <span aria-hidden="true" style={{ flex: 'none', width: 46 }} />}
+              </div>
+            ) : rowButton
           })}
           {!matches.length && (
             <div style={{ padding: 14, fontSize: TYPE.body, color: C.text3 }}>No {noun} matches that.</div>

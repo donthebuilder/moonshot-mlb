@@ -502,10 +502,12 @@ export function renderV2(ctx) {
 
               if (c.action) {
                 const on = !!v && v !== 0
+                // `show(row)` false: no control in this row (a slip '+' with no real price is not drawn), the cell stays so the columns line up
+                if (c.show && !c.show(r._raw ?? r)) return <td key={c.key} className={cls(c, 'dense-action')} style={{ padding: 0, ...pin, ...(bgTint || {}) }} />
                 return (
                   <td key={c.key} className={cls(c, 'dense-action')} style={{ textAlign: 'center', padding: 0, ...pin, ...(bgTint || {}) }}>
                     <button type="button" onClick={(e) => { e.stopPropagation(); c.onAction?.(r._raw ?? r) }}
-                      title={on ? (c.titleOn || 'Remove') : (c.titleOff || 'Add')} aria-pressed={on}
+                      title={on ? (c.titleOn || 'Remove') : (c.titleOff || 'Add')} aria-label={on ? (c.titleOn || 'Remove') : (c.titleOff || 'Add')} aria-pressed={on}
                       style={{ width: '100%', height: 36, border: 'none', background: 'transparent', cursor: 'pointer', color: on ? ac : C.text3, fontSize: 13, fontWeight: 800 }}>
                       {on ? (c.mark || '★') : (c.markOff || '☆')}
                     </button>

@@ -7,6 +7,8 @@ import PlayerBoardFrame from '../../players/PlayerBoardFrame'
 import TeamMark from '../../TeamMark'
 import { DelayedBanner, Loading, LastSeasonNote, SourceLine } from '../ui'
 import Player from './Player'
+import { useLiveFetch } from '../../../lib/useLiveFetch'
+import { nbaLeg } from '../../../lib/slip/rowLegs'
 
 // 👤 PLAYERS, MOONSHOT'S PAGE (2026-10-17, Donovan: "everything needs to look like the MLB Props page and the NHL players page").
 // It was a plain directory table that sent you to a separate page and back. Now MOONSHOT's PlayerBoard frame
@@ -19,6 +21,7 @@ const one = (v) => (Number.isFinite(Number(v)) ? (Math.round(Number(v) * 10) / 1
 
 export default function Players({ onOpenTeam, onOpenGame }) {
   const { data, error, loading } = useBucketsPlayers()
+  const { data: odds } = useLiveFetch('/api/odds/latest?sport=nba')   // the books' points price, where it sits on the board's bar
   const rows = useMemo(() => [...(data?.players || [])].sort((a, b) => (Number(b.pts) || -1) - (Number(a.pts) || -1) || String(a.name).localeCompare(String(b.name))), [data])
   const asks = [
     { key: 'G', label: 'Guards', test: (p) => /G/.test(String(p.pos || '')), why: 'Point guards, shooting guards and combo guards' },
@@ -33,6 +36,8 @@ export default function Players({ onOpenTeam, onOpenGame }) {
       <PlayerBoardFrame
         ramp={RAMP}
         rows={rows}
+        slipSport="nba"
+        slipOf={(p) => nbaLeg(odds, { id: p.id, name: p.name, team: p.team }, 'pts')}
         idOf={(p) => String(p.id)}
         urlIdOf={(p) => String(p.id)}
         nameOf={(p) => p.name}

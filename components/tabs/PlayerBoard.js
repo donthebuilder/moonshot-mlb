@@ -5,6 +5,7 @@ import { nameOf, teamOf, oppOf, playerId, mlbId, clean, n } from '../../lib/play
 import { scoreFor, tierRole } from '../../lib/scoring'
 import PlayerModal from '../PlayerModal'
 import PlayerBoardFrame from '../players/PlayerBoardFrame'
+import { mlbHrLeg } from '../../lib/slip/rowLegs'
 
 // Player — the modal's contents as a real board.
 //
@@ -41,6 +42,8 @@ export default function PlayerBoard({ players: playersIn, slate = null, onAdd, o
   return (
     <PlayerBoardFrame
       rows={ranked}
+      slipSport="mlb"
+      slipOf={(p) => mlbHrLeg(odds, p)}
       idOf={playerId}
       urlIdOf={mlbId}
       nameOf={nameOf}
