@@ -7,10 +7,11 @@ import StyledJsxRegistry from './registry'
 // and share cards were already DASH-branded; OG/Twitter card metadata never
 // existed at all (not a rebrand inconsistency, a genuine gap — confirmed by
 // reading this file before this change, no openGraph/twitter keys present).
-// Needs NEXT_PUBLIC_SITE_URL set on Vercel to resolve the image URL below to
-// the real domain instead of localhost — see .env.example, already
-// documents the var, just needs a value in the actual Vercel project.
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+// NEXT_PUBLIC_SITE_URL (see .env.example) names the origin. When it is not set the
+// fallback is the production origin, the same one app/sitemap.js and app/robots.js
+// fall back to: it used to be http://localhost:3000, which made the front door's
+// canonical and og:url point at localhost on any build without the variable (2026-10-17 audit).
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://dashnetwork.vercel.app'
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),

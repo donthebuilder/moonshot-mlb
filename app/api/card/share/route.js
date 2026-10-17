@@ -8,6 +8,9 @@
 // owner's decision (Donovan, 2026-10-12). They are MLB-owned images (almost certainly licensed photography); MLB serves no credit field for them. A photo that
 // is missing or slow (4 s) is left out and the silo headshot is drawn instead; the card never waits on it twice (lib/cards/postseasonData.js).
 import { shareCardImage } from '../../../../lib/cards/cardImage'
+import { viewerIsMember } from '../../../../lib/members/viewer'
+import { freeFourIds } from '../../../../lib/members/freeFour'
+import { gateShareModel } from '../../../../lib/members/hide'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -29,9 +32,17 @@ export async function GET(request) {
   }
   const w = Number(q.get('w'))
   const width = WIDTHS.includes(w) ? w : 1080
-  const r = await shareCardImage({ kind, sport, q: Object.fromEntries(q.entries()), width })
+  // THE MEMBER GATE ON THE PICTURE (2026-10-17): a list or pick card that holds tonight's CALLED picks (no result yet) draws them as plain ON THE BOARD rows for a
+  // non-member, except the front door's free four; a member gets the card as before. Such a card is per-viewer, so it never sits on the shared cache. Graded rows,
+  // records, starters and postseason cards hold no open call and are cached exactly as before.
+  const gate = async (model) => {
+    if (!gateShareModel(model, new Set()).changed) return { model, changed: false }
+    if (await viewerIsMember()) return { model, changed: true }
+    return gateShareModel(model, await freeFourIds(sport))
+  }
+  const r = await shareCardImage({ kind, sport, q: Object.fromEntries(q.entries()), width, gate })
   if (!r.ok) return json({ error: r.status === 404 ? 'NOT FOUND' : r.status === 400 ? 'BAD REQUEST' : 'CARD DELAYED', detail: r.why }, r.status || 502, r.status === 404 && !priv ? 'public, max-age=60' : 'no-store')
   // the boards move through the day: five minutes fresh at the edge, then served stale for up to 30 minutes while one request redraws it, so a visitor from an X post
   // almost never waits on a cold render (2026-10-16: was 2 + 5 minutes and the first visitor of each window paid the full draw)
-  return new Response(r.png, { status: 200, headers: { 'Content-Type': 'image/png', 'Cache-Control': priv ? 'private, no-store' : 'public, s-maxage=300, stale-while-revalidate=1800' } })
+  return new Response(r.png, { status: 200, headers: { 'Content-Type': 'image/png', 'Cache-Control': priv || r.perViewer ? 'private, no-store' : 'public, s-maxage=300, stale-while-revalidate=1800' } })
 }
