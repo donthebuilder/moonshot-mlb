@@ -68,6 +68,8 @@ async function build(sport, today) {
       date: p.game_date || p.graded_date || null, week: p.week ?? null,
       player_id: p.player_id, name: p.name, team: p.team || null, opp: p.opp || null, role: p.role || CALL_WORD[sport],
       result: p.result, score: p.score ?? null,   // the board's own score at lock: it orders a night's calls (lib/slip/landed.js)
+      // MLB / NFL: the place at lock, 1 = best (MLB board_rank, NFL TD rung); null on a row that never logged one. NFL's is a rung of the week's ladder, so `ladder` + `week`.
+      order: p.order ?? null, ladder: p.ladder || undefined,
       best: p.price?.best ?? null, book: p.price?.best_book ?? null, median: p.price?.median ?? null, books: p.price?.books ?? null,
     }))
     .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || String(a.name).localeCompare(String(b.name)))
@@ -83,7 +85,7 @@ export async function GET(request) {
   if (sport === 'nba') { const no = await bucketsGuard(); if (no) return no }
   const today = easternToday()
   try {
-    const { calls, tracking, meta } = await unstable_cache(() => build(sport, today), ['record-calls-v7', sport, today], { revalidate: 1800 })()
+    const { calls, tracking, meta } = await unstable_cache(() => build(sport, today), ['record-calls-v8', sport, today], { revalidate: 1800 })()
     return Response.json({ sport, calls, meta, ...(tracking ? { tracking } : {}), builtAt: new Date().toISOString() }, { headers: { 'Cache-Control': gated ? 'private, max-age=60' : 'public, s-maxage=600, stale-while-revalidate=1800' } })
   } catch (e) {
     console.error(`[record/calls] ${sport}: ${e?.message || e}`)
