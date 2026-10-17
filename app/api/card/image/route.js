@@ -5,7 +5,10 @@
 // malformed id / date; 502 when the render fails. Public data: every number is already on the site's boards.
 import { adminClient } from '../../../../lib/supabase/admin'
 import { hasCards, hasPreviewCards } from '../../../../lib/cards/registry'
-import { playerCardImage } from '../../../../lib/cards/cardImage'
+import { loadPlayerModel, renderModel } from '../../../../lib/cards/cardImage'
+import { viewerIsMember } from '../../../../lib/members/viewer'
+import { freeFourIds } from '../../../../lib/members/freeFour'
+import { isOpenCall, boardCardModel } from '../../../../lib/members/hide'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -30,8 +33,28 @@ export async function GET(request) {
   const width = WIDTHS.includes(w) ? w : 1080
   let db = null
   try { db = adminClient() } catch { db = null }       // no database = no stored price: the card still draws, the price slot does not
-  const r = await playerCardImage({ sport, id: String(q.get('id') || ''), side, date: q.get('date') || null, width, db, allowPreview: hasPreviewCards(sport) })
+  // THE MEMBER GATE ON THE PICTURE (2026-10-17). A CALLED pick of tonight whose game has not started is the members'. A non-member (not one of the front door's
+  // free four) is handed the same man as a plain ON THE BOARD card: no CALLED, score, why, price or accent. Because that makes the picture per-viewer, such a
+  // card is never put on the shared cache. Started / graded / ON THE BOARD / NOT ON THE BOARD cards are public and cached exactly as before.
+  let r
+  let perViewer = false
+  try {
+    const loaded = await loadPlayerModel({ sport, id: String(q.get('id') || ''), date: q.get('date') || null, db, allowPreview: hasPreviewCards(sport) })
+    if (!loaded.ok) r = loaded
+    else {
+      let model = loaded.model
+      if (isOpenCall({ status: model.status, startMs: model.startMs })) {
+        perViewer = true
+        const member = await viewerIsMember()
+        if (!member && !(await freeFourIds(sport)).has(String(model.playerId))) model = boardCardModel(model)
+      }
+      r = await renderModel(model, loaded.adapter, { side, width })
+    }
+  } catch (e) {
+    console.error(`[cards] ${sport}/${side}: ${e?.message || e}`)
+    r = { ok: false, status: 502, why: 'render failed' }
+  }
   if (!r.ok) return json({ error: r.status === 404 ? 'NOT FOUND' : r.status === 400 ? 'BAD REQUEST' : 'CARD DELAYED', detail: r.why }, r.status, r.status === 404 && !preview ? 'public, max-age=60' : 'no-store')
   // a preview card is one visitor's: never on the shared CDN
-  return new Response(r.png, { status: 200, headers: { 'Content-Type': 'image/png', 'Cache-Control': preview ? 'private, no-store' : 'public, s-maxage=300, stale-while-revalidate=600' } })
+  return new Response(r.png, { status: 200, headers: { 'Content-Type': 'image/png', 'Cache-Control': preview || perViewer ? 'private, no-store' : 'public, s-maxage=300, stale-while-revalidate=600' } })
 }

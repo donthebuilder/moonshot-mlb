@@ -24,6 +24,9 @@
 
 import { fetchBoardFull, fetchRunMeta } from '../../../lib/dash/board'
 import { callStatus, STATUS_WORD, boardOfRows } from '../../../lib/callStatus'
+import { viewerIsMember } from '../../../lib/members/viewer'
+import { freeFourIds } from '../../../lib/members/freeFour'
+import { isOpenCall } from '../../../lib/members/hide'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -94,18 +97,22 @@ function rankBoard(rows) {
   return { rank: new Map(order.map(([id], i) => [id, i + 1])), of: boardOfRows(rows) }
 }
 
-function answerFor(r, meta, board) {
-  const role = txt(r.game_pick_role).toUpperCase()
-  // The label comes from callStatus, never re-derived here: a WATCH / TOP15
-  // role is ON THE BOARD, not CALLED, and a rated man outside the top third is
-  // NOT ON THE BOARD.
-  const status = callStatus({ role, board_rank: board?.rank.get(txt(r.player_id)), board_of: board?.of, on_board: num(r.hr_score) != null })
+// The label comes from callStatus, never re-derived here: a WATCH / TOP15
+// role is ON THE BOARD, not CALLED, and a rated man outside the top third is
+// NOT ON THE BOARD.
+const statusOf = (r, board) => callStatus({ role: txt(r.game_pick_role).toUpperCase(), board_rank: board?.rank.get(txt(r.player_id)), board_of: board?.of, on_board: num(r.hr_score) != null })
+
+// `hidden`: tonight's CALLED pick, game not started, that this visitor may not see (2026-10-17, the member gate): he is answered as a plain ON THE BOARD man, no call,
+// no role, no score. His public stats stay.
+function answerFor(r, meta, board, hidden = false) {
+  const role = hidden ? '' : txt(r.game_pick_role).toUpperCase()
+  const status = hidden ? 'board' : statusOf(r, board)
   const called = status === 'called'
   const name = txt(r.name)
   const team = txt(r.team)
   const opp = txt(r.opponent)
   const arm = txt(r.pitcher_name)
-  const hr = one(r.hr_score)
+  const hr = hidden ? null : one(r.hr_score)
   const state = called ? `${STATUS_WORD.called} — ${ROLE_WORD[role.split('/')[0]] || role}` : `${STATUS_WORD[status]} — no call`
 
   // Supporting evidence, in the order a person would actually want it. Every
@@ -162,9 +169,17 @@ export async function GET(request) {
       },
     })
   }
+  // WHO MAY SEE WHICH ANSWER (the member gate, decided here on the server): only a CALLED pick whose game has not started is held back, and only from a
+  // visitor who is not a member and is not one of the front door's free four. The membership check runs only when such a man is in the answer.
+  const open = hits.filter((r) => statusOf(r, ranked) === 'called' && isOpenCall({ status: 'called', startMs: r.game_time }))
+  let hide = new Set()
+  if (open.length && !(await viewerIsMember())) {
+    const free = await freeFourIds('mlb')
+    hide = new Set(open.map((r) => txt(r.player_id)).filter((id) => !free.has(id)))
+  }
   return Response.json({
     q,
     slate_date: meta?.slate_date || null,
-    hits: hits.map((r) => answerFor(r, meta, ranked)).filter(Boolean),
+    hits: hits.map((r) => answerFor(r, meta, ranked, hide.has(txt(r.player_id)))).filter(Boolean),
   })
 }
