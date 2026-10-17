@@ -4,6 +4,7 @@
 //   node --no-warnings --import ./scripts/_esm-resolve.mjs scripts/writeups/test-live-gates.mjs
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
+import { isCut } from '../../lib/dash/routing.js'
 
 // PIN THE CLOCK (2026-10-12): the test slate starts 2026-10-12T23:00Z; with the real clock past that moment every NHL case read 'game already started'.
 const _realNow = Date.now
@@ -280,16 +281,16 @@ await ok('SPLIT NHL: a failed members copy is retried once before puck drop, nev
 const SUN = Date.parse('2026-10-18T17:00:00Z')         // Sunday 1 pm ET: the Sunday-afternoon slot, one featured game
 const sunGame = (id, score) => ({ game_id: id, away: `${id}A`, home: `${id}H`, kickoff: new Date(SUN).toISOString(), state: 'pre', calls: [
   { player_id: `${id}-1`, name: `Test Back ${id}`, team: `${id}A`, position: 'RB', role: 'TOP', score, slate_rank: 2, of: 120 }], no_call: [] })
-await ok('SPLIT NFL: two Sunday-afternoon games -> #members both, the free channel + X the featured one only', async () => {
+await ok('SPLIT NFL: two Sunday-afternoon games -> the per-game write-up is CUT from Discord by lib/dash/routing.js (recorded, delivered nowhere on Discord); X gets the featured one only', async () => {
   process.env.DISCORD_MEMBERS_WEBHOOK = MEMBERS_HOOK
   const file = { season: 2026, week: 7, built_at: new Date(SUN - 90 * MIN).toISOString(), games: [sunGame('S1', 70), sunGame('S2', 82)] }
   const db = newDb()
   const out = await P.runNflWriteups(db, { now: SUN - 70 * MIN, fetchCalls: async () => file })
-  assert.equal(memberPosts.length, 2); assert.equal(discords.length, 1); assert.equal(tweets.length, 1)
+  assert.ok(isCut('writeup_nfl_S1') && isCut('writeup_nfl_S2'), 'routing cuts writeup_nfl_<game> (lib/dash/routing.js)')
+  assert.equal(memberPosts.length, 0, '#members gets nothing: the kind is cut'); assert.equal(discords.length, 0, 'the free channel gets nothing: the kind is cut'); assert.equal(tweets.length, 1, 'X is not routed: the featured game only')
   const featured = Object.entries(out).filter(([, v]) => /X 70/.test(v)).map(([k]) => k); const other = featured[0] === 'S1' ? 'S2' : 'S1'
   assert.equal(featured.length, 1); assert.match(out[other], /^live: discord members only/)
   assert.ok(!discords.join('\n').includes(`Test Back ${other}`) && !JSON.stringify(tweets).includes(`Test Back ${other}`), 'the other game is not in the free channel or on X')
-  assert.ok(memberPosts.some((b) => b.includes(`Test Back ${other}`)), 'but #members has it')
   assert.equal(rowOf(db, `writeup_nfl_${other}`).payload.members_sent, true); assert.equal(rowOf(db, `writeup_nfl_${other}`).payload.free_sent, false)
 })
 await ok('SPLIT MLB: free Discord stays per game as before; #members also gets every game (additive), with the retry', () => {

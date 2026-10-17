@@ -21,7 +21,7 @@ import MobileFold, { useIsPhone } from '../MobileFold'
 import { DrawerSection, drawerLabel } from '../FiltersDrawer'
 import { Segmented, LAYOUT_OPTIONS } from '../Filters'
 import { useHashFilter } from '../../lib/filterHash'
-import { COLUMN_VIEWS, columnViewKey } from '../../lib/boardColumns'
+import { COLUMN_VIEWS } from '../../lib/boardColumns'
 import HowToRead from '../HowToRead'
 import { hrRank } from '../../lib/scoring'
 import { twoHrScores, withTwoHr, TWO_HR_NOTE } from '../../lib/mlb/twoHrScore'
@@ -473,8 +473,10 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
   const phoneRank = rankings && phone
   // the board's column layout (cols=read | lean, absent = all), kept in the address like the other view params
   const [colsRaw, setColsRaw] = useHashFilter('cols')
-  const colsView = columnViewKey(colsRaw)
-  const setColsView = (k) => setColsRaw(k === 'all' ? '' : k)
+  // PHONE DEFAULT (2026-10-17, Donovan): on a phone Rankings opens on the Short list, not all 58 columns. An explicit cols= in the address (all, read, lean) always wins;
+  // on a phone `all` is therefore written out, and the Short list is the bare address. Desktop is unchanged: no cols= is All.
+  const colsView = COLUMN_VIEWS.some((v) => v.key === colsRaw) ? colsRaw : (phoneRank ? 'lean' : 'all')
+  const setColsView = (k) => setColsRaw(k === (phoneRank ? 'lean' : 'all') ? '' : k)
   const [layout, setLayout] = useState('list')   // Rankings' List / Cards switch (the page owns it, the table reads it)
   // Scoped to whichever lens is open (view), so the Score slider in
   // BoardFilters reads hr_score on the HR board, hit_score on Hits, etc.,
