@@ -65,5 +65,17 @@ for (const [date, want] of [['2026-10-17', ['lamp-sog-v2', 'lamp-pts-v2', 'lamp-
   const day = { date }, at = `${date}T22:00:00Z`
   eq(`rows written for ${date}`, [toSogRow(mk(), g, day, at), toPtsRow(mk(), g, day, at), toAstRow(mk(), g, day, at), toGoalPosRow(mk(), g, day, at), toGoalWeightedRow(mk(), g, day, at), toGoal2Row(mk(), g, day, at)].map((r) => r.model_version), want)
 }
+// ── the other two last-season inputs, v4 / sog-v3: opponent shots against, and the rookie position average ──
+{
+  const { saPer60 } = await import('../lib/nhl/sogModel.js')
+  const { positionPriors } = await import('../lib/nhl/goalModel.js')
+  const cur = [{ sa: 20, toi: 600 }], prev = [{ sa: 900, toi: 60000 }]
+  eq('sa60 v3: thin current minutes fall back to last season', Math.round(saPer60(cur, prev, false)), 54)
+  eq('sa60 v4: this season only, however few minutes', Math.round(saPer60(cur, prev, true)), 120)
+  eq('sa60 v4: no current minutes = null, never last season', saPer60([], prev, true), null)
+  const lines = [{ gp: 4, pos: 'C', shots: 12, g: 2, pts: 4, a: 2, toi: 1000 }, { gp: 3, pos: 'D', shots: 6, g: 0, pts: 1, a: 1, toi: 1200 }, { gp: 2, pos: 'C', shots: 4, g: 1, pts: 1, a: 0, toi: 900 }]
+  eq('prior needs 10 GP by default (none here)', Object.keys(positionPriors(lines)).length, 0)
+  eq('prior with a 3-game floor uses this season\'s F and D lines, not the 2-game man', [positionPriors(lines, 3).F.shotsPg, positionPriors(lines, 3).D.skaters], [3, 1])
+}
 console.log(fail ? `\n${fail} FAILED` : '\nall ok')
 process.exit(fail ? 1 : 0)
