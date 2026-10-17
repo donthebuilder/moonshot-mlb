@@ -5,7 +5,7 @@ import LampTable from '../LampTable'
 import { nhlMugLatest } from '../../../lib/nhl/format'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampHotSticks } from '../../../lib/nhl/useLamp'
-import { DelayedBanner, Loading, SourceLine, StaleSeasonNote, EmptyState, fmtSec } from '../ui'
+import { DelayedBanner, Loading, StaleSeasonNote, EmptyState, fmtSec } from '../ui'
 import { PillRow } from '../../Filters'
 
 // 🔥 HOT STICKS (2026-09-27) — who is shooting more than usual. Every
@@ -83,7 +83,6 @@ export default function HotSticks({ onOpenPlayer }) {
             rowEdge={(r) => (r._playing ? C.ice : null)} onRowClick={(r) => onOpenPlayer?.(r.id)} />
         </>
       )}
-      <SourceLine>api.nhle.com/stats skater/summary, regular season (gameTypeId 2), one row per skater per game over the last {data?.windowDays || 35} days: goals, shots, timeOnIcePerGame, ppGoals; season rate from the same report aggregated. Skaters with fewer than 3 games in the window are left out. Tonight: the league scoreboard.</SourceLine>
     </div>
   )
 }

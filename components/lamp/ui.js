@@ -144,12 +144,6 @@ export function Pills({ value, onChange, options, ariaLabel }) {
   )
 }
 
-/** RETIRED 2026-10-03 (Donovan: no API names at the foot of every page) --
- *  renders nothing; the DASH footer (components/DashFooter.js) closes the page
- *  and each product's Guide says how its numbers are built. */
-export function SourceLine() {
-  return null
-}
 
 // ── hash helpers ────────────────────────────────────────────────────────────
 // LAMP's pages carry their one parameter (a date, a game id) in the same

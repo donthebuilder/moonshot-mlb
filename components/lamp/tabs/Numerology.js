@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampNumerology, useLampBoardOnce } from '../../../lib/nhl/useLamp'
-import { DelayedBanner, Loading, EmptyState, SourceLine, fmtDay } from '../ui'
+import { DelayedBanner, Loading, EmptyState, fmtDay } from '../ui'
 import TonightsNumbers from '../../numerology/TonightsNumbers'
 import LaneTable from '../../numerology/LaneTable'
 import HotNumbers from '../../numerology/HotNumbers'
@@ -81,7 +81,6 @@ export default function Numerology({ date = null, onOpenPlayer }) {
   )
   const foot = (
     <>
-      <SourceLine>Jersey: gamecenter/{'{id}'}/play-by-play rosterSpots (the posted lineup). Birth date: roster/{'{team}'}/current. Score: tonight&apos;s goal board. Date: the game day.</SourceLine>
       {/* WHICH LANES RUN HOT (numerology v2 step 6), at the bottom. */}
       {data?.date ? <div style={{ margin: '0 0 10px' }}><DayNumbers sport="nhl" date={data.date} theme={C} numFont={NUM_FONT} accent={C.ice} eventWord="goals" /></div> : null}
       <LaneTable sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} tonight={laneTonight} />

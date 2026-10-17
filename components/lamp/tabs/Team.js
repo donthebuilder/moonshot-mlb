@@ -12,7 +12,7 @@ import { useLampTeam, useLampTeamDeep, useLampBoardOnce, useLampHotSticks } from
 import { nhlTeam } from '../../../lib/nhl/teams'
 import { useTeamNav } from '../../../lib/teamNav'
 import { buildNhlTeam } from '../../../lib/team/nhl'
-import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker } from '../ui'
+import { EmptyState, DelayedBanner, Loading, Kicker } from '../ui'
 
 // 🏒 TEAM — one club, a real destination (spec §11), never a modal. 2026-10-10: it is the SHARED team page now
 // (components/team/TeamPage.js): the header (record, standing, splits, next game, last five), a one-row chips bar,
@@ -52,7 +52,6 @@ export default function Team({ abbrev, onOpenPlayer, onOpenGame, onOpenTeam = nu
       nav={{ onOpenPlayer, onOpenGame, onOpenTeam: openTeam }}
       back={<BackBtn onBack={onBack} label={backLabel} />}
       banner={<><DelayedBanner error={t ? null : error} what="this club" /><DelayedBanner error={deep ? null : deepError} what="the club’s league numbers" /></>}
-      footer={<SourceLine>Source: NHL standings/now, roster, club-stats and club-schedule-season via /api/lamp/team; api.nhle.com team/summary, powerplay and penaltykill, and our club-game xG table (lamp_team_game_xg) and goal log (lamp_goal_log) via /api/lamp/teamdeep; tonight’s board and the league’s per-game report for last 5 / last 10. Season lines are for the newest season with games in it.</SourceLine>}
     />
   )
 }

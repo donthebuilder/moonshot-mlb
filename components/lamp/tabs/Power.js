@@ -5,7 +5,7 @@ import LampTable from '../LampTable'
 import { nhlMugLatest } from '../../../lib/nhl/format'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampHotSticks } from '../../../lib/nhl/useLamp'
-import { DelayedBanner, Loading, SourceLine, StaleSeasonNote, EmptyState, fmtSec } from '../ui'
+import { DelayedBanner, Loading, StaleSeasonNote, EmptyState, fmtSec } from '../ui'
 import { Para, Num, ConvictionClause, PowerLead, LensRow } from '../../power/PowerParts'
 import { convictionOf, percentileOf } from '../../../lib/whyPick'
 import { btnStyle } from '../../ui'
@@ -115,7 +115,6 @@ export default function Power({ onOpenPlayer }) {
             onRowClick={(r) => onOpenPlayer?.(r.id)} />
         </>
       )}
-      <SourceLine>api.nhle.com/stats skater summary via /api/lamp/hotsticks (regular season). Volume needs {MIN_GP}+ games, finishing {MIN_SHOTS}+ shots on goal (under {SMALL_GP} games the page says the numbers are early); heating up compares his last 5 games with his season.</SourceLine>
     </div>
   )
 }

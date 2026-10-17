@@ -106,6 +106,17 @@ const SLATE_FREE = new Set(['boxes'])
 // repaint pass is a visible prop change rather than an invisible parent
 // re-render, and so nobody wraps this in React.memo without noticing.
 // eslint-disable-next-line no-unused-vars
+// The legacy MLB tab keys that each open a view of a shared page: key -> the view that page opens on.
+// (Data, not branches: each renders below with key={tab}, so a move between them remounts as it always did.)
+const HOME_VIEW = { scoreboard: 'board', boxes: 'boxes', atplate: 'live' }
+const HITS_VIEW = {
+  power: { initialView: 'power' }, steals: { initialView: 'steals' }, gap: { initialView: 'gap' }, triples: { initialView: 'gap' },
+  shape: { initialView: 'power', powerInitial: 'shape' }, patterns: { initialView: 'patterns' },
+  longest: { initialView: 'power', powerInitial: 'longest' }, due: { initialView: 'power', powerInitial: 'due' },
+}
+const COMBO_VIEW = { pairs: 'pairs', pools: 'pools', pairhist: 'history' }
+const YOU_VIEW = { watch: 'watch', mypicks: 'picks' }
+
 export default function Dashboard({ palettePass = 0 }) {
   const [mode, setMode] = useState('today')
   // Home is the front door now (2026-08-08) — deep links below still land
@@ -1047,7 +1058,6 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'combos'      && <Combos onNavigate={setTab} odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
             {tab === 'odds'        && <OddsBoard players={players} odds={oddsRaw} onPlayerClick={setModalPlayer} />}
             {tab === 'binder'      && <Binder sport="mlb" board={binderBoard} />}
-            {tab === 'you'         && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
 
             {/* ── ALIASES — every old key keeps landing somewhere right ───── */}
             {/* 2026-09-13: AtThePlate now lives inside Home's own view system
@@ -1062,9 +1072,7 @@ export default function Dashboard({ palettePass = 0 }) {
                 just not the landing view. Scores leads again; #tab=atplate
                 still opens straight to At the plate for that specific deep
                 link, unchanged. */}
-            {tab === 'scoreboard'  && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="board" />}
-            {tab === 'boxes'       && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="boxes" />}
-            {tab === 'atplate'     && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="live" />}
+            {Object.hasOwn(HOME_VIEW, tab) && <Home key={tab} players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial={HOME_VIEW[tab]} />}
             {/* 2026-09-25: the full board, #1 to #N, on its own page. */}
             {tab === 'storylines'  && <StorylinesPage sport="mlb" eyebrow="MOONSHOT · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.orange} onOpenGame={(pk) => { leaveTarget('game', pk); setTab('games') }} searchBox={false} keepIds={players.length < allPlayers.length ? new Set(players.map((p) => String(p?.player_id ?? p?.id))) : null} onOpenPlayer={(id) => { const p = allPlayers.find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) setModalPlayer(p) }} />}
             {tab === 'longshots'   && <Longshots sport="mlb" eyebrow="MOONSHOT · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.orange} onOpenPitcher={(pid) => { leaveTarget('pitcher', pid); setTab('pitchers') }} onOpenPlayer={(id) => { const p = allPlayers.find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) setModalPlayer(p) }} />}
@@ -1078,21 +1086,15 @@ export default function Dashboard({ palettePass = 0 }) {
                 under it — a dead URL that the 0-crashing smoke could not see,
                 because a page rendering nothing does not throw. Both are group
                 names people will type and link to. */}
-            {tab === 'power'       && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="power" />}
+            {Object.hasOwn(HITS_VIEW, tab) && <HitsHRR key={tab} players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} {...HITS_VIEW[tab]} />}
             {/* #tab=steals (2026-09-01) — the Steal Board is a group inside the
                 boards page; this lands on it directly, same shape as 'power'.
                 Not a new tab in the nav — Donovan: "unsure about the use of
                 more tabs, we have to get that under control." */}
-            {tab === 'steals'      && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="steals" />}
             {/* #tab=gap and #tab=triples (2026-09-03) — the Gap Board is a
                 group inside the boards page, same shape as 'steals'. Two
                 names route to it because 'triples' is what he asked for and
                 'gap' is what it turned out to be. */}
-            {(tab === 'gap' || tab === 'triples')      && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="gap" />}
-            {tab === 'shape'       && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="power" powerInitial="shape" />}
-            {tab === 'patterns'    && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="patterns" />}
-            {tab === 'longest'     && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="power" powerInitial="longest" />}
-            {tab === 'due'         && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="power" powerInitial="due" />}
             {/* 2026-10-07: Numerology is its own page now (Alignments, the date's numbers and the lanes),
                 no longer a view inside Parlays; #tab=align is its old key. */}
             {tab === 'numerology'  && <Alignments players={allPlayers} watchIds={watchIds} slateDate={slateDate} onPlayerClick={setModalPlayer} onBuildAround={(rows) => { queueSlipSeed(rows); setTab('props') }} />}
@@ -1109,11 +1111,8 @@ export default function Dashboard({ palettePass = 0 }) {
               bands: () => <ScoreBands />,
               archive: () => <LedgerLab players={players} allPlayers={allPlayers} slateDate={slateDate} results={resultsForSlate} onPlayerClick={setModalPlayer} />,
             }} />}
-            {tab === 'pairs'       && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="pairs" />}
-            {tab === 'pools'       && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="pools" />}
-            {tab === 'pairhist'    && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="history" />}
-            {tab === 'mypicks'     && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} initial="picks" />}
-            {tab === 'watch'       && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} initial="watch" />}
+            {Object.hasOwn(COMBO_VIEW, tab) && <Combos key={tab} odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial={COMBO_VIEW[tab]} />}
+            {Object.hasOwn(YOU_VIEW, tab) && <You key={tab} players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} initial={YOU_VIEW[tab]} />}
             {tab === 'leaders'     && <Leaders players={players} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
             {tab === 'player'      && <PlayerBoard players={players} slate={allPlayers} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} odds={odds} />}
             {tab === 'runs'        && <Runs players={allPlayers} onPlayerClick={setModalPlayer} onOpenPitcher={(pid) => { leaveTarget('pitcher', pid); setTab('pitchers') }} />}

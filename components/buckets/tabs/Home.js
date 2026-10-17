@@ -74,8 +74,8 @@ export default function Home({ today, date, setTab, onOpenPlayer, onOpenGame, on
       {(pts.data?.rows || []).length > 0 && <BucketWatch rows={pts.data.rows} date={pts.data.date} onOpenPlayer={onOpenPlayer} />}
       <StorylinesStrip sport="nba" theme={C} numFont={NUM_FONT} accent={C.purple} max={3} onOpenTeam={onOpenTeam} onSeeAll={() => setTab?.('storylines')} onOpenPlayer={(id) => onOpenPlayer?.(String(id))} />
       {/* WAVE 2 (2026-10-11): the Players / Teams / Leaders door row sat above the games (first row y 1,211); it now follows them. */}
-      <nav aria-label="Players, teams and leaders" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: -6 }}>
-        {['players', 'teams', 'leaders'].map((k) => (
+      <nav aria-label="Players, standings and leaders" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: -6 }}>
+        {['players', 'standings', 'leaders'].map((k) => (
           <button key={k} type="button" onClick={() => setTab?.(k)} style={link}>{NBA_NAV[k]?.icon} {NBA_NAV[k]?.label} ›</button>
         ))}
       </nav>

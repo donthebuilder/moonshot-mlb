@@ -4,7 +4,7 @@ import PageHeader from '../../PageHeader'
 import BucketsTable from '../BucketsTable'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsHot } from '../../../lib/nba/useBuckets'
-import { DelayedBanner, Loading, SourceLine, EmptyState, LastSeasonNote, DayPager, fmtDay } from '../ui'
+import { DelayedBanner, Loading, EmptyState, LastSeasonNote, DayPager, fmtDay } from '../ui'
 import { Para, Num, ConvictionClause, PowerLead, LensRow } from '../../power/PowerParts'
 import { convictionOf, percentileOf } from '../../../lib/whyPick'
 import { btnStyle } from '../../ui'
@@ -111,7 +111,6 @@ export default function Power({ date, setDate, onOpenPlayer, onOpenTeam }) {
             caption={`${lens.label}: ${lens.tag}. Column headers sort; each row opens that player.`} />
         </>
       )}
-      <SourceLine>Source: each player’s ESPN game log, regular season and playoffs (/api/buckets/hot). Scoring and per minute need {MIN_GP}+ games, heating up {HEAT_GP}+; rotation = 15+ minutes a game. Under {SMALL_GP} games the page says the numbers are early.</SourceLine>
     </div>
   )
 }

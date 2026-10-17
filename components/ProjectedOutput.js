@@ -233,7 +233,7 @@ export default function ProjectedOutput({ games = [], players: allPlayers = [], 
       barsTitle={<>Proj HR by {by === 'game' ? 'game' : 'team'} — tonight&apos;s power, top to bottom</>}
       barsFoot={<>Bar length is Proj HR{pens ? <>; the <span style={{ color: C.amber }}>tick</span> marks Adj HR once the opposing pens load</> : ''} — same numbers as the table below, ordered top to bottom instead of read cell by cell.</>}
       footnote={<>
-        PROJ HR IS A TEAM MODEL (2026-10-08) — each club&apos;s season home-run rate per plate appearance
+        PROJ HR IS A TEAM MODEL — each club&apos;s season home-run rate per plate appearance
         (pulled toward the league average, hard early in the year), its expected plate appearances, the
         opposing starter&apos;s HR-allowed rate (also shrunk), the park&apos;s HR factor at half weight and the
         published weather effect. It does not depend on which hitters are on the sheet. Adj HR is the same

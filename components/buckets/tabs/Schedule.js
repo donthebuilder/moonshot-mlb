@@ -4,7 +4,7 @@ import { MatchLogos } from '../../TeamMark'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsSchedule } from '../../../lib/nba/useBuckets'
 import BucketsTable from '../BucketsTable'
-import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, NavBtn, RimDot, SeasonTypeChip, fmtDay, fmtTip, zoneAbbrev } from '../ui'
+import { EmptyState, DelayedBanner, Loading, Kicker, NavBtn, RimDot, SeasonTypeChip, fmtDay, fmtTip, zoneAbbrev } from '../ui'
 
 // 📅 SCHEDULE -- the league week, day by day (LAMP's Schedule): tip times in
 // the viewer's zone, finals with the score, a row a game that opens it. The
@@ -42,7 +42,6 @@ export default function Schedule({ date, setDate, onOpenGame, onOpenTeam }) {
             caption={`${fmtDay(d.date)}: each row opens the game; a club opens its page.`} />
         </section>
       ))}
-      <SourceLine>Source: ESPN’s NBA scoreboard, one read a day (/api/buckets/schedule).</SourceLine>
     </div>
   )
 }

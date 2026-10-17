@@ -27,7 +27,7 @@ import { alpha } from '../../../lib/scales'
 import { useLampBoard, useLampGoalieWeakMany } from '../../../lib/nhl/useLamp'
 import { useRankMove } from '../../../lib/useRankMove'
 import { RankMoveNote } from '../../RankMove'
-import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, StaleSeasonNote, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, shiftDay, STATUS, CalledChip, readHashParam, writeHashParam } from '../ui'
+import { TeamMark, EmptyState, DelayedBanner, Loading, Kicker, GameTypeChip, LampDot, StaleSeasonNote, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, shiftDay, STATUS, CalledChip, readHashParam, writeHashParam } from '../ui'
 import { withNhlFullSet, weakZoneCell, weakZoneColumn, WEAK_ZONE_KEY } from '../../../lib/nhl/boardColumns'
 import { useWhySheet, whyColumn } from '../../WhySheet'
 import { MatchLogos } from '../../TeamMark'
@@ -391,7 +391,6 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
           </MobileFold>
         </div>
       )}
-      <SourceLine>Where this comes from: the NHL’s own player and team stats (this season and last), the posted lineups, and the final box scores for grading. A locked row is never rewritten.</SourceLine>
     </div>
   )
 }

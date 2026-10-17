@@ -10,7 +10,7 @@ import dynamic from 'next/dynamic'
 
 // the 3D court loads only when opened (next/dynamic, as the other 3D views)
 const CourtArena = dynamic(() => import('../CourtArena'), { ssr: false })
-import { DelayedBanner, Loading, SourceLine, EmptyState, Pills, NavBtn, readHashParam, writeHashParam } from '../ui'
+import { DelayedBanner, Loading, EmptyState, Pills, NavBtn, readHashParam, writeHashParam } from '../ui'
 
 // 🎯 SHOT MAP -- where a club or a player shoots from: every field-goal
 // attempt on file (buckets_shots, the play-by-play backfill), by zone. The
@@ -75,7 +75,6 @@ export default function ShotMap({ onOpenPlayer, onOpenTeam }) {
           {three ? <div style={{ marginTop: 8 }}><CourtArena shots={shots} names={{}} title={mode === 'team' ? team : (pname || 'Shot map')} /></div> : null}
         </div>
       )}
-      <SourceLine>/api/buckets/shots reads buckets_shots in pages of 1,000, in a fixed order, so every attempt is counted once.</SourceLine>
     </div>
   )
 }

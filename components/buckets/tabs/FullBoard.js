@@ -7,7 +7,7 @@ import { useBucketsBoard, useBucketsExpected } from '../../../lib/nba/useBuckets
 import { NBA_MARKETS, LEG_LABEL, fmtLeg, RAW_OF } from '../../../lib/nba/legs'
 import BucketsTable from '../BucketsTable'
 import { faceOf, XPTS_TITLE } from '../boardTable'
-import { EmptyState, DelayedBanner, Loading, SourceLine, DayPager, Why, fmtDay, fmtTip } from '../ui'
+import { EmptyState, DelayedBanner, Loading, DayPager, Why, fmtDay, fmtTip } from '../ui'
 
 // 📋 BOARDS -- every player the model rated that night, every market side by
 // side (MOONSHOT's fullboard, LAMP's Rankings). One row a player; each market
@@ -88,7 +88,6 @@ export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onO
           initialSort={{ key: 's_pts', dir: 'desc' }} heatMode="sorted" maxHeight={620} maxRows={Math.max(rows.length, 1)}
           caption="Every rated player, every market. Column headers sort; each row opens that player; the team and opponent open the club." />
       )}
-      <SourceLine>Every market side by side. First basket scores the starters only, once the pre-tip box score lists them.</SourceLine>
     </div>
   )
 }

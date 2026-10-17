@@ -3,7 +3,7 @@ import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampSchedule } from '../../../lib/nhl/useLamp'
 import LampTable from '../LampTable'
-import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, GameTypeChip, LampDot, fmtDay, fmtPuckDrop, zoneAbbrev } from '../ui'
+import { TeamMark, EmptyState, DelayedBanner, Loading, GameTypeChip, LampDot, fmtDay, fmtPuckDrop, zoneAbbrev } from '../ui'
 
 // 🏒 SCHEDULE — the league week, day by day. Football's unit is a week and
 // baseball's is a night; hockey's is both, so this page is the week and
@@ -80,7 +80,6 @@ export default function Schedule({ onOpenGame, date = null, setDate = () => {} }
             ]} />
         </section>
       ))}
-      <SourceLine>Source: NHL (api-web.nhle.com) schedule/{'{date}'}, read server-side by /api/lamp/schedule, cached five minutes.</SourceLine>
     </div>
   )
 }
