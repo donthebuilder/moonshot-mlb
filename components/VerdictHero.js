@@ -99,7 +99,7 @@ export function VerdictBadge({ label, col, quiet }) {
   const { C, NUM_FONT } = useT()
   return (
     <span style={{
-      flexShrink: 0, fontSize: 8.5, fontWeight: 900, letterSpacing: '.07em',
+      flexShrink: 0, fontSize: 11, fontWeight: 900, letterSpacing: '.07em',
       padding: '3px 8px', borderRadius: 999, whiteSpace: 'nowrap',
       color: quiet ? C.text3 : col,
       border: `1px solid ${quiet ? C.border2 : alpha(col, 0.55)}`,
@@ -299,7 +299,7 @@ export default function VerdictHero({
               under the name is the same word twice, four inches apart. */}
           {market && !badgeLeads && (
             <div style={{
-              fontSize: 8.5, fontWeight: 900, letterSpacing: '.11em',
+              fontSize: 11, fontWeight: 900, letterSpacing: '.11em',
               textTransform: 'uppercase', color: col,
             }}>{market}</div>
           )}
@@ -325,7 +325,7 @@ export default function VerdictHero({
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {chips.map((c) => (
             <span key={c.t} style={{
-              fontSize: 8.5, fontWeight: 800, letterSpacing: '.03em', padding: '3px 8px',
+              fontSize: 11, fontWeight: 800, letterSpacing: '.03em', padding: '3px 8px',
               borderRadius: 999, whiteSpace: 'nowrap',
               color: c.warn ? C.text : C.text2,
               border: `1px solid ${c.warn ? C.border2 : alpha(col, 0.3)}`,
@@ -350,7 +350,7 @@ export default function VerdictHero({
         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
           {factsShown.map((f, i) => (
             <span key={`${f}-${i}`} style={{
-              fontSize: 8.5, fontWeight: 700, letterSpacing: '.02em', padding: '3px 8px',
+              fontSize: 11, fontWeight: 700, letterSpacing: '.02em', padding: '3px 8px',
               borderRadius: 999, whiteSpace: 'nowrap', fontFamily: NUM_FONT,
               color: C.text3, border: `1px solid ${C.border}`, background: C.glass,
             }}>{f}</span>
