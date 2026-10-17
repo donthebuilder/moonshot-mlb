@@ -10,8 +10,7 @@ import StoryRow, { StoryParts, BoardBadge } from './StoryRow'
 import { localDayTime } from '../lib/localTime'
 import Fold from './Fold'
 import { ShowMoreButton } from './ListPreview'
-import { useStoryLock, useLockOf } from './MemberGate'
-import { GatedCallBadge } from './CallStatusBadge'
+import { useStoryLock, useLockOf, HiddenCalledLine } from './MemberGate'
 
 // 📰 STORYLINES, BY GAME (BATCH-STORYLINES-PAGE step 2, 2026-09-27). One page,
 // all three products (theme / number font / accent come in as props). Reads
@@ -152,7 +151,6 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
         const all = open.has(g.game_id)
         const calledRows = rows.filter((s) => s.board?.status === 'called')
         const called = [...new Map(calledRows.filter((s) => !lockedNow({ status: 'called', ...lockOf(s) }).locked).map((s) => [s.player_id, s.name])).values()]
-        const calledLocked = calledRows.find((s) => lockedNow({ status: 'called', ...lockOf(s) }).locked)
         return (
           <section key={g.game_id} aria-label={`${g.away} at ${g.home}`} style={{ border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2, padding: '10px 12px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
@@ -160,7 +158,7 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
               <span style={{ color: g.state === 'live' ? accent : C.text3, fontSize: 11, fontFamily: numFont }}>{g.state === 'live' ? 'LIVE' : g.state === 'final' ? 'FINAL' : timeOf(g.start)}</span>
               <span style={{ marginLeft: 'auto', color: C.text3, fontSize: 11 }}>{rows.length} {rows.length === 1 ? 'story' : 'stories'}</span>
             </div>
-            {called.length || calledLocked ? <div style={{ marginTop: 3, fontSize: 11, color: C.text2 }}>{called.length ? <><span style={{ color: accent, fontWeight: 800, fontFamily: numFont, fontSize: 10 }}>CALLED</span> {called.join(' · ')}</> : null}{calledLocked ? <>{called.length ? ' · ' : ''}<GatedCallBadge status="called" lockIn={lockOf(calledLocked)} accent={accent} theme={C} numFont={numFont} size={10} /></> : null}</div> : null}
+            {called.length ? <div style={{ marginTop: 3, fontSize: 11, color: C.text2 }}><span style={{ color: accent, fontWeight: 800, fontFamily: numFont, fontSize: 10 }}>CALLED</span> {called.join(' · ')}</div> : null}
             {/* A started game shows only what was frozen before it (the record began 09-27). */}
             {!rows.length ? <div style={{ marginTop: 6, fontSize: 12, color: C.text3 }}>{g.state !== 'pre' && !g.frozenCount ? 'Nothing was frozen before this one started, so nothing is shown — a story written after the first pitch / kickoff / puck drop would be hindsight.' : 'No storylines for this one.'}</div> : null}
             <div style={{ marginTop: 4 }}>
@@ -187,6 +185,7 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
           </section>
         )
       })}
+      <HiddenCalledLine n={lockOf.hidden} C={C} NUM_FONT={numFont} />
       {previewGames ? (() => {
         const visible = ordered.filter((g) => !(filtering && !shown.some((s) => s.game_id === g.game_id)))
         return visible.length > previewGames

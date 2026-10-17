@@ -6,18 +6,28 @@
 import { useState } from 'react'
 import CallStatusBadge from './CallStatusBadge'
 import Tap from './Tap'
+import { useLockOf, HiddenCalledLine } from './MemberGate'
 
 /**
  * @param w        a write-up (buildWriteup)
  * @param theme    { C, NUM_FONT, TYPE, accent }
  * @param words    { status(w), meta(p), numbers(p) } -> strings
  * @param onOpen   (p) => void, opens the player
+ * @param lockIn   optional (p) => { key, time, graded? }: the members gate (2026-10-16). A CALLED player a non-member may not read is left out, with the rest of the write-up
+ *                 (its lines can name him); one count line says how many are for members. Absent, or any other viewer: unchanged.
  * @param depth    optional { player(p) => node, game: node } the sport's deeper sections, drawn only while the full write-up is open
  */
-export default function GameWriteupBlock({ w, theme, words, onOpen, depth = null }) {
+export default function GameWriteupBlock({ w, theme, words, onOpen, depth = null, lockIn = null }) {
   const { C, NUM_FONT, TYPE, accent: ACCENT } = theme
   const [open, setOpen] = useState(false)
+  const lockOf = useLockOf()
   if (!w || !w.players.length) return null
+  const hiddenN = lockIn ? w.players.filter((p) => lockOf({ status: p.status, ...lockIn(p) }).locked).length : 0
+  if (hiddenN > 0) {
+    const shown = w.players.filter((p) => !lockOf({ status: p.status, ...lockIn(p) }).locked)
+    w = { ...w, players: shown, game: [], bottom: [], noCall: [], footer: '' }
+    depth = null
+  }
   const Kicker = ({ children }) => (
     <div style={{ font: `800 ${TYPE.micro}px/1 ${NUM_FONT}`, letterSpacing: '.1em', color: C.text3, margin: '8px 0 4px' }}>{children}</div>
   )
@@ -46,6 +56,7 @@ export default function GameWriteupBlock({ w, theme, words, onOpen, depth = null
           {open && depth?.player && depth.player(p)}
         </div>
       ))}
+      {hiddenN > 0 && <HiddenCalledLine n={hiddenN} C={C} NUM_FONT={NUM_FONT} style={{ marginTop: 6 }} />}
       {open && (<>
         {w.game.length > 0 && (<><Kicker>THE GAME</Kicker>{w.game.map((l) => <div key={l.t} title={l.src} style={{ fontSize: TYPE.body, color: C.text2 }}>{l.t}</div>)}</>)}
         {depth?.game}
@@ -54,10 +65,10 @@ export default function GameWriteupBlock({ w, theme, words, onOpen, depth = null
         <div style={{ marginTop: 8, fontSize: TYPE.micro, color: C.text3 }}>{w.footer}</div>
       </>)}
       {!open && w.noCall.map((n) => <div key={n.team} style={{ marginTop: 8, fontSize: TYPE.body, color: C.text3 }}>{w.bottom.find((l) => l.t.startsWith(`${n.team}:`))?.t}</div>)}
-      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
+      {hiddenN === 0 && <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
         style={{ marginTop: 6, minHeight: 44, padding: '0 2px', border: 0, background: 'transparent', color: ACCENT, font: `800 ${TYPE.micro}px/1 ${NUM_FONT}`, letterSpacing: '.06em', cursor: 'pointer' }}>
         {open ? 'SHOW LESS' : 'THE FULL WRITE-UP ›'}
-      </button>
+      </button>}
     </section>
   )
 }

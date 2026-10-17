@@ -11,6 +11,7 @@
 // each called player's name, status, score and two reasons; the full write-up
 // (watch-outs, price, bottom line) one tap down, so the first useful row on the
 // game page doesn't move far.
+import { useLockOf, HiddenCalledLine } from '../MemberGate'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { buildNflWriteup } from '../../lib/writeups/build'
@@ -92,11 +93,19 @@ function CallsStrip({ cards, onPlayerClick, onOpenTeam }) {
   )
 }
 
-export default function WriteupBlock({ game, gameCalls, week, matchup, logs, odds, onPlayerClick, onOpenTeam = null, extras = [] }) {
+export default function WriteupBlock({ game, gameCalls, week, matchup, logs, odds, onPlayerClick, onOpenTeam = null, extras: extrasIn = [] }) {
   const totals = useTotals(gameCalls?.season)
   const [open, setOpen] = useState(false)
   const g = useMemo(() => (gameCalls?.games || []).find((x) => String(x.game_id) === String(game?.game_id)) || null, [gameCalls, game?.game_id])
-  const w = useMemo(() => (g ? buildNflWriteup(g, { week, totals, matchup, logs, odds }) : null), [g, week, totals, matchup, logs, odds])
+  const w0 = useMemo(() => (g ? buildNflWriteup(g, { week, totals, matchup, logs, odds }) : null), [g, week, totals, matchup, logs, odds])
+  // MEMBERS GATE (2026-10-16, components/MemberGate.js): a CALLED player a non-member may not read is left out, with the lines that can name him (the game and bottom
+  // lines, the full write-up); one count line says how many are for members. Members, unknown membership, started games: unchanged.
+  const lockOf = useLockOf()
+  const kick = g?.kickoff ? Date.parse(g.kickoff) : null
+  const isHidden = (x) => x.status === 'called' && lockOf({ status: 'called', key: String(x.player_id), time: kick }).locked
+  const hiddenN = (w0 ? w0.players.filter(isHidden).length : 0) + extrasIn.filter(isHidden).length
+  const w = hiddenN > 0 && w0 ? { ...w0, players: w0.players.filter((p) => !isHidden(p)), game: [], bottom: [], noCall: [], footer: '' } : w0
+  const extras = hiddenN > 0 ? extrasIn.filter((e) => !isHidden(e)) : extrasIn
   const head = (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 2 }}>
       <span style={{ font: `900 12px/1 ${NUM_FONT}`, letterSpacing: '.12em', color: C.green }}>OUR CALLS</span>
@@ -160,6 +169,7 @@ export default function WriteupBlock({ game, gameCalls, week, matchup, logs, odd
           </div>
         )
       })}
+      {hiddenN > 0 && <HiddenCalledLine n={hiddenN} C={C} NUM_FONT={NUM_FONT} style={{ marginTop: 4 }} />}
       {open && (<>
         {w.game.length > 0 && (<><Kicker>THE GAME</Kicker>{w.game.map((l) => <div key={l.t} title={l.src} style={{ fontSize: 13, color: C.text2 }}>{l.t}</div>)}</>)}
         <Kicker>BOTTOM LINE</Kicker>
@@ -167,10 +177,10 @@ export default function WriteupBlock({ game, gameCalls, week, matchup, logs, odd
         <div style={{ marginTop: 8, fontSize: 12, color: C.text3 }}>{w.footer}</div>
       </>)}
       {!open && w.noCall.map((n) => <div key={n.team} style={{ marginTop: 8, fontSize: 13, color: C.text3 }}>{w.bottom.find((l) => l.t.startsWith(`${n.team}:`))?.t}</div>)}
-      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
+      {hiddenN === 0 && <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
         style={{ marginTop: 2, minHeight: 44, padding: '0 2px', border: 0, background: 'transparent', color: C.green, font: `800 13px/1 ${NUM_FONT}`, letterSpacing: '.04em', cursor: 'pointer' }}>
         {open ? 'SHOW LESS' : 'THE FULL WRITE-UP ›'}
-      </button>
+      </button>}
     </section>
   )
 }

@@ -21,5 +21,6 @@ export default function NhlWriteupBlock({ game, onOpenPlayer }) {
     player: (p) => { const row = (game.rows || []).find((r) => String(r.playerId) === String(p.player_id)); return row ? <PlayerDepth key={p.player_id} row={row} game={game} scope="game" /> : null },
     game: <GameDepth game={game} />,
   }), [game])
-  return <GameWriteupBlock w={w} theme={THEME} words={WORDS} depth={depth} onOpen={onOpenPlayer ? (p) => onOpenPlayer(p.player_id) : null} />
+  const lockIn = (p) => ({ key: `${game.game?.id}|${p.player_id}`, time: game.game?.startUtc ?? null, graded: Boolean(game.graded) })   // members gate: the goal board's own key
+  return <GameWriteupBlock w={w} theme={THEME} words={WORDS} depth={depth} lockIn={lockIn} onOpen={onOpenPlayer ? (p) => onOpenPlayer(p.player_id) : null} />
 }

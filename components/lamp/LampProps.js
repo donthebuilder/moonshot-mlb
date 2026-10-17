@@ -50,6 +50,7 @@ function lampAdapter(season, odds) {
     score: (r, k) => { const x = rowOf(r, k); return Number.isFinite(x?.score) ? x.score : null },
     idOf: (r) => String(r.id),
     keyOf: (r) => `${r.id}-${r.gameId}`,
+    lockKey: (r) => `${r.gameId}|${r.id}`,   // the goal board's own key (members gate)
     card: (r, k) => {
       const x = rowOf(r, k) || {}
       const legs = x.legs || {}

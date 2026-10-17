@@ -14,6 +14,8 @@ import MlbTeamMark from '../MlbTeamMark'
 import PropsSheet from '../PropsSheet'
 import { useIsPhone } from '../MobileFold'
 import PropCards from '../props/PropCards'
+import { useLockOf } from '../MemberGate'
+import { isCalledRole } from '../../lib/callStatus'
 import { pairNotes, partners as slipPartners, isHrLeg } from '../../lib/slipPairs'
 
 // ══ PROPS GRID — THE MOBILE PILOT PAGE ══════════════════════════════════════
@@ -185,6 +187,8 @@ function mlbAdapter(odds, pairSummary = null) {
     score: (r, k) => verdictFor(k).score(r),
     idOf: playerId,
     keyOf: (r) => `${r.player_id}-${r.game_pk}`,
+    lockKey: (r) => `${playerId(r)}|${r.game_pk ?? ''}`,   // the Rankings board's own key (members gate)
+    gradedOf: (r) => r?.graded === true,
     // The card wears the market you are BROWSING (the group's own key).
     card: (r, role) => {
       const v = verdictFor(role)
@@ -270,14 +274,19 @@ export default function PropsGrid({ players = [], odds = null, pairSummary = nul
     return () => window.removeEventListener('hashchange', read)
   }, [isPhone, players])
   const a = useMemo(() => mlbAdapter(odds, pairSummary), [odds, pairSummary])
+  // MEMBERS GATE (2026-10-16): PropCards counts the free four and hides a CALLED pick's market from a non-member; the two other readers of the badge on this page (Compare two
+  // picks, the phone sheet) get the same hitter with his designation blanked, so neither names him as called. The same key, the same shared free four.
+  const lockOf = useLockOf()
+  const hidePick = (p) => (p && isCalledRole(p.game_pick_role) && lockOf({ status: 'called', key: `${playerId(p)}|${p.game_pk ?? ''}`, time: p.game_time, graded: p.graded === true }).locked ? { ...p, game_pick_role: '' } : p)
+  const comparePlayers = useMemo(() => players.map(hidePick), [players, lockOf])   // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <>
       <PropCards a={a} rows={players} onOpen={openCard} onWatch={onWatch} watchIds={watchIds}
-        compare={<PickCompare players={players} odds={odds} onPlayerClick={onPlayerClick} />}
+        compare={<PickCompare players={comparePlayers} odds={odds} onPlayerClick={onPlayerClick} />}
         theme={C} accent={C.orange} />
       {sheet && (
         <PropsSheet
-          player={sheet}
+          player={hidePick(sheet)}
           odds={odds}
           onClose={closeSheet}
           onFullResearch={(p) => { setSheet(null); writeSheet('', false); onPlayerClick?.(p) }}

@@ -534,7 +534,7 @@ function lampSlateColumns(g, market = 'GOAL', onOpenTeam, gateOf = null) {
         const n = countOf(row, market)
         return <>{row.status === 'called' ? <CalledChip /> : null}<span style={{ color: row.hit ? C.ice : C.text3, font: `900 13px/1 ${NUM_FONT}` }}>{n == null ? '\u2014' : <>{row.hit && <LampDot />}{n}</>}</span></>
       } }]
-    : [{ answers: 'called', key: 'result', label: 'STATUS', cset: 'lean', heat: false, w: 104, group: G.call, fmt: (v, r) => (r._row.status === 'called' ? <CalledChip gate={gateOf ? gateOf(r) : null} /> : <span style={{ color: C.text3, font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>{STATUS[r._row.status]}</span>) }]
+    : [{ answers: 'called', key: 'result', label: 'STATUS', cset: 'lean', heat: false, w: 104, group: G.call, fmt: (v, r) => (r._row.status === 'called' && !lampLocked(gateOf, r) ? <CalledChip /> : <span style={{ color: C.text3, font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>{STATUS[r._row.status === 'called' ? 'board' : r._row.status]}</span>) }]
   return [
     { key: 'rank', label: '#', heat: false, mono: true, w: 30, group: G.call,
       fmt: (v, r) => (r.status === 'called' && !lampLocked(gateOf, r)

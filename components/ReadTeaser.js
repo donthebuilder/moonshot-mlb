@@ -4,7 +4,8 @@ import { C, NUM_FONT } from '../lib/theme'
 import { hr9Color } from '../lib/hr9'
 import { oddsPaths } from '../lib/dataSource'
 import { quoteFor, fmtOdds, impliedPct, oddsLooksReal } from '../lib/odds'
-import { nameOf, teamOf, oppOf, clean } from '../lib/player'
+import { nameOf, teamOf, oppOf, clean, playerId } from '../lib/player'
+import { useLockOf } from './MemberGate'
 import { GameTap } from './EntityTap'
 import { whyPick, standingPhrase, convictionOf, heroCall, outClearedBy } from '../lib/whyPick'
 
@@ -143,9 +144,13 @@ export default function ReadTeaser({ players = [], odds: oddsProp = null, onNavi
   const odds = oddsProp || fetched
 
   const read = useMemo(() => callOfTheNight(players), [players])
+  // MEMBERS GATE (2026-10-16): the call of the night is a CALLED pick. A non-member outside the boards' free four gets no teaser at all (not a hint of who), and a
+  // locked "worth knowing" name is left off; members and unknown membership: unchanged.
+  const lockOf = useLockOf()
+  const lockedPick = (q) => !!q && lockOf({ status: 'called', key: `${playerId(q)}|${q?.game_pk ?? ''}`, time: q?.game_time, graded: q?.graded === true }).locked
   const hero = read?.hero
-  const outclear = read?.outclear || null
-  if (!hero) return null
+  const outclear = read?.outclear && !lockedPick(read.outclear.p) ? read.outclear : null
+  if (!hero || lockedPick(hero.p)) return null
 
   const p = hero.p
   const hr9 = num(p?.pitcher_hr9)

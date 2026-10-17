@@ -6,6 +6,8 @@ import { useIsPhone } from '../MobileFold'
 import { asLogos } from '../TeamMark'
 import { TeamTap } from '../EntityTap'
 import { TYPE } from '../../lib/theme'
+import { useCallGate, HiddenCalledLine } from '../MemberGate'
+import { lockedFor } from '../../lib/members/gate'
 
 // THE HEADLINE PICKS, ONE LAYOUT FOR EVERY PRODUCT (2026-09-27,
 // BATCH-HEADLINE-PICKS step 1). Lifted out of components/BotPicksStrip.js
@@ -38,7 +40,18 @@ import { TYPE } from '../../lib/theme'
 // cols: { wide, mid } -- an even grid instead of auto-fit (which left
 //   MOONSHOT's CONTACT alone on a second row): `wide` lanes across from
 //   1100px, `mid` from 561px, one column on a phone. Omitted -> auto-fit.
-export default function HeadlinePicks({ theme, numFont, title, subtitle, record = null, lanes = [], onPick, whatThis = null, collapsePhone = false, gridClass = 'bot-picks-grid', cols = null, foldWhy = false, sport = null }) {
+export default function HeadlinePicks({ theme, numFont, title, subtitle, record = null, lanes: lanesProp = [], onPick, whatThis = null, collapsePhone = false, gridClass = 'bot-picks-grid', cols = null, foldWhy = false, sport = null }) {
+  // MEMBERS GATE (2026-10-16): lanes are every product's CALLED picks. A pick may carry lock = { key, time, graded? } (the sport's board key and his game's start);
+  // the free taste is counted over the lanes' picks in order, shared with the boards, and a pick a non-member may not read is left out of the lane and counted
+  // in the one line under it. Picks without a lock (BUCKETS) and everyone who is not a confirmed non-member: the lanes exactly as handed in.
+  const lanesIn = lanesProp
+  let lanes
+  const gateOf = useCallGate({
+    rows: () => lanesIn.flatMap((l) => (l.picks || []).filter((p) => p.lock)), source: lanesIn,
+    statusOf: () => 'called', keyOf: (p) => p.lock.key, timeOf: (p) => p.lock.time, gradedOf: (p) => Boolean(p.lock.graded),
+  })
+  const hiddenPick = (p) => { if (!gateOf || !p.lock) return false; const g = gateOf(p); return lockedFor({ status: 'called', started: g.started, graded: g.graded, key: g.key, free: g.free, memberState: 'free' }) }
+  lanes = gateOf ? lanesIn.map((l) => ({ ...l, picks: (l.picks || []).filter((p) => !hiddenPick(p)) })) : lanesIn
   const C = theme
   const NUM_FONT = numFont
   const [open, setOpen] = useState(() => new Set())
@@ -224,6 +237,7 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
         })}
       </div>
 
+      {gateOf && <HiddenCalledLine n={gateOf.hidden} C={C} NUM_FONT={NUM_FONT} style={{ marginTop: 4 }} />}
       {whatThis && (
         <WhatThis label={whatThis.label} maxWidth={720}>
           {whatThis.body}
