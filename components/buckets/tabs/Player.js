@@ -34,6 +34,7 @@ import SeasonToggle from '../../nfl/SeasonToggle'
 import { TabBtn, Navigator } from '../../card/CardNav'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
+import { useCardLock, useCallMask, useMemberState, CardLockLine } from '../../MemberGate'
 import { hashParams, writeHash, cardViewPush } from '../../../lib/urlState'
 import { playerHref } from '../../../lib/routes'
 import { DETAIL_MARK, PEEK_MARK, VIEWS_KEY } from '../../../lib/useShellRoute'
@@ -154,7 +155,18 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
   const [moreOpen, setMoreOpen] = useState(false)   // the folded More section (as MOONSHOT's 10-17 trim), closed until tapped
   const [compareOpen, setCompareOpen] = useState(false)
   const { data: odds } = useLiveFetch('/api/odds/latest?sport=nba')
-  const whyLine = row ? (row.status === 'off' && row.reason ? `Not on the board: ${row.reason}` : row.why || null) : null
+  // MEMBERS (2026-10-17, as LAMP's and TUDDY's cards): a free viewer sees tonight's NOT-STARTED called pick as plain ON THE BOARD, no score, no why. Same key as the
+  // slate's (`${game id}|${playerId}`), the game's own tip, its final flag. Graded results are public; an unknown viewer is a member (fail open); the free four
+  // are the boards' (this sport's board publishes none yet, so a free viewer's card locks every called pick).
+  const lockIn = row ? { key: `${row.gameId}|${row.playerId}`, time: game?.start || null, graded: game?.state === 'final' } : null
+  const nonMember = useMemberState() === 'free'
+  const cl = useCardLock({ status: row?.status || null, key: lockIn?.key, time: lockIn?.time, graded: lockIn?.graded })
+  const locked = Boolean(lockIn) && cl.locked
+  const shownRow = locked ? { ...row, status: 'board', score: null, rank: null, nightRank: null, nightOf: null, pct: null, legs: null, why: null, reason: null, hit: null, actual: null } : row
+  const whyLine = shownRow ? (shownRow.status === 'off' && shownRow.reason ? `Not on the board: ${shownRow.reason}` : shownRow.why || null) : null
+  // ⚖ the compare sheet's rows: the call fields of every locked man taken off for a non-member
+  const { mask } = useCallMask({ statusOf: (r) => r.status, keyOf: (r) => `${r.gameId}|${r.playerId}`, timeOf: (r) => (board?.games || []).find((g) => g.id === r.gameId)?.start || null, gradedOf: (r) => (board?.games || []).find((g) => g.id === r.gameId)?.state === 'final', strip: ['status', 'score', 'rank', 'nightRank', 'pct', 'legs', 'why', 'reason'] })
+  const compareRows = useMemo(() => mask(board?.rows || []), [board, mask])
   const meta2 = [card.pos, card.height, card.weight, row?.starter === true ? 'Starter' : null, card.status && card.status !== 'Active' ? card.status : null].filter(Boolean).join(' · ')
   // the price, subtle, at the end of the matchup line: only when the book quotes the same bar the call has to clear (lib/nba/oddsQuote.js)
   const ptsQuote = nbaQuote(odds, pid, 'pts')
@@ -215,8 +227,8 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: onBack ? 'space-between' : 'flex-end', gap: 8 }}>
           {onBack ? <BackBtn onBack={onBack} label={backLabel} /> : null}
           <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6, minWidth: 0 }}>
-            {row && <CardFlip sport="nba" id={String(card.id)} name={card.name} />}
-            <ShareCardButton sport="nba" what="his card" url={shareUrl({ kind: 'pick', sport: 'nba', id: card.id, market: 'pts', date: board?.date || null })} filename={`${slug(card.name, 'player')}_${stamp(board?.date)}.png`} />
+            {row && !locked && <CardFlip sport="nba" id={String(card.id)} name={card.name} />}
+            {!locked && <ShareCardButton sport="nba" what="his card" url={shareUrl({ kind: 'pick', sport: 'nba', id: card.id, market: 'pts', date: board?.date || null })} filename={`${slug(card.name, 'player')}_${stamp(board?.date)}.png`} />}
             {peers.length > 1 && (
               <button type="button" onClick={() => setCompareOpen(true)} title="Compare this player against another on tonight’s board" aria-label="Compare two players"
                 style={{ minWidth: 44, minHeight: 44, background: 'transparent', border: `1px solid ${C.border2}`, color: C.text2, borderRadius: 7, fontSize: 14, lineHeight: 1, cursor: 'pointer' }}>⚖</button>
@@ -235,14 +247,14 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
         <VerdictHero
           style={{ marginBottom: 0 }} theme={C} numFont={NUM_FONT}
           photo={card.headshot || null}
-          col={row?.score != null ? C.purple : C.text3}
-          score={row?.score ?? null}
+          col={shownRow?.score != null ? C.purple : C.text3}
+          score={shownRow?.score ?? null}
           title={<>
             {card.jersey ? <span style={{ color: C.text3, fontWeight: 700, fontFamily: NUM_FONT }}>#{card.jersey} </span> : null}
             <a href={playerHref('nba', pid)} style={{ color: 'inherit', textDecoration: 'none' }}>{card.name}</a>
             <PlayerInjuryChip who={{ player_id: card.id, name: card.name, team: card.team }} />
           </>}
-          badge={row ? ptsMarket.label : 'NO GAME'} badgeQuiet={!row || row.status !== 'called'}
+          badge={row ? ptsMarket.label : 'NO GAME'} badgeQuiet={!shownRow || shownRow.status !== 'called'}
           meta={<>
             {card.team ? <Tap onClick={onOpenTeam ? () => onOpenTeam(card.team) : null} title={`Open ${card.team}`}><TeamMark sport="nba" abbr={card.team} variant="logo" px={14} /> {card.team}</Tap> : null}
             {oppTxt ? <>{' '}{row?.home ?? data.nextGame?.home ? 'vs' : '@'}{' '}<Tap onClick={onOpenTeam ? () => onOpenTeam(row?.opp || data.nextGame?.opp) : null} title={`Open ${row?.opp || data.nextGame?.opp}`}>{row?.opp || data.nextGame?.opp}</Tap></> : null}
@@ -259,7 +271,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
           : card.age ? <div style={{ color: C.text3, fontSize: 12, lineHeight: '17px', marginTop: -6 }}>age {card.age}</div> : null}
 
         {/* BUCKETS ON HIM (components/player/): the word, the score, the why, the flags, his record on the locked board and last week; no game says so in one line. */}
-        <VerdictBlock sport="nba" style={{ margin: 0 }} {...nbaVerdict({ board, row, whyLine, calls: data.calls, today: dateNow })} />
+        <VerdictBlock sport="nba" lock={lockIn} style={{ margin: 0 }} {...nbaVerdict({ board, row, whyLine, calls: data.calls, today: dateNow })} />
         <StatRow stats={nbaStatRow({ line: season1, xpts: x, seasonWord, stale })} noun="players" style={{ marginBottom: 0 }} />
 
         {/* THE WATCH ROW (MOONSHOT's): Watch, ADD TO SLIP with a + for each market the books quote at the card's bar, and the pick. No price, no button. */}
@@ -267,7 +279,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
           <FollowButton sport="nba" id={pid} name={card.name} team={card.team} position={card.pos} />
           <BucketsSlipAdd id={pid} name={card.name} team={card.team} opp={row?.opp || data.nextGame?.opp || null} style={{ margin: 0 }} />
           <span style={{ fontSize: 12, color: C.text3 }}>
-            BUCKETS&apos; pick: <b style={{ color: C.text2 }}>{nbaPickWord(row, ptsMarket.label)}</b>
+            BUCKETS&apos; pick: <b style={{ color: C.text2 }}>{nbaPickWord(shownRow, ptsMarket.label)}</b>
           </span>
         </div>
 
@@ -300,6 +312,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
               <Kicker>THE READ</Kicker>
               <p style={{ margin: '0 0 6px', fontSize: 13, lineHeight: 1.5, color: C.text2 }}>{whyLine || (board ? (row ? 'On tonight’s board.' : 'No game on tonight’s board, so there is no read for tonight.') : 'Reading tonight’s board…')}</p>
               {row?.injury ? <p style={{ margin: 0, fontSize: 12, color: C.text3 }}>Injury report: {row.injury}</p> : null}
+              {nonMember && <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ margin: '4px 0 8px' }} />}
             </section>
             {xRows.length > 0 ? (
               <section aria-label="Projected points">
@@ -313,7 +326,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
 
         {/* NUMBERS: the evidence behind the read -- the season line, the legs the board scored him on, the club he faces */}
         {view === 'numbers' && (
-          <NumbersTab row={row} stale={stale} seasonWord={seasonWord} lineRows={lineRows} oppAbbrev={row?.opp || data.nextGame?.opp || null} />
+          <NumbersTab row={shownRow} locked={locked} stale={stale} seasonWord={seasonWord} lineRows={lineRows} oppAbbrev={row?.opp || data.nextGame?.opp || null} />
         )}
 
         {['splits', 'log', 'vs', 'shots'].includes(view) && opts.length > 0 && <SeasonToggle options={opts} value={seasonKey} onChange={setSeason} theme={C} numFont={NUM_FONT} accent={C.purple} yearLabel={yearLabel} />}
@@ -384,7 +397,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
             <button type="button" onClick={() => setCompareOpen(false)} aria-label="Close compare" style={{ minHeight: 44, minWidth: 44, borderRadius: 10, border: `1px solid ${C.border2}`, background: C.bg, color: C.text2, fontSize: 20, cursor: 'pointer' }}>×</button>
           </div>
-          <BucketsCompare rows={board?.rows || []} onOpenPlayer={(id) => { setCompareOpen(false); onStep?.(id) }} />
+          <BucketsCompare rows={compareRows} onOpenPlayer={(id) => { setCompareOpen(false); onStep?.(id) }} />
         </CardShell>,
         document.body,
       )}
@@ -395,7 +408,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
 // 🔢 THE NUMBERS TAB (MOONSHOT's Numbers pill): the evidence behind the read. The season line (this season beside last), the legs the points board
 // scored him on with the board's own percentile among tonight's players, and what the club he faces allows (the league's own opponent stats,
 // ranked among the 30). Every value is ESPN's or the board's; nothing is modelled here.
-function NumbersTab({ row, stale, seasonWord, lineRows, oppAbbrev }) {
+function NumbersTab({ row, locked = false, stale, seasonWord, lineRows, oppAbbrev }) {
   const { data: def } = useBucketsDefense(null)
   const legKeys = NBA_MARKETS.pts.legs
   const legRows = row?.legs ? legKeys.filter((k) => row.legs[k] != null).map((k) => ({ _id: k, leg: LEG_LABEL[k] || k, val: Number(row.legs[k]), _k: k, pct: row.pct?.[k] ?? null })) : []
@@ -421,7 +434,7 @@ function NumbersTab({ row, stale, seasonWord, lineRows, oppAbbrev }) {
         <Kicker>WHAT THE POINTS BOARD SCORED HIM ON</Kicker>
         {legRows.length > 0
           ? <BucketsTable rows={legRows} columns={legCols} heatMode="standouts" maxHeight={9999} maxRows={legRows.length} caption="The legs behind tonight’s PTS score, each with its rank among tonight’s players." />
-          : <p style={{ margin: 0, fontSize: 12, color: C.text3 }}>{row ? 'The board holds no legs for him.' : 'Not on tonight’s board, so there are no legs to show.'}</p>}
+          : <p style={{ margin: 0, fontSize: 12, color: C.text3 }}>{locked ? 'Members see tonight’s called picks and why.' : row ? 'The board holds no legs for him.' : 'Not on tonight’s board, so there are no legs to show.'}</p>}
       </section>
       {al && (
         <p style={{ margin: 0, fontSize: 12, color: C.text2, lineHeight: 1.5 }}>Opp defence: {oppAbbrev} allows <b style={{ color: C.text, fontFamily: NUM_FONT }}>{f1(al.oppPts)}</b> points a game, <b style={{ color: C.text, fontFamily: NUM_FONT }}>#{rank}</b> most of 30 (1 = gives up the most), and {f1(al.oppReb)} rebounds, {f1(al.oppAst)} assists, {f1(al.oppTpm)} threes. The league’s own opponent stats; nothing modelled.</p>
