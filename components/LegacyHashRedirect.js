@@ -10,7 +10,7 @@
 // it has to be read here.
 //
 // FORWARDS ONLY WHAT IS ACTUALLY A BOARD LINK. The front door has its own
-// anchors (#tonight, #products, #alerts, #sign-in, #create-account) and those
+// anchors (#picks, #record, #offer, #alerts, #sign-in, #create-account) and those
 // must stay anchors. The test is whether the hash parses to something carrying
 // `sport` or `tab` — the two parameters lib/sport.js and Dashboard actually
 // read — so an anchor can never be mistaken for a deep link.
