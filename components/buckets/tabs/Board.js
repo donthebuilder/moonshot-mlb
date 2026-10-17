@@ -68,7 +68,7 @@ function plainWhy(r, market) {
   const legs = (NBA_MARKETS[market].legs || []).map((l) => ({ l, p: Number(r.pct?.[l]) })).filter((x) => Number.isFinite(x.p)).sort((a, b) => b.p - a.p)
   if (!legs.length) return null
   const w = LEG_WORDS[legs[0].l] || (LEG_LABEL[legs[0].l] || legs[0].l).toLowerCase()
-  return { lead: `His best part is ${w}: ${ordW(legs[0].p)} percentile among tonight’s players.`, short: `Best part: ${w}, ${ordW(legs[0].p)} percentile.` }
+  return { lead: `His best part is ${w}: ${ordW(legs[0].p)} percentile among tonight’s players.`, short: `${w[0].toUpperCase()}${w.slice(1)}, ${ordW(legs[0].p)} percentile` }
 }
 function whyItemFor(r, market, rank) {
   const D = NBA_MARKETS[market]
