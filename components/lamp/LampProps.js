@@ -9,7 +9,7 @@ import { useLampBoard } from '../../lib/nhl/useLamp'
 import { nhlMug, fmtSec } from '../../lib/nhl/format'
 import { useFollowing } from '../../lib/dash/follow'
 import { useLiveFetch } from '../../lib/useLiveFetch'
-import { lampQuoteOf } from '../../lib/nhl/lampQuote'
+import { lampQuoteOf, lampAlsoPriced } from '../../lib/nhl/lampQuote'
 import { fmtOdds, impliedPct, payoutWords } from '../../lib/odds'
 
 // 🏒 LAMP PROPS, MOONSHOT'S PAGE (2026-10-04, Donovan: "make sure the props
@@ -58,6 +58,8 @@ function lampAdapter(season, odds) {
       else if (x.preview) chips.push({ t: '⏳ preview — not locked yet', warn: true })
       const q = !(x.hit === true || x.hit === false) ? lampQuoteOf(odds, r, k) : null
       if (q) { const px = q.best_over ?? q.over; chips.push({ t: `${payoutWords(px)} · ${q.best_book || 'best book'} · needs ${impliedPct(px)}%`, warn: false }) }
+      const also = !(x.hit === true || x.hit === false) ? lampAlsoPriced(odds, r.id) : []
+      if (also.length) chips.push({ t: also.map((o) => `${o.word} ${fmtOdds(o.price)}`).join(' · '), warn: false })
       if (x.context?.b2b) chips.push({ t: 'back-to-back', warn: false })
       if (Number(x.ppg) > 0 && chips.length < 2) chips.push({ t: `${x.ppg} PP goal${Number(x.ppg) === 1 ? '' : 's'}`, warn: false })
       return {
@@ -77,7 +79,7 @@ function lampAdapter(season, odds) {
         metaRight: (() => { const q = lampQuoteOf(odds, r, k); return q ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{fmtOdds(q.best_over ?? q.over)}<LineMoveChip quote={q} theme={C} numFont={NUM_FONT} compact /></span> : null })(),
         line: x.why || null,
         facts: null,
-        chips: chips.slice(0, 2),
+        chips: chips.slice(0, 3),
         tiles,
       }
     },

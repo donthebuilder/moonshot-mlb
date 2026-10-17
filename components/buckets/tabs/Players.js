@@ -1,49 +1,58 @@
 'use client'
-import { useMemo, useState } from 'react'
-import PageHeader from '../../PageHeader'
-import { C, NUM_FONT } from '../../../lib/nba/theme'
+import { useMemo } from 'react'
+import { C, NUM_FONT, RAMP } from '../../../lib/nba/theme'
 import { useBucketsPlayers } from '../../../lib/nba/useBuckets'
-import BucketsTable from '../BucketsTable'
-import { DelayedBanner, Loading, SourceLine, LastSeasonNote, EmptyState } from '../ui'
+import { SportTheme } from '../../SportTheme'
+import PlayerBoardFrame from '../../players/PlayerBoardFrame'
+import TeamMark from '../../TeamMark'
+import { DelayedBanner, Loading, LastSeasonNote, SourceLine } from '../ui'
+import Player from './Player'
 
-// 👤 PLAYERS -- every player on the league's season stats (the directory
-// /api/buckets/players). Search a name or a club; tap a row for the file.
-export default function Players({ onOpenPlayer, onOpenTeam }) {
+// 👤 PLAYERS, MOONSHOT'S PAGE (2026-10-17, Donovan: "everything needs to look like the MLB Props page and the NHL players page").
+// It was a plain directory table that sent you to a separate page and back. Now MOONSHOT's PlayerBoard frame
+// (components/players/PlayerBoardFrame.js, the one MLB, TUDDY and LAMP sit on): search, question chips + 🎲, the list with a chip,
+// and his file INLINE (the same BUCKETS player file every other tap opens). The chip is points a game and the quiet number rebounds /
+// assists -- season lines from the league's stats read, no board word, no score, so nothing here can show a CALLED pick.
+// BUCKETS is hidden until BUCKETS_PUBLIC; this only renders inside its shell.
+const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+const one = (v) => (Number.isFinite(Number(v)) ? (Math.round(Number(v) * 10) / 10).toFixed(1) : '—')
+
+export default function Players({ onOpenTeam, onOpenGame }) {
   const { data, error, loading } = useBucketsPlayers()
-  const [qy, setQy] = useState('')
-  const rows = useMemo(() => {
-    const s = qy.trim().toLowerCase()
-    return (data?.players || []).filter((p) => !s || p.name.toLowerCase().includes(s) || String(p.team).toLowerCase() === s).map((p) => ({ ...p, _id: p.id, playerId: p.id }))
-  }, [data, qy])
-  const cols = [
-    { key: 'name', label: 'Player', group: 'Player', w: 150, heat: false, bold: true, sticky: true },
-    { key: 'team', label: 'Tm', group: 'Player', w: 52, heat: false, mono: true, teamMark: 'nba', link: (r) => (onOpenTeam ? () => onOpenTeam(r.team) : null) },
-    { key: 'pos', label: 'Pos', group: 'Player', w: 36, heat: false, mono: true, dim: true },
-    { key: 'gp', label: 'GP', group: 'Season', w: 36, mono: true },
-    { key: 'min', label: 'MIN', group: 'Season', w: 44, mono: true, dp: 1 },
-    { key: 'pts', label: 'PTS', group: 'Season', w: 44, mono: true, dp: 1, primary: true },
-    { key: 'reb', label: 'REB', group: 'Season', w: 44, mono: true, dp: 1 },
-    { key: 'ast', label: 'AST', group: 'Season', w: 44, mono: true, dp: 1 },
-    { key: 'tpm', label: '3PM', group: 'Season', w: 44, mono: true, dp: 1 },
+  const rows = useMemo(() => [...(data?.players || [])].sort((a, b) => (Number(b.pts) || -1) - (Number(a.pts) || -1) || String(a.name).localeCompare(String(b.name))), [data])
+  const asks = [
+    { key: 'G', label: 'Guards', test: (p) => /G/.test(String(p.pos || '')), why: 'Point guards, shooting guards and combo guards' },
+    { key: 'F', label: 'Forwards', test: (p) => /F/.test(String(p.pos || '')), why: 'Small and power forwards' },
+    { key: 'C', label: 'Centers', test: (p) => /^C$/.test(String(p.pos || '')), why: 'Centers' },
   ]
+  if (loading && !data) return <Loading what="the players" />
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <PageHeader eyebrow="BUCKETS · PLAYERS" title="Every player" theme={C} numFont={NUM_FONT} accent={C.purple}
-        note="Every player. Type a name or club; tap a row."
-        stats={data ? [{ value: data.players.length, label: 'PLAYERS', tone: C.text2 }] : null} />
-      {data?.stale && <LastSeasonNote label={data.seasonLabel} what="season lines" />}
-      <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, fontWeight: 800, letterSpacing: '.08em', color: C.text3, fontFamily: NUM_FONT }}>
-        SEARCH
-        <input type="search" value={qy} onChange={(e) => setQy(e.target.value)} placeholder="A name, or a club (BOS)" enterKeyHint="search"
-          style={{ minHeight: 44, maxWidth: 420, borderRadius: 10, border: `1px solid ${qy ? C.purple : C.border2}`, background: C.bg2, color: C.text, fontSize: 16, padding: '0 12px' }} />
-      </label>
+    <SportTheme theme={C} accent={C.purple} numFont={NUM_FONT}>
       <DelayedBanner error={error} what="the league’s stats" />
-      {loading && !data ? <Loading what="the players" /> : null}
-      {data && !rows.length && <EmptyState title="NOBODY BY THAT NAME" note="Try a surname or a club like BOS." />}
-      {rows.length > 0 && <BucketsTable rows={rows} columns={cols} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} nameCell="player" faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })}
-        initialSort={{ key: 'pts', dir: 'desc' }} heatMode="sorted" maxHeight={620} maxRows={rows.length}
-        caption="Every player, per game. Column headers sort; each row opens that player; the team opens the club." />}
+      {data?.stale && <LastSeasonNote label={data.seasonLabel} what="season lines" />}
+      <PlayerBoardFrame
+        ramp={RAMP}
+        rows={rows}
+        idOf={(p) => String(p.id)}
+        urlIdOf={(p) => String(p.id)}
+        nameOf={(p) => p.name}
+        searchText={(p) => norm(`${p.name} ${p.team}`)}
+        metaOf={(p) => (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+            <TeamMark sport="nba" abbr={p.team} variant="logo" px={16} />
+            <span>{p.pos || '—'}{Number.isFinite(Number(p.gp)) ? ` · ${p.gp} GP` : ''}</span>
+          </span>
+        )}
+        scoreOf={(p) => (Number.isFinite(Number(p.pts)) ? Number(p.pts) : null)}
+        scoreTitle={(p) => `${one(p.pts)} points, ${one(p.reb)} rebounds, ${one(p.ast)} assists a game this season`}
+        scoreExtra={(p) => `${one(p.reb)} R · ${one(p.ast)} A`}
+        asks={asks}
+        placeholder="Search a player or club…"
+        noun="player"
+        nounPlural="players"
+        renderDetail={(p) => <Player id={String(p.id)} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} />}
+      />
       <SourceLine>Source: ESPN’s league stats by athlete (/api/buckets/players).</SourceLine>
-    </div>
+    </SportTheme>
   )
 }
