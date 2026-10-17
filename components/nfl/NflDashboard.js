@@ -123,12 +123,12 @@ function NflStaleBanner({ meta, data, loading }) {
 }
 
 // the team page keeps its club (10-03)
-// THE CARD'S TAB IS IN THE ADDRESS (2026-10-06): view=field|matchup|splits|gamelog beside card=
+// THE CARD'S TAB IS IN THE ADDRESS (2026-10-06): view=field|read|matchup|splits|gamelog|numbers beside card=
 // (Overview writes nothing; view=field is the Field tab, where the field picture is). The Board
 // hub (boards / touchdowns) owns view= on its own page, so a card opened over the
 // hub keeps its tab out of the address rather than fight it for the key.
 const HUB_TABS = new Set(['research'])
-const CARD_VIEWS = new Set(['field', 'matchup', 'splits', 'gamelog'])
+const CARD_VIEWS = new Set(['field', 'read', 'matchup', 'splits', 'gamelog', 'numbers'])
 const cardViewOf = (h) => {
   if (HUB_TABS.has(h.get('tab'))) return ''
   const v = h.get('view')

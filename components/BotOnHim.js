@@ -19,9 +19,8 @@ const split = (c) => (c?.g ? `${c.hrG}/${c.g}` : '—')
 
 // `data` (2026-10-08, the player model): the card fetches /api/mlb/boton once for its verdict lines and hands it
 // down; undefined -> this fetches for itself, as before.
-// `view` (2026-10-17, the NHL card): another sport hands in the SAME frame with its own words and rows
-// ({ brand, C, NUM_FONT, headline, help, badges, rows, columns, hint, caption }, built in that sport's adapter, e.g.
-// components/player/nhlAdapter.js nhlBotView); MOONSHOT passes none and draws exactly what it always did.
+// `view` (2026-10-17, the NHL card): another sport hands in its own words and rows ({ brand, C, NUM_FONT, headline, helpLabel, help, badges,
+// rows, columns, hint, caption }, built in components/player/nhlRecordView.js) and gets the same section (BotRoleTable); MOONSHOT passes none.
 export default function BotOnHim({ pid, data, view = null }) {
   const [own, setD] = useState(null)
   const d = data !== undefined ? data : own
@@ -31,34 +30,11 @@ export default function BotOnHim({ pid, data, view = null }) {
     fetch(`/api/mlb/boton?pid=${encodeURIComponent(pid)}`).then((r) => (r.ok ? r.json() : null)).then((j) => { if (live) setD(j) }).catch(() => {})
     return () => { live = false }
   }, [pid, data, view])
-  const v = view || (d?.available && d.player ? mlbView(d) : null)
-  if (!v) return null
-  const T = v.C || C
-  const NF = v.NUM_FONT || NUM_FONT
-  return (
-    <section style={{ marginTop: 14 }} aria-label={`${v.brand} on him`}>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', marginBottom: 6 }}>
-        <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.1em', color: T.text2, fontFamily: NF }}>{v.brand} ON HIM</span>
-        <span style={{ fontSize: 12, color: T.text3 }}>{v.headline}<HelpTip label={v.helpLabel} text={v.help} /></span>
-      </div>
-      {v.badges.length ? (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-          {v.badges.map((b) => (
-            <span key={b.key} title={`${b.label}: ${b.text} (bar: ${b.job})`} style={{ fontFamily: NF, fontSize: 11, fontWeight: 800, color: b.kind === 'perfect' ? T.green : T.orange, border: `1px solid ${b.kind === 'perfect' ? T.green : T.orange}66`, borderRadius: 6, padding: '3px 8px' }}>
-              {b.label} · {b.text}
-            </span>
-          ))}
-        </div>
-      ) : null}
-      <ScrollHint hint={v.hint}>
-        <DenseTable rows={v.rows} columns={v.columns} heatMode="none" maxRows={v.rows.length} maxHeight={9999} caption={v.caption} />
-      </ScrollHint>
-    </section>
-  )
-}
-
-// MOONSHOT's own view of the role table (unchanged from before the frame was shared).
-function mlbView(d) {
+  if (view) {
+    const sub = <>{view.headline}<HelpTip label={view.helpLabel} text={view.help} /></>
+    return <BotRoleTable brand={view.brand} sub={sub} badges={view.badges || []} rows={view.rows} columns={view.columns} hint={view.hint} caption={view.caption} theme={view.C || C} numFont={view.NUM_FONT || NUM_FONT} accent={(view.C || C).orange} />
+  }
+  if (!d?.available || !d.player) return null
   const roles = Object.entries(d.player.roles).sort((a, b) => ROLE_ORDER.indexOf(a[0]) - ROLE_ORDER.indexOf(b[0]))
   const rows = roles.map(([role, R]) => ({
     _id: role,
@@ -81,10 +57,35 @@ function mlbView(d) {
     { key: 'home', label: 'Home', group: 'HR games by split', w: 48, heat: false },
     { key: 'away', label: 'Away', group: 'HR games by split', w: 48, heat: false },
   ]
-  return {
-    brand: 'MOONSHOT', helpLabel: 'Role record', help: 'Each role MOONSHOT has given him, judged on that role\'s job. Small samples: a lead, not a fact.',
-    headline: `${d.player.games} games on the clean pregame record, ${day(d.since)}–${day(d.through)}`,
-    badges: d.badges, rows, columns, hint: 'Swipe for vs LHP / vs RHP, Home, Away',
-    caption: "Each role MOONSHOT has given him, judged on that role's job. Small samples: a lead, not a fact.",
-  }
+  const sub = <>{d.player.games} games on the clean pregame record, {day(d.since)}–{day(d.through)}<HelpTip label="Role record" text="Each role MOONSHOT has given him, judged on that role's job. Small samples: a lead, not a fact." /></>
+  return <BotRoleTable brand="MOONSHOT" sub={sub} badges={d.badges} rows={rows} columns={columns} hint="Swipe for vs LHP / vs RHP, Home, Away" />
+}
+
+// THE ROLE TABLE, ANY SPORT (2026-10-17, player-portal mirror pass). The section MOONSHOT's card wears -- the product's name
+// ON HIM, the sample line, the badges, the role-by-split table -- lifted out of BotOnHim so TUDDY's card draws the same
+// section from its own graded calls (components/nfl/NflOnHim.js). Defaults are MOONSHOT's: BotOnHim above is the same markup.
+//   brand     the product name in the heading        sub     the sample line (a node)      badges  [{ key, kind, label, text, job }]
+//   rows / columns  the DenseTable's (rows carry _id)   hint  the swipe hint     Table  the product's table (default DenseTable)
+//   theme / numFont / accent  the product's tokens (the badge colour; default MOONSHOT's orange)
+export function BotRoleTable({ brand = 'MOONSHOT', sub, badges = [], rows, columns, hint, caption = "Each role MOONSHOT has given him, judged on that role's job. Small samples: a lead, not a fact.", Table = DenseTable, theme = C, numFont = NUM_FONT, accent = theme.orange }) {
+  return (
+    <section style={{ marginTop: 14 }} aria-label={`${brand} on him`}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', marginBottom: 6 }}>
+        <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.1em', color: theme.text2, fontFamily: numFont }}>{brand} ON HIM</span>
+        <span style={{ fontSize: 12, color: theme.text3 }}>{sub}</span>
+      </div>
+      {badges.length ? (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+          {badges.map((b) => (
+            <span key={b.key} title={`${b.label}: ${b.text} (bar: ${b.job})`} style={{ fontFamily: numFont, fontSize: 11, fontWeight: 800, color: b.kind === 'perfect' ? theme.green : accent, border: `1px solid ${b.kind === 'perfect' ? theme.green : accent}66`, borderRadius: 6, padding: '3px 8px' }}>
+              {b.label} · {b.text}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      <ScrollHint hint={hint}>
+        <Table rows={rows} columns={columns} heatMode="none" maxRows={rows.length} maxHeight={9999} caption={caption} />
+      </ScrollHint>
+    </section>
+  )
 }
