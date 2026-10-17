@@ -8,7 +8,10 @@ import GameRow from '../../GameRow'
 import TeamMark from '../../TeamMark'
 import { EmptyState, DelayedBanner, Loading, GameTypeChip, LampDot, fmtDay, shiftDay, zoneAbbrev, fmtPuckDrop } from '../ui'
 import { localTime } from '../../../lib/localTime'
-import Hint from '../Hint'
+import NflNote from '../../nfl/NflNote'
+import { LAMP_SUBS } from '../tabExplainerTexts'
+import PageViews from '../../PageViews'
+import Schedule from './Schedule'
 
 // 🏒 SCORES — every game on one NHL day. The plain page: score, period,
 // clock, shots, who scored. Nothing ranked, nothing modelled. Tap a row for
@@ -20,7 +23,17 @@ import Hint from '../Hint'
 // The day is the LAMP shell's (LampDashboard, 2026-09-26): one date for the
 // header's Today/Tmrw, every dated tab and the address -- this tab's day
 // buttons move it for all of them.
+// 2026-10-17 (simplify audit 14): the schedule is this page's second view, "Week". #tab=schedule is an alias that lands
+// here with lens=week (lib/routes.js ALIAS_PARAMS); the day picker and the week picker both move the shell's one date.
+// Only the chosen view is mounted: the Week view reads /api/lamp/schedule once and never touches the live scores feed.
 export default function Scores({ onOpenGame, date = null, setDate = () => {} }) {
+  return <PageViews views={[
+    { key: 'day', label: 'Day', node: <Day onOpenGame={onOpenGame} date={date} setDate={setDate} /> },
+    { key: 'week', label: 'Week', node: <Schedule onOpenGame={onOpenGame} date={date} setDate={setDate} /> },
+  ]} />
+}
+
+function Day({ onOpenGame, date = null, setDate = () => {} }) {
   const { data, error, loading } = useLampScores(date)
   const day = data
   const games = day?.games || []
@@ -35,7 +48,7 @@ export default function Scores({ onOpenGame, date = null, setDate = () => {} }) 
       <PageHeader
         eyebrow="LAMP · SCORES"
         title={shown ? fmtDay(shown) : 'Tonight'}
-        note={<>Every game that day, in your time zone ({zoneAbbrev()}). <Hint label="The day" text="Each day is the league’s Eastern calendar day, so a late West Coast game counts on the day it was scheduled, and times are shown in your own zone." /></>}
+        note={<NflNote tab="scores" subs={LAMP_SUBS} sub={`Every game that day, in your time zone (${zoneAbbrev()}).`} color={C.text2} />}
         theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={day ? [
           { value: day.live, label: 'LIVE', tone: day.live ? C.lamp : C.text3 },
@@ -72,7 +85,7 @@ export default function Scores({ onOpenGame, date = null, setDate = () => {} }) 
 function NavBtn({ children, onClick, disabled, strong = false }) {
   return (
     <button type="button" onClick={onClick} disabled={disabled} style={{
-      height: 28, padding: '0 11px', borderRadius: 8, cursor: disabled ? 'default' : 'pointer',
+      minHeight: 44, padding: '0 12px', borderRadius: 8, cursor: disabled ? 'default' : 'pointer',
       border: `1px solid ${strong ? C.ice : C.border2}`, background: strong ? `${C.ice}14` : C.bg2,
       color: strong ? C.ice : C.text2, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.04em', opacity: disabled ? .5 : 1,
     }}>{children}</button>

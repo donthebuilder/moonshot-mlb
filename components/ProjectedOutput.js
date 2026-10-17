@@ -233,14 +233,12 @@ export default function ProjectedOutput({ games = [], players: allPlayers = [], 
       barsTitle={<>Proj HR by {by === 'game' ? 'game' : 'team'} — tonight&apos;s power, top to bottom</>}
       barsFoot={<>Bar length is Proj HR{pens ? <>; the <span style={{ color: C.amber }}>tick</span> marks Adj HR once the opposing pens load</> : ''} — same numbers as the table below, ordered top to bottom instead of read cell by cell.</>}
       footnote={<>
-        PROJ HR IS A TEAM MODEL — each club&apos;s season home-run rate per plate appearance
-        (pulled toward the league average, hard early in the year), its expected plate appearances, the
-        opposing starter&apos;s HR-allowed rate (also shrunk), the park&apos;s HR factor at half weight and the
-        published weather effect. It does not depend on which hitters are on the sheet. Adj HR is the same
-        model with the opposing pen&apos;s live HR/9 in place of an average relief share. Hits, TB and HRR are
-        still real expected counts built from each tracked hitter&apos;s own season line and lineup slot (TB
-        ≥ hits is enforced on every row). A colored pill on Proj HR or Adj HR means that game sits clearly
-        above (▲) or below (▼) tonight&apos;s own spread of that number, not a fixed threshold.
+        PROJ HR IS A TEAM MODEL. The club&apos;s rate is pulled toward the league average (hard early in the year), the
+        starter&apos;s HR-allowed rate is shrunk too, the park&apos;s HR factor counts at half weight and the weather is the
+        published effect. It does not depend on which hitters are on the sheet. Adj HR swaps in the opposing pen&apos;s
+        live HR/9 for an average relief share. Hits, TB and HRR are real expected counts from each tracked hitter&apos;s
+        season line and lineup slot (TB ≥ hits on every row). A colored pill on Proj HR or Adj HR means the game sits
+        clearly above (▲) or below (▼) tonight&apos;s own spread of that number, not a fixed threshold.
       </>}
       onOpenGame={onOpenGame} accent={C.orange} tick={C.amber}
       palette={{

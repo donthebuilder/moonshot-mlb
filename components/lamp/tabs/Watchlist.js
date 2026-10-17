@@ -8,7 +8,8 @@ import AlertsEntry from '../../AlertsEntry'
 import CallStatusBadge from '../../CallStatusBadge'
 import { useCallGate } from '../../MemberGate'
 import LampTable from '../LampTable'
-import Hint from '../Hint'
+import NflNote from '../../nfl/NflNote'
+import { LAMP_SUBS } from '../tabExplainerTexts'
 import { PositionRow, PositionNote, PositionEmpty, Segmented, LAYOUT_OPTIONS } from '../../Filters'
 import { LampCards } from '../LampCard'
 import ShareCardButton from '../../card/ShareCardButton'
@@ -116,7 +117,7 @@ export default function Watchlist({ onOpenPlayer }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
       <PageHeader eyebrow="LAMP · WATCHLIST" title="Your skaters"
-        note={<>Skaters you watch, and every night they played, graded. <Hint label="How watching works" text="Watch a skater from his file and he lands here for his next game; the watch clears after it. Every night you watched him counts below, graded off his own game log." />
+        note={<><NflNote tab="watchlist" subs={LAMP_SUBS} />
           {all.length > 0 && <div data-watch-summary style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', marginTop: 9, font: `800 11px/1.4 ${NUM_FONT}`, letterSpacing: '.04em', color: C.text2 }}>
             <span><b style={{ color: C.text }}>{all.length}</b> watching</span>
             {board && <span><b style={{ color: C.text }}>{playing}</b> playing tonight</span>}

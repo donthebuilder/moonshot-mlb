@@ -33,7 +33,6 @@ import dynamic from 'next/dynamic'
 // Dashboard pattern. A tab you never open costs nothing.
 import TabLoading from '../TabLoading'
 const Scores = dynamic(() => import('./tabs/Scores'), { loading: TabLoading })
-const Schedule = dynamic(() => import('./tabs/Schedule'), { loading: TabLoading })
 const Standings = dynamic(() => import('./tabs/Standings'), { loading: TabLoading })
 const Game = dynamic(() => import('./tabs/Game'), { loading: TabLoading })
 const Guide = dynamic(() => import('./tabs/Guide'), { loading: TabLoading })
@@ -85,7 +84,7 @@ const LampOdds = dynamic(() => import('./LampOdds'))
 // the header, and that one request is shared with Home through the CDN.
 // Pages that show one day and keep it in the address (`date=`). One list,
 // read by setTab (which clears it elsewhere) and goBack (which restores it).
-const DATED_TABS = new Set(['home', 'scores', 'schedule', 'board', 'shots', 'games', 'fullboard', 'numerology', 'matchups', 'ledger', 'storylines'])
+const DATED_TABS = new Set(['home', 'scores', 'board', 'shots', 'games', 'fullboard', 'numerology', 'matchups', 'ledger', 'storylines'])
 
 // LAMP's routing config for the shared shell router (lib/useShellRoute.js --
 // moved out of this file unchanged, 2026-10-02, so BUCKETS runs on the same code).
@@ -146,7 +145,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             sport="nhl"
             palette={C}
             onNavigate={setTab}
-            doors={[['home', '\u{1F3E0} TONIGHT'], ['board', '\u{1F3AF} BOARD'], ['scores', '\u{1F4E1} SCORES'], ['schedule', '\u{1F4C5} SCHEDULE'], ['standings', '\u{1F4CA} STANDINGS'], ['players', '\u{1F464} PLAYERS'], ['leaders', '\u{1F3C6} LEADERS'], ['guide', '\u{1F4D6} GUIDE']]}
+            doors={[['home', '\u{1F3E0} TONIGHT'], ['board', '\u{1F3AF} BOARD'], ['scores', '\u{1F4E1} SCORES'], ['standings', '\u{1F4CA} STANDINGS'], ['players', '\u{1F464} PLAYERS'], ['leaders', '\u{1F3C6} LEADERS'], ['guide', '\u{1F4D6} GUIDE']]}
           />
         ) : (<>
           {/* ✨ who you highlighted (lib/pickLight.js) -- only while someone is */}
@@ -162,7 +161,6 @@ export default function LampDashboard({ palettePass = 0 }) {
           <ErrorBoundary resetKey={`${tab}:${gameId || ''}:${teamKey || ''}:${playerId || ''}`} label={`the ${tab} tab`}>
             {tab === 'home' && <Home today={shown} date={date} onOpenGame={openGame} onOpenPlayer={peekPlayer} onOpenTeam={openTeam} setTab={setTab} />}
             {tab === 'scores' && <Scores onOpenGame={openGame} date={date} setDate={setDate} />}
-            {tab === 'schedule' && <Schedule onOpenGame={openGame} date={date} setDate={setDate} />}
             {tab === 'standings' && <Standings onOpenTeam={openTeam} />}
             {tab === 'game' && <Game id={gameId} onOpenPlayer={peekPlayer} onOpenTeam={openTeam} onOpenGame={openGame} backLabel={backLabel('scores')} onBack={() => goBack('scores')} />}
             {tab === 'guide' && <Guide onNavigate={setTab} />}

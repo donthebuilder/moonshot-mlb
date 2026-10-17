@@ -1004,7 +1004,7 @@ export default function Home({
           as the rarest stories. */}
       <StorylinesStrip sport="mlb" theme={C} numFont={NUM_FONT} accent={C.orange} max={3} onSeeAll={() => onNavigate?.('storylines')}
         onOpenPlayer={(id) => { const p = (players || []).find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) onPlayerClick?.(p) }} />
-      <LongshotsPreview sport="mlb" theme={C} numFont={NUM_FONT} accent={C.orange} onSeeAll={() => onNavigate?.('longshots')}
+      <LongshotsPreview plain sport="mlb" theme={C} numFont={NUM_FONT} accent={C.orange} onSeeAll={() => onNavigate?.('longshots')}
         onOpenPlayer={(id) => { const p = (players || []).find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) onPlayerClick?.(p) }} />
 
       {/* ⭐ YOUR PLAYERS (2026-09-03) — replaces FollowingStrip here.
