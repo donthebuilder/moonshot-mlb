@@ -20,6 +20,8 @@ import { bookSpread, shortBook } from '../../lib/odds/shop'
 import { fetchJSON } from '../../lib/data'
 import { oddsHistoryPaths } from '../../lib/dataSource'
 import { historyIndex, historyLooksReal } from '../../lib/oddsHistory'
+import { useSlip } from '../../lib/slip/store'
+import { oddsRowLeg } from '../../lib/slip/rowLegs'
 
 // 💵 THE ODDS PAGE (2026-08-15, Donovan: "we need to see the line the book has
 // them for, esp if it's at like 1.5 or like a plus-money look for the hit.
@@ -179,6 +181,8 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
   const [view, setView] = useState(initialView === 'shop' ? 'shop' : 'board')
   const [market, setMarket] = useState(MARKETS[0].key)
   const detail = useOddsPayload(sport, true)
+  // THE ONE SLIP (lib/slip/store.js): a row's + adds this bet at the book's real price, only on the board's standard bar
+  const slip = useSlip(sport)
   const odds = detail || oddsProp || null
   const [plusOnly, setPlusOnly] = useState(false)
   const [offStd, setOffStd] = useState(false)
@@ -409,6 +413,7 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
         openLine: q.movement?.opening_line != null && Number.isFinite(Number(q.movement.opening_line)) ? Number(q.movement.opening_line) : null,
         reads: Array.isArray(q.movement?.history) ? q.movement.history.length : 0,
         _quote: q,
+        _leg: oddsRowLeg(A.sport, p, market, live.label, q, live.std, A.rowKey(p)),
         // FAIR is the market's own no-vig price (the feed's fair line, built from every book);
         // VS FAIR is how many break-even points the BEST price sits past it. A fact about prices,
         // no model, so every sport has it. Blank when the feed carried no fair price.
@@ -448,6 +453,8 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
     return r
   }, [rows, plusOnly, offStd, live.std, need, hideFrozen, movedOnly, overFairOnly, q])
 
+  // the slip column's state (1 = on the slip), added to the rows the table draws
+  const tableRows = useMemo(() => shown.map((r) => (r._leg ? { ...r, slipOn: slip.has(r._leg.key) ? 1 : 0 } : r)), [shown, slip.legs]) // eslint-disable-line react-hooks/exhaustive-deps
   const movedCount = rows.filter(isMoved).length
   const overFairCount = rows.filter((x) => x.vsFair != null && x.vsFair >= OVER_FAIR_PP).length
   const offCount = rows.filter((x) => Number.isFinite(x.line) && Math.abs(x.line - live.std) > 1e-9).length
@@ -618,6 +625,12 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
         )
       },
     },
+    ...(rows.some((r) => r._leg) ? [{
+      key: 'slipOn', label: '+', action: true, w: 44, heat: false, group: 'Price', mark: '\u2713', markOff: '+',
+      titleOn: 'Take off the slip', titleOff: 'Add to slip',
+      show: (p) => Boolean(rows.find((r) => r._raw === p)?._leg),
+      onAction: (p) => { const leg = rows.find((r) => r._raw === p)?._leg; if (leg) slip.toggle({ ...leg, sport: A.sport, source: 'player' }) },
+    }] : []),
     {
       key: 'need', label: 'NEED %', w: 56, dp: 1, invert: true, group: 'Price',
       title: 'What that price has to hit to break even.',
@@ -1067,7 +1080,7 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
         <Table
           heatMode="sorted"
 key={market}
-          rows={shown}
+          rows={tableRows}
           columns={boardColumns}
           onRowClick={onPlayerClick}
           // THIN SEASON, DIMMED — never hidden (2026-08-15). A homer rate built

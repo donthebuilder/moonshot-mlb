@@ -9,6 +9,8 @@ import { useCallGate } from '../../MemberGate'
 import { lockedFor } from '../../../lib/members/gate'
 import { SportTheme } from '../../SportTheme'
 import PlayerBoardFrame from '../../players/PlayerBoardFrame'
+import { useLiveFetch } from '../../../lib/useLiveFetch'
+import { nhlGoalLeg } from '../../../lib/slip/rowLegs'
 import { DelayedBanner, Loading, TeamMark } from '../ui'
 import Player from './Player'
 
@@ -38,6 +40,7 @@ export default function Players({ goaliesOnly = false, onOpenTeam, onOpenGame })
   const { data, error, loading } = useLampPlayers()
   const stats = useLampSeasonStats()
   const board = useLampBoardOnce()
+  const { data: odds } = useLiveFetch('/api/odds/latest?sport=nhl')   // the books' goal price (the same read the player page's + slip uses)
   const [sort, setSort] = useState('score')
   const tonight = stats.data?.tonight || {}
   const line = useMemo(() => {
@@ -112,6 +115,8 @@ export default function Players({ goaliesOnly = false, onOpenTeam, onOpenGame })
           </div>
         )}
         rows={rows}
+        slipSport="nhl"
+        slipOf={(p) => (p.pos === 'G' ? null : nhlGoalLeg(odds, { id: p.id, name: p.name, team: p.team, opp: tonight[p.team]?.opp ?? null }))}
         idOf={(p) => String(p.id)}
         urlIdOf={(p) => String(p.id)}
         nameOf={(p) => p.name}

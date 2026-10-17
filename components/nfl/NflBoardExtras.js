@@ -2,7 +2,7 @@
 import { angleRecord, angleEarns } from '../../lib/nfl/angleBasis'
 import { weakSpotRoles } from '../../lib/nfl/dvpSignal'
 import { useMemo, useState } from 'react'
-import { C, NUM_FONT, gradeFor } from '../../lib/nfl/theme'
+import { C, NUM_FONT, gradeFor, MARKETS } from '../../lib/nfl/theme'
 import { LABELS } from '../../lib/nfl/scoreLabels'
 import { quoteFor } from '../../lib/nfl/oddsMatch'
 import LineMoveChip from '../LineMoveChip'
@@ -25,6 +25,8 @@ import { useCallGate } from '../MemberGate'
 import { kickoffFor } from '../../lib/nfl/kickoff'
 import { lastNightColumn } from '../CalledLastNight'
 import { roleLabel } from '../../lib/nfl/roles'
+import { useSlip } from '../../lib/slip/store'
+import { nflLeg } from '../../lib/slip/rowLegs'
 import TagChips from './TagChips'
 import { useTagBook } from '../../lib/nfl/useDefense'
 import { tagOptions, hasTag, chipText, TAG_WORD } from '../../lib/nfl/tags'
@@ -123,13 +125,17 @@ export function NflBoardList({ games = null, players, market, weights, odds, pho
   })
   // our line beside the book's (TEST, BATCH-DASH-LINE): only where one exists for this market
   const dash = useDashLines()
+  // THE ONE SLIP (lib/slip/store.js): a row's + adds this market at the book's real price on its bar (lib/slip/rowLegs.js). Every row gets the same
+  // control whatever the members gate says about its label, so its presence tells nothing; a row tap is a by-hand add, never the 'called' shortcut.
+  const slip = useSlip('nfl')
+  const marketLabel = (MARKETS.find(([k]) => k === market) || [])[1] || market
   const dmk = DASH_OF[market]
   const top = Object.entries(weights || {}).sort((a, b) => b[1] - a[1]).slice(0, phone ? 2 : 3).map(([k]) => k)
   const rows = players.map((p, i) => {
     const q = odds ? quoteFor(odds, p, market) : null
     return {
       rankMove: rankMv ? rankMv.cell(p.player_id) : null,   // places moved since the last update (components/RankMove.js, drawn in the # cell)
-      _id: p.player_id, _p: p, rank: rankOf ? (rankOf.get(String(p.player_id)) ?? null) : i + 1,   // the stored board place, not the place in this filtered list
+      _id: p.player_id, _p: p, _leg: odds && p.position !== 'DEF' ? nflLeg(odds, p, market, marketLabel) : null, rank: rankOf ? (rankOf.get(String(p.player_id)) ?? null) : i + 1,   // the stored board place, not the place in this filtered list
       name: p.name, pos: roleLabel(p), home: sideOf(games, p),
       team: p.team || null, opp: p.opp || null,
       score: Math.round(p.scores[market]), grade: gradeFor(p.scores[market]).label,
@@ -151,6 +157,7 @@ export function NflBoardList({ games = null, players, market, weights, odds, pho
     }
   })
   // WHY: his strongest part, with the number behind it (lib/nfl/boardReason.js)
+  rows.forEach((r) => { if (r._leg) r.slipOn = slip.has(r._leg.key) ? 1 : 0 })
   const poolRows = pool || players
   const baseOf = base || baselineFor(poolRows, market)
   const whyOf = (p) => boardReason(p, weights, baseOf, market, poolRows)
@@ -192,6 +199,8 @@ export function NflBoardList({ games = null, players, market, weights, odds, pho
     { ...whyColumn({ textOf: (r) => whyOf(r._p)?.text || '', itemOf: whyItem, open: openWhy, theme: C, numFont: NUM_FONT, w: phone ? 124 : 260, tidy: true }), group: CALL_GROUP, cset: 'lean' },
     // Status right after Why (2026-10-06): short on a phone, so Why shows without a swipe
     ...(statusOf ? [{ key: 'status', group: CALL_GROUP, label: 'Status', heat: false, statusCol: true, w: phone ? 64 : 118, fmt: (v, r) => <CallStatusBadge status={statusOf(r._p)} accent={C.green} short={phone} gate={gateOf ? gateOf(r) : null} /> }] : []),
+    ...(rows.some((r) => r._leg) ? [{ key: 'slipOn', group: CALL_GROUP, label: '+', cset: 'lean', action: true, w: 44, heat: false, mark: '\u2713', markOff: '+', titleOn: 'Take off the slip', titleOff: 'Add to slip',
+      show: (row) => Boolean(row?._leg), onAction: (row) => { const leg = (row?._p ? row : rows.find((r) => r._p === row))?._leg; if (leg) slip.toggle({ ...leg, sport: 'nfl', source: 'player' }) } }] : []),
     ...top.map((k, i) => ({ group: CALL_GROUP, key: k, label: LABELS[k] || k, cset: i < 2 ? 'lean' : 'read', w: phone ? 74 : 86, scale: 'seq', domain: [0, 100] })),
     // TAGS: ball-security tags on him and the tags of the defence he faces; OFF until the Filters sheet turns it on (Tags > Show tags column)
     ...(tags?.show ? [{ key: 'tags', label: 'Tags', cset: 'read', w: phone ? 190 : 300, heat: false, numeric: false, group: TAGS_GROUP,

@@ -9,6 +9,7 @@ import PlayerBoardFrame from '../../players/PlayerBoardFrame'
 import NflPlayerModal from '../NflPlayerModal'
 import { useRosterExtras } from '../../../lib/nfl/useRosterExtras'
 import { roleLabel } from '../../../lib/nfl/roles'
+import { nflLeg } from '../../../lib/slip/rowLegs'
 
 // 🏈 PLAYERS, MOONSHOT'S PAGE (2026-09-30, Donovan: "the mlb players page is
 // the base i like that, use those components"; header refreshed 2026-10-06).
@@ -100,6 +101,8 @@ export default function NflPlayers({ data, logs, matchup, picks, results, odds =
       <PlayerBoardFrame
         ramp={RAMP}
         rows={rows}
+        slipSport="nfl"
+        slipOf={(p) => (odds && !p.roster_only && p.position !== 'DEF' ? nflLeg(odds, p, 'TD', 'Anytime TD') : null)}
         idOf={(p) => String(p.player_id)}
         urlIdOf={(p) => String(p.player_id)}
         nameOf={(p) => p.name}

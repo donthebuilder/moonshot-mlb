@@ -5,6 +5,7 @@ import { SLIP_KEYS, CALLED_CAP, readLegs, withLeg, withLegs, withoutLeg, toggled
 import { landedTogether, LANDED_TOGETHER_START, MIN_NIGHTS } from '../lib/slip/landed.js'
 import { lampAlsoPriced } from '../lib/nhl/lampQuote.js'
 import { nbaQuote } from '../lib/nba/oddsQuote.js'
+import { rowLeg, mlbHrLeg, nflLeg, nhlGoalLeg, nbaLeg, longshotLeg, oddsRowLeg, marketCode } from '../lib/slip/rowLegs.js'
 let fail = 0
 const eq = (name, got, want) => { const ok = JSON.stringify(got) === JSON.stringify(want); fail += !ok; console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${ok ? '' : `: got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`}`) }
 const NOW = Date.parse('2026-10-20T18:00:00Z')
@@ -97,7 +98,7 @@ eq('NFL: a week with no order is not used', landedTogether(nflWeeks.map((c) => (
 eq('MIN_NIGHTS is 5', MIN_NIGHTS, 5)
 eq('no model probability is printed anywhere in the messages', JSON.stringify(four).includes('%'), false)
 
-if (fail) { console.error(`\n${fail} FAILED`); // PARITY (2026-10-17): the NHL "also priced" words, BUCKETS' card price, and the price-history gate. TEST data only.
+// PARITY (2026-10-17): the NHL "also priced" words, BUCKETS' card price, and the price-history gate. TEST data only.
 const TEST_NHL = { by_player_id: { T1: { player_points: { line: 0.5, over: -150 }, player_assists: { line: 1.5, over: 200 } }, T2: { player_points: { line: 0.5, best_over: 120, over: 110 } } } }
 eq('NHL also-priced: only a 0.5 book line counts', lampAlsoPriced(TEST_NHL, 'T1'), [{ word: '1+ pt', price: -150 }])
 eq('NHL also-priced: best price wins', lampAlsoPriced(TEST_NHL, 'T2'), [{ word: '1+ pt', price: 120 }])
@@ -107,5 +108,33 @@ eq('NBA quote: PTS 25+ is the 24.5 line', nbaQuote(TEST_NBA, 'N1', 'pts')?.over,
 eq('NBA quote: REB 10+ is the 9.5 line', nbaQuote(TEST_NBA, 'N1', 'reb')?.over, 120)
 eq('NBA quote: double-double has no book line; another line is no quote', [nbaQuote(TEST_NBA, 'N1', 'dd'), nbaQuote(TEST_NBA, 'N1', 'ast')], [null, null])
 
-process.exit(1) }
+// ROW '+' (2026-10-17, lib/slip/rowLegs.js): the leg a list row adds. TEST data only: made-up ids, names and prices.
+const TEST_MLB = { by_player_id: { 1: { batter_home_runs: { line: 0.5, over: 380, best_over: 420 } }, 2: { batter_home_runs: { line: 1.5, over: 900 } }, 3: { batter_home_runs: { line: 0.5, over: 0 } } } }
+const mlbRow = (id) => ({ player_id: id, game_pk: 77, name: `TEST ${id}`, team: 'AAA', opponent: 'BBB' })
+const h1 = mlbHrLeg(TEST_MLB, mlbRow(1))
+eq('MLB row leg: the best real price, keyed like the Props card', [h1.key, h1.price, h1.line, h1.market, h1.game], ['1-77|HR', 420, 'o0.5', 'HR', { key: 'AAA-BBB', label: 'AAA · BBB' }])
+eq('MLB row leg: a book line that is not the bar (1.5) is no leg', mlbHrLeg(TEST_MLB, mlbRow(2)), null)
+eq('MLB row leg: a zero price / no quote / no feed is no leg', [mlbHrLeg(TEST_MLB, mlbRow(3)), mlbHrLeg(TEST_MLB, mlbRow(9)), mlbHrLeg(null, mlbRow(1))], [null, null, null])
+const TEST_NFL = { by_player_id: { T1: { player_anytime_td: { line: 0.5, over: 150 }, player_rush_yds: { line: 59.5, over: -115 } } } }
+eq('NFL row leg: anytime TD on 0.5', nflLeg(TEST_NFL, { player_id: 'T1', name: 'TEST One', team: 'AAA', opp: 'BBB' }, 'TD', 'Anytime TD')?.key, 'T1|TD')
+eq('NFL row leg: rush yards at 59.5 is not the 49.5 bar, so no leg', nflLeg(TEST_NFL, { player_id: 'T1', name: 'TEST One' }, 'RUSH_YDS'), null)
+eq('NFL row leg: nobody priced is no leg', nflLeg(TEST_NFL, { player_id: 'T9', name: 'TEST Nine' }, 'TD'), null)
+const TEST_NHL2 = { by_player_id: { H1: { player_anytime_goal: { line: 0.5, over: 210 } }, H2: { player_anytime_goal: { line: 1.5, over: 800 } } } }
+eq('NHL row leg: goal on 0.5, keyed like the player page', [nhlGoalLeg(TEST_NHL2, { id: 'H1', name: 'TEST H1' })?.key, nhlGoalLeg(TEST_NHL2, { id: 'H1', name: 'TEST H1' })?.price], ['H1|GOAL', 210])
+eq('NHL row leg: another line is no leg', nhlGoalLeg(TEST_NHL2, { id: 'H2', name: 'TEST H2' }), null)
+eq('BUCKETS row leg: PTS on the 24.5 line, keyed like the player page', nbaLeg(TEST_NBA, { id: 'N1', name: 'TEST N1' }, 'pts')?.key, 'N1|pts')
+eq('BUCKETS row leg: AST has no quote, so no leg', nbaLeg(TEST_NBA, { id: 'N1', name: 'TEST N1' }, 'ast'), null)
+eq('longshot leg: the best book price on the sport\'s anytime bet', ['mlb', 'nfl', 'nhl'].map((s) => longshotLeg(s, { id: 'L1', name: 'TEST L', team: 'AAA', opp: 'BBB', best: 650 })?.key), ['L1|HR', 'L1|TD', 'L1|GOAL'])
+eq('longshot leg: no best price, or a sport with no anytime market, is no leg', [longshotLeg('nhl', { id: 'L1', name: 'TEST L', best: null }), longshotLeg('nba', { id: 'L1', name: 'TEST L', best: 650 })], [null, null])
+const o1 = oddsRowLeg('mlb', mlbRow(1), 'batter_hits', 'Hits', { line: 0.5, over: -180 }, 0.5, '1-77')
+eq('odds board leg: the market code and key are the Props card\'s (HIT)', [o1.key, o1.market, o1.price], ['1-77|HIT', 'Hits', -180])
+eq('odds board leg: off the standard bar is no leg', oddsRowLeg('mlb', mlbRow(1), 'batter_hits', 'Hits', { line: 1.5, over: 250 }, 0.5, '1-77'), null)
+// THE GATE: a row tap is always a by-hand add. Whatever a caller passes, the leg is never the 'called' shortcut, and it carries no status.
+const sneaky = rowLeg({ sport: 'nfl', id: 'X', code: 'TD', name: 'TEST X', q: { line: 0.5, over: 200 }, source: 'called', status: 'called' })
+eq('row leg: source is always player (never called), no status field', [sneaky.source, 'status' in sneaky, 'called' in sneaky], ['player', false, false])
+eq('row legs for every sport are by-hand', [h1, nflLeg(TEST_NFL, { player_id: 'T1', name: 'TEST One' }, 'TD'), nhlGoalLeg(TEST_NHL2, { id: 'H1', name: 'TEST H1' }), nbaLeg(TEST_NBA, { id: 'N1', name: 'TEST N1' }, 'pts'), longshotLeg('nfl', { id: 'L1', name: 'TEST L', best: 300 })].every((l) => l.source === 'player'), true)
+eq('a row leg goes on the shared slip and toggles off', toggledLeg(toggledLeg([], h1, NOW), h1, NOW).length, 0)
+eq('market codes: the player pages\' codes', [marketCode('nfl', 'player_anytime_td'), marketCode('nhl', 'player_shots_on_goal'), marketCode('nba', 'player_points'), marketCode('mlb', 'batter_home_runs')], ['TD', 'SOG', 'pts', 'HR'])
+
+if (fail) { console.error(`\n${fail} FAILED`); process.exit(1) }
 console.log('\nall ok')

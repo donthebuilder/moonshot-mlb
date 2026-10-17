@@ -8,6 +8,8 @@ import { PillRow } from './Filters'
 import { localTime } from '../lib/localTime'
 import { bookName } from '../lib/odds/shop'
 import HelpTip from './HelpTip'
+import { useSlip } from '../lib/slip/store'
+import { longshotLeg } from '../lib/slip/rowLegs'
 
 // 🎯 LONGSHOTS (2026-09-27), one page on all three products. Players the
 // books price long (median book at or past the sport's line) beside our own
@@ -45,8 +47,12 @@ export default function Longshots({ sport, eyebrow, theme: C, numFont, accent, T
     ...Object.fromEntries(Object.entries(r.stats || {}).map(([k, v]) => [`s_${k}`, v])),
     flag: r.note || '', bestBook: bookName(r.bestBook), asOf: `${r.snap || ''} ${clock(r.takenAt)}`.trim(),
   })), [data])
+  // THE ONE SLIP: a row's + adds the sport's anytime bet at the best book's real price (lib/slip/rowLegs.js longshotLeg), by hand like any prop
+  const slip = useSlip(sport)
+  const legOf = useMemo(() => new Map(rows.map((r) => [r.id, longshotLeg(sport, r)])), [rows, sport])
   const called = rows.filter((r) => r.status === 'called').length
-  const shown = scope === 'called' ? rows.filter((r) => r.status === 'called') : rows
+  const base = scope === 'called' ? rows.filter((r) => r.status === 'called') : rows
+  const shown = useMemo(() => base.map((r) => (legOf.get(r.id) ? { ...r, slipOn: slip.has(legOf.get(r.id).key) ? 1 : 0 } : r)), [base, legOf, slip.legs]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Price and score first: on a phone they are the two columns in view.
   const columns = [
@@ -56,6 +62,11 @@ export default function Longshots({ sport, eyebrow, theme: C, numFont, accent, T
     // no book posts. The price shown is now a real one (the best book's), its
     // book beside it; the median keeps its own, labelled column.
     { key: 'best', label: 'PRICE', w: 58, heat: false, fmt: plus, title: 'The longest price any book is offering, at our newest snapshot — the BOOK column says which' },
+    ...(rows.some((r) => legOf.get(r.id)) ? [{
+      key: 'slipOn', label: '+', action: true, w: 44, heat: false, mark: '\u2713', markOff: '+', titleOn: 'Take off the slip', titleOff: 'Add to slip',
+      show: (r) => Boolean(legOf.get(r.id)),
+      onAction: (r) => { const leg = legOf.get(r.id); if (leg) slip.toggle({ ...leg, sport, source: 'player' }) },
+    }] : []),
     { key: 'score', label: 'SCORE', w: 54, primary: true, dp: 0, title: 'Our model\u2019s score for this market (0\u2013100), as the product publishes it' },
     { key: 'median', label: 'MID BOOK', w: 64, heat: false, fmt: plus, title: 'The middle of the books, worked out from their implied chances — a reference, not a price any book posts' },
     { key: 'team', label: 'Team', w: 46, heat: false, teamMark: sportKey(sport) },
