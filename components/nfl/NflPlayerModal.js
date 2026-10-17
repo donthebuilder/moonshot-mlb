@@ -42,7 +42,7 @@ import { seasonOptions, defaultSeason, applySeason, seasonNote } from '../../lib
 // THE SHARED PLAYER MODEL (components/player/): the verdict first, then ONE row of his numbers, MOONSHOT's parts in
 // TUDDY's words (nflAdapter.js). Replaces the per-game tiles, the market-score strip, the hit-rate boxes and the Why box.
 import VerdictBlock from '../player/VerdictBlock'
-import { useCardLock, CardLockLine } from '../MemberGate'
+import { useCardLock, useMemberState, CardLockLine } from '../MemberGate'
 import { kickoffFor } from '../../lib/nfl/kickoff'
 import StatRow from '../player/StatRow'
 import ScrollHint from '../player/ScrollHint'
@@ -319,6 +319,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
   // MEMBERS (2026-10-16): the card's lock, same key as the TD board's (String(player_id)); the TD market is the only called one
   const cardLockKey = String(player?.player_id)
   const cardLock = { key: cardLockKey, time: player ? kickoffFor(slate?.games, player) : null }
+  const nonMember = useMemberState() === 'free'
   const cardLocked = useCardLock({ status: market === 'TD' && player ? tdStatus.statusOf(player) : null, key: cardLockKey, time: cardLock.time }).locked
   // TAGS (lib/nfl/tags.js): his own ball-security tags and the tags of the defence he faces. Labels with their numbers; no score reads them.
   const tagBookOf = useTagBook(matchup, slate?.season)
@@ -459,7 +460,8 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
 
       {/* OVERVIEW: the read, then the props grid (MOONSHOT's order), then his own notes */}
       {tab === 'overview' && <>
-        {cardLocked ? <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ margin: '4px 0 8px' }} /> : <NflPlayerRead player={player} market={market} rows={fullLog || []} matchup={matchup} slateSeason={slate?.season} />}
+        {cardLocked ? null : <NflPlayerRead player={player} market={market} rows={fullLog || []} matchup={matchup} slateSeason={slate?.season} />}
+        {nonMember && <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ margin: '4px 0 8px' }} />}
         <div style={{ marginTop: 16 }}><SeasonToggle options={seasonOpts} value={seasonKey} onChange={setSeason} /></div>
         {slog && (() => {
           // HIS BEST MARKET LEADS: the chart opens on the market he scores highest in.

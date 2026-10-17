@@ -8,7 +8,7 @@ import { ExplainStrip } from './CardParts'
 import { RankMoveCell } from '../RankMove'
 import useStamps from './useStamps'
 import { explain as explainTap } from '../../lib/explain'
-import { useCardLock, CardLockLine } from '../MemberGate'
+import { useCardLock, useMemberState, CardLockLine } from '../MemberGate'
 import CallStatusBadge from '../CallStatusBadge'
 
 // THE RANKING CARD, IN THE BASEBALL-CARD LANGUAGE (2026-10-10). Donovan: "whatever has the new baseball cards, that's what I like."
@@ -38,10 +38,11 @@ export default function RankCard({
   const accent = accentProp || themeAccent
   // THE MEMBERS LOCK (2026-10-16, Donovan: lock the rest of the cards too). lockIn = { key, time, graded?, slateDate? } is the SAME key and game time the sport's
   // table gate uses (components/MemberGate.js useCardLock). Locked = a confirmed non-member's tonight, not-started, not-graded CALLED pick outside the free four:
-  // the stamp becomes the lock chip and the rank, score, grade, why, chips and notes give way to one join line. Name, club, matchup, role and the stat boxes stay.
+  // the stamp becomes the plain ON THE BOARD word (Donovan: "just show them as ON THE BOARD") and the rank, score, grade, why, chips and notes are dropped. Name, club, matchup, role and the stat boxes stay.
   // No lockIn, or any viewer who is not a confirmed non-member: this draws exactly as before.
   const cardLock = useCardLock({ status: lockIn ? status : null, key: lockIn?.key, time: lockIn?.time, graded: Boolean(lockIn?.graded), slateDate: lockIn?.slateDate || null })
   const locked = cardLock.locked
+  const nonMember = useMemberState() === 'free'   // every non-member card carries the one generic join line, so the line never says who is called
   if (locked) { score = null; rank = null; rankMove = null; rankTags = []; extraNotes = []; extraLine = null; reason = null; chips = null; explain = null; back = null; stats = [] }
   const called = status === 'called' && !locked
   const [flip, setFlip] = useState(false)
@@ -57,7 +58,7 @@ export default function RankCard({
 
   // the foil strip, CALLED only (lib/cards/cardKit.js foil)
   const foil = <div style={{ height: 5, background: called ? `linear-gradient(100deg, ${accent} 0%, ${alpha(C.text, 0.95)} 22%, ${accent} 44%, ${alpha(C.text, 0.7)} 66%, ${accent} 84%, ${alpha(C.text, 0.9)} 100%)` : 'transparent' }} />
-  const stripWord = locked ? <CallStatusBadge status="called" gate={cardLock.gate} accent={accent} size={11} /> : status ? STATUS_WORD[status] : (compact ? kicker : '')
+  const stripWord = locked ? STATUS_WORD.board : status ? STATUS_WORD[status] : (compact ? kicker : '')
   const strip = (
     <div style={{ display: 'flex', alignItems: 'center', gap: compact ? 8 : 10, padding: '6px 12px 0' }}>
       <span style={compact
@@ -123,7 +124,8 @@ export default function RankCard({
         {role && <span style={{ fontSize: 12, fontWeight: 600, color: C.text3 }}>{role}</span>}
         {extraLine}
       </div>
-      {locked ? <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ marginTop: 6 }} /> : reason && <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.4, marginTop: 6 }}>{reason}</div>}
+      {reason && <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.4, marginTop: 6 }}>{reason}</div>}
+      {lockIn && nonMember && <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ marginTop: 6 }} />}
       {stamps.length > 0 && (
         <div data-stamps style={{ display: 'flex', flexWrap: 'wrap', gap: '0 6px', marginTop: 2 }} onClick={(e) => e.stopPropagation()}>
           {stamps.map((s) => (

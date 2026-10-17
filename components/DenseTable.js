@@ -12,6 +12,7 @@ import { useTeamNav } from '../lib/teamNav'
 import { useIsPhone } from './MobileFold'
 import { buildSorter, nextSort, encodeSort, decodeSort } from '../lib/multiSort'
 import { readHashKey, FILTER_EVENT } from '../lib/filterHash'
+import { lockedFor } from '../lib/members/gate'
 
 // ── ABSENT IS NOT ZERO (2026-08-23) ─────────────────────────────────────────
 // `Number(null)` is 0 and `Number('')` is 0, and both are finite, so every
@@ -390,7 +391,9 @@ export default function DenseTable({
     }
     const cols = columns.filter((c) => !String(c.key).startsWith('_'))
     const lines = [cols.map((c) => esc(c.label)).join(',')]
-    sorted.forEach((r) => lines.push(cols.map((c) => esc(r[c.key])).join(',')))
+    // the members gate: a CALLED row the viewer may not read exports as the ON THE BOARD row it is drawn as
+    const hid = (r) => { if (!gateOf || typeof statusOf !== 'function') return false; const g = gateOf(r); return Boolean(g) && lockedFor({ status: statusOf(r), started: g.started, graded: g.graded, key: g.key, free: g.free, memberState: 'free' }) }
+    sorted.forEach((r) => { const h = hid(r); lines.push(cols.map((c) => esc(h && r[c.key] === 'called' ? 'board' : r[c.key])).join(',')) })
     const blob = new Blob([lines.join('\n')], { type: 'text/csv' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)

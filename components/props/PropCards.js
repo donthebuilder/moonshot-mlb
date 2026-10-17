@@ -11,6 +11,8 @@ import { readPairHistV2 } from '../../lib/pairHistV2'
 import { pairHistNotes } from '../../lib/slipPairHist'
 import HelpTip from '../HelpTip'
 import { takeSlipSeed } from '../../lib/slipSeed'
+import { useCallGate, HiddenCalledLine } from '../MemberGate'
+import { lockedFor } from '../../lib/members/gate'
 
 // ══ PROP CARDS, EVERY PRODUCT (2026-10-04) ══════════════════════════════════
 // Donovan: "make sure the props pages look like the mlb one". This is
@@ -118,11 +120,29 @@ function Card({ a, r, k, onOpen, onWatch, watched, onSlip = null, inSlip = false
 }
 
 export default function PropCards({
-  a, rows: rawRows = [], onOpen, onWatch, watchIds, compare = null,
+  a: aIn, rows: rawRows = [], onOpen, onWatch, watchIds, compare = null,
   theme = MLB_C, numFont = MLB_NUM, accent = MLB_C.orange, accentWash = 'rgba(249,115,22,.14)',
 }) {
   const C = theme
   const NUM_FONT = numFont
+  // THE MEMBERS GATE ON THE PROPS PAGE (2026-10-16, Donovan: "lock those too, what about the props page"). Props, lines, prices and stats are public; what a card says
+  // about a CALLED pick is not. A row is CALLED here when the adapter gives it a market (WATCH is coverage, not a call). For a confirmed non-member the free four (counted
+  // in the page's own order: best market score first) keep their cards; every other CALLED, not-started pick is a hitter with NO market (rolesOf [] -> he is in
+  // Everyone / the quiet group, not in Picks, not on the slip's "called" shortcut or seed, not a suggested partner). Members, unknown membership, started games: unchanged.
+  const isCall = (r) => aIn.rolesOf(r).some((k) => k !== 'WATCH' && k !== 'NONE')
+  const lockKeyOf = (r) => (aIn.lockKey ? aIn.lockKey(r) : aIn.keyOf(r))
+  const gateOf = useCallGate({
+    rows: () => (rawRows || []).filter((r) => r && isCall(r)), source: rawRows, statusOf: () => 'called', keyOf: lockKeyOf,
+    timeOf: (r) => aIn.startsAt(r), gradedOf: (r) => (aIn.gradedOf ? aIn.gradedOf(r) : false), rankOf: (r) => -(Number(aIn.score(r, aIn.primaryOf(r))) || 0),
+  })
+  const hiddenRow = (r) => {
+    if (!gateOf || !isCall(r)) return false
+    const g = gateOf(r)
+    return lockedFor({ status: 'called', started: g.started, graded: g.graded, key: g.key, free: g.free, memberState: 'free' })
+  }
+  const a = useMemo(() => (gateOf ? { ...aIn, rolesOf: (r) => (hiddenRow(r) ? [] : aIn.rolesOf(r)), primaryOf: (r) => (hiddenRow(r) ? null : aIn.primaryOf(r)) } : aIn),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [aIn, gateOf])
   const [market, setMarket] = useState('picks')
   const [all, setAll] = useState(false)
   const [precision, setPrecision] = useState(1)
@@ -165,7 +185,7 @@ export default function PropCards({
     if (a.slipNotes) return a.slipNotes(slipLegs)
     return a.pairHist ? pairHistNotes(slipLegs, histFile, a.pairHist) : []
   }, [a, slip.length, slipLegs, histFile])
-  const partnerPicks = useMemo(() => (a.slipPartners && slip.length ? a.slipPartners(slipLegs, rawRows, Date.now()) : []), [a, slip.length, slipLegs, rawRows])
+  const partnerPicks = useMemo(() => (a.slipPartners && slip.length ? a.slipPartners(slipLegs, gateOf ? (rawRows || []).filter((r) => !hiddenRow(r)) : rawRows, Date.now()) : []), [a, slip.length, slipLegs, rawRows])
   // Names checked on the Numerology page arrive once (lib/slipSeed.js): each goes on the slip in the first
   // market it is priced in. Read from storage, not from `slip`, because the stored slip loads in an effect.
   const [seedNote, setSeedNote] = useState('')
@@ -338,6 +358,7 @@ export default function PropCards({
         )}
       </div>
 
+      {gateOf && <HiddenCalledLine n={gateOf.hidden} C={C} NUM_FONT={NUM_FONT} style={{ marginTop: 2 }} />}
       {seedNote && <div role="status" style={{ fontSize: TYPE.body, color: C.text2, margin: '4px 0 6px', lineHeight: 1.5 }}>{seedNote}</div>}
       <BetSlip pairNotes={pairNotes} partners={partnerPicks} onAdd={(p) => toggleSlip(p.r, p.k)} legs={slip} onRemove={(key) => saveSlip(slip.filter((l) => l.key !== key))} onClear={() => saveSlip([])} C={C} NUM_FONT={NUM_FONT} accent={accent} />
       {sameGame.length > 0 && (

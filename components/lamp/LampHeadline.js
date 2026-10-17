@@ -25,7 +25,7 @@ const f1 = (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(1) : null)
 const f2 = (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(2) : null)
 
 function topCalled(board) {
-  const rows = (board?.games || []).flatMap((g) => (g.rows || []).map((r) => ({ ...r, locked: g.locked })))
+  const rows = (board?.games || []).flatMap((g) => (g.rows || []).map((r) => ({ ...r, locked: g.locked, _lock: { key: `${g.game?.id}|${r.playerId}`, time: g.game?.startUtc ?? null, graded: Boolean(g.graded) } })))
   return rows.filter((r) => r.status === 'called' && Number.isFinite(Number(r.score))).sort((a, b) => b.score - a.score).slice(0, 3)
 }
 
@@ -51,7 +51,7 @@ export default function LampHeadline({ theme: C, numFont, goalBoard, sogBoard, r
       : (record?.sog?.calledN ? `${record.sog.calledHits}/${record.sog.calledN} called hit 3+` : 'not graded yet'),
     empty: 'Waiting for tonight’s board.',
     picks: topCalled(boards[l.key]).map((r, i) => ({
-      key: String(r.playerId), raw: r, name: r.name,
+      key: String(r.playerId), raw: r, name: r.name, lock: r._lock,
       score: Math.round(r.score),
       flag: r.preview ? { icon: '⏳', title: 'PREVIEW -- not a call until its game locks' } : null,
       lines: i === 0 ? [l.lines(r)[0], `${l.lines(r)[1]}${r.preview ? ' · PREVIEW' : ''}`] : [],

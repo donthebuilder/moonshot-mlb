@@ -19,7 +19,7 @@ import TeamMark from '../TeamMark'
 //   status: { kind: 'live' | 'final' | 'time', text },
 //   extra: node,                       // one more meta clause (the air…)
 //   score: { away, home, awayScore, homeScore, live } | null,
-//   chips: [{ key, tag, color, name, score, title, onClick, leg, style, locked }],   // locked (members gate): the tag is the lock and the score is not printed
+//   chips: [{ key, tag, color, name, score, title, onClick, leg, style, locked }],   // locked (members gate): a CALLED headline the viewer may not read is not drawn at all
 // }
 // card.large (LAMP, 2026-10-06, Donovan: "you can't read that"): the meta line and
 // the chips at 12px (the tag 11) and a 62px dial; absent, every size below is
@@ -110,9 +110,9 @@ export default function SlateCard({ card: c, on = false, accent = C.orange, onSe
       })()}
 
       {/* THE EITHER/OR ROW, in the prop card's tile language */}
-      {c.chips?.length > 0 && (
+      {c.chips?.some((k) => !k.locked) && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-          {c.chips.map((k) => (
+          {c.chips.filter((k) => !k.locked).map((k) => (
             <span key={k.key}
               title={k.title}
               onClick={k.onClick}
@@ -128,9 +128,9 @@ export default function SlateCard({ card: c, on = false, accent = C.orange, onSe
                 ...(k.leg ? {} : (k.style || {})),
               }}>
               {k.leg && <span style={{ fontSize: 8 }}>🔗</span>}
-              <b style={{ color: k.locked ? C.text2 : k.color, fontSize: L ? 11 : 8, letterSpacing: '.06em', flexShrink: 0 }}>{k.locked ? '\u{1F512}' : k.tag}</b>
+              <b style={{ color: k.color, fontSize: L ? 11 : 8, letterSpacing: '.06em', flexShrink: 0 }}>{k.tag}</b>
               <span style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', minWidth: 0, flex: '1 1 auto' }}>{k.name}</span>
-              {!k.locked && <b style={{ color: k.leg ? k.color : C.text, flexShrink: 0 }}>{k.score}</b>}
+              <b style={{ color: k.leg ? k.color : C.text, flexShrink: 0 }}>{k.score}</b>
             </span>
           ))}
         </div>

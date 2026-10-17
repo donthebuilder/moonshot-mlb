@@ -1,5 +1,6 @@
 'use client'
 import ComboLinks from '../ComboLinks'
+import { useLockOf } from '../MemberGate'
 import { useState, useMemo, useEffect } from 'react'
 import {
   playerId, mlbId, nameOf, teamOf, oppOf, hrScore, hitScore, prodScore, tbScore,
@@ -369,7 +370,11 @@ rows={parsed.map((r, i) => {
 }
 
 
-export default function Watchlist({ items, players = [], pairSummary, results, slateDate = '', mode = 'today', onWatch, onAdd, onPlayerClick }) {
+export default function Watchlist({ items: itemsIn, players = [], pairSummary, results, slateDate = '', mode = 'today', onWatch, onAdd, onPlayerClick }) {
+  // MEMBERS GATE (2026-10-16): a watched man who is a CALLED pick a non-member may not read loses his call here (the table, the cards, Copy List, the .txt and the
+  // CSV all read this list), so nothing printed or exported names him as called. Members, unknown membership, started games: the list as handed in.
+  const lockOf = useLockOf()
+  const items = useMemo(() => itemsIn.map((p) => (botPickOf(p) && lockOf({ status: 'called', key: `${playerId(p)}|${p?.game_pk ?? ''}`, time: p?.game_time, graded: p?.graded === true }).locked ? { ...p, game_pick_role: '' } : p)), [itemsIn, lockOf])
   // ACCURACY CHECK — did the list deliver tonight? Graded slots joined by
   // player_id give each saved hitter his live line; saved names outside the
   // graded pool stay unknown rather than counting as misses.

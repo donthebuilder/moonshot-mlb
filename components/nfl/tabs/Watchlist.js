@@ -25,7 +25,8 @@ import { Card as TdCard } from './Touchdowns'
 import { PositionRow, PositionNote, PositionEmpty } from '../../Filters'
 import { SportTheme } from '../../SportTheme'
 import CallStatusBadge from '../../CallStatusBadge'
-import { useCallGate } from '../../MemberGate'
+import { useCallGate, HiddenCalledLine } from '../../MemberGate'
+import { lockedFor } from '../../../lib/members/gate'
 import PlayerFace from '../../PlayerFace'
 import PageHeader from '../../PageHeader'
 import ShareCardButton from '../../card/ShareCardButton'
@@ -116,7 +117,9 @@ export default function Watchlist({ data, matchup, logs, picks = null, onPlayerC
   const posPool = useMemo(() => all.map((r) => r.player).filter(Boolean), [all])
   const gameFiltered = useMemo(() => (gameId ? all.filter((r) => r.pin.game_id === gameId) : all), [all, gameId])
   const pf = usePositionFilter('nfl', posPool, { posOf: (p) => p.position, extraOf: roleKeys, extraOrder: ROLE_PILLS, countRows: gameFiltered.map((r) => r.player).filter(Boolean) })
-  const rows = useMemo(() => gameFiltered.filter((r) => pf.test(r.player || { position: r.pin.position })), [gameFiltered, pf.test])   // eslint-disable-line react-hooks/exhaustive-deps
+  const rowsRaw = useMemo(() => gameFiltered.filter((r) => pf.test(r.player || { position: r.pin.position })), [gameFiltered, pf.test])
+  // a CALLED row a non-member may not read IS an ON THE BOARD row from here on (table, cards, sort, Copy List, CSV); the free four were counted over `all` above
+  const rows = useMemo(() => (gateOf ? rowsRaw.map((r) => { const g = gateOf(r); return lockedFor({ status: r.status, started: g.started, graded: g.graded, key: g.key, free: g.free, memberState: 'free' }) ? { ...r, status: 'board' } : r }) : rowsRaw), [rowsRaw, gateOf])   // eslint-disable-line react-hooks/exhaustive-deps
   const games = useMemo(() => gameOptions(data?.games || [], pins), [data, pins])
   const sum = useMemo(() => summarize(all), [all])
   const moved = useMemo(() => movedRows(all), [all])
@@ -307,6 +310,7 @@ export default function Watchlist({ data, matchup, logs, picks = null, onPlayerC
         </SportTheme>
       )}
       <RankMoveNote show={rankMv.any} color={C.text3} />
+      {gateOf && <HiddenCalledLine n={gateOf.hidden} C={C} NUM_FONT={NUM_FONT} />}
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         <button type="button" style={btn()} onClick={() => {
