@@ -1,5 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
+import dynamic from 'next/dynamic'
+import { webglOk } from '../../lib/webglOk'
 import PlayerFace from '../PlayerFace'
 import { useIsPhone } from '../MobileFold'
 import { WhoChips } from './LineUp'
@@ -31,6 +33,8 @@ import { SOFT_THIN_GAMES } from '../../lib/nfl/dvpSignal'
 // marks, three metric tiles (label / big slanted number / ordinal-style line / thin bar, the accent only on the signal), then the field
 // with ONLY its top zones numbered (the rest stay quiet: a lit zone, no tiny %), then the switches. Same data and same switches' meaning:
 // which club has the ball, passing or running, and the lens. Overlap is the lens it opens on; Attack and Defend are the quiet two.
+// the 3D field (2026-10-17, path item 3): the same zones and the same men, stood up; three.js loads only when it is opened
+const GameArena = dynamic(() => import('./GameArena'), { ssr: false })
 // plain words (2026-10-17, Donovan: hard to use): where the two meet / where the offence goes / where the defence leaks. The keys stay.
 const MODES = [['overlap', 'Where they meet'], ['attack', 'Where they go'], ['defend', 'Where they leak']]
 const TOP_NUMBERED = 3
@@ -52,6 +56,9 @@ export function injuryStatusOf(layer, p) {
 
 export default function GameOffDef({ matchup, players, game, onPlayerClick = null, defending = null, onDefend = null }) {
   const phone = useIsPhone(430)
+  const [three, setThree] = useState(false)   // 3D is off by default, as every 3D view is; only on the passing field, only where WebGL works
+  const [gl, setGl] = useState(false)
+  useEffect(() => { setGl(webglOk()) }, [])
   const [zonePick, setZonePick] = useState(null)
   const layer = useInjuryLayer()
   const [mode, setMode] = useState('overlap')
@@ -153,7 +160,7 @@ export default function GameOffDef({ matchup, players, game, onPlayerClick = nul
         { label: `${def} LEAK`, big: soft?.leak != null ? fmtPct(soft.leak) : '—', pct: soft?.leak > 0 ? Math.min(100, (100 * soft.leak) / HEAT_FULL) : null, hot: Boolean(ring && soft && ring.z === soft.z), line: soft?.leak != null ? `yards a ${unit} vs normal: ${soft.where}` : 'too few plays to call' },
         { label: 'OVERLAP', big: ring ? pct(ring.share) : 'NONE', pct: ring && gf.maxOv > 0 ? Math.min(100, (100 * ring.ov) / gf.maxOv) : null, hot: Boolean(ring), line: ring ? `ringed: ${ring.where}` : 'no clear spot where both meet' },
       ]}
-      maxWidth={440} foldTiles={phone} fullscreen fullLabel="The field, full screen"
+      maxWidth={440} foldTiles={phone} fullscreen={!(three && pass && gl)} fullLabel="The field, full screen"
       legend={<>{legend}{sample ? ` ${sample}.` : ''} Left/right: the offence’s view. Tap a zone: who gets the ball.</>}
       controls={<>
         {zoneWho}
@@ -166,10 +173,18 @@ export default function GameOffDef({ matchup, players, game, onPlayerClick = nul
           </div>
           <Lens />
         </div>
+        {gl && pass && (
+          <StageSeg {...th} label="Flat or 3D field" value={three ? '3d' : 'flat'} onChange={(k) => { setThree(k === '3d'); setZonePick(null) }}
+            items={[['flat', 'Flat'], ['3d', '3D']]} />
+        )}
       </>}
       foot={whoBlock}>
-      <BroadcastField mode={pass ? 'pass' : 'rush'} maxWidth={440} hue={mode === 'defend' ? C.text2 : C.green} core={mode === 'overlap'}
+      {three && pass && gl
+        ? <GameArena cells={cells} men={offMen.placed} defMen={defMen.placed} hue={mode === 'defend' ? C.text2 : C.green} onPlayer={onPlayerClick} />
+        : (
+        <BroadcastField mode={pass ? 'pass' : 'rush'} maxWidth={440} hue={mode === 'defend' ? C.text2 : C.green} core={mode === 'overlap'}
         offTeam={off} ringKey={pickedKey ?? null} cells={cells} men={offMen.placed} defMen={defMen.placed} onPlayer={onPlayerClick} onZone={(z) => setZonePick((cur) => (cur === z ? null : z))} pickedZone={zonePick} label={`${off} offense against ${def} defense`} />
+        )}
     </FlatStage>
   )
 }
