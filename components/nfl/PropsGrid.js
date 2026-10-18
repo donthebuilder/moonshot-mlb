@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, BARS } from '../../lib/nfl/theme'
-import HitRate from './HitRate'
+import HitRate, { PRESETS } from './HitRate'
 import ValueBars from '../ValueBars'
 // THE SHARED PLAYER MODEL's props heat (components/player/): a cell at 60%+ glows in TUDDY's accent, a run of 3+ wears a flame,
 // the wide grid says it scrolls, and the long caption folds behind a (?).
@@ -31,13 +31,13 @@ import Brief from '../player/Brief'
 //     flip. The market column restores the natural order.
 
 const MARKETS = [
-  ['REC', 'Rec', 'g_rec', [2.5, 3.5, 4.5, 6.5]],
-  ['REC_YDS', 'Rec yds', 'g_recyd', [24.5, 59.5, 99.5]],
-  ['RUSH_YDS', 'Rush yds', 'g_ruyd', [49.5, 79.5, 99.5]],
-  ['RUSH_ATT', 'Carries', 'g_car', [9.5, 11.5, 14.5]],
-  ['PASS_YDS', 'Pass yds', 'g_payd', [224.5, 274.5, 299.5]],
-  ['TD', 'TD', 'g_td', [0.5]],
-  ['KICK_PTS', 'Kick pts', 'g_kick', [5.5, 8.5]],
+  ['REC', 'Rec', 'g_rec', PRESETS.REC],
+  ['REC_YDS', 'Rec yds', 'g_recyd', PRESETS.REC_YDS],
+  ['RUSH_YDS', 'Rush yds', 'g_ruyd', PRESETS.RUSH_YDS],
+  ['RUSH_ATT', 'Carries', 'g_car', PRESETS.RUSH_ATT],
+  ['PASS_YDS', 'Pass yds', 'g_payd', PRESETS.PASS_YDS],
+  ['TD', 'TD', 'g_td', PRESETS.TD],
+  ['KICK_PTS', 'Kick pts', 'g_kick', PRESETS.KICK_PTS],
 ]
 const WINDOWS = [['L5', 5], ['L10', 10], ['L20', 20], ['All', 9999]]
 
