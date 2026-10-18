@@ -66,7 +66,7 @@ export default function DayNumbers({ sport, date, theme: C, numFont, accent, eve
     <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'minmax(0, 1fr)' }}>
       <section aria-label="Today's numbers" style={box}>
         {head("TODAY'S NUMBERS", date)}
-        <div style={{ ...small, marginBottom: 4 }}>The date, added up the ways the lanes read it. Master numbers (11, 22, 33) are shown as themselves.</div>
+        <div style={{ ...small, marginBottom: 4 }}>The date, added up the lane ways. 11, 22 and 33 stay as they are.</div>
         {table(dateNumberRows(date), openT, setOpenT, `The numbers for ${date}`)}
         {hotRows.length > 0 && (
           <div style={{ marginTop: 8 }}>

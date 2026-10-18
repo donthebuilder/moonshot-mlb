@@ -1195,7 +1195,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
         title={`🧲 ${pastNight ? `Aligning on ${night}` : 'Aligning with tonight'}`}
         sub={`${aligned.length} homer${aligned.length === 1 ? '' : 's'} lining up with ${pastNight ? `${night}'s` : "tonight's"} numbers`}
         chips={aligned.map((c) => ({ key: `al${c.pid}`, name: c.name, tags: c.tags, onClick: c.p ? () => onPlayerClick?.(c.p) : null }))}
-        foot="Overlap, not evidence. ~25 homers spread over fifty numbers, nine lineup spots, jersey numbers and birthdays will line up by arithmetic alone — this is the trend made visible while it forms, never a reason to chase one."
+        foot="Overlap, not evidence: ~25 homers over fifty numbers will line up by arithmetic alone. Never a reason to chase one."
       />),
         // THE NUMBERS (2026-10-10): the night's numbers named, the preceding day's, and the lane scoreboard (cipher lanes included)
         numbers: (<div style={{ display: 'grid', gap: 10, margin: '8px 0', gridTemplateColumns: 'minmax(0, 1fr)' }}><DayNumbers sport="mlb" date={dateKey} theme={C} numFont={NUM_FONT} accent={C.orange} eventWord="HRs" /><LaneTable sport="mlb" theme={C} numFont={NUM_FONT} accent={C.orange} /></div>),
@@ -1322,8 +1322,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           foot={<>
             {placed} of {total} homers have a known lineup spot.
             {spots[topSpot] >= 3 && <> The <b style={{ color: C.text2 }}>{ord(topSpot)} spot</b> leads {nightWord} with {spots[topSpot]}.</>}
-            {' '}A full slate is ~25 homers across nine spots, so a tall bar is a picture of one night,
-            not a finding about baseball — read it as texture, never as a signal to chase.
+            {' '}One night is texture, not a signal to chase.
           </>} />
       )),
       }} />

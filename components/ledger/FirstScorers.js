@@ -45,10 +45,10 @@ export default function FirstScorers({ sport, C, numFont, accent, day = null, em
       )}
       footer={s && s.games > 0 ? (
         <div style={{ marginTop: 8, fontSize: 11.5, lineHeight: 1.55, color: C.text2 }}>
-          This season: <b style={{ color: C.text }}>{s.games}</b> games with a {w.first} on file — <b style={{ color: accent }}>{s.called}</b> called, {s.board} on the board, {s.off} not on it
+          This season, <b style={{ color: C.text }}>{s.games}</b> games: <b style={{ color: accent }}>{s.called}</b> called, {s.board} on the board, {s.off} not on it
           ({Math.round(((s.called + s.board) / s.games) * 100)}% on the board).
-          {s.top.length ? <> Most {w.first}s: {s.top.slice(0, 3).map((t) => `${t.name} ${t.n}`).join(', ')}.</> : null}
-          <span style={{ color: C.text3 }}> No first-scorer pick yet — this is the record one will be graded on.</span>
+          {s.top.length ? <> Most: {s.top.slice(0, 3).map((t) => `${t.name} ${t.n}`).join(', ')}.</> : null}
+          <span style={{ color: C.text3 }}> No pick on this yet.</span>
         </div>
       ) : null}
     />

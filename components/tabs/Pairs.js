@@ -1605,9 +1605,7 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
             </span>
           </div>
           <div style={{ fontSize: 10, color: C.text3, marginBottom: 8, lineHeight: 1.6, maxWidth: 760 }}>
-            Each card names the category the pair falls in. The both-homer rates that used to sit here
-            were measured on post-game files and are being re-measured on the locked pregame record.
-            {' '}Same game and same team are <i>not</i> on this list.
+            Each card names its category. Same game and same team are <i>not</i> listed. Both-homer rates are being re-measured on the locked pregame record.
           </div>
           <Rail gap={8} label="pairs by measured rate">
             {evPairs.map((p, i) => (

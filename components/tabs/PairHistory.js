@@ -142,9 +142,7 @@ export default function PairHistory({ summary, players = [], onPlayerClick }) {
             pair landing: two individually good bats, nothing about where they
             play. */}
         <b style={{ color: C.text2 }}>A pair is two independent events — including in the same game.</b>{' '}
-        So build a pair on the two names you like most, not on the ballpark. Use{' '}
-        <b style={{ color: C.text2 }}>Playable tonight</b> to drop pairs where one half isn&apos;t
-        even in a lineup.
+        Build a pair on the two names you like most, not the ballpark. <b style={{ color: C.text2 }}>Playable tonight</b> drops pairs with a half out of the lineup.
       </div>
 
       {/* 🔥 HOT CONNECTIONS (2026-08-07) — the page's answer to "so what do

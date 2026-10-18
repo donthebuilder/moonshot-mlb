@@ -336,10 +336,8 @@ export default function Pairs({ data, results, onPlayerClick, setTab = null }) {
   return (
     <div>
       <div style={{ fontSize: TYPE.body, color: C.text3, marginBottom: 12, lineHeight: 1.6 }}>
-        Two props, one player, played together — the market on this page is <b style={{ color: C.text2 }}>mechanical
-        correlation</b> (the same touches drive both numbers), not a backtested claim. A pair is only ever as good
-        as its <b style={{ color: C.text2 }}>weaker leg</b>: both have to clear their own bar, so a 90 + 30 is worth
-        30 wearing a big number next to it.
+        Two props, one player: <b style={{ color: C.text2 }}>mechanical correlation</b> (the same touches drive both),
+        not a backtested claim. A pair is only as good as its <b style={{ color: C.text2 }}>weaker leg</b>: a 90 + 30 is worth 30.
         {results && (
           <> {gradedCount} of {sameRows.length} same-player pairs cleared BOTH legs on the last graded run.</>
         )}
