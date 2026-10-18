@@ -1,4 +1,5 @@
 'use client'
+import { ordSuffix as ord } from '../../lib/format'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { hr9Color } from '../../lib/hr9'
@@ -135,7 +136,7 @@ const LENSES = [
   { k: 'shape', label: 'Shape', tag: 'what kind of homer he hits', color: C.orange },
 ]
 
-const ord = (i) => (i % 10 === 1 && i % 100 !== 11 ? 'st' : i % 10 === 2 && i % 100 !== 12 ? 'nd' : i % 10 === 3 && i % 100 !== 13 ? 'rd' : 'th')
+// (the suffix alone: lib/format.js ordSuffix)
 const distOf = (p) => n(p?.longest_hr_score, 0)
 const p3Of = (p) => n(p?.power3_score, 0)
 

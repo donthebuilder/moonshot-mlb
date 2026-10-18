@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { hr9Color } from '../lib/hr9'
-import { plural } from '../lib/format'
+import { plural, ordSuffix as ord } from '../lib/format'
 import { quoteFor, fmtOdds, impliedPct } from '../lib/odds'
 import { nameOf, teamOf, oppOf, clean, n, playerId } from '../lib/player'
 import { isoAdjustedHr, isoMultiplier } from '../lib/scoring_additions'
@@ -82,7 +82,7 @@ const roleOf = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpp
 // hold HR, joined "TOP/HR") — use this where matching a SPECIFIC category
 // matters, so a double-up still counts for its non-primary role too.
 const hasRole = (p, role) => String(p?.game_pick_role || '').split('/').map((s) => s.trim().toUpperCase()).includes(role)
-const ord = (i) => (i % 10 === 1 && i % 100 !== 11 ? 'st' : i % 10 === 2 && i % 100 !== 12 ? 'nd' : i % 10 === 3 && i % 100 !== 13 ? 'rd' : 'th')
+// (the suffix alone: lib/format.js ordSuffix)
 
 // The bot's three simple_reasons often say the same thing twice — reason 1
 // "Reached 439 feet recently" and reason 2 "Recent distance ceiling is
