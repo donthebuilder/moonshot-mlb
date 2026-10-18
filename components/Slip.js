@@ -126,13 +126,15 @@ export default function Slip({ sport = 'mlb', C, NUM_FONT, accent, onOpenProps =
         .slipSheet{position:fixed;z-index:420;right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));width:min(440px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow-y:auto;overscroll-behavior:contain}
         @media(max-width:760px){
           .slipChip{bottom:${DOCK_CLEAR_PHONE}}
+          /* EMPTY SLIP, ON A PHONE (2026-10-18): "Slip · 0" said nothing and sat over the cards' text. Until a leg is added it is a slim edge tab (the receipt icon, 34px in); with a leg it is the full chip again */
+          .slipChip[data-empty="1"]{right:0!important;left:auto!important;margin-bottom:0!important;border-radius:22px 0 0 22px!important;transform:translateX(calc(100% - 34px))!important}
           body:has([role=note].account-nudge) .slipChip{bottom:calc(${DOCK_CLEAR_PHONE} + 62px)}   /* the free-account line sits at the dock too: stack above it, never under it */
           .slipSheet{left:max(8px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));width:auto;max-height:calc(100dvh - 16px - env(safe-area-inset-top))}
           main.dashboard-main{padding-bottom:156px!important}
         }
         @media(orientation:landscape) and (max-height:500px){main.dashboard-main{padding-bottom:132px!important}}   /* a phone on its side: the last row scrolls clear of the dock and the chip */
       `}</style>
-      <button type="button" className="slipChip" ref={chipRef} onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open}
+      <button type="button" className="slipChip" ref={chipRef} data-empty={legs.length ? undefined : '1'} onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open}
         aria-label={`Your slip, ${legs.length} ${legs.length === 1 ? 'pick' : 'picks'}. Open it.`}
         style={{ minHeight: 44, minWidth: 44, display: 'inline-flex', alignItems: 'center', gap: 8, padding: '0 14px', background: C.bg2, color: C.text, border: `1px solid ${legs.length ? accent : C.border2}`, borderRadius: 22, boxShadow: '0 8px 28px rgba(0,0,0,.6)', fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: NUM_FONT }}>
         <span aria-hidden="true">🧾</span>
