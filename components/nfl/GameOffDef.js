@@ -13,6 +13,7 @@ import TeamMark from '../TeamMark'
 import { nflNickname } from '../../lib/nfl/teams'
 import BroadcastField from './BroadcastField'
 import RunDefenders from './RunDefenders'
+import MoreNote from '../MoreNote'
 import FlatStage, { StageSeg, StageLens } from '../charts/FlatStage'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { fmtPct, HEAT_FULL } from '../../lib/nfl/fieldModel'
@@ -135,7 +136,7 @@ export default function GameOffDef({ matchup, players, game, onPlayerClick = nul
   const allPlaced = [...offMen.placed, ...defMen.placed]
   const whoBlock = (allPlaced.length > 0 || offMen.chips.length > 0 || defMen.chips.length > 0) ? (
     <div style={{ marginTop: 2 }}>
-      {allPlaced.length > 0 && <p style={{ margin: '4px 0 0', fontSize: 12, lineHeight: 1.5, color: C.text3 }}>Faces: left and right are the offence’s view. {basisNote({ placed: allPlaced, pass, hasDef: defMen.placed.length > 0 })}</p>}
+      {allPlaced.length > 0 && <MoreNote label="About the faces"><p style={{ margin: '4px 0 0', fontSize: 12, lineHeight: 1.5, color: C.text3 }}>Faces: left and right are the offence’s view. {basisNote({ placed: allPlaced, pass, hasDef: defMen.placed.length > 0 })}</p></MoreNote>}
       <WhoChips chips={[...offMen.chips, ...defMen.chips]} onPlayer={onPlayerClick} />
     </div>
   ) : null

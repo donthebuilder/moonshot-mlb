@@ -1,4 +1,5 @@
 'use client'
+import MoreNote from '../../MoreNote'
 import NflNote from '../NflNote'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
@@ -155,11 +156,11 @@ export default function RedZone({ data, matchup = null, onPlayerClick }) {
         dimRow={(r) => r._raw?.carryover || r._raw?.low_sample}
       />
 
-      <div style={{ marginTop: 10, padding: '10px 13px', border: `1px dashed ${C.border2}`, borderRadius: 10, color: C.text3, fontSize: TYPE.micro, lineHeight: 1.6 }}>
+      <MoreNote label="How to read the shares"><div style={{ marginTop: 10, padding: '10px 13px', border: `1px dashed ${C.border2}`, borderRadius: 10, color: C.text3, fontSize: TYPE.micro, lineHeight: 1.6 }}>
         TM SHARE counts only the players tracked on his team, so it is his share of those
         players&apos; red-zone touches, not of every snap inside the 20. Players on bye are left out.
         Dimmed rows: too few games this season, so the numbers are last season&apos;s rate or a small sample.
-      </div>
+      </div></MoreNote>
     </div>
   )
 }

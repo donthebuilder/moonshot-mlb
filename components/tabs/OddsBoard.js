@@ -21,6 +21,7 @@ import { fetchJSON } from '../../lib/data'
 import { oddsHistoryPaths } from '../../lib/dataSource'
 import { historyIndex, historyLooksReal } from '../../lib/oddsHistory'
 import { useSlip } from '../../lib/slip/store'
+import MoreNote from '../MoreNote'
 import { oddsRowLeg } from '../../lib/slip/rowLegs'
 
 // 💵 THE ODDS PAGE (2026-08-15, Donovan: "we need to see the line the book has
@@ -1096,9 +1097,9 @@ key={market}
       )}
       {/* 2+ (TWO-SCORE batch, 2026-10-11): where the 2+ market's price stands. Read off the sport's rule table (lib/twoPlus/rules.js), never a sport test. */}
       {TWO_PLUS[A.sport] && !PRICES_STORED[A.sport] && (
-        <p style={{ margin: '12px 0 0', fontSize: TYPE.micro, color: C.text3, lineHeight: 1.55 }}>
+        <MoreNote label="About 2+ prices"><p style={{ margin: '12px 0 0', fontSize: TYPE.micro, color: C.text3, lineHeight: 1.55 }}>
           {TWO_PLUS[A.sport].label} prices are not published: the odds tick stores {TWO_PLUS[A.sport].anytime.toLowerCase()} and the over/under lines only. A player priced shorter than {TWO_PLUS[A.sport].trigger} is meant to be checked against the {TWO_PLUS[A.sport].label} price; with none posted, no Card straight is made from it. Nothing is guessed in its place.
-        </p>
+        </p></MoreNote>
       )}
     </div>
   )
