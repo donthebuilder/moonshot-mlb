@@ -12,6 +12,15 @@ const THEME = { C, NUM_FONT, TYPE, accent: C.purple }
 const WORDS = {
   status: (w) => `${w.when}${w.locked ? ' · the board is set' : ' · a preview until the lock'}`,
   meta: (p) => `${p.team}${p.position ? ` ${p.position}` : ''} · ${p.markets.map((m) => m.word).join(' + ')}${p.role === 'TOP' ? ' · TOP' : ''}`,
+  // the player's head row as chips on a phone (GameWriteupBlock chips): one score chip per market, the best glows
+  chips: (p) => [
+    ...p.markets.flatMap((m) => [
+      { value: m.score, label: `${String(m.word).toUpperCase()} · BUCKETS`, hot: m.role === 'TOP' },
+      m.rank != null && m.of && { value: `#${m.rank}`, label: `of ${m.of}` },
+    ]),
+    { label: `${p.team}${p.position ? ` ${p.position}` : ''}` },
+    p.role === 'TOP' && { label: 'TOP' },
+  ].filter(Boolean),
   numbers: (p) => p.markets.map((m) => `${m.word} · BUCKETS score ${m.score}${m.rank != null && m.of ? ` · #${m.rank} of ${m.of} tonight` : ''}`).join(' | '),
 }
 
@@ -22,5 +31,5 @@ export default function NbaWriteupBlock({ gameId, date, onOpenPlayer }) {
     return input ? buildNbaWriteup(input) : null
   }, [pts.data, dd.data, td.data, gameId])
   if (!w) return null
-  return <GameWriteupBlock w={w} theme={THEME} words={WORDS} onOpen={onOpenPlayer ? (p) => onOpenPlayer(p.player_id) : null} />
+  return <GameWriteupBlock w={w} theme={THEME} words={WORDS} chips onOpen={onOpenPlayer ? (p) => onOpenPlayer(p.player_id) : null} />
 }

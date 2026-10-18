@@ -12,6 +12,8 @@
 // (watch-outs, price, bottom line) one tap down, so the first useful row on the
 // game page doesn't move far.
 import { useLockOf, CardLockLine } from '../MemberGate'
+import { useIsPhone } from '../MobileFold'
+import { Chip, ChipRow } from '../writeups/ChipLines'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { buildNflWriteup } from '../../lib/writeups/build'
@@ -35,6 +37,7 @@ function useTotals(season) {
   return t
 }
 
+const CHIP_THEME = { C, NUM_FONT, TYPE, get accent() { return C.green } }   // read at draw time: C is mutated after mount (applyTheme)
 const Kicker = ({ children }) => (
   <div style={{ font: `800 12px/1 ${NUM_FONT}`, letterSpacing: '.1em', color: C.text2, margin: '10px 0 4px' }}>{children}</div>
 )
@@ -96,6 +99,7 @@ function CallsStrip({ cards, onPlayerClick, onOpenTeam }) {
 export default function WriteupBlock({ game, gameCalls, week, matchup, logs, odds, onPlayerClick, onOpenTeam = null, extras: extrasIn = [] }) {
   const totals = useTotals(gameCalls?.season)
   const [open, setOpen] = useState(false)
+  const phone = useIsPhone(560)   // the open view as chips on a phone (2026-10-17); a wider screen keeps the lists
   const g = useMemo(() => (gameCalls?.games || []).find((x) => String(x.game_id) === String(game?.game_id)) || null, [gameCalls, game?.game_id])
   const w0 = useMemo(() => (g ? buildNflWriteup(g, { week, totals, matchup, logs, odds }) : null), [g, week, totals, matchup, logs, odds])
   // MEMBERS GATE (2026-10-16, components/MemberGate.js): a CALLED player a non-member may not read is left out, with the lines that can name him (the game and bottom
@@ -158,16 +162,29 @@ export default function WriteupBlock({ game, gameCalls, week, matchup, logs, odd
               </div>
               {score != null && <b title="Touchdown score, out of 100" style={{ fontFamily: NUM_FONT, fontSize: 24, color: gradeFor(c?.score ?? p.tdScore).color }}>{score}</b>}
             </div>
+            {phone ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                <Chip theme={CHIP_THEME} value={`#${c?.slate_rank ?? p.rank}`} label={`of ${c?.of ?? p.of} this week`} heat={(c?.slate_rank ?? p.rank) <= 5 ? 2 : 0} />
+                {p.posRank ? <Chip theme={CHIP_THEME} value={`#${p.posRank}`} label={`of ${p.posOf} ${p.position}s`} /> : null}
+                {Number.isFinite(Number(c?.xtd_pg)) ? <Chip theme={CHIP_THEME} value={Number(c.xtd_pg).toFixed(2)} label="TDs expected a game" /> : null}
+              </div>
+            ) : (
             <div style={{ marginTop: 4, fontSize: 12, color: C.text2, fontFamily: NUM_FONT }}>
               #{c?.slate_rank ?? p.rank} of {c?.of ?? p.of} this week{p.posRank ? ` · #${p.posRank} of ${p.posOf} ${p.position}s` : ''}{Number.isFinite(Number(c?.xtd_pg)) ? ` · ${Number(c.xtd_pg).toFixed(2)} touchdowns expected a game` : ''}
             </div>
+            )}
+            {phone ? <ChipRow theme={CHIP_THEME} lines={p.why} /> : (
             <ul style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
               {(open ? p.why : p.why.slice(0, 2)).map((l) => <li key={l.t} title={l.src}>{l.t}</li>)}
             </ul>
+            )}
             {open && p.watch.length > 0 && (<><Kicker>WATCH OUT</Kicker>
-              <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.5, color: C.text2 }}>{p.watch.map((l) => <li key={l.t} title={l.src}>{l.t}</li>)}</ul></>)}
-            {open && <DepthSections sections={p.depth} />}
-            {open && p.price && <div style={{ marginTop: 4, fontSize: 13, color: C.text2, fontFamily: NUM_FONT }}>Price {p.price.odds > 0 ? `+${p.price.odds}` : p.price.odds}{p.price.book ? ` at ${p.price.book}` : ''}{p.price.implied != null ? ` (implies ${p.price.implied}%)` : ''}</div>}
+              {phone ? <ChipRow theme={CHIP_THEME} lines={p.watch} warn style={{ marginTop: 0 }} /> : (
+              <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.5, color: C.text2 }}>{p.watch.map((l) => <li key={l.t} title={l.src}>{l.t}</li>)}</ul>)}</>)}
+            {open && <DepthSections sections={p.depth} chips={phone} />}
+            {open && p.price && (phone
+              ? <div style={{ marginTop: 6 }}><Chip theme={CHIP_THEME} value={p.price.odds > 0 ? `+${p.price.odds}` : p.price.odds} label={`${p.price.book ? `at ${p.price.book}` : 'price'}${p.price.implied != null ? ` · implies ${p.price.implied}%` : ''}`} /></div>
+              : <div style={{ marginTop: 4, fontSize: 13, color: C.text2, fontFamily: NUM_FONT }}>Price {p.price.odds > 0 ? `+${p.price.odds}` : p.price.odds}{p.price.book ? ` at ${p.price.book}` : ''}{p.price.implied != null ? ` (implies ${p.price.implied}%)` : ''}</div>)}
           </div>
         )
       })}

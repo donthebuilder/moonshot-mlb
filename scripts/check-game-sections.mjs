@@ -92,8 +92,8 @@ if (live.join() !== fin.join()) fail('nhl page: live and final must draw the sam
 const OLD_MLB = [['read', 'The read'], ['lineups', 'Lineups'], ['h2h', 'Head-to-head'], ['out', 'Out'], ['picks', 'Picks']]
 if (JSON.stringify(panelPairs('mlb')) !== JSON.stringify(OLD_MLB)) fail(`mlb pills changed: ${JSON.stringify(panelPairs('mlb'))}`)
 if (Object.keys(panelSubs('mlb')).join() !== 'read,lineups,h2h,out,picks') fail('mlb pill words changed')
-// NFL / NHL slates: the pills as they were
-if (JSON.stringify(panelPairs('nfl')) !== JSON.stringify([['calls', 'Our calls'], ['field', 'The field'], ['players', 'Players'], ['matchup', 'Matchup'], ['out', 'Out']])) fail('nfl pills changed')
+// NFL / NHL slates: the pills as they were. NFL's calls moved below the field and the players on 2026-10-17 (Donovan: not smack at the top): a deliberate change of order, same ids and words.
+if (JSON.stringify(panelPairs('nfl')) !== JSON.stringify([['field', 'The field'], ['players', 'Players'], ['calls', 'Our calls'], ['matchup', 'Matchup'], ['out', 'Out']])) fail('nfl pills changed')
 if (JSON.stringify(panelPairs('nhl')) !== JSON.stringify([['read', 'The read'], ['board', 'Every player'], ['calls', 'The calls'], ['out', 'Out']])) fail('nhl pills changed')
 
 if (bad) { console.log(`\n${bad} failure(s)`); process.exit(1) }
