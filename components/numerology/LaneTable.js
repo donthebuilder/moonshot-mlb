@@ -47,7 +47,7 @@ export default function LaneTable({ sport, theme: C, numFont, accent, tonight = 
   const players = onLanes.length ? (
     <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px solid ${C.border}` }}>
       <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.1em', color: accent, fontFamily: numFont }}>TONIGHT&apos;S PLAYERS ON THESE LANES</div>
-      <div style={{ fontSize: 11, color: C.text3, margin: '2px 0 4px', lineHeight: 1.45 }}>Whoever is on the most lanes tonight. A lane is a pattern, not a pick: the scoreboard above says how little it has proved.</div>
+      <div style={{ fontSize: 11, color: C.text3, margin: '2px 0 4px', lineHeight: 1.45 }}>On the most lanes tonight. A lane is a pattern, not a pick.</div>
       <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
         {onLanes.map((p) => (
           <li key={p.id} style={{ borderTop: `1px solid ${C.border}` }}>
@@ -76,7 +76,7 @@ export default function LaneTable({ sport, theme: C, numFont, accent, tonight = 
             : data.recorded
               ? `${data.recorded} night${data.recorded === 1 ? '' : 's'} recorded so far; a night counts once every game on it is graded.`
               : 'Nothing recorded yet: each night is logged before the game starts and graded after the final.'}{' '}
-          A lane&apos;s running counts appear here once it has a graded night, labelled tracking until it has {data.minNights || MIN_NIGHTS} graded nights and {data.minMatched || MIN_MATCHED} graded matches: its matched players&apos; hit rate against everyone who could have matched.
+          A lane&apos;s counts appear after its first graded night; it is "tracking" until {data.minNights || MIN_NIGHTS} nights and {data.minMatched || MIN_MATCHED} matches.
         </div>
         {players}
       </section>
@@ -115,8 +115,8 @@ export default function LaneTable({ sport, theme: C, numFont, accent, tonight = 
       </div>
       {lanes.length > 5 && <button type="button" onClick={() => setAll((v) => !v)} style={{ marginTop: 6, minHeight: 44, padding: '0 10px', border: `1px solid ${C.border}`, borderRadius: 8, background: 'transparent', color: accent, fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>{all ? 'Show five' : `+${lanes.length - 5} more lanes`}</button>}
       <div style={{ marginTop: 6, fontSize: 11, color: C.text3, lineHeight: 1.5 }}>
-        {provisional ? <>Tracking: a lane needs {data.minNights || MIN_NIGHTS} graded nights and {data.minMatched || MIN_MATCHED} graded matches before it is read; under that the counts are real but no lane is a finding, so no z is shown. </> : null}
-        z = matched players against the rest of the eligible pool; |z| under 2 is chance. Ranges are 95% Wilson. Graded nights only.{allBase} Information only: never part of a score, never a call.
+        {provisional ? <>Tracking: a lane needs {data.minNights || MIN_NIGHTS} nights and {data.minMatched || MIN_MATCHED} matches before it counts; under that, no z. </> : null}
+        z = matched players vs the rest of the pool; |z| under 2 is chance. 95% Wilson ranges. Graded nights only.{allBase} Information only, never part of a score.
       </div>
       {players}
     </section>

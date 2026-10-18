@@ -247,9 +247,7 @@ export default function PairBoard({ pairBuilder, results, onPlayerClick }) {
           ))}
         </div>
         <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.55 }}>
-          Every line is MOONSHOT&apos;s own <code>reason</code>, <code>tags</code> and <code>risk</code> for
-          that pair, printed instead of truncated. The number to check before anything else is the
-          weaker side — both hitters have to land, so the pair is never better than its worse half.
+          Every line is MOONSHOT&apos;s own reason, tags and risk for that pair. Check the weaker side first: the pair is never better than its worse half.
         </div>
       </div>
     </div>

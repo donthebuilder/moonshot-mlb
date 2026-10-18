@@ -252,6 +252,12 @@ button {
   .phone-slate .ph-today { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 }
 
+/* LESS WORDS ON A PHONE (2026-10-17, Donovan: "use less words site wide"): the one-sentence note under a page's title (PageHeader's `note`,
+   "what this page is for") is dropped at <= 430px on every page; the title, the date line and the controls already say where you are. Desktop keeps it. */
+@media (max-width: 430px) {
+  .ph-note { display: none !important; }
+}
+
 /* THE SHARE-CARD BUTTON (components/card/ShareCardButton.js, 2026-10-12): 44 px tall everywhere, 34 px only on a desktop with a mouse;
    under 361 px the word is dropped and the camera stays a 44 x 44 target. */
 .share-card-btn { min-height: 44px; }
