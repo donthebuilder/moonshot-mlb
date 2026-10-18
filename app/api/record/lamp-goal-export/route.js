@@ -10,7 +10,17 @@ import { VERSIONS } from '../../../../lib/nhl/versions'
 
 export const dynamic = 'force-dynamic'
 
-const COLS = 'game_id,player_id,model_version,game_date,game_type,score,pct,legs,dressed,goals,hit'
+const COLS = 'game_id,player_id,model_version,game_date,game_type,score,pct,legs,dressed,goals,hit,rank_in_game,status,context'
+// GAME CONTEXT (2026-10-18): the residual scan (bots/nhl_residual_scan.py) tests every numeric/boolean leaf of `context`. Only these keys ride, all measured pregame and
+// numbers or flags: the opposing club's goals against per game, his club's back-to-back, whether the lineup was posted, a stale-season flag, his role and night rank. NOT exported:
+// the opposing goalie object, season labels, or the projection/chance fields (a score is a rank, never a chance).
+const CONTEXT_KEYS = ['oppGaPg', 'b2b', 'lineupKnown', 'staleSeason', 'role', 'nightRank']
+const slimContext = (c) => {
+  if (!c || typeof c !== 'object') return null
+  const out = {}
+  for (const k of CONTEXT_KEYS) if (typeof c[k] === 'number' || typeof c[k] === 'boolean') out[k] = c[k]
+  return Object.keys(out).length ? out : null
+}
 const PAGE = 1000
 const MAX_PAGES = 60      // 60k rows is far past a season of this log; a stop, not a limit anyone should reach
 
@@ -24,7 +34,7 @@ const build = unstable_cache(async () => {
       .order('game_date', { ascending: true }).order('game_id', { ascending: true }).order('player_id', { ascending: true })
       .range(i * PAGE, i * PAGE + PAGE - 1)
     if (error) throw new Error(error.message || String(error))
-    rows.push(...(data || []))
+    rows.push(...(data || []).map((r) => ({ ...r, context: slimContext(r.context) })))
     if (!data || data.length < PAGE) break
   }
   // COMPOSITE (2026-10-18, a hidden shadow in lamp_prop_log market 'GOAL'): its score rides on the SAME rows so the harness grades the live `score`
@@ -50,7 +60,7 @@ const build = unstable_cache(async () => {
     }
   } catch (e) { console.error(`[lamp-goal-export] composite: ${e?.message}`) }
   return rows
-}, ['lamp-goal-export-v3'], { revalidate: 3600 })
+}, ['lamp-goal-export-v4'], { revalidate: 3600 })
 
 export async function GET() {
   try {
