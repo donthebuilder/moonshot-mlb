@@ -131,6 +131,12 @@ const BAND_MIN = 20
 const pctTxt = (v) => (v == null ? '—' : `${v.toFixed(1)}%`)
 
 
+// Weeks graded at an older bar are never added to the current record (lib/nfl/barSplit.js); one short line says what they were.
+function earlierWords(totals) {
+  return Object.entries(totals || {}).flatMap(([k, t]) => (t.earlier || []).filter((e) => e.n > 0)
+    .map((e) => `${(MARKETS.find(([mk]) => mk === k) || [])[1] || k} ${e.hit}/${e.n} at ${e.bar}+`)).join(' · ')
+}
+
 function ReceiptHero({ results, when }) {
   const totals = results.totals || {}
   const markets = MARKETS.map(([key, label]) => ({
@@ -426,7 +432,7 @@ function SeasonStrip({ archive, keys, loading, picked, onPick, currentKey, mode 
       {mode === 'season' && (
       <div className="acc-season-head">
         <div><small>SEASON TO DATE</small><h2>{grand.n ? `${grand.hit}/${grand.n} · ${grand.pct}%` : loading ? 'Harvesting weeks…' : 'One week graded so far'}</h2>
-          <p>{keys.length} graded week{keys.length === 1 ? '' : 's'}. Every rung, every week, bars unchanged.{regradeNotes(keys).map((t) => ` ${t}`).join('')}</p></div>
+          <p>{keys.length} graded week{keys.length === 1 ? '' : 's'}. Every rung, every week, each at its own bar.{earlierWords(totals) ? ` Kept apart: ${earlierWords(totals)}.` : ''}{regradeNotes(keys).map((t) => ` ${t}`).join('')}</p></div>
       </div>
       )}
       {mode === 'season' && markets.length > 0 && (
@@ -435,7 +441,7 @@ function SeasonStrip({ archive, keys, loading, picked, onPick, currentKey, mode 
             <div key={k} style={{ borderTopColor: col[k] }}>
               <small>{label}</small>
               <b style={{ color: t.pct >= 55 ? C.green : t.pct < 45 ? C.text3 : C.text }}>{t.pct == null ? '—' : `${t.pct}%`}</b>
-              <span>{t.hit}/{t.n}{t.void ? ` · ${t.void} void` : ''}</span>
+              <span>{t.hit}/{t.n}{t.bar != null && t.earlier?.length ? ` at ${t.bar}+` : ''}{t.void ? ` · ${t.void} void` : ''}</span>
             </div>
           ))}
         </div>

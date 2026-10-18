@@ -32,10 +32,10 @@ import Brief from '../player/Brief'
 
 const MARKETS = [
   ['REC', 'Rec', 'g_rec', [2.5, 3.5, 4.5, 6.5]],
-  ['REC_YDS', 'Rec yds', 'g_recyd', [24.5, 39.5, 59.5]],
-  ['RUSH_YDS', 'Rush yds', 'g_ruyd', [39.5, 49.5, 79.5]],
+  ['REC_YDS', 'Rec yds', 'g_recyd', [24.5, 59.5, 99.5]],
+  ['RUSH_YDS', 'Rush yds', 'g_ruyd', [49.5, 79.5, 99.5]],
   ['RUSH_ATT', 'Carries', 'g_car', [9.5, 11.5, 14.5]],
-  ['PASS_YDS', 'Pass yds', 'g_payd', [199.5, 224.5, 274.5]],
+  ['PASS_YDS', 'Pass yds', 'g_payd', [224.5, 274.5, 299.5]],
   ['TD', 'TD', 'g_td', [0.5]],
   ['KICK_PTS', 'Kick pts', 'g_kick', [5.5, 8.5]],
 ]
