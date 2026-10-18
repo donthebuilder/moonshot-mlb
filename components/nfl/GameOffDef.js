@@ -12,6 +12,7 @@ import { placeOffense, placeDefense, whoInZone, basisNote } from '../../lib/nfl/
 import TeamMark from '../TeamMark'
 import { nflNickname } from '../../lib/nfl/teams'
 import BroadcastField from './BroadcastField'
+import RunDefenders from './RunDefenders'
 import FlatStage, { StageSeg, StageLens } from '../charts/FlatStage'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { fmtPct, HEAT_FULL } from '../../lib/nfl/fieldModel'
@@ -160,7 +161,7 @@ export default function GameOffDef({ matchup, players, game, onPlayerClick = nul
         { label: `${def} LEAK`, big: soft?.leak != null ? fmtPct(soft.leak) : '—', pct: soft?.leak > 0 ? Math.min(100, (100 * soft.leak) / HEAT_FULL) : null, hot: Boolean(ring && soft && ring.z === soft.z), line: soft?.leak != null ? `yards a ${unit} vs normal: ${soft.where}` : 'too few plays to call' },
         { label: 'THEY MEET', big: ring ? pct(ring.share) : 'NONE', pct: ring && gf.maxOv > 0 ? Math.min(100, (100 * ring.ov) / gf.maxOv) : null, hot: Boolean(ring), line: ring ? `ringed: ${ring.where}` : 'no clear spot where both meet' },
       ]}
-      maxWidth={440} foldTiles={phone} fullscreen={!(three && pass && gl)} fullLabel="The field, full screen"
+      maxWidth={440} foldTiles={phone} fullscreen={!(three && gl)} fullLabel="The field, full screen"
       legend={<>{legend}{sample ? ` ${sample}.` : ''} Left/right = the offence’s view. Tap a zone or a face.</>}
       controls={<>
         {zoneWho}
@@ -173,14 +174,14 @@ export default function GameOffDef({ matchup, players, game, onPlayerClick = nul
           </div>
           <Lens />
         </div>
-        {gl && pass && (
+        {gl && (
           <StageSeg {...th} label="Flat or 3D field" value={three ? '3d' : 'flat'} onChange={(k) => { setThree(k === '3d'); setZonePick(null) }}
             items={[['flat', 'Flat'], ['3d', '3D']]} />
         )}
       </>}
-      foot={whoBlock}>
-      {three && pass && gl
-        ? <GameArena cells={cells} men={offMen.placed} defMen={defMen.placed} hue={mode === 'defend' ? C.text2 : C.green} onPlayer={onPlayerClick} />
+      foot={<>{whoBlock}{!pass && <RunDefenders def={def} />}</>}>
+      {three && gl
+        ? <GameArena pass={pass} cells={cells} men={offMen.placed} defMen={defMen.placed} hue={mode === 'defend' ? C.text2 : C.green} onPlayer={onPlayerClick} />
         : (
         <BroadcastField mode={pass ? 'pass' : 'rush'} maxWidth={440} hue={mode === 'defend' ? C.text2 : C.green} core={mode === 'overlap'}
         offTeam={off} ringKey={pickedKey ?? null} cells={cells} men={offMen.placed} defMen={defMen.placed} onPlayer={onPlayerClick} onZone={(z) => setZonePick((cur) => (cur === z ? null : z))} pickedZone={zonePick} label={`${off} offense against ${def} defense`} />
