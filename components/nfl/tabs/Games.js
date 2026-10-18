@@ -244,7 +244,7 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
     : null
 
   return (
-    <div className="slate-tight">
+    <div className="slate-tight phone-slate">
       {waveIsOver && (
         <div
           role="status"

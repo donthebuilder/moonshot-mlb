@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 
 // 📱 MOBILE FOLD (2026-08-09) — "tonight's parks could be a drop down on
@@ -79,15 +79,21 @@ export default function MobileFold({
   // Same hydration rule as useIsPhone: never read storage during render. The
   // server has none, so a stored `false` would produce markup React throws
   // away on the first client pass.
+  // A reader's own choice (stored, or a tap) outranks the default; with none, the fold follows
+  // defaultOpen -- which a caller derives from isPhone, true on the server pass and false once the
+  // phone is known (2026-10-17: the fold stayed OPEN on a first phone visit, 700px of game cards).
+  const chose = useRef(false)
   useEffect(() => {
     if (!rememberKey) return
     try {
       const v = window.localStorage.getItem(rememberKey)
-      if (v === '0' || v === '1') setOpen(v === '1')
+      if (v === '0' || v === '1') { chose.current = true; setOpen(v === '1') }
     } catch { /* private mode */ }
   }, [rememberKey])
+  useEffect(() => { if (!chose.current) setOpen(defaultOpen) }, [defaultOpen])
 
   const toggle = () => setOpen((v) => {
+    chose.current = true
     const next = !v
     if (rememberKey) { try { window.localStorage.setItem(rememberKey, next ? '1' : '0') } catch { /* private mode */ } }
     return next

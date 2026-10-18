@@ -6,6 +6,8 @@
 // never reads its own result back (the library gates on game.state too).
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/nhl/theme'
+import { useIsPhone } from '../MobileFold'
+import { ChipRow } from '../writeups/ChipLines'
 import { nhlDepth, nhlGameDepth, busiestGoalie } from '../../lib/writeups/nhl'
 import { XG_COEF } from '../../lib/nhl/xg'
 import { useLampShots, useLampGoalies, useLampGoalieZones, useLampSpecialTeams } from '../../lib/nhl/useLamp'
@@ -14,16 +16,21 @@ const Kicker = ({ children }) => (
   <div style={{ font: `800 ${TYPE.micro}px/1 ${NUM_FONT}`, letterSpacing: '.1em', color: C.text3, margin: '10px 0 4px' }}>{children}</div>
 )
 
-export function DepthSections({ sections }) {
+const CHIP_THEME = { C, NUM_FONT, TYPE, accent: C.ice }
+
+export function DepthSections({ sections, chips = false }) {
+  const phone = useIsPhone(560)
   if (!sections?.length) return null
   return (
     <div>
       {sections.map((s) => (
         <div key={s.key}>
           <Kicker>{s.title}</Kicker>
-          <ul style={{ margin: 0, paddingLeft: 16, fontSize: TYPE.body, lineHeight: 1.5, color: C.text2 }}>
-            {s.lines.map((l, i) => <li key={`${i}-${l.t}`} title={l.src}>{l.t}</li>)}
-          </ul>
+          {chips && phone ? <ChipRow theme={CHIP_THEME} lines={s.lines} style={{ marginTop: 0 }} /> : (
+            <ul style={{ margin: 0, paddingLeft: 16, fontSize: TYPE.body, lineHeight: 1.5, color: C.text2 }}>
+              {s.lines.map((l, i) => <li key={`${i}-${l.t}`} title={l.src}>{l.t}</li>)}
+            </ul>
+          )}
         </div>
       ))}
     </div>
@@ -57,20 +64,20 @@ function useInputs(bg, { player = null, clubs = [] }) {
 const Busy = () => <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, margin: '8px 0' }}>Reading the shot maps…</div>
 
 /** one skater's sections. scope 'game': the game's own sections carry rest, special teams and the goalies. */
-export function PlayerDepth({ row, game, scope = 'player' }) {
+export function PlayerDepth({ row, game, scope = 'player', chips = false }) {
   const { inp, busy } = useInputs(game, { player: row?.playerId, clubs: [row?.opp] })
   const sections = useMemo(() => nhlDepth(row, game, inp, { game: scope === 'game' }), [row, game, inp, scope])
   if (busy && !sections.length) return <Busy />
-  return <DepthSections sections={sections} />
+  return <DepthSections sections={sections} chips={chips} />
 }
 
 /** the game's own sections: rest, special teams, the goalies */
-export function GameDepth({ game }) {
+export function GameDepth({ game, chips = false }) {
   const clubs = [game?.game?.away?.abbrev, game?.game?.home?.abbrev]
   const { inp, busy } = useInputs(game, { clubs })
   const sections = useMemo(() => nhlGameDepth(game, inp), [game, inp])
   if (busy && !sections.length) return <Busy />
-  return <DepthSections sections={sections} />
+  return <DepthSections sections={sections} chips={chips} />
 }
 
 /** the player page's own toggle (the game page's is the write-up's) */

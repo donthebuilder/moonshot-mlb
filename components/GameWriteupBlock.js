@@ -7,6 +7,8 @@ import { useState } from 'react'
 import CallStatusBadge from './CallStatusBadge'
 import Tap from './Tap'
 import { useLockOf, CardLockLine } from './MemberGate'
+import { useIsPhone } from './MobileFold'
+import { Chip, ChipRow } from './writeups/ChipLines'
 
 /**
  * @param w        a write-up (buildWriteup)
@@ -15,12 +17,16 @@ import { useLockOf, CardLockLine } from './MemberGate'
  * @param onOpen   (p) => void, opens the player
  * @param lockIn   optional (p) => { key, time, graded? }: the members gate (2026-10-16). A CALLED player a non-member may not read is left out, with the rest of the write-up
  *                 (its lines can name him); one generic line (no count) says the rest is for members. Absent, or any other viewer: unchanged.
+ * @param chips    optional: draw the players as chips on a phone (2026-10-17). words.chips(p) -> [{ value, label, hot? }] is the player's head row; the reasons and watch-outs
+ *                 are the same lines as chips (components/writeups/ChipLines.js). Off, or on a desktop: the list below, unchanged.
  * @param depth    optional { player(p) => node, game: node } the sport's deeper sections, drawn only while the full write-up is open
  */
-export default function GameWriteupBlock({ w, theme, words, onOpen, depth = null, lockIn = null }) {
+export default function GameWriteupBlock({ w, theme, words, onOpen, depth = null, lockIn = null, chips = false }) {
   const { C, NUM_FONT, TYPE, accent: ACCENT } = theme
   const [open, setOpen] = useState(false)
   const lockOf = useLockOf()
+  const phone = useIsPhone(560)
+  const asChips = Boolean(chips) && phone && typeof words.chips === 'function'
   if (!w || !w.players.length) return null
   const hiddenN = lockIn ? w.players.filter((p) => lockOf({ status: p.status, ...lockIn(p) }).locked).length : 0
   if (hiddenN > 0) {
@@ -43,16 +49,24 @@ export default function GameWriteupBlock({ w, theme, words, onOpen, depth = null
             <Tap onClick={onOpen ? () => onOpen(p) : null}
               style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', fontSize: TYPE.name, fontWeight: 900, color: C.text }}>{p.name}</Tap>
             <CallStatusBadge status={p.status} />
-            <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{words.meta(p)}</span>
+            {!asChips && <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{words.meta(p)}</span>}
           </div>
-          <div style={{ fontSize: TYPE.body, color: C.text2, fontFamily: NUM_FONT }}>
-            {words.numbers(p)}
-          </div>
-          <ul style={{ margin: '4px 0 0', paddingLeft: 16, fontSize: TYPE.body, lineHeight: 1.5, color: C.text2 }}>
-            {(open ? p.why : p.why.slice(0, 2)).map((l) => <li key={l.t} title={l.src}>{l.t}</li>)}
-          </ul>
-          {open && p.watch.length > 0 && (<><Kicker>WATCH OUT</Kicker>
-            <ul style={{ margin: 0, paddingLeft: 16, fontSize: TYPE.body, lineHeight: 1.5, color: C.text2 }}>{p.watch.map((l) => <li key={l.t} title={l.src}>{l.t}</li>)}</ul></>)}
+          {asChips ? (<>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
+              {words.chips(p).map((c, i) => <Chip key={i} theme={theme} value={c.value} label={c.label} heat={c.hot ? 2 : 0} />)}
+            </div>
+            <ChipRow theme={theme} lines={open ? p.why : p.why.slice(0, 3)} />
+            {open && p.watch.length > 0 && (<><Kicker>WATCH OUT</Kicker><ChipRow theme={theme} lines={p.watch} warn style={{ marginTop: 0 }} /></>)}
+          </>) : (<>
+            <div style={{ fontSize: TYPE.body, color: C.text2, fontFamily: NUM_FONT }}>
+              {words.numbers(p)}
+            </div>
+            <ul style={{ margin: '4px 0 0', paddingLeft: 16, fontSize: TYPE.body, lineHeight: 1.5, color: C.text2 }}>
+              {(open ? p.why : p.why.slice(0, 2)).map((l) => <li key={l.t} title={l.src}>{l.t}</li>)}
+            </ul>
+            {open && p.watch.length > 0 && (<><Kicker>WATCH OUT</Kicker>
+              <ul style={{ margin: 0, paddingLeft: 16, fontSize: TYPE.body, lineHeight: 1.5, color: C.text2 }}>{p.watch.map((l) => <li key={l.t} title={l.src}>{l.t}</li>)}</ul></>)}
+          </>)}
           {open && depth?.player && depth.player(p)}
         </div>
       ))}
