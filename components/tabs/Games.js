@@ -1650,13 +1650,18 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                           read: () => (
                             <>
                         <div id={`gp-read-${g.game_pk}`} />
-                        {/* THE CALL (2026-10-05): the per-game post's write-up, from the same rows */}
-                        <MlbWriteupBlock rows={rawRows(g.players)} onPlayerClick={onPlayerClick} />
-                        <GameLedgerLine sport="mlb" gameId={g.game_pk} day={slateDate} />
                         <GameDeepDive game={g} allPlayers={gamePlayers} slateDate={slateDate} results={results} odds={odds} onPlayerClick={onPlayerClick} section="read" />
                             </>
                           ),
                           postseason: () => <PostseasonRow gamePk={g.game_pk} day={slateDate} />,
+                          // THE CALL (2026-10-05), moved DOWN (2026-10-17, Donovan: not smack at the top): the per-game post's write-up, from the same rows,
+                          // after the game's own read, lineups and simulator
+                          call: () => (
+                            <>
+                        <MlbWriteupBlock rows={rawRows(g.players)} onPlayerClick={onPlayerClick} />
+                        <GameLedgerLine sport="mlb" gameId={g.game_pk} day={slateDate} />
+                            </>
+                          ),
                           lineups: () => (
                             <>
                         {/* THE LINEUPS, WHERE HE ASKED FOR THEM. Same component

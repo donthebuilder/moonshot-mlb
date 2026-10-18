@@ -14,7 +14,8 @@ const LINE = /^(-?\d[\d.,:]*%?)\s+(.+?)(?:\s*\((top \d+%)[^)]*\))?\.?$/
 export function chipOf(t) {
   const s = String(t ?? '').trim()
   const m = LINE.exec(s)
-  if (!m || m[2].length > 44) return { text: s, tag: null }
+  // a number followed by a connector ("3 for 8 against X", "7 of his last 10") is a sentence, not "<number> <what>": drawn whole
+  if (!m || m[2].length > 44 || /^(for|of|in|to|at|on|vs|against|and|or|from)\b/i.test(m[2])) return { text: s, tag: null }
   return { value: m[1], label: m[2].replace(/[,;]$/, ''), tag: m[3] || null, text: s }
 }
 
