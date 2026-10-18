@@ -115,9 +115,9 @@ export default function GameOffDef({ matchup, players, game, onPlayerClick = nul
   const pickedKey = mode === 'attack' ? gf?.topShare?.z : mode === 'defend' ? gf?.softest?.z : gf?.ring?.z
   const sentence = fieldSentence({ gf, mode, off, def, pass })
   const legend = {
-    attack: `Brighter = more of ${off}'s ${unit}s go there. The number is that share. Dots = touchdowns.`,
-    defend: `Brighter = ${def} give up more yards a ${unit} than a normal defense. Dots = touchdowns allowed.`,
-    overlap: `Ringed = where ${off} goes a lot and ${def} are soft. The number is ${off}'s share. Dots = ${off} touchdowns.`,
+    attack: `Brighter = ${off} goes there more. Number = its share. Dots = touchdowns.`,
+    defend: `Brighter = ${def} give up more yards there. Dots = touchdowns allowed.`,
+    overlap: `Ring = ${off} goes there a lot and ${def} are soft. Number = ${off}'s share. Dots = touchdowns.`,
   }[mode]
   const games = matchup?.tendencies?.offense?.[off]?.games
   const early = Number.isFinite(games) && games < SOFT_THIN_GAMES
@@ -156,12 +156,12 @@ export default function GameOffDef({ matchup, players, game, onPlayerClick = nul
       lead={edge(off)} title={`${nflNickname(off)} attacking ${nflNickname(def)}`} mark={edge2(off, 120)}
       sentence={<>{sentence.a}{sentence.b && <b style={{ fontWeight: 900, color: C.green }}>{sentence.b}</b>}{sentence.c}{sentence.detail ? ` ${sentence.detail}` : ''}</>}
       tiles={[
-        { label: `${off} BUSIEST`, big: offTop?.share != null ? pct(offTop.share) : '—', pct: offTop?.share != null && gf.maxShare > 0 ? (100 * offTop.share) / gf.maxShare : null, hot: Boolean(ring && offTop && ring.z === offTop.z), line: offTop?.share != null ? `of ${unit}s: ${offTop.where}` : 'no data yet' },
+        { label: `${off} GOES`, big: offTop?.share != null ? pct(offTop.share) : '—', pct: offTop?.share != null && gf.maxShare > 0 ? (100 * offTop.share) / gf.maxShare : null, hot: Boolean(ring && offTop && ring.z === offTop.z), line: offTop?.share != null ? `of ${unit}s: ${offTop.where}` : 'no data yet' },
         { label: `${def} LEAK`, big: soft?.leak != null ? fmtPct(soft.leak) : '—', pct: soft?.leak > 0 ? Math.min(100, (100 * soft.leak) / HEAT_FULL) : null, hot: Boolean(ring && soft && ring.z === soft.z), line: soft?.leak != null ? `yards a ${unit} vs normal: ${soft.where}` : 'too few plays to call' },
-        { label: 'OVERLAP', big: ring ? pct(ring.share) : 'NONE', pct: ring && gf.maxOv > 0 ? Math.min(100, (100 * ring.ov) / gf.maxOv) : null, hot: Boolean(ring), line: ring ? `ringed: ${ring.where}` : 'no clear spot where both meet' },
+        { label: 'THEY MEET', big: ring ? pct(ring.share) : 'NONE', pct: ring && gf.maxOv > 0 ? Math.min(100, (100 * ring.ov) / gf.maxOv) : null, hot: Boolean(ring), line: ring ? `ringed: ${ring.where}` : 'no clear spot where both meet' },
       ]}
       maxWidth={440} foldTiles={phone} fullscreen={!(three && pass && gl)} fullLabel="The field, full screen"
-      legend={<>{legend}{sample ? ` ${sample}.` : ''} Left/right: the offence’s view. Tap a zone: who gets the ball.</>}
+      legend={<>{legend}{sample ? ` ${sample}.` : ''} Left/right = the offence’s view. Tap a zone or a face.</>}
       controls={<>
         {zoneWho}
         <StageSeg {...th} label="Which team has the ball" value={side} onChange={(v) => { setSide(v); setZonePick(null); onDefend?.(v === 'away' ? game.home : game.away) }}
