@@ -1,5 +1,6 @@
 'use client'
 import { useMemo, useState } from 'react'
+import { explain } from '../lib/explain'
 import { C, NUM_FONT } from '../lib/theme'
 import { activeStops, activeChips, inkOn, edgeOn, subscribe } from '../lib/palette'
 import {
@@ -317,6 +318,7 @@ export default function Heatmap({
                         key={c}
                         onMouseEnter={() => setHover({ row: ri, col: c })}
                         onMouseLeave={() => setHover(null)}
+                        onClick={onRowClick ? undefined : () => explain(`${r.label} · ${c}`, `${show} — against ${spec.anchorLabel ?? spec.anchor ?? 0}`)}
                         title={`${r.label} · ${c}: ${show} — against ${spec.anchorLabel ?? spec.anchor ?? 0}`}
                         style={{
                           background: d.bg, color: d.fg,
@@ -344,6 +346,7 @@ export default function Heatmap({
                         key={c}
                         onMouseEnter={() => setHover({ row: ri, col: c })}
                         onMouseLeave={() => setHover(null)}
+                        onClick={onRowClick ? undefined : () => explain(`${r.label} · ${c}`, String(show))}
                         title={`${r.label} · ${c}: ${show}`}
                         style={{
                           background: C.bg3, color: C.text2,
@@ -367,6 +370,7 @@ export default function Heatmap({
                       key={c}
                       onMouseEnter={() => setHover({ row: ri, col: c })}
                       onMouseLeave={() => setHover(null)}
+                      onClick={onRowClick ? undefined : () => explain(`${r.label} · ${c}`, `${show}${spec?.domain ? ` — on ${spec.domain[0]}–${spec.domain[1]}` : ''}`)}
                       title={`${r.label} · ${c}: ${show}${spec?.domain ? ` — on ${spec.domain[0]}–${spec.domain[1]}` : ''}`}
                       style={{
                         background: bg || C.bg3,
