@@ -20,6 +20,7 @@ import { hr9Color, isLeaky } from '../../lib/hr9'
 import YourPlayers from '../YourPlayers'
 import Fold from '../Fold'
 import BotPicksStrip from '../BotPicksStrip'
+import TonightsCalls from '../phone/TonightsCalls'
 import { callOfTheNight } from '../ReadTeaser'
 import { airParts } from '../../lib/conditions'
 import { useSetupHomers, useBackToBack } from '../../lib/b2b'
@@ -968,6 +969,9 @@ export default function Home({
           </div>
         )}
       </DayHero>
+
+      {/* TONIGHT'S CALLS AS CARDS (2026-10-18, PHONE-PARITY 9a): /m's swipe deck, shut by default so nothing above the table moves and no request is made until it is opened */}
+      {!empty && <Fold id="tonight-calls" title="🃏 Tonight's calls" meta="swipe the real cards"><TonightsCalls sport="mlb" /></Fold>}
 
       {/* TONIGHT (2026-10-04): who went, who lines up, who's still to go (components/tonight/MlbTonight.js) */}
       <MlbTonight players={players} results={results} slateDate={slateDate} onPlayerClick={onPlayerClick} onNavigate={onNavigate} />
