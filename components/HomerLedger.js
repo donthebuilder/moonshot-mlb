@@ -22,8 +22,8 @@ import { gradedResultsUrl } from '../lib/dataSource'
 import { sharedFetch } from '../lib/sharedRead'
 import NamePatterns from './NamePatterns'
 import { dayRootOf, lifePathOf } from '../lib/numerology/core'
-import DayNumbers from './numerology/DayNumbers'
-import LaneTable from './numerology/LaneTable'
+import NumbersBox from './ledger/NumbersBox'
+import { oneShort } from '../lib/ledger/backHalf'
 import { onLiveRefresh } from '../lib/liveRefresh'
 import { homerModel, ord } from '../lib/ledger/homerModel'
 
@@ -175,9 +175,8 @@ function LookOut({ players, onPlayerClick = null, onOpenPitcher = null }) {
       seen.add(pid)
       const hr = n(p?.season_hr, null)
       if (hr == null) continue
-      const next = Math.ceil((hr + 1) / 10) * 10
-      if (next - hr === 1) {
-        milestones.push({ pid, name: nameOf(p), team: teamOf(p), hr, next })
+      if (oneShort(hr, 10)) {
+        milestones.push({ pid, name: nameOf(p), team: teamOf(p), hr, next: hr + 1 })
       }
     }
     milestones.sort((a, b) => b.hr - a.hr)
@@ -1198,7 +1197,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
         foot="Overlap, not evidence: ~25 homers over fifty numbers will line up by arithmetic alone. Never a reason to chase one."
       />),
         // THE NUMBERS (2026-10-10): the night's numbers named, the preceding day's, and the lane scoreboard (cipher lanes included)
-        numbers: (<div style={{ display: 'grid', gap: 10, margin: '8px 0', gridTemplateColumns: 'minmax(0, 1fr)' }}><DayNumbers sport="mlb" date={dateKey} theme={C} numFont={NUM_FONT} accent={C.orange} eventWord="HRs" /><LaneTable sport="mlb" theme={C} numFont={NUM_FONT} accent={C.orange} /></div>),
+        numbers: (<NumbersBox sport="mlb" date={dateKey} theme={C} numFont={NUM_FONT} accent={C.orange} eventWord="HRs" />),
         /* ── 🔤 NAME ECHOES (2026-08-16) ───────────────────────────────────
           Donovan: "all track common names or names that vibe together like
           bobby witt tommy white 2 sylablas or like bryce and brice... maybe
