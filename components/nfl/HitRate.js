@@ -18,7 +18,8 @@ import AgainstTheBar from './AgainstTheBar'
 // 3.5 to 4.5 receptions is the actual question a bettor is asking, and it
 // shouldn't require another bot run to answer.
 
-const PRESETS = {
+// THE ONE LADDER TABLE (2026-10-18): PropsGrid's line chips read these too (they were a second copy, edited twice in one day)
+export const PRESETS = {
   TD: [0.5], REC_YDS: [24.5, 59.5, 99.5], REC: [2.5, 3.5, 4.5, 6.5],
   RUSH_YDS: [49.5, 79.5, 99.5], RUSH_ATT: [9.5, 11.5, 14.5],
   PASS_YDS: [224.5, 274.5, 299.5], KICK_PTS: [5.5, 8.5],
