@@ -4,7 +4,7 @@ import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { nflTones } from '../../lib/nfl/teamColors'
 import { nflNickname } from '../../lib/nfl/teams'
 import { nflTeamLogo, nflHeadshot } from '../../lib/nfl/nflAssets'
-import { fieldSpots, FM } from '../../lib/nfl/fieldMen'
+import { fieldSpots, FM, RUN_GAP_X } from '../../lib/nfl/fieldMen'
 import { SIDES, DEPTHS, LANES } from '../../lib/nfl/fieldModel'
 
 // THE BROADCAST FIELD (2026-10-06, Donovan: "it just looks wack, give it some real
@@ -28,7 +28,7 @@ const START = { left: 96, middle: 150, right: 204 }
 // rush: the line of scrimmage low, seven gaps across
 const R_H = 250
 const R_LOS = 206
-const GAP_X = { 'left|end': 28, 'left|tackle': 70, 'left|guard': 112, 'middle|middle': 150, 'right|guard': 188, 'right|tackle': 230, 'right|end': 272 }
+const GAP_X = RUN_GAP_X
 const GAP_WORDS = { 'left|end': ['left', 'edge'], 'left|tackle': ['left', 'tackle'], 'left|guard': ['left', 'guard'], 'middle|middle': ['', 'middle'], 'right|guard': ['right', 'guard'], 'right|tackle': ['right', 'tackle'], 'right|end': ['right', 'edge'] }
 
 const OUTLINE = { paintOrder: 'stroke', stroke: C.bg, strokeWidth: 3.5, strokeLinejoin: 'round' }

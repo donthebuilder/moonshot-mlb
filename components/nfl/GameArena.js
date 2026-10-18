@@ -14,7 +14,8 @@ import { nflTones } from '../../lib/nfl/teamColors'
 import { nflHeadshot } from '../../lib/nfl/nflAssets'
 import { buildField, FIELD_L, FIELD_W, YD } from '../../lib/fieldWorld'
 import { buildArenaRect } from '../../lib/arena'
-import { fieldSpots, FM } from '../../lib/nfl/fieldMen'
+import { fieldSpots, FM, RUN_GAP_X } from '../../lib/nfl/fieldMen'
+import { LANES } from '../../lib/nfl/fieldModel'
 import { makeComposer, isCoarse } from '../../lib/stadiumLook'
 import { webglOk } from '../../lib/webglOk'
 import { labelSprite, declutterLabels } from '../../lib/three/sprites'
@@ -25,7 +26,7 @@ const SIDES = ['left', 'middle', 'right']
 const BAND_YD = { behind: [-6, 0], short: [0, 10], mid: [10, 20], deep: [20, 36] }
 const across = (u) => -FIELD_W / 2 + u * FIELD_W
 /** BroadcastField's viewBox x / y -> the world: x is 0..300 across (left to right), y runs from the line (236) down the page = back behind it; 6 units a yard */
-const worldOf = (x, y, h) => new THREE.Vector3(((FM.LOS - y) / 6) * YD, h, across(x / FM.W))
+const worldOf = (x, y, h, los = FM.LOS) => new THREE.Vector3(((los - y) / 6) * YD, h, across(x / FM.W))
 
 // a face on a ringed disc, drawn on a canvas: initials first, the photo when it arrives
 function faceTexture(m, ring, alive) {
@@ -57,14 +58,14 @@ function faceTexture(m, ring, alive) {
   return tex
 }
 
-export default function GameArena({ cells = {}, men = [], defMen = [], hue = C.green, title = '', onPlayer = null }) {
+export default function GameArena({ cells = {}, men = [], defMen = [], hue = C.green, title = '', onPlayer = null, pass = true }) {
   const mountRef = useRef(null)
   const [ok, setOk] = useState(true)
   const [preset, setPreset] = useState('endzone')
   const [full, setFull] = useState(false)
   const apiRef = useRef({})
   const playerRef = useRef(onPlayer); playerRef.current = onPlayer
-  const sig = `${Object.entries(cells).map(([k, c]) => `${k}:${c.heat}:${c.big}`).join(',')}|${men.map((m) => m.id + m.side + m.slot).join(',')}|${defMen.map((m) => m.id).join(',')}|${hue}`
+  const sig = `${pass ? 'pass' : 'run'}|${Object.entries(cells).map(([k, c]) => `${k}:${c.heat}:${c.big}`).join(',')}|${men.map((m) => m.id + m.side + m.slot).join(',')}|${defMen.map((m) => m.id).join(',')}|${hue}`
 
   useEffect(() => {
     const mount = mountRef.current
@@ -112,8 +113,24 @@ export default function GameArena({ cells = {}, men = [], defMen = [], hue = C.g
     const col = new THREE.Color(hue)
     // the line of scrimmage
     { const los = new THREE.Mesh(new THREE.PlaneGeometry(1.2, FIELD_W), new THREE.MeshBasicMaterial({ color: new THREE.Color(C.text), transparent: true, opacity: 0.9 })); los.rotation.x = -Math.PI / 2; los.position.set(0, 0.2, 0); group.add(los) }
+    const los = pass ? FM.LOS : FM.R_LOS
+    // RUN: a column per lit gap, a little downfield of the line, height = its heat, the number on top (BroadcastField's own seven gaps)
+    if (!pass) {
+      for (const key of LANES) {
+        const c = cells[key]
+        if (!c || c.heat == null) continue
+        const ht = 4 + 30 * c.heat
+        const u = RUN_GAP_X[key] / FM.W
+        const box = new THREE.Mesh(new THREE.BoxGeometry(8 * YD, ht, (FIELD_W / 7) * 0.62), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.25 + 0.4 * c.heat, depthWrite: false }))
+        box.position.set(5 * YD, ht / 2, across(u)); group.add(box)
+        if (c.big != null) {
+          const lab = labelSprite(String(c.big), C.text); lab.position.set(5 * YD, ht + 5, across(u)); lab.scale.multiplyScalar(0.9); lab.userData.declutter = true
+          group.add(lab)
+        }
+      }
+    }
     // ZONES: a column per lit zone, height = its heat, the number on top
-    SIDES.forEach((s, i) => {
+    if (pass) SIDES.forEach((s, i) => {
       for (const [d, [y0, y1]] of Object.entries(BAND_YD)) {
         const c = cells[`${s}|${d}`]
         if (!c || c.heat == null) continue
@@ -130,17 +147,17 @@ export default function GameArena({ cells = {}, men = [], defMen = [], hue = C.g
     })
     // THE MEN: a face on a ringed disc at his spot (the flat chart's own), his name under him
     const sprites = []
-    for (const m of fieldSpots({ men, defMen, pass: true })) {
+    for (const m of fieldSpots({ men, defMen, pass })) {
       const [club] = nflTones(m.team)
       const ring = m.kind === 'def' ? C.text2 : club
       const mat = new THREE.SpriteMaterial({ map: faceTexture(m, ring, isAlive), transparent: true, depthWrite: false })
       const sp = new THREE.Sprite(mat)
       sp.scale.set(13, 13, 1)
-      sp.position.copy(worldOf(m.x, m.y, 9))
+      sp.position.copy(worldOf(m.x, m.y, 9, los))
       sp.userData.man = m
       group.add(sp); sprites.push(sp)
       const nm = labelSprite(`${String(m.last || '').toUpperCase()} ${m.word || m.role || ''}`.trim(), m.kind === 'def' ? C.text2 : C.text)
-      nm.position.copy(worldOf(m.x, m.y, 1.6)); nm.scale.multiplyScalar(0.7); nm.userData.declutter = true
+      nm.position.copy(worldOf(m.x, m.y, 1.6, los)); nm.scale.multiplyScalar(0.7); nm.userData.declutter = true
       group.add(nm)
     }
 
@@ -229,7 +246,7 @@ export default function GameArena({ cells = {}, men = [], defMen = [], hue = C.g
   return (
     <StadiumShell theme={C} accent={C.green} presets={PRESETS} active={preset}
       onPreset={(k) => { setPreset(k); apiRef.current.preset?.(k) }} onFullChange={setFull}
-      caption={<div style={{ marginTop: 6, fontSize: 11, color: C.text3, lineHeight: 1.5, fontFamily: NUM_FONT }}>Columns = zones, taller = more. Faces stand where the flat field puts them; corners by chart slot, nobody says who covers whom. Dashed ring = by role. Tap a face for his card.{title ? ` ${title}` : ''}</div>}>
+      caption={<div style={{ marginTop: 6, fontSize: 11, color: C.text3, lineHeight: 1.5, fontFamily: NUM_FONT }}>Columns = {pass ? 'zones' : 'run gaps'}, taller = more. Faces stand where the flat field puts them; corners by chart slot, nobody says who covers whom. Dashed ring = by role. Tap a face for his card.{title ? ` ${title}` : ''}</div>}>
       <div style={{ position: 'relative', ...(full ? { height: '100%' } : {}) }}>
         <div ref={mountRef} style={{ width: '100%', ...(full ? { height: '100%' } : { minHeight: 340, aspectRatio: '1 / 0.75' }), borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }} />
       </div>
