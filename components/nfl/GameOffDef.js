@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import PlayerFace from '../PlayerFace'
 import { useIsPhone } from '../MobileFold'
-import LineUp, { WhoChips } from './LineUp'
+import { WhoChips } from './LineUp'
 import { useInjuryLayer } from '../injuries/InjuryLayer'
 import { STATUS_INFO, BLOCKS } from '../../lib/injuries/statuses'
 import { injuryTag, isOut } from '../../lib/nfl/injury'
@@ -31,7 +31,8 @@ import { SOFT_THIN_GAMES } from '../../lib/nfl/dvpSignal'
 // marks, three metric tiles (label / big slanted number / ordinal-style line / thin bar, the accent only on the signal), then the field
 // with ONLY its top zones numbered (the rest stay quiet: a lit zone, no tiny %), then the switches. Same data and same switches' meaning:
 // which club has the ball, passing or running, and the lens. Overlap is the lens it opens on; Attack and Defend are the quiet two.
-const MODES = [['overlap', 'Overlap'], ['attack', 'Attack'], ['defend', 'Defend']]
+// plain words (2026-10-17, Donovan: hard to use): where the two meet / where the offence goes / where the defence leaks. The keys stay.
+const MODES = [['overlap', 'Where they meet'], ['attack', 'Where they go'], ['defend', 'Where they leak']]
 const TOP_NUMBERED = 3
 const pct = (v) => `${Math.round(v)}%`
 
@@ -41,7 +42,6 @@ export const Kicker = ({ children, style }) => (
 
 // the injury layer first (ESPN's report), the week file's own injury_status second; null = not listed (never guessed)
 const TAG_WORD = { OUT: 'Out', IR: 'Injured reserve', D: 'Doubtful', Q: 'Questionable', SUSP: 'Suspended', PUP: 'PUP', NFI: 'Out' }
-let WHO_PREF = null   // the choice, kept for the session (module memory, mirrored to sessionStorage where it works)
 export function injuryStatusOf(layer, p) {
   const e = layer?.entryFor?.({ player_id: p.player_id, name: p.name, team: p.team })
   if (e && STATUS_INFO[e.status]) return { chip: STATUS_INFO[e.status].chip, word: STATUS_INFO[e.status].word, blocked: BLOCKS.has(e.status) }
@@ -52,10 +52,6 @@ export function injuryStatusOf(layer, p) {
 
 export default function GameOffDef({ matchup, players, game, onPlayerClick = null, defending = null, onDefend = null }) {
   const phone = useIsPhone(430)
-  const [pref, setPref] = useState(WHO_PREF)   // null = never touched this session: open on desktop, closed on a phone
-  useEffect(() => { if (WHO_PREF == null) { try { const v = sessionStorage.getItem('tuddy-who-open'); if (v != null) { WHO_PREF = v === '1'; setPref(WHO_PREF) } } catch (e) { /* no storage */ } } }, [])
-  const who = pref ?? !phone
-  const setWho = (f) => { const v = f(who); WHO_PREF = v; setPref(v); try { sessionStorage.setItem('tuddy-who-open', v ? '1' : '0') } catch (e) { /* private window: the choice just is not remembered */ } }
   const [zonePick, setZonePick] = useState(null)
   const layer = useInjuryLayer()
   const [mode, setMode] = useState('overlap')
@@ -126,24 +122,15 @@ export default function GameOffDef({ matchup, players, game, onPlayerClick = nul
   const soft = gf?.softest
   const ring = gf?.ring
   const th = { C, numFont: NUM_FONT, accent: C.green }
-  const Lens = () => <StageLens {...th} items={MODES} value={mode} onChange={setMode} />
-  const whoBlock = (
+  const Lens = () => <StageLens {...th} items={MODES} value={mode} onChange={setMode} word="SHOW" label="What to show" />
+  // THE PLAYERS ARE ON THE FIELD NOW (2026-10-17, path item 3: one chart): BroadcastField draws the men; what is left below is the quiet basis line and the men with no spot.
+  const allPlaced = [...offMen.placed, ...defMen.placed]
+  const whoBlock = (allPlaced.length > 0 || offMen.chips.length > 0 || defMen.chips.length > 0) ? (
     <div style={{ marginTop: 2 }}>
-      <button type="button" aria-expanded={who} onClick={() => setWho((v) => !v)} style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', minHeight: 44, padding: 0, marginBottom: who ? 6 : 0, background: 'none', border: 0, cursor: 'pointer', color: 'inherit', textAlign: 'left' }}>
-        <span style={{ font: `800 12px/1.2 ${NUM_FONT}`, letterSpacing: '.18em', color: C.green, whiteSpace: 'nowrap' }}>WHO LINES UP WHERE</span>
-        <span style={{ font: `800 12px/1.2 ${NUM_FONT}`, color: C.text2, whiteSpace: 'nowrap' }}>· {offMen.placed.length + defMen.placed.length} placed</span>
-        <span aria-hidden="true" style={{ flex: 1, height: 1, background: `${C.green}55` }} />
-        <span aria-hidden="true" style={{ font: `900 14px/1 ${NUM_FONT}`, color: C.green, transform: who ? 'rotate(180deg)' : 'none' }}>▾</span>
-      </button>
-      {who && (
-        <>
-          <LineUp off={off} def={def} pass={pass} offMen={offMen.placed} defMen={defMen.placed} onPlayer={onPlayerClick} />
-          <p style={{ margin: '6px 0 0', fontSize: 12, lineHeight: 1.5, color: C.text3 }}>Left and right: the offence’s view, up the page at the defence. {basisNote({ placed: [...offMen.placed, ...defMen.placed], pass, hasDef: defMen.placed.length > 0 })} No slot: not published.</p>
-          <WhoChips chips={[...offMen.chips, ...defMen.chips]} onPlayer={onPlayerClick} />
-        </>
-      )}
+      {allPlaced.length > 0 && <p style={{ margin: '4px 0 0', fontSize: 12, lineHeight: 1.5, color: C.text3 }}>Faces: left and right are the offence’s view. {basisNote({ placed: allPlaced, pass, hasDef: defMen.placed.length > 0 })}</p>}
+      <WhoChips chips={[...offMen.chips, ...defMen.chips]} onPlayer={onPlayerClick} />
     </div>
-  )
+  ) : null
   const zoneWho = zonePick && (
     <div role="group" aria-label="Who gets the ball in this zone" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, margin: '0 0 2px' }}>
       <span style={{ flexBasis: '100%', font: `800 11px/1.2 ${NUM_FONT}`, letterSpacing: '.08em', color: C.text2 }}>{(cells[zonePick]?.title || zonePick).split('\n')[0].toUpperCase()}: WHO GETS THE {unit.toUpperCase()}S</span>
@@ -182,7 +169,7 @@ export default function GameOffDef({ matchup, players, game, onPlayerClick = nul
       </>}
       foot={whoBlock}>
       <BroadcastField mode={pass ? 'pass' : 'rush'} maxWidth={440} hue={mode === 'defend' ? C.text2 : C.green} core={mode === 'overlap'}
-        offTeam={off} ringKey={pickedKey ?? null} cells={cells} onZone={(z) => setZonePick((cur) => (cur === z ? null : z))} pickedZone={zonePick} label={`${off} offense against ${def} defense`} />
+        offTeam={off} ringKey={pickedKey ?? null} cells={cells} men={offMen.placed} defMen={defMen.placed} onPlayer={onPlayerClick} onZone={(z) => setZonePick((cur) => (cur === z ? null : z))} pickedZone={zonePick} label={`${off} offense against ${def} defense`} />
     </FlatStage>
   )
 }

@@ -3,7 +3,8 @@ import { useId } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { nflTones } from '../../lib/nfl/teamColors'
 import { nflNickname } from '../../lib/nfl/teams'
-import { nflTeamLogo } from '../../lib/nfl/nflAssets'
+import { nflTeamLogo, nflHeadshot } from '../../lib/nfl/nflAssets'
+import { fieldSpots, FM } from '../../lib/nfl/fieldMen'
 import { SIDES, DEPTHS, LANES } from '../../lib/nfl/fieldModel'
 
 // THE BROADCAST FIELD (2026-10-06, Donovan: "it just looks wack, give it some real
@@ -102,7 +103,38 @@ function Arrow({ d, w, col, tip, id }) {
   )
 }
 
-export default function BroadcastField({ mode = 'pass', cells = {}, hue = C.green, core = false, ringKey = null, offTeam = '', maxWidth = 440, label = '', onZone = null, pickedZone = null }) {
+// THE MEN (2026-10-17, path item 3): the players of lib/nfl/whoLines.js drawn ON the field, at the spots of lib/nfl/fieldMen.js. A face in a club-coloured ring
+// (dashed = placed by his role, not by his own numbers), his name and slot under it; a transparent r=18 circle is the 44px tap. Painted last, so a face tap wins over the zone under it.
+function Men({ spots, uid, onPlayer }) {
+  if (!spots.length) return null
+  return (
+    <g data-layer="men">
+      {spots.map((m, i) => {
+        const [club] = nflTones(m.team)
+        const ring = m.kind === 'def' ? C.text2 : club
+        const dashed = m.basis === 'role' || m.basis === 'chart'
+        const url = m.espn_id ? nflHeadshot(m.espn_id, 64, 64) : null
+        const word = m.word || m.role
+        const open = onPlayer && m.row ? () => onPlayer(m.row) : null
+        return (
+          <g key={`${m.kind}${m.id}`} role={open ? 'button' : 'img'} tabIndex={open ? 0 : undefined} aria-label={`${m.name}, ${word}${dashed ? ', by role' : ''}${open ? '. Open his card' : ''}`}
+            style={open ? { cursor: 'pointer' } : undefined} onClick={open || undefined} onKeyDown={open ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open() } } : undefined}>
+            <title>{`${m.name} · ${word}${dashed ? ' (by role)' : ''}`}</title>
+            <defs><clipPath id={`f${uid}${i}`}><circle cx={m.x} cy={m.y} r={FM.R} /></clipPath></defs>
+            <circle cx={m.x} cy={m.y} r={FM.R + 2} fill={C.bg2} stroke={ring} strokeWidth={dashed ? 1.6 : 2.6} strokeDasharray={dashed ? '3 2.5' : undefined} />
+            <text x={m.x} y={m.y + 4} textAnchor="middle" fontSize="11" fontWeight="900" fontFamily={NUM_FONT} fill={C.text2}>{(m.last || m.name || '?').slice(0, 2).toUpperCase()}</text>
+            {url && <image href={url} x={m.x - FM.R} y={m.y - FM.R} width={FM.R * 2} height={FM.R * 2} preserveAspectRatio="xMidYMin slice" clipPath={`url(#f${uid}${i})`} />}
+            <text x={m.x} y={m.y + FM.R + 11} textAnchor="middle" fontSize="9" fontWeight="900" fontFamily={NUM_FONT} fill={C.text} style={OUTLINE}>{(m.last || '').toUpperCase()}</text>
+            <text x={m.x} y={m.y + FM.R + 20} textAnchor="middle" fontSize="8.5" fontWeight="800" fontFamily={NUM_FONT} fill={ring === C.text2 ? C.text2 : C.text} style={OUTLINE}>{word}</text>
+            {open && <circle cx={m.x} cy={m.y} r="18" fill="transparent" />}
+          </g>
+        )
+      })}
+    </g>
+  )
+}
+
+export default function BroadcastField({ mode = 'pass', cells = {}, hue = C.green, core = false, ringKey = null, offTeam = '', maxWidth = 440, label = '', onZone = null, pickedZone = null, men = [], defMen = [], onPlayer = null }) {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '')
   const defs = (
     <defs>
@@ -114,11 +146,15 @@ export default function BroadcastField({ mode = 'pass', cells = {}, hue = C.gree
   const fade = <style>{`@keyframes bfIn{from{opacity:0}to{opacity:1}} .bf-in{animation:bfIn .3s ease-out}`}</style>
 
   if (mode === 'pass') {
+    const spots = fieldSpots({ men, defMen, pass: true })
+    const baseH = PASS_H + FOOT
+    // room below the line for the two backfield rows and the names under them
+    const H = spots.length ? Math.max(baseH, Math.max(...spots.map((q) => q.y + FM.R + 46))) : baseH
     const zones = DEPTHS.flatMap((d) => SIDES.map((s) => ({ key: `${s}|${d}`, s, d })))
     return (
-      <svg viewBox={`0 0 ${W} ${PASS_H + FOOT}`} role="img" aria-label={label || 'Pass zones on the field'} style={{ width: '100%', maxWidth, display: 'block' }}>
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label || 'Pass zones on the field'} style={{ width: '100%', maxWidth, display: 'block' }}>
         {defs}{fade}
-        <Turf h={PASS_H + FOOT} ez ezName={offTeam} id={uid} />
+        <Turf h={H} ez ezName={offTeam} id={uid} />
         <YardLines from={LOS} to={EZ} labels={[[176, '10'], [116, '20'], [56, '30']]} />
         <g className="bf-in" key={mode + Object.values(cells).map((c) => c.heat).join()}>
           {zones.map(({ key, s, d }) => {
@@ -155,8 +191,8 @@ export default function BroadcastField({ mode = 'pass', cells = {}, hue = C.gree
             <g key={`t${key}`}>
               <rect x={X[s] + 2} y={y0 + 1} width={W / 3 - 4} height={y1 - y0 - 2} rx="8" fill="none" stroke={C.text} strokeOpacity={on ? 0 : 0.07} />
               {on && <rect x={X[s] + 3} y={y0 + 2} width={W / 3 - 6} height={y1 - y0 - 4} rx="9" fill="none" stroke={C.text} strokeWidth="3" style={{ filter: `drop-shadow(0 0 5px ${hue})` }} />}
-              {c.big != null && <text x={cx} y={cy + (d === 'behind' ? 6 : c.pips ? 2 : 7)} textAnchor="middle" fontSize={on ? 24 : 18} fontWeight="900" fontFamily={NUM_FONT} fill={lit || on ? C.text : C.text2} style={OUTLINE}>{c.big}</text>}
-              {d !== 'behind' && <Pips n={c.pips} x={cx} y={cy + 17} ink={C.text} />}
+              {c.big != null && <text x={cx + (spots.length && d === 'short' ? (s === 'left' ? 26 : s === 'right' ? -26 : 0) : 0)} y={spots.length && d === 'short' ? y0 + 17 : cy + (d === 'behind' ? 6 : c.pips ? 2 : 7)} textAnchor="middle" fontSize={on ? 24 : 18} fontWeight="900" fontFamily={NUM_FONT} fill={lit || on ? C.text : C.text2} style={OUTLINE}>{c.big}</text>}
+              {d !== 'behind' && !(spots.length && d === 'short') && <Pips n={c.pips} x={cx} y={cy + 17} ink={C.text} />}
               {pickedZone === key && <rect x={X[s] + 1} y={y0} width={W / 3 - 2} height={y1 - y0} rx="9" fill="none" stroke={C.text} strokeWidth="2" strokeDasharray="5 4" />}
               {onZone && <rect x={X[s]} y={y0} width={W / 3} height={y1 - y0} fill="transparent" role="button" tabIndex={0} aria-label={`${c.title || key}. Who gets the ball here`} style={{ cursor: 'pointer' }} onClick={() => onZone(key)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onZone(key) } }} />}
               <title>{c.title || key}</title>
@@ -164,16 +200,20 @@ export default function BroadcastField({ mode = 'pass', cells = {}, hue = C.gree
           )
         })}
         <line x1="0" x2={W} y1={LOS} y2={LOS} stroke={C.text} strokeWidth="3.2" style={{ filter: `drop-shadow(0 0 4px ${C.green})` }} />
-                {['LEFT', 'MIDDLE', 'RIGHT'].map((t, i) => <text key={t} x={W / 6 + (i * W) / 3} y={PASS_H + 18} textAnchor="middle" fontSize="11" fontWeight="800" fontFamily={NUM_FONT} fill={C.text2} letterSpacing="1.5">{t}</text>)}
+                {['LEFT', 'MIDDLE', 'RIGHT'].map((t, i) => <text key={t} x={W / 6 + (i * W) / 3} y={H - 8} textAnchor="middle" fontSize="11" fontWeight="800" fontFamily={NUM_FONT} fill={C.text2} letterSpacing="1.5">{t}</text>)}
+        <Men spots={spots} uid={uid} onPlayer={onPlayer} />
       </svg>
     )
   }
 
   const maxLen = R_LOS - EZ - 34
+  const rspots = fieldSpots({ men, defMen: [], pass: false })
+  const rBase = R_H + FOOT + 12
+  const RH = rspots.length ? Math.max(rBase, Math.max(...rspots.map((q) => q.y + FM.R + 46))) : rBase
   return (
-    <svg viewBox={`0 0 ${W} ${R_H + FOOT + 12}`} role="img" aria-label={label || 'Run lanes on the field'} style={{ width: '100%', maxWidth, display: 'block' }}>
+    <svg viewBox={`0 0 ${W} ${RH}`} role="img" aria-label={label || 'Run lanes on the field'} style={{ width: '100%', maxWidth, display: 'block' }}>
       {defs}{fade}
-      <Turf h={R_H + FOOT + 12} ez ezName={offTeam} id={uid} />
+      <Turf h={RH} ez ezName={offTeam} id={uid} />
       <YardLines from={R_LOS} to={EZ} labels={[[R_LOS - 60, '10'], [R_LOS - 120, '20']]} />
       <g className="bf-in" key={mode + Object.values(cells).map((c) => c.heat).join()}>
         {LANES.map((key) => {
@@ -208,6 +248,7 @@ export default function BroadcastField({ mode = 'pass', cells = {}, hue = C.gree
           </g>
         )
       })}
+      <Men spots={rspots} uid={uid} onPlayer={onPlayer} />
     </svg>
   )
 }
