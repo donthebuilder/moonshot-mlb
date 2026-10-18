@@ -386,13 +386,13 @@ export default function PairHistory({ summary, players = [], onPlayerClick }) {
       {/* PairBuilder used to render here too — removed 2026-08-04, it lives
           on the Pools tab now. One builder, one home. */}
 
-      <div style={{ fontSize: 10.5, color: C.text3, marginTop: 10, lineHeight: 1.6 }}>
+      <MoreNote label="How to read Same day vs Same game"><div style={{ fontSize: 10.5, color: C.text3, marginTop: 10, lineHeight: 1.6 }}>
         <strong style={{ color: C.text2 }}>Same day</strong> is how many separate dates both hitters homered.{' '}
         <strong style={{ color: C.text2 }}>Same game</strong> counts only the ones in the same ballpark on
         the same night — much rarer, and the only version of this that's a genuinely correlated bet.
         Everything else is two independent events that happened to land on one date, so treat a big Days
         number with a zero next to it as coincidence, not signal.
-      </div>
+      </div></MoreNote>
       </div>
     </div>
   )
