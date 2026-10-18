@@ -20,8 +20,11 @@ import { Chip, ChipRow } from './writeups/ChipLines'
  * @param chips    optional: draw the players as chips on a phone (2026-10-17). words.chips(p) -> [{ value, label, hot? }] is the player's head row; the reasons and watch-outs
  *                 are the same lines as chips (components/writeups/ChipLines.js). Off, or on a desktop: the list below, unchanged.
  * @param depth    optional { player(p) => node, game: node } the sport's deeper sections, drawn only while the full write-up is open
+ * @param title    optional: the section's kicker word (default 'THE CALL'); ariaLabel its label (default 'The call')
+ * @param closed   optional node: drawn INSTEAD of the player list while the write-up is closed (TUDDY's swipe cards, 2026-10-18); the open view is unchanged
+ * @param playerHead optional (p) => node: replaces each player's name / status / meta row (TUDDY's face, club logo and score); absent: the row below
  */
-export default function GameWriteupBlock({ w, theme, words, onOpen, depth = null, lockIn = null, chips = false }) {
+export default function GameWriteupBlock({ w, theme, words, onOpen, depth = null, lockIn = null, chips = false, title = 'THE CALL', ariaLabel = 'The call', closed = null, playerHead = null }) {
   const { C, NUM_FONT, TYPE, accent: ACCENT } = theme
   const [open, setOpen] = useState(false)
   const lockOf = useLockOf()
@@ -38,19 +41,20 @@ export default function GameWriteupBlock({ w, theme, words, onOpen, depth = null
     <div style={{ font: `800 ${TYPE.micro}px/1 ${NUM_FONT}`, letterSpacing: '.1em', color: C.text3, margin: '8px 0 4px' }}>{children}</div>
   )
   return (
-    <section aria-label="The call" style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: '11px 13px', marginBottom: 12, minWidth: 0 }}>
+    <section aria-label={ariaLabel} style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: '11px 13px', marginBottom: 12, minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-        <span style={{ font: `900 ${TYPE.label}px/1 ${NUM_FONT}`, letterSpacing: '.12em', color: ACCENT }}>THE CALL</span>
+        <span style={{ font: `900 ${TYPE.label}px/1 ${NUM_FONT}`, letterSpacing: '.12em', color: ACCENT }}>{title}</span>
         <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{words.status(w)}</span>
       </div>
-      {w.players.map((p) => (
+      {!open && closed}
+      {(open || !closed) && w.players.map((p) => (
         <div key={p.player_id} style={{ marginTop: 10, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+          {playerHead ? playerHead(p) : <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
             <Tap onClick={onOpen ? () => onOpen(p) : null}
               style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', fontSize: TYPE.name, fontWeight: 900, color: C.text }}>{p.name}</Tap>
             <CallStatusBadge status={p.status} />
             {!asChips && <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{words.meta(p)}</span>}
-          </div>
+          </div>}
           {asChips ? (<>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
               {words.chips(p).map((c, i) => <Chip key={i} theme={theme} value={c.value} label={c.label} heat={c.hot ? 2 : 0} />)}
