@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import useScrollLock from '../lib/useScrollLock'
+import { plural } from '../lib/format'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, nameOf, teamOf, oppOf, mlbId, txt } from '../lib/player'
 import { alpha, verdictInk, verdictWash } from '../lib/scales'
@@ -397,7 +398,7 @@ export default function PropsSheet({ player, odds = null, onClose, onFullResearc
           </div>
         ) : (
           <>
-            <Section title={`${meta.label} — how often`} note={`${data.games} games logged`}>
+            <Section title={`${meta.label} — how often`} note={`${plural(data.games, 'game')} logged`}>
               {WINDOWS.map(([k, label]) => {
                 const w = row?.[k]
                 const p = pctOf(w)

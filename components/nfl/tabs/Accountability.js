@@ -368,7 +368,7 @@ function ScoreBands({ data, results }) {
       <div style={{ fontSize: TYPE.body, color: C.text3, marginBottom: 8, lineHeight: 1.6 }}>
         Every player with both a score and a graded line for the market, split into quartiles by score.
         If the top quarter doesn&apos;t clear the bar more often than the bottom quarter, the ranking
-        isn&apos;t helping. 2026 results only. <b style={{ color: C.text2 }}>A grey cell has a number
+        isn&apos;t helping. This season&apos;s results only.<b style={{ color: C.text2 }}>A grey cell has a number
         and no claim.</b>
       </div>
 

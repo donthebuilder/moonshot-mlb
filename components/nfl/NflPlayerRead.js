@@ -68,12 +68,13 @@ export function nflReadBullets(player, market, rows = [], matchup = null) {
     player.carryover && { tone: 'note', text: 'The current score leans on last season’s per-game baseline until current-season form has depth.' },
     role && defense && {
       tone: dvpTone,
-      text: `${player.opp} ranks #${Number.isFinite(dvpRank) ? dvpRank : '—'} of 32 in TDs allowed to the ${role} role — ${
-        !Number.isFinite(dvpRank) ? 'rank not available'
-          : dvpRank <= 12 ? 'a soft spot, and a reason for the call'
+      text: !Number.isFinite(dvpRank)
+        ? `${player.opp}'s rank in TDs allowed to the ${role} role is not available yet.`
+        : `${player.opp} ranks #${dvpRank} of 32 in TDs allowed to the ${role} role — ${
+          dvpRank <= 12 ? 'a soft spot, and a reason for the call'
             : dvpRank >= 21 ? 'a hard spot, and a reason against it'
               : 'middle of the league, neither way'
-      }.`,
+        }.`,
     },
   ].filter(Boolean)
   return bullets

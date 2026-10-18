@@ -6,6 +6,7 @@ import { C, NUM_FONT } from '../../lib/theme'
 import { alpha } from '../../lib/scales'
 import TeamMark from '../TeamMark'
 import { useSportTheme } from '../SportTheme'
+import { ordinal } from '../../lib/format'
 
 // THE LEDGER'S BLOCKS, ONCE (2026-09-28, parity plan 00Q step 3). MOONSHOT's
 // Homer ledger (components/HomerLedger.js) lifted out block by block, style
@@ -34,7 +35,7 @@ function More({ n, open, setOpen, accent }) {
   )
 }
 
-export const ord = (k) => { const s = ['th', 'st', 'nd', 'rd']; const v = k % 100; return `${k}${s[(v - 20) % 10] || s[v] || s[0]}` }
+export const ord = ordinal
 
 export function LedgerFrame({ header, accent = C.orange, children }) {
   return (

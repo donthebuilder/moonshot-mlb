@@ -133,7 +133,7 @@ export default function Guide({ onNavigate, data }) {
       {isPre ? (
         <Section title="What preseason is and isn't" emoji="🗓️">
           <P>
-            Starters play two series. Weekly form does not exist in August and inventing it
+            Starters play two series. Weekly form does not exist in the preseason and inventing it
             would be dishonest, so every board right now is built from last season&apos;s
             per-game baselines: a futures read, not a slate read. There are no lines, so the
             game-context inputs are missing and their weight is redistributed across the
