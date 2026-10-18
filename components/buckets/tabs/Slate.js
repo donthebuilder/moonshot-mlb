@@ -57,7 +57,7 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
   const calls = rows.filter((r) => r.status === 'called')
   const shown = data?.date || date
   return (
-    <div className="slate-tight" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="slate-tight phone-slate" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <PageHeader eyebrow="BUCKETS · SLATE" title={shown ? fmtDay(shown) : 'Tonight'} theme={C} numFont={NUM_FONT} accent={C.purple}
         note="Every game that day, with its calls and board."
         stats={data ? [{ value: games.length, label: 'GAMES', tone: C.text2 }] : null} />

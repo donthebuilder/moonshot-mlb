@@ -182,16 +182,16 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
   const switcherLive = Object.fromEntries(games.filter((x) => stateOf(x) !== 'upcoming').map((x) => [String(x.game.id), { away_score: x.game.away.score, home_score: x.game.home.score }]))
 
   return (
-    <div className="slate-tight">
+    <div className="slate-tight phone-slate">
       <PageHeader eyebrow="LAMP · SLATE" title="Slate" theme={C} numFont={NUM_FONT} accent={C.ice}
         note="Tonight’s games, puck drop first." />
       {/* desktop: day nav + search + team + game + Table|Games on ONE row (app/globals.css .slate-tight); phone: a plain block, unchanged */}
       <div className="slate-bar">
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
-        <NavBtn onClick={() => setDate(shiftDay(shown, -1))} disabled={loading}>‹ Previous day</NavBtn>
+        <NavBtn onClick={() => setDate(shiftDay(shown, -1))} disabled={loading} aria-label="Previous day">{isPhone ? '‹' : '‹ Previous day'}</NavBtn>
         <NavBtn onClick={() => setDate(null)} disabled={loading || !date} strong>Tonight</NavBtn>
-        <NavBtn onClick={() => setDate(shiftDay(shown, 1))} disabled={loading}>Next day ›</NavBtn>
-        {shown ? <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 11 }}>{fmtDay(shown)}</span> : null}
+        <NavBtn onClick={() => setDate(shiftDay(shown, 1))} disabled={loading} aria-label="Next day">{isPhone ? '›' : 'Next day ›'}</NavBtn>
+        {shown ? <span className="slate-date" style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 11 }}>{fmtDay(shown)}</span> : null}
       </div>
       {data?.season?.stale && <div className="slate-note"><StaleSeasonNote label={data.season.label} opens={data.season.opens} what="per-game stats" /></div>}
       {allGames.length > 0 && (

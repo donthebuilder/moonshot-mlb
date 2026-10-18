@@ -230,6 +230,28 @@ button {
   .slate-tight button.tap-row { padding: 5px 12px !important; border-radius: 8px !important; }
 }
 
+/* SLATE, PHONE HEADER (2026-10-17, Donovan: "the slate page on the phone is very cramped and too many words").
+   <= 430px only; desktop and tablet are untouched. .phone-slate is the root of the Games page in LAMP / TUDDY / BUCKETS.
+   The kicker and the one-sentence note go (the tab pill already names the page); the day pager and Table|Games
+   share one row; the search bar takes the next line. Measured at 390: the open game starts ~100px higher. */
+@media (max-width: 430px) {
+  .phone-slate .ph-eyebrow, .phone-slate .ph-note { display: none !important; }
+  .phone-slate .panel-title { margin: 2px 0 6px !important; }
+  .phone-slate .ph-title { font-size: 20px !important; margin: 0 !important; }
+  .phone-slate .slate-bar { display: flex !important; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 6px; }
+  .phone-slate .slate-bar > div { margin: 0 !important; }
+  .phone-slate .slate-bar > div[style*="height: 10px"] { display: none; }
+  .phone-slate .slate-bar > .board-topbar { order: 3; flex: 0 0 100%; min-width: 0; }
+  .phone-slate .slate-bar > .slate-note { order: -1; flex: 0 0 100%; }
+  .phone-slate .slate-bar > .slate-note:empty { display: none !important; }
+  .phone-slate .chip-row { margin-bottom: 6px !important; }
+  .phone-slate .chip-row > span:first-child { display: none; }
+  .phone-slate .slate-date { display: none; }
+  .phone-slate .slate-bar button { padding-left: 10px !important; padding-right: 10px !important; min-width: 44px; }
+  .phone-slate .slate-bar > div:not(.board-topbar) { gap: 5px !important; }
+  .phone-slate .ph-today { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+}
+
 /* THE SHARE-CARD BUTTON (components/card/ShareCardButton.js, 2026-10-12): 44 px tall everywhere, 34 px only on a desktop with a mouse;
    under 361 px the word is dropped and the camera stays a 44 x 44 target. */
 .share-card-btn { min-height: 44px; }
