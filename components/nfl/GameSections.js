@@ -9,7 +9,8 @@ import { Dial } from '../VerdictHero'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { scoreboardRows, receiverEdge } from '../../lib/nfl/gameMatchup'
 import { offenseTiles, defenseTiles, factsNote } from './tabs/Matchups'
-import { softRole, softLine } from '../../lib/nfl/dvpSignal'
+import { softRole, softLine, softCells, STARTER_ROLES } from '../../lib/nfl/dvpSignal'
+import { Chip } from '../writeups/ChipLines'
 import { mostWord } from '../../lib/format'
 import { Kicker } from './GameOffDef'
 import { TD_WORD } from '../../lib/nfl/teamTdModel'
@@ -144,29 +145,48 @@ export function KeyPlayers({ matchup, data, game, onPlayerClick, onOpenTeam }) {
 
 const USED = new Set(['PRESSURE', 'BLITZ', 'ZONE', 'MAN', '20+ PASSES'])
 
-// ── 3. THE MATCHUP SCOREBOARD ────────────────────────────────────────────────
-function Bar({ pos, mid, up }) {
-  const lo = Math.min(pos, mid), hi = Math.max(pos, mid)
-  return (
-    <div aria-hidden="true" style={{ position: 'relative', flex: '1 1 auto', height: 6, borderRadius: 3, background: 'rgba(255,255,255,.08)' }}>
-      <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${lo * 100}%`, width: `${Math.max(0.02, hi - lo) * 100}%`, borderRadius: 3, background: up ? C.green : C.text3 }} />
-      <div style={{ position: 'absolute', top: -3, bottom: -3, left: `${mid * 100}%`, width: 2, background: C.text2 }} />
-    </div>
-  )
-}
+// ── 3. THE MATCHUP (2026-10-17, path item 6; was a set of bars against the league middle, a club logo on every line) ─────────────────────────
+// Donovan: "Seattle gives to the quarterback, so what does that even mean ... I don't care which side is leaning which way; I do like knowing
+// what their ranking is giving up defense wise, the position they're giving it up to." So, per defence, ONCE (its logo in the header, not on every line):
+//   GIVES UP: the starter positions it is softest against, each a chip: the number, the stat, the position, and its rank ("2nd most" = it gives
+//             up the 2nd most in the league). Same cells and the same bar (z >= 1) as the soft-spot sentences below (lib/nfl/dvpSignal softCells).
+//   HOW IT DEFENDS: pass rush, blitz, zone / man and long passes as plain chips with their rank. Neutral colour: whether a lot of pressure is good
+//             for the offence depends on the player, and nothing here says it.
+// The model is not changed by this block: the backtests found "allowed to his position" adds nothing to the touchdown score (lib/nfl/scoreLabels.js).
+const unitOf = (d) => (d.stat === 'td' || d.stat === 'rz_tgts' || d.stat === 'rz_car' ? '' : ' a game')
+const num1 = (n) => (Math.abs(n) >= 10 ? Math.round(n) : Math.round(n * 10) / 10)
+const CHIP_THEME = { C, NUM_FONT, TYPE, get accent() { return C.green } }   // read at draw time: C is mutated after mount (applyTheme)
 
-function Cell({ c }) {
-  if (!c) return <div style={{ minHeight: 44 }} />
+function DefenceColumn({ def, rows, matchup }) {
+  const soft = softCells(matchup, def, 'season', STARTER_ROLES).slice(0, 4)
+  const how = rows.map((r) => r.cells.find((c) => c?.team === def)).filter((c) => c?.chip)
+  if (!soft.length && !how.length) return null
   return (
-    <div style={{ minHeight: 44, minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: TYPE.name, lineHeight: 1.3, color: C.text }}>
-        <TeamMark sport="nfl" abbr={c.team} variant="logo" px={22} />
-        <span style={{ minWidth: 0 }}>{c.text}</span>
+    <div style={{ minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <TeamMark sport="nfl" abbr={def} variant="logo" px={26} />
+        <span style={{ font: `900 ${TYPE.name}px/1.2 ${NUM_FONT}`, color: C.text }}>{nflNickname(def)} defense</span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
-        <Bar pos={c.pos} mid={c.mid} up={c.pos >= c.mid} />
-        <span style={{ flex: '0 0 auto', fontSize: 12, color: C.text2, fontFamily: NUM_FONT, whiteSpace: 'nowrap' }}>{c.word}{c.early ? ` · early: ${c.early} ${c.early === 1 ? 'game' : 'games'}` : ''}</span>
-      </div>
+      {soft.length > 0 && (
+        <>
+          <div style={{ font: `800 ${TYPE.label}px/1 ${NUM_FONT}`, letterSpacing: '.1em', color: C.text3, margin: '4px 0 4px' }}>GIVES UP</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {soft.map((d) => (
+              <Chip key={`${d.role}${d.stat}`} theme={CHIP_THEME} value={num1(d.value)} label={`${d.label}${unitOf(d)} to ${d.plain}`}
+                tag={Number.isFinite(d.rank) ? mostWord(d.rank, 32) : null} heat={d.rank <= 3 ? 2 : d.rank <= 8 ? 1 : 0}
+                title={`${def}: ${softLine(d)}`} />
+            ))}
+          </div>
+        </>
+      )}
+      {how.length > 0 && (
+        <>
+          <div style={{ font: `800 ${TYPE.label}px/1 ${NUM_FONT}`, letterSpacing: '.1em', color: C.text3, margin: '10px 0 4px' }}>HOW IT DEFENDS</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {how.map((c) => <Chip key={c.chip.label} theme={CHIP_THEME} value={c.chip.value} label={c.chip.label} tag={c.word} title={c.text} />)}
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -176,22 +196,14 @@ export function MatchupScoreboard({ matchup, data, game }) {
   const slate = Number(data?.season) || null
   const chart = Number(matchup?.chart_season)
   const oldSeason = slate && chart && chart < slate ? chart : null
-  if (!rows.length) return null
+  const cols = [game.away, game.home].map((def) => <DefenceColumn key={def} def={def} rows={rows} matchup={matchup} />)
+  if (!rows.length && !softCells(matchup, game.away, 'season', STARTER_ROLES).length && !softCells(matchup, game.home, 'season', STARTER_ROLES).length) return null
   return (
     <section aria-label="Matchup" style={{ marginBottom: 16 }}>
       <Kicker>THE MATCHUP</Kicker>
-      <div style={{ display: 'grid', gap: 14 }}>
-        {rows.map((r) => (
-          <div key={r.key}>
-            <div style={{ fontSize: TYPE.name, fontWeight: 900, color: C.text, marginBottom: 6 }}>{r.label}</div>
-            <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))' }}>
-              {r.cells.map((c, i) => <Cell key={i} c={c} />)}
-            </div>
-          </div>
-        ))}
-      </div>
+      <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))' }}>{cols}</div>
       <p style={{ margin: '10px 0 0', fontSize: 12, lineHeight: 1.5, color: C.text3 }}>
-        The bar starts at the league middle: right of the tick = more than a typical team, left = less.{oldSeason ? ` Pass rush, zone or man and long passes are ${oldSeason} season numbers.` : ''}
+        &quot;2nd most&quot; = the 2nd most in the league. Season numbers{oldSeason ? `; pass rush, zone or man and long passes are ${oldSeason}` : ''}.
       </p>
     </section>
   )
