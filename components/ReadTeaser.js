@@ -1,4 +1,5 @@
 'use client'
+import { ordSuffix as ord } from '../lib/format'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { hr9Color } from '../lib/hr9'
@@ -53,7 +54,7 @@ const num = (v, d = null) => {
   const x = Number(v)
   return Number.isFinite(x) ? x : d
 }
-const ord = (i) => (i % 10 === 1 && i % 100 !== 11 ? 'st' : i % 10 === 2 && i % 100 !== 12 ? 'nd' : i % 10 === 3 && i % 100 !== 13 ? 'rd' : 'th')
+// (the suffix alone: lib/format.js ordSuffix)
 
 // A player can carry more than one role ("TOP/HR"), so a category match is a
 // membership test, not an equality test — a double-up still counts for its

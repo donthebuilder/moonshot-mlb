@@ -13,6 +13,7 @@ const old = (n) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2:
 const old2 = (n) => { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]) }
 for (let n = 1; n <= 5000; n += 1) {
   eq(`ordinal(${n}) vs rule`, F.ordinal(n), old(n))
+  eq(`ordSuffix(${n}) vs rule`, F.ordSuffix(n), old(n).slice(String(n).length))
   eq(`ordinal(${n}) vs stories/nhl rule`, F.ordinal(n), old2(n))
 }
 eq('ordinal 11', F.ordinal(11), '11th')
