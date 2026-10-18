@@ -15,6 +15,7 @@ import { useLampStandings, useLampBoard, useLampLeaders, useLampRecord, useLampH
 import { buildLampHeadlines } from '../../../lib/nhl/headlines'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
 import Fold from '../../Fold'
+import TonightsCalls from '../../phone/TonightsCalls'
 import ScoreTable, { sortGames } from '../ScoreTable'
 import LampTable from '../LampTable'
 import Tap from '../../Tap'
@@ -146,6 +147,9 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
       {!ready ? <div aria-busy="true" style={{ minHeight: '100vh' }}><span style={{ position: 'absolute', left: -9999 }}>Loading…</span></div> : <>
       {/* TONIGHT (2026-10-04): who went, who lines up, who's still to go (components/tonight/NhlTonight.js) */}
       <NhlTonight today={day} board={board.data} date={date} onOpenPlayer={onOpenPlayer} setTab={setTab} />
+
+      {/* TONIGHT'S CALLS AS CARDS (2026-10-18, PHONE-PARITY 9a): MOONSHOT's swipe deck, shut by default. Tonight's list only: a paged day has no deck of its own */}
+      {!date && <Fold id="lamp-calls" title="🃏 Tonight's calls" meta="swipe the real cards"><TonightsCalls sport="nhl" /></Fold>}
 
       {/* THE PEOPLE, ONE TAP IN (2026-09-26, stranger test: "where are the
           players?" was the one question still slow -- they sat behind More).

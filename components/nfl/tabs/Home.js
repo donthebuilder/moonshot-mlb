@@ -17,6 +17,7 @@ import TeamPower from '../TeamPower'
 import StartSit from '../StartSit'
 import StorylinesStrip from '../../StorylinesStrip'
 import Fold from '../../Fold'
+import TonightsCalls from '../../phone/TonightsCalls'
 import ScoreRail from '../../ScoreRail'
 import { useLockOf } from '../../MemberGate'
 import { fetchNflLive, lineFor, tdsIn } from '../../../lib/nfl/liveSlate'
@@ -471,6 +472,9 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
           he actually did this week. See NflYourPlayers.js's own header for
           why TUDDY only needs ONE store here, not MOONSHOT's two. */}
       <NflYourPlayers players={players} onPlayerClick={onPlayerClick} />
+
+      {/* THIS WEEK'S CALLS AS CARDS (2026-10-18, PHONE-PARITY 9a): MOONSHOT's swipe deck (components/phone/TonightsCalls.js), shut by default: one 44px row, no request until opened */}
+      <Fold id="tuddy-calls" title="🃏 This week's calls" meta="swipe the real cards"><TonightsCalls sport="nfl" /></Fold>
 
       {/* —— THE MONEY-ANSWER SLOT (parity pass, 2026-09-16) ————————————
           MOONSHOT puts a compact MoneyAnswer right here -- one bordered
