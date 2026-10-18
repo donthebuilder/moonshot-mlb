@@ -27,23 +27,30 @@ const build = unstable_cache(async () => {
     rows.push(...(data || []))
     if (!data || data.length < PAGE) break
   }
-  // COMPOSITE (2026-10-18, lamp-goal-comp-v1, a hidden shadow in lamp_prop_log market 'GOAL'): its score rides on the SAME rows as `comp` (and `comp_pick`
-  // = the top composite on his team in that game), so the harness grades the live `score` and the composite on identical games. Additive: no existing
-  // key changes. A skater the composite did not score has no `comp`; a failed or empty read leaves every row exactly as before.
+  // COMPOSITE (2026-10-18, a hidden shadow in lamp_prop_log market 'GOAL'): its score rides on the SAME rows so the harness grades the live `score`
+  // and the composite on identical games. `comp` / `comp_pick` (= the top composite on his team in that game) / `comp_version` are the CURRENT composite
+  // (VERSIONS.comp2 = lamp-goal-comp-v2); v1's rows stay distinguishable and ride as `comp_v1` / `comp_v1_pick`. Additive: no existing key changes. A skater a
+  // version did not score has no field for it; a failed or empty read leaves every row exactly as before.
   try {
+    const vCur = [...new Set(VERSIONS.comp2)], vOld = [...new Set(VERSIONS.comp)]
     const comp = new Map()
     for (let i = 0; i < MAX_PAGES; i++) {
-      const { data, error } = await db.from('lamp_prop_log').select('game_id,player_id,score,status')
-        .eq('market', 'GOAL').in('model_version', [...new Set(VERSIONS.comp)]).not('hit', 'is', null)
-        .order('game_id', { ascending: true }).order('player_id', { ascending: true }).range(i * PAGE, i * PAGE + PAGE - 1)
+      const { data, error } = await db.from('lamp_prop_log').select('game_id,player_id,score,status,model_version')
+        .eq('market', 'GOAL').in('model_version', [...vCur, ...vOld]).not('hit', 'is', null)
+        .order('game_id', { ascending: true }).order('player_id', { ascending: true }).order('model_version', { ascending: true }).range(i * PAGE, i * PAGE + PAGE - 1)
       if (error) throw new Error(error.message)
-      for (const c of data || []) comp.set(`${c.game_id}|${c.player_id}`, c)
+      for (const c of data || []) comp.set(`${c.game_id}|${c.player_id}|${c.model_version}`, c)
       if (!data || data.length < PAGE) break
     }
-    for (const r of rows) { const c = comp.get(`${r.game_id}|${r.player_id}`); if (c) { r.comp = c.score; r.comp_pick = c.status === 'called' } }
+    for (const r of rows) {
+      const k = `${r.game_id}|${r.player_id}`
+      const cur = vCur.map((v) => comp.get(`${k}|${v}`)).find(Boolean), old = vOld.map((v) => comp.get(`${k}|${v}`)).find(Boolean)
+      if (cur) { r.comp = cur.score; r.comp_pick = cur.status === 'called'; r.comp_version = cur.model_version }
+      if (old) { r.comp_v1 = old.score; r.comp_v1_pick = old.status === 'called' }
+    }
   } catch (e) { console.error(`[lamp-goal-export] composite: ${e?.message}`) }
   return rows
-}, ['lamp-goal-export-v2'], { revalidate: 3600 })
+}, ['lamp-goal-export-v3'], { revalidate: 3600 })
 
 export async function GET() {
   try {

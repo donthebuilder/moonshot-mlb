@@ -39,6 +39,8 @@ import { MARKET as GOALPOS, toGoalPosRow, gradeGoalPosRows } from '../../../../l
 import { MARKET as GOALW, toGoalWeightedRow, gradeGoalWeightedRows } from '../../../../lib/nhl/goalWeightedModel'
 import { toCompositeRow, gradeCompositeRows } from '../../../../lib/nhl/goalCompositeModel'
 import { attachComposite } from '../../../../lib/nhl/goalCompositeBoard'
+import { toComposite2Row, gradeComposite2Rows } from '../../../../lib/nhl/goalComposite2Model'
+import { attachComposite2 } from '../../../../lib/nhl/goalComposite2Board'
 import { readNumerology } from '../../../../lib/nhl/numerology'
 import { writeNight as writeNumerology, gradeNight as gradeNumerology, boxResults, refreshLaneNights, writeNumbersNight } from '../../../../lib/numerology/record'
 import { fromNhl } from '../../../../lib/numerology/adapters'
@@ -51,6 +53,8 @@ import { postLampSlateOnce } from '../../../../lib/posts/lampSlate'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
+const SHADOW_START_BY_MS = 22_000   // a shadow starts only if the tick is younger than this
+const SHADOW_CAP_MS = 9_000         // ...and gets at most this long
 
 // The net columns (starters, starters_source, starters_actual, goalies) were
 // added to lamp_goal_games the same day as the tables, in the same migration
@@ -89,6 +93,8 @@ const SHADOW = [
   // lamp-goal-comp-v1 (2026-10-18, lib/nhl/goalCompositeModel.js): HIDDEN composite, ONE score per scored skater per game. Market 'GOAL' under its own
   // version (the primary key carries the version): no SQL. Its own failure is caught below and never touches the goals tick.
   { market: 'GOAL', key: 'comp', byGame: 'compByGame', toRow: toCompositeRow, grade: gradeCompositeRows },
+  // lamp-goal-comp-v2 (2026-10-18, lib/nhl/goalComposite2Model.js): v1 + xG shot quality, PP ice time / share, the opponent's rest. A NEW version beside v1; same market, no SQL.
+  { market: 'GOAL', key: 'comp2', byGame: 'comp2ByGame', toRow: toComposite2Row, grade: gradeComposite2Rows },
 ]
 
 export async function GET(request) {
@@ -112,7 +118,13 @@ export async function GET(request) {
   }
   // lamp-goal-comp-v1: scored only when a game is inside its lock window; its own failure, logged, never the lock's
   if (night && night.games.some((g) => g.state === 'pre' && Date.now() < Date.parse(g.startUtc) && Date.parse(g.startUtc) - Date.now() <= LOCK_WINDOW_MS)) {
-    try { out.composite = (await attachComposite(night, date)).feeds } catch (e) { console.error(`[lamp tick] composite: ${e?.message}`); night.compByGame = null }
+    // TIME BUDGET (2026-10-18): the hidden shadows must never cost the real lock. They run only while the tick is young and each gets a hard cap;
+    // past it the shadow is skipped for this run (its row is simply not written this tick) and the live lock goes ahead.
+    const young = () => Date.now() - t0 < SHADOW_START_BY_MS
+    const capped = (p) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(`shadow over its ${SHADOW_CAP_MS}ms budget`)), SHADOW_CAP_MS))])
+    if (young()) try { out.composite = (await capped(attachComposite(night, date))).feeds } catch (e) { console.error(`[lamp tick] composite: ${e?.message}`); night.compByGame = null }
+    // lamp-goal-comp-v2: its OWN try/catch (a v2 failure never touches v1, the lock or the goals tick); all its extra reads are cached or Supabase
+    if (young()) try { out.composite2 = (await capped(attachComposite2(night, date))).feeds } catch (e) { console.error(`[lamp tick] composite2: ${e?.message}`); night.comp2ByGame = null }
   }
   if (night) {
     for (const g of night.games) {
