@@ -37,6 +37,8 @@ import { toPtsRow, gradePtsRows, MARKET as PTS } from '../../../../lib/nhl/ptsMo
 import { toAstRow, gradeAstRows, MARKET as AST } from '../../../../lib/nhl/astModel'
 import { MARKET as GOALPOS, toGoalPosRow, gradeGoalPosRows } from '../../../../lib/nhl/goalPosModel'
 import { MARKET as GOALW, toGoalWeightedRow, gradeGoalWeightedRows } from '../../../../lib/nhl/goalWeightedModel'
+import { toCompositeRow, gradeCompositeRows } from '../../../../lib/nhl/goalCompositeModel'
+import { attachComposite } from '../../../../lib/nhl/goalCompositeBoard'
 import { readNumerology } from '../../../../lib/nhl/numerology'
 import { writeNight as writeNumerology, gradeNight as gradeNumerology, boxResults, refreshLaneNights, writeNumbersNight } from '../../../../lib/numerology/record'
 import { fromNhl } from '../../../../lib/numerology/adapters'
@@ -84,6 +86,9 @@ const SHADOW = [
   { market: GOALW, key: 'goalw', byGame: 'goalWByGame', toRow: toGoalWeightedRow, grade: gradeGoalWeightedRows },
   // goal2_site_v1 (2026-10-11, lib/nhl/goal2Model.js): 2+ goals, a NEW model, tracked. Market 'GOAL', its own version in the key: no SQL.
   { market: GOAL2, key: 'goal2', byGame: 'goal2ByGame', toRow: toGoal2Row, grade: gradeGoal2Rows },
+  // lamp-goal-comp-v1 (2026-10-18, lib/nhl/goalCompositeModel.js): HIDDEN composite, ONE score per scored skater per game. Market 'GOAL' under its own
+  // version (the primary key carries the version): no SQL. Its own failure is caught below and never touches the goals tick.
+  { market: 'GOAL', key: 'comp', byGame: 'compByGame', toRow: toCompositeRow, grade: gradeCompositeRows },
 ]
 
 export async function GET(request) {
@@ -104,6 +109,10 @@ export async function GET(request) {
   } catch (e) {
     console.error(`[lamp tick] buildNight ${date}: ${e?.message}`)
     out.skipped.push({ why: `buildNight failed: ${e?.message}` })
+  }
+  // lamp-goal-comp-v1: scored only when a game is inside its lock window; its own failure, logged, never the lock's
+  if (night && night.games.some((g) => g.state === 'pre' && Date.now() < Date.parse(g.startUtc) && Date.parse(g.startUtc) - Date.now() <= LOCK_WINDOW_MS)) {
+    try { out.composite = (await attachComposite(night, date)).feeds } catch (e) { console.error(`[lamp tick] composite: ${e?.message}`); night.compByGame = null }
   }
   if (night) {
     for (const g of night.games) {
