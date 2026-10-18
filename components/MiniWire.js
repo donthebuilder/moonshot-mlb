@@ -590,7 +590,7 @@ export default function MiniWire({
               : 'Click to get browser notifications when this tab is in the background — homers, your pick due up, K-alerts. Opt-in, nothing leaves your device.'}
             style={{ marginLeft: 'auto', fontSize: 12, cursor: 'pointer', opacity: notif === 'on' ? 1 : 0.55 }}
           >{notif === 'on' ? '🔔' : '🔕'}</span>
-          <button
+          <button className="tap-box"
             onClick={(e) => { e.stopPropagation(); setWireOpen((v) => !v) }}
             title={wireOpen
               ? 'Close the wire — it keeps running either way'
@@ -602,7 +602,7 @@ export default function MiniWire({
             }}
           >{wireOpen ? 'close ▴' : 'open wire ▾'}</button>
           {onGo && (
-            <button
+            <button className="tap-box"
               onClick={(e) => { e.stopPropagation(); onGo() }}
               title="Open the wire on the Live page instead — this one does move you"
               style={{
