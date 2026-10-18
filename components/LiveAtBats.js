@@ -1,6 +1,10 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
-import { C, NUM_FONT } from '../lib/theme'
+import { C, NUM_FONT, TYPE } from '../lib/theme'
+import PlayerFace from './PlayerFace'
+import TeamMark from './TeamMark'
+import { Chip } from './writeups/ChipLines'
+import { SPORT_ACCENT } from '../lib/sportAccent'
 import { nameOf, clean, playerId } from '../lib/player'
 import { fetchLiveSlate } from '../lib/liveSlate'
 import { teamAbbrs } from '../lib/gamelogs'
@@ -102,69 +106,63 @@ export default function LiveAtBats({
 
   if (!rows.length) return null
 
+  const theme = { C, NUM_FONT, TYPE, accent: SPORT_ACCENT.mlb }
   return (
     <div style={{ marginBottom: compact ? 10 : 14 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 5, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: compact ? 11 : 12.5, fontWeight: 900 }}>🎙️ At the plate right now</span>
-        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-          {rows.length} live · your picks first{onGo ? ' · tap for the full room' : ''}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, font: `900 ${TYPE.label}px/1 ${NUM_FONT}`, letterSpacing: '.12em', color: theme.accent }}>
+          <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: theme.accent, boxShadow: `0 0 8px ${theme.accent}` }} />AT THE PLATE NOW
         </span>
+        <span style={{ font: `700 ${TYPE.micro}px/1 ${NUM_FONT}`, color: C.text3 }}>{rows.length} live{onGo ? ' · tap a game' : ''}</span>
       </div>
 
-      {/* WRAPS, not a stack and not a sideways scroll. Eight live games as
-          eight full-width rows is most of a phone screen and half a laptop
-          one — and this is a strip that sits ABOVE the thing you came to
-          read, on two different tabs. Cards wrap into as many rows as it
-          takes and the count past DEFAULT_SHOWN folds behind "Show all". */}
-      <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+      {/* WRAPS, not a sideways scroll (2026-08-13): as many rows as it takes, the count past DEFAULT_SHOWN folds behind "Show all". */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {visRows.map((r) => {
-            const { g } = r
-            const hot = r.role ? C.orange : r.watched ? C.amber : C.border
-            return (
-              <button
-                key={g.pk}
-                type="button"
-                onClick={() => (onGo ? onGo(g.pk) : r.p && onPlayerClick?.(r.p))}
-                title={`${r.name} batting · ${abbrs?.[g.awayId] || 'Away'} @ ${abbrs?.[g.homeId] || 'Home'} · ${g.half} ${g.inning} · ${g.awayScore ?? 0}-${g.homeScore ?? 0}${r.deckName ? ` · on deck ${r.deckName}` : ''}`}
-                style={{
-                  flex: '0 0 auto', width: compact ? 152 : 176, textAlign: 'left', cursor: 'pointer',
-                  background: r.role ? 'rgba(249,115,22,.08)' : C.bg2,
-                  border: `1px solid ${r.role || r.watched ? `${hot}66` : C.border}`,
-                  borderRadius: 10, padding: '6px 9px 7px', minWidth: 0,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, fontFamily: NUM_FONT }}>
-                  <span style={{ fontSize: 9, color: C.text3 }}>
-                    {/^top/i.test(g.half) ? '▲' : /^bot/i.test(g.half) ? '▼' : '·'}{g.inning ?? ''}
-                  </span>
-                  <span style={{ fontSize: 10, fontWeight: 800, color: C.text2 }}>
-                    {abbrs?.[g.awayId] ? `${abbrs[g.awayId]} ` : ''}{g.awayScore ?? 0}–{g.homeScore ?? 0}{abbrs?.[g.homeId] ? ` ${abbrs[g.homeId]}` : ''}
-                  </span>
-                  {r.role && <span style={{ marginLeft: 'auto', fontSize: 8, fontWeight: 900, color: C.orange }}>{r.role}</span>}
-                  {!r.role && r.watched && <span style={{ marginLeft: 'auto', fontSize: 9 }}>★</span>}
-                </div>
-                <div style={{
-                  fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden',
-                  textOverflow: 'ellipsis', color: r.p ? C.text : C.text2, marginTop: 1,
-                }}>{r.name}</div>
-                <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {/* His line tonight is the context that makes the name mean
-                      something — 0-for-3 and 2-for-2 are different at-bats to
-                      watch. A man in his first PA has no line and says so. */}
-                  {r.line ? `${r.line.h}-${r.line.ab}${r.line.hr ? ` · ${r.line.hr} HR` : ''}` : 'first look'}
-                  {r.deckName ? ` · deck ${String(r.deckName).split(' ').slice(-1)[0]}` : ''}
-                </div>
-              </button>
-            )
-          })}
+          const { g } = r
+          const away = abbrs?.[g.awayId], home = abbrs?.[g.homeId]
+          const picked = Boolean(r.role)
+          return (
+            <button
+              key={g.pk}
+              type="button"
+              onClick={() => (onGo ? onGo(g.pk) : r.p && onPlayerClick?.(r.p))}
+              title={`${r.name} batting · ${away || 'Away'} @ ${home || 'Home'} · ${g.half} ${g.inning} · ${g.awayScore ?? 0}-${g.homeScore ?? 0}${r.deckName ? ` · on deck ${r.deckName}` : ''}`}
+              style={{
+                flex: '1 1 150px', maxWidth: compact ? 200 : 240, minHeight: 44, textAlign: 'left', cursor: 'pointer', color: C.text,
+                background: picked ? `${theme.accent}14` : C.bg2,
+                border: `1px solid ${picked ? `${theme.accent}80` : r.watched ? C.border2 : C.border}`,
+                borderRadius: 12, padding: '8px 10px', minWidth: 0,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, font: `800 ${TYPE.body}px/1 ${NUM_FONT}`, color: C.text2 }}>
+                <span style={{ color: C.text3 }}>{/^top/i.test(g.half) ? '▲' : /^bot/i.test(g.half) ? '▼' : '·'}{g.inning ?? ''}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  {away && <TeamMark sport="mlb" abbr={away} variant="logo" px={16} />}{g.awayScore ?? 0}–{g.homeScore ?? 0}{home && <TeamMark sport="mlb" abbr={home} variant="logo" px={16} />}
+                </span>
+                {picked && <span style={{ marginLeft: 'auto' }}><Chip theme={theme} label={r.role} heat={2} /></span>}
+                {!picked && r.watched && <span style={{ marginLeft: 'auto' }}><Chip theme={theme} label="watching" /></span>}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 6 }}>
+                {r.p && <PlayerFace sport="mlb" id={String(r.p.player_id ?? r.p.id)} name={r.name} size={28} theme={C} />}
+                <span style={{ font: `800 ${TYPE.name}px/1.2 ${NUM_FONT}`, minWidth: 0, overflowWrap: 'anywhere', color: r.p ? C.text : C.text2 }}>{r.name}</span>
+              </div>
+              {/* His line tonight is the context: 0-for-3 and 2-for-2 are different at-bats to watch. A man in his first PA has no line and says so. */}
+              <div style={{ font: `700 ${TYPE.micro}px/1.3 ${NUM_FONT}`, color: C.text3, marginTop: 3 }}>
+                {r.line ? `${r.line.h}-${r.line.ab}${r.line.hr ? ` · ${r.line.hr} HR` : ''}` : 'first look'}
+                {r.deckName ? ` · deck ${String(r.deckName).split(' ').slice(-1)[0]}` : ''}
+              </div>
+            </button>
+          )
+        })}
       </div>
 
       {!capped && !showAll && rows.length > DEFAULT_SHOWN && (
         <button type="button" onClick={() => setShowAll(true)} style={{
-          display: 'block', width: '100%', marginTop: 9, cursor: 'pointer',
-          fontSize: 10, fontWeight: 800, color: C.text2, fontFamily: NUM_FONT,
-          background: C.bg2, border: `1px dashed ${C.border2}`, borderRadius: 10,
-          padding: '7px 10px', letterSpacing: '.02em',
+          display: 'block', width: '100%', marginTop: 9, cursor: 'pointer', minHeight: 44,
+          font: `800 ${TYPE.label}px/1 ${NUM_FONT}`, color: C.text2,
+          background: C.bg2, border: `1px dashed ${C.border2}`, borderRadius: 12,
+          padding: '0 10px', letterSpacing: '.02em',
         }}>Show all {rows.length} games ▾</button>
       )}
     </div>
