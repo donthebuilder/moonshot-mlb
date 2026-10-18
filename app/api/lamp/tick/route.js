@@ -53,6 +53,8 @@ import { postLampSlateOnce } from '../../../../lib/posts/lampSlate'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
+const SHADOW_START_BY_MS = 22_000   // a shadow starts only if the tick is younger than this
+const SHADOW_CAP_MS = 9_000         // ...and gets at most this long
 
 // The net columns (starters, starters_source, starters_actual, goalies) were
 // added to lamp_goal_games the same day as the tables, in the same migration
@@ -116,9 +118,13 @@ export async function GET(request) {
   }
   // lamp-goal-comp-v1: scored only when a game is inside its lock window; its own failure, logged, never the lock's
   if (night && night.games.some((g) => g.state === 'pre' && Date.now() < Date.parse(g.startUtc) && Date.parse(g.startUtc) - Date.now() <= LOCK_WINDOW_MS)) {
-    try { out.composite = (await attachComposite(night, date)).feeds } catch (e) { console.error(`[lamp tick] composite: ${e?.message}`); night.compByGame = null }
+    // TIME BUDGET (2026-10-18): the hidden shadows must never cost the real lock. They run only while the tick is young and each gets a hard cap;
+    // past it the shadow is skipped for this run (its row is simply not written this tick) and the live lock goes ahead.
+    const young = () => Date.now() - t0 < SHADOW_START_BY_MS
+    const capped = (p) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(`shadow over its ${SHADOW_CAP_MS}ms budget`)), SHADOW_CAP_MS))])
+    if (young()) try { out.composite = (await capped(attachComposite(night, date))).feeds } catch (e) { console.error(`[lamp tick] composite: ${e?.message}`); night.compByGame = null }
     // lamp-goal-comp-v2: its OWN try/catch (a v2 failure never touches v1, the lock or the goals tick); all its extra reads are cached or Supabase
-    try { out.composite2 = (await attachComposite2(night, date)).feeds } catch (e) { console.error(`[lamp tick] composite2: ${e?.message}`); night.comp2ByGame = null }
+    if (young()) try { out.composite2 = (await capped(attachComposite2(night, date))).feeds } catch (e) { console.error(`[lamp tick] composite2: ${e?.message}`); night.comp2ByGame = null }
   }
   if (night) {
     for (const g of night.games) {
