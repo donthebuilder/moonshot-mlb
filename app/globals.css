@@ -162,6 +162,18 @@ button {
   }
 }
 
+/* THE PHONE TEXT FLOOR, 11px OUTSIDE TABLES (2026-10-18; CLAUDE.md: numbers >= 11px, body 12, a table on a portrait phone 10). On a portrait phone any inline
+   7-10.9px text that is not inside a table is lifted to 11px; a table keeps the 10px floor above. Same inline-style matching as the rule above (both
+   spacings, React's and the CSSOM's); 10 also matches 10.5. SVG labels are attributes and stay with their own phone rules. */
+@media (max-width: 430px) {
+  [style*="font-size:7"]:not(table *), [style*="font-size: 7"]:not(table *),
+  [style*="font-size:8"]:not(table *), [style*="font-size: 8"]:not(table *),
+  [style*="font-size:9"]:not(table *), [style*="font-size: 9"]:not(table *),
+  [style*="font-size:10"]:not(table *), [style*="font-size: 10"]:not(table *) {
+    font-size: 11px !important;
+  }
+}
+
 /* Tap (components/Tap.js, 2026-09-27): names, teams and games as links --
    the text unchanged, underlined on hover, a 44px tap area on touch. */
 .tap-link:hover { text-decoration: underline; text-underline-offset: 2px; }
