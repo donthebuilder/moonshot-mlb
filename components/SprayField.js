@@ -1973,9 +1973,9 @@ export default function SprayField({
                 <line x1={ax - vx * L} y1={ay - vy * L} x2={hx} y2={hy}
                   stroke={windCol} strokeWidth="2" strokeLinecap="round" />
                 <polygon points={`${hx},${hy} ${b1x},${b1y} ${b2x},${b2y}`} fill={windCol} />
-                <text x={ax - 20} y={ay + 26} fill={windCol} fontSize="8.5"
+                <text x={ax + 8} y={ay + 15} fill={windCol} fontSize="8.5"
                   fontFamily={NUM_FONT} fontWeight="800">{windMph.toFixed(1)} MPH</text>
-                <text x={ax - 20} y={ay + 36} fill={C.text3} fontSize="7.5" fontFamily={NUM_FONT}>
+                <text x={ax + 8} y={ay + 27} fill={C.text3} fontSize="7.5" fontFamily={NUM_FONT}>
                   {windLabel}
                 </text>
               </g>
