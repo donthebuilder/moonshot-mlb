@@ -1,8 +1,11 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { C, NUM_FONT } from '../lib/theme'
+import { C, NUM_FONT, TYPE } from '../lib/theme'
 import { clean } from '../lib/player'
 import TeamMark from './TeamMark'
+import PlayerFace from './PlayerFace'
+import { Chip } from './writeups/ChipLines'
+import { SPORT_ACCENT } from '../lib/sportAccent'
 import { onLiveRefresh } from '../lib/liveRefresh'
 
 // 🎥 GAME COCKPIT — per-at-bat depth for the ONE game you're locked into.
@@ -23,68 +26,50 @@ const FIELDS = 'gameData,status,abstractGameState,teams,abbreviation,liveData,li
 
 const primaryRole = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
 
-// Result → plain words + a color that MEANS something (2026-08-08, "make
-// better and more intuitive"): green = on base, red-dim = out, blue = free
-// pass. The raw feed says "grounded_into_double_play"; a human says GIDP.
+// Result → plain words + a KIND (2026-10-17, the old one painted green / red / blue by hand): the heat is the product's own accent -- reached base glows,
+// a homer glows most, an out is quiet. The raw feed says "grounded_into_double_play"; a human says GIDP.
 const RESULT_STYLE = [
-  [/home.?run/i,            { icon: '💥', word: 'HOMER', col: C.green, bold: true }],
-  [/triple/i,               { icon: '●', word: 'triple', col: C.green }],
-  [/double(?!.?play)/i,     { icon: '●', word: 'double', col: C.green }],
-  [/single/i,               { icon: '●', word: 'single', col: C.green }],
-  [/intent.?walk/i,         { icon: '◦', word: 'IBB', col: C.blue }],
-  [/walk|hit.?by.?pitch/i,  { icon: '◦', word: 'walk', col: C.blue }],
-  [/strikeout|struck/i,     { icon: '✕', word: 'K', col: 'rgba(248,113,113,.75)' }],
-  [/double.?play|gidp/i,    { icon: '✕', word: 'GIDP', col: 'rgba(248,113,113,.75)' }],
-  [/sac/i,                  { icon: '·', word: 'sac', col: null }],
-  [/error/i,                { icon: '·', word: 'reached on error', col: C.amber }],
+  [/home.?run/i,            { word: 'HOMER', kind: 'hr' }],
+  [/triple/i,               { word: 'triple', kind: 'hit' }],
+  [/double(?!.?play)/i,     { word: 'double', kind: 'hit' }],
+  [/single/i,               { word: 'single', kind: 'hit' }],
+  [/intent.?walk/i,         { word: 'IBB', kind: 'base' }],
+  [/walk|hit.?by.?pitch/i,  { word: 'walk', kind: 'base' }],
+  [/strikeout|struck/i,     { word: 'K', kind: 'out' }],
+  [/double.?play|gidp/i,    { word: 'GIDP', kind: 'out' }],
+  [/sac/i,                  { word: 'sac', kind: 'out' }],
+  [/error/i,                { word: 'reached on error', kind: 'base' }],
 ]
 const styleFor = (event) => {
   for (const [re, s] of RESULT_STYLE) if (re.test(event || '')) return s
-  return { icon: '·', word: String(event || '').toLowerCase().replace(/_/g, ' '), col: null }
+  return { word: String(event || '').toLowerCase().replace(/_/g, ' '), kind: 'out' }
 }
+const HEAT = { hr: 2, hit: 1, base: 1, out: 0 }
 
-// Last name only — keeps a loaded-bases line short next to the score and
-// count. Same helper as AtThePlate.js's Situation, kept local since the two
-// files don't share a component module for this.
+// Last name only: keeps a loaded-bases line short next to the score and count.
 const lastOf = (full) => {
   const t = String(full || '').trim()
   return t.split(/\s+/).pop() || t
 }
 
-// ◆ = runner on. Second base sits on top — it reads like the field.
-//
-// 2026-08-18, Donovan: "id like to know who on the base if there are
-// runners on." off.first/second/third already carry fullName straight off
-// the verified live feed (same object the due-up alert reads) — the diamond
-// said THAT a base was occupied but only a hover tooltip ever said WHO. Now
-// a small line prints the names beneath the diamond whenever anyone's on;
-// nothing prints when the bases are empty, same as before.
-function Bases({ off }) {
+// The bases as a diamond (second on top, like the field), a chip per runner on.
+function Bases({ off, theme }) {
+  const { C } = theme
   const on = (b) => !!(off?.[b]?.id)
-  const nameOn = (b) => off?.[b]?.fullName || ''
   const d = (filled) => ({
-    width: 7, height: 7, transform: 'rotate(45deg)', borderRadius: 1.5,
-    background: filled ? C.amber : 'transparent',
-    border: `1.5px solid ${filled ? C.amber : 'rgba(255,255,255,.25)'}`,
+    width: 9, height: 9, transform: 'rotate(45deg)', borderRadius: 2,
+    background: filled ? theme.accent : 'transparent',
+    border: `1.5px solid ${filled ? theme.accent : C.border2}`,
   })
-  const runners = [
-    on('first') && ['1B', nameOn('first')],
-    on('second') && ['2B', nameOn('second')],
-    on('third') && ['3B', nameOn('third')],
-  ].filter(Boolean)
-  const who = runners.map(([b, nm]) => `${b} ${nm || '?'}`).join(' · ')
+  const runners = [['1B', 'first'], ['2B', 'second'], ['3B', 'third']].filter(([, k]) => on(k)).map(([b, k]) => [b, off[k].fullName])
   return (
-    <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 1, alignItems: 'flex-start' }}>
-      <span title={`Bases: ${who || 'empty'}`}
-        style={{ display: 'inline-grid', gridTemplateColumns: '9px 9px 9px', gridTemplateRows: '9px 9px', alignItems: 'center', justifyItems: 'center', verticalAlign: 'middle' }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+      <span title={`Bases: ${runners.map(([b, nm]) => `${b} ${nm || '?'}`).join(' · ') || 'empty'}`}
+        style={{ display: 'inline-grid', gridTemplateColumns: '12px 12px 12px', gridTemplateRows: '12px 12px', alignItems: 'center', justifyItems: 'center' }}>
         <span /><span style={d(on('second'))} /><span />
         <span style={d(on('third'))} /><span /><span style={d(on('first'))} />
       </span>
-      {runners.length > 0 && (
-        <span style={{ fontSize: 7.5, color: C.amber, fontFamily: NUM_FONT, whiteSpace: 'nowrap', fontWeight: 700, lineHeight: 1.2 }}>
-          {runners.map(([b, nm]) => `${b} ${nm ? lastOf(nm) : '?'}`).join(' · ')}
-        </span>
-      )}
+      {runners.map(([b, nm]) => <Chip key={b} theme={theme} label={`${b} ${nm ? lastOf(nm) : '?'}`} />)}
     </span>
   )
 }
@@ -116,139 +101,98 @@ export default function GameCockpit({ game, onPlayerClick }) {
   const state = data?.gameData?.status?.abstractGameState
   if (state !== 'Live') return null   // the cockpit is a live instrument only
 
+  const theme = { C, NUM_FONT, TYPE, accent: SPORT_ACCENT.mlb }
   const ls = data?.liveData?.linescore || {}
   const plays = data?.liveData?.plays?.allPlays || []
   const cur = data?.liveData?.plays?.currentPlay
   const roleOf = {}
   gp.forEach((p) => { const id = Number(p?.player_id ?? p?.id); if (id) roleOf[id] = { role: primaryRole(p), p } })
-  const badge = (id) => {
-    const r = roleOf[Number(id)]
-    return r?.role ? ` · 🤖 ${r.role}` : ''
-  }
+  const roleChip = (id) => (roleOf[Number(id)]?.role ? <Chip theme={theme} label={`PICK ${roleOf[Number(id)].role}`} heat={2} /> : null)
   const clickFor = (id) => { const r = roleOf[Number(id)]; if (r?.p) onPlayerClick?.(r.p) }
 
   const done = plays.filter((pl) => pl?.result?.event).slice(-7).reverse()
   const curPitches = (cur?.playEvents || []).filter((e) => e?.isPitch).length
+  const gt = data?.gameData?.teams || {}
+  const aR = ls?.teams?.away?.runs, hR = ls?.teams?.home?.runs
+  const outs = Math.min(3, ls.outs ?? 0)
+  const ctl = { minHeight: 44, minWidth: 44, padding: '0 12px', borderRadius: 999, cursor: 'pointer', font: `800 ${TYPE.label}px/1 ${NUM_FONT}` }
+  const batter = ls?.offense?.batter
 
   return (
-    <div style={{
-      background: `linear-gradient(155deg, ${C.green}0d, ${C.bg2})`,
-      border: '1px solid rgba(74,222,128,.28)', borderRadius: 11, padding: '9px 13px', marginBottom: 10,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap', marginBottom: 7 }}>
-        <span style={{ fontSize: 11.5, fontWeight: 900, color: C.green }}>🔴 Live At-Bats</span>
-        {/* the score — somehow missing from a live game panel until now */}
-        {(() => {
-          const gt = data?.gameData?.teams || {}
-          const aR = ls?.teams?.away?.runs, hR = ls?.teams?.home?.runs
-          if (aR == null && hR == null) return null
-          return (
-            <span style={{ fontSize: 11, fontWeight: 900, fontFamily: NUM_FONT, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <TeamMark sport="mlb" abbr={gt?.away?.abbreviation} variant="logo" px={14} /> {aR ?? 0}–{hR ?? 0} <TeamMark sport="mlb" abbr={gt?.home?.abbreviation} variant="logo" px={14} />
-            </span>
-          )
-        })()}
-        <span style={{ fontSize: 10.5, fontFamily: NUM_FONT, color: C.text2, display: 'flex', alignItems: 'center', gap: 7 }}>
-          <span>{ls.inningState || (ls.isTopInning ? 'Top' : 'Bot')} {ls.currentInning ?? '?'}</span>
-          {/* outs as dots — read at a glance, no words needed */}
-          <span title={`${ls.outs ?? 0} out${(ls.outs ?? 0) === 1 ? '' : 's'}`} style={{ letterSpacing: 2, color: C.red, fontSize: 9 }}>
-            {'●'.repeat(Math.min(3, ls.outs ?? 0))}<span style={{ color: 'rgba(255,255,255,.2)' }}>{'●'.repeat(Math.max(0, 3 - (ls.outs ?? 0)))}</span>
-          </span>
-          <Bases off={ls?.offense} />
-          <span><b style={{ color: C.text }}>{ls.balls ?? 0}-{ls.strikes ?? 0}</b> count</span>
+    <div style={{ background: `linear-gradient(155deg, ${theme.accent}0d, ${C.bg2})`, border: `1px solid ${theme.accent}47`, borderRadius: 12, padding: '10px 12px', marginBottom: 10, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, font: `900 ${TYPE.label}px/1 ${NUM_FONT}`, letterSpacing: '.12em', color: theme.accent }}>
+          <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: theme.accent, boxShadow: `0 0 8px ${theme.accent}` }} />LIVE AT-BATS
         </span>
-        <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-          <button onClick={() => setAuto((v) => !v)} style={{
-            fontSize: 9, fontWeight: 700, fontFamily: NUM_FONT, cursor: 'pointer', borderRadius: 6, padding: '2px 8px',
-            border: `1px solid ${auto ? C.green : C.border}`, background: auto ? 'rgba(74,222,128,.12)' : 'transparent',
-            color: auto ? C.green : C.text3,
-          }}>{auto ? '● auto 30s' : '○ auto'}</button>
-          <button onClick={pull} style={{
-            fontSize: 9, fontWeight: 700, fontFamily: NUM_FONT, cursor: 'pointer', borderRadius: 6, padding: '2px 8px',
-            border: `1px solid ${C.border}`, background: 'transparent', color: C.text3,
-          }}>↻</button>
-        </span>
-      </div>
-
-      {/* the batter spotlight + who's coming — labeled, in order */}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
-        {ls?.offense?.batter && (
-          <span onClick={() => clickFor(ls.offense.batter.id)} style={{
-            display: 'inline-flex', alignItems: 'baseline', gap: 6,
-            cursor: roleOf[ls.offense.batter.id] ? 'pointer' : 'default',
-            background: 'rgba(74,222,128,.10)', border: '1px solid rgba(74,222,128,.4)',
-            borderRadius: 8, padding: '4px 11px',
-          }}>
-            <span style={{ fontSize: 11 }}>🎤</span>
-            <b style={{ fontSize: 12.5, color: C.text }}>{clean(ls.offense.batter.fullName, '?')}</b>
-            <span style={{ fontSize: 9.5, color: C.orange, fontWeight: 900, fontFamily: NUM_FONT }}>{badge(ls.offense.batter.id).replace(' · ', '')}</span>
-            {curPitches > 0 && <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>pitch {curPitches + 1}</span>}
+        {(aR != null || hR != null) && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, font: `900 13px/1 ${NUM_FONT}`, color: C.text }}>
+            <TeamMark sport="mlb" abbr={gt?.away?.abbreviation} variant="logo" px={18} />{aR ?? 0}–{hR ?? 0}<TeamMark sport="mlb" abbr={gt?.home?.abbreviation} variant="logo" px={18} />
           </span>
         )}
-        <span style={{ fontSize: 10, fontFamily: NUM_FONT, color: C.text3, display: 'flex', gap: 10 }}>
-          {ls?.offense?.onDeck && (
-            <span onClick={() => clickFor(ls.offense.onDeck.id)} style={{ cursor: roleOf[ls.offense.onDeck.id] ? 'pointer' : 'default' }}>
-              <span style={{ fontSize: 7.5, fontWeight: 900, letterSpacing: '.08em', color: C.text3 }}>NEXT </span>
-              <b style={{ color: C.text2 }}>{clean(ls.offense.onDeck.fullName, '?')}</b>{badge(ls.offense.onDeck.id)}
-            </span>
-          )}
-          {ls?.offense?.inHole && (
-            <span>
-              <span style={{ fontSize: 7.5, fontWeight: 900, letterSpacing: '.08em' }}>THEN </span>
-              {clean(ls.offense.inHole.fullName, '?')}{badge(ls.offense.inHole.id)}
-            </span>
-          )}
+        <Chip theme={theme} label={`${ls.inningState || (ls.isTopInning ? 'Top' : 'Bot')} ${ls.currentInning ?? '?'}`} />
+        <span title={`${outs} out${outs === 1 ? '' : 's'}`} aria-label={`${outs} outs`} style={{ display: 'inline-flex', gap: 3 }}>
+          {[0, 1, 2].map((i) => <span key={i} style={{ width: 9, height: 9, borderRadius: '50%', background: i < outs ? theme.accent : 'transparent', border: `1.5px solid ${i < outs ? theme.accent : C.border2}` }} />)}
+        </span>
+        <Chip theme={theme} value={`${ls.balls ?? 0}-${ls.strikes ?? 0}`} label="count" />
+        <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+          <button type="button" aria-pressed={auto} onClick={() => setAuto((v) => !v)} style={{ ...ctl, border: `1px solid ${auto ? theme.accent : C.border}`, background: auto ? `${theme.accent}1f` : 'transparent', color: auto ? theme.accent : C.text2 }}>{auto ? 'auto 30s' : 'auto'}</button>
+          <button type="button" aria-label="Refresh" onClick={pull} style={{ ...ctl, border: `1px solid ${C.border}`, background: 'transparent', color: C.text2 }}>↻</button>
         </span>
       </div>
 
-      {/* THE CHARTS LEFT THIS PANEL (2026-08-10, Donovan: "you can remove the
-          spray and zone from the live at-bats on the games page"). The cockpit
-          is the count / outs / bases / last-PAs instrument and nothing else —
-          the zone map and spray chart, now carrying the live feed themselves,
-          live on the At the Plate tab where there's room to read them. */}
+      <Bases off={ls?.offense} theme={theme} />
 
+      {/* who is up, then who is coming */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', margin: '8px 0' }}>
+        {batter && (
+          <button type="button" onClick={() => clickFor(batter.id)} disabled={!roleOf[Number(batter.id)]}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 44, padding: '4px 12px 4px 6px', borderRadius: 999, cursor: roleOf[Number(batter.id)] ? 'pointer' : 'default', color: C.text,
+              background: `${theme.accent}1a`, border: `1px solid ${theme.accent}66`, font: `800 ${TYPE.name}px/1.2 ${NUM_FONT}` }}>
+            <PlayerFace sport="mlb" id={String(batter.id)} name={clean(batter.fullName, '')} size={32} theme={C} />
+            <span>{clean(batter.fullName, '?')}</span>
+            {roleChip(batter.id)}
+            {curPitches > 0 && <Chip theme={theme} label={`pitch ${curPitches + 1}`} />}
+          </button>
+        )}
+        {ls?.offense?.onDeck && (
+          <button type="button" onClick={() => clickFor(ls.offense.onDeck.id)} disabled={!roleOf[Number(ls.offense.onDeck.id)]}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44, padding: '0 8px', background: 'transparent', border: 0, cursor: roleOf[Number(ls.offense.onDeck.id)] ? 'pointer' : 'default', color: C.text2, font: `700 ${TYPE.body}px/1.2 ${NUM_FONT}` }}>
+            <span style={{ color: C.text3, letterSpacing: '.08em', fontWeight: 900 }}>NEXT</span>{clean(ls.offense.onDeck.fullName, '?')}{roleChip(ls.offense.onDeck.id)}
+          </button>
+        )}
+        {ls?.offense?.inHole && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: C.text3, font: `700 ${TYPE.body}px/1.2 ${NUM_FONT}` }}>
+            <span style={{ letterSpacing: '.08em', fontWeight: 900 }}>THEN</span>{clean(ls.offense.inHole.fullName, '?')}{roleChip(ls.offense.inHole.id)}
+          </span>
+        )}
+      </div>
+
+      {/* THE CHARTS LEFT THIS PANEL (2026-08-10, Donovan): the zone map and spray chart live on the At the Plate tab. This is count / outs / bases / last PAs. */}
       {/* the last plate appearances, ball-off-the-bat included */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {done.map((pl, i) => {
           const ev = (pl.playEvents || []).map((e) => e?.hitData).find((h) => h?.launchSpeed != null)
           const st = styleFor(pl?.result?.event)
           const bid = pl?.matchup?.batter?.id
           const evN = ev ? Number(ev.launchSpeed) : null
           const distN = ev?.totalDistance ? Number(ev.totalDistance) : null
-          const onBase = st.col === C.green || st.col === C.blue || st.col === C.amber
+          const click = roleOf[Number(bid)] ? () => clickFor(bid) : null
           return (
-            <div key={i} onClick={() => clickFor(bid)} style={{
-              display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 10, fontFamily: NUM_FONT,
-              padding: '2px 6px', borderRadius: 5, minWidth: 0,
-              background: st.bold ? 'rgba(74,222,128,.09)' : 'transparent',
-              borderLeft: `2px solid ${onBase ? (st.col + '88') : 'transparent'}`,
-              cursor: roleOf[bid] ? 'pointer' : 'default',
-            }}>
-              <span style={{ color: C.text3, width: 26, flexShrink: 0 }}>{pl?.about?.halfInning === 'top' ? 'T' : 'B'}{pl?.about?.inning}</span>
-              <span style={{ fontWeight: 700, color: onBase ? C.text : C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
-                {clean(pl?.matchup?.batter?.fullName, '?').split(' ').slice(-1)[0]}
-                <span style={{ color: C.orange, fontWeight: 800 }}>{badge(bid)}</span>
-              </span>
-              <span style={{ color: st.col || C.text3, fontWeight: st.bold ? 900 : 600, whiteSpace: 'nowrap' }}>
-                {st.icon} {st.word}
-              </span>
-              {/* ball off the bat: EV always when tracked; distance only when
-                  it MEANS something (200+ ft) — "67 ft" on a chopper was
-                  noise wearing a number's clothes */}
-              {ev && (
-                <span style={{ marginLeft: 'auto', flexShrink: 0, color: evN >= 100 ? C.red : evN >= 95 ? C.orange : C.text3, fontWeight: evN >= 95 ? 800 : 400 }}>
-                  {evN.toFixed(1)}{distN >= 200 ? ` · ${distN.toFixed(0)} ft` : ''}
-                </span>
-              )}
+            <div key={i} role={click ? 'button' : undefined} tabIndex={click ? 0 : undefined} onClick={click || undefined}
+              onKeyDown={click ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); click() } } : undefined}
+              style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', minHeight: click ? 44 : 32, padding: '2px 8px', borderRadius: 8, minWidth: 0, cursor: click ? 'pointer' : 'default',
+                background: st.kind === 'hr' ? `${theme.accent}1a` : 'transparent', borderLeft: `3px solid ${HEAT[st.kind] ? theme.accent : 'transparent'}` }}>
+              <span style={{ width: 30, flexShrink: 0, font: `700 ${TYPE.body}px/1 ${NUM_FONT}`, color: C.text3 }}>{pl?.about?.halfInning === 'top' ? 'T' : 'B'}{pl?.about?.inning}</span>
+              <span style={{ font: `800 ${TYPE.name}px/1.2 ${NUM_FONT}`, color: HEAT[st.kind] ? C.text : C.text2, minWidth: 0, overflowWrap: 'anywhere' }}>{clean(pl?.matchup?.batter?.fullName, '?').split(' ').slice(-1)[0]}</span>
+              {roleChip(bid)}
+              <Chip theme={theme} label={st.word} heat={HEAT[st.kind]} />
+              {/* ball off the bat: exit velo when tracked; carry only when it means something (200+ ft) */}
+              {ev && <span style={{ marginLeft: 'auto' }}><Chip theme={theme} value={evN.toFixed(1)} label={`mph${distN >= 200 ? ` · ${distN.toFixed(0)} ft` : ''}`} heat={evN >= 100 ? 2 : evN >= 95 ? 1 : 0} /></span>}
             </div>
           )
         })}
       </div>
-      <div style={{ fontSize: 8.5, color: C.text3, marginTop: 6, lineHeight: 1.45 }}>
-        Last {done.length} PAs, newest first. <span style={{ color: C.green }}>Green edge = reached base</span> ·
-        ✕ = out · exit velo when tracked (<span style={{ color: C.orange }}>orange 95+</span>, <span style={{ color: C.red }}>red 100+</span>),
-        distance only on real carry (200+ ft). ◆ = runner on. 🤖 = tonight&apos;s picks. One game, one feed, 30s refresh while open.
-      </div>
+      <div style={{ font: `600 ${TYPE.micro}px/1.4 ${NUM_FONT}`, color: C.text3, marginTop: 6 }}>Newest first. Glow = reached base. Exit velo when tracked, carry past 200 ft.</div>
     </div>
   )
 }
