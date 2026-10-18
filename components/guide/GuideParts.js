@@ -1,4 +1,5 @@
 'use client'
+import { useIsPhone } from '../MobileFold'
 import { useSport } from '../../lib/sport'
 import { onBar } from '../../lib/routes'
 import { useState } from 'react'
@@ -19,11 +20,14 @@ export { SportTheme as GuideTheme }
 
 export function Section({ title, emoji, children, defaultOpen = false }) {
   const { C } = useSportTheme()
-  const [open, setOpen] = useState(defaultOpen)
+  // a guide section opens by itself only on a bigger screen (2026-10-17, copy diet): on a phone every section is one tap
+  const phone = useIsPhone(560)
+  const [touched, setTouched] = useState(null)
+  const open = touched ?? (defaultOpen && !phone)
   return (
     <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12, marginBottom: 10, overflow: 'hidden' }}>
       <button
-        onClick={() => setOpen(o => !o)}
+        onClick={() => setTouched(!open)}
         style={{
           width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '13px 16px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left',

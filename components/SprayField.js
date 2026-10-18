@@ -1,4 +1,5 @@
 'use client'
+import MoreNote from './MoreNote'
 import { ChipGroup, ChartCard, ChartEmpty, chipBtn as coreChip } from './charts'
 import HowToRead from './charts/HowToRead'
 import StadiumDock from './charts/stadium/StadiumDock'
@@ -1480,7 +1481,7 @@ export default function SprayField({
       )}
 
       {!liveOnly && matchable.length > 0 && (
-        <div style={{ fontSize: 9.5, color: C.text3, marginBottom: 7, lineHeight: 1.5 }}>
+        <MoreNote label="What the dotted chips are"><div style={{ fontSize: 9.5, color: C.text3, marginBottom: 7, lineHeight: 1.5 }}>
           Dotted chips are pitches {pitcherName || "tonight's starter"} actually throws
           {tonight.side ? ` to ${tonight.side === 'lhb' ? 'left' : 'right'}-handed bats` : ''}
           {tonight.side
@@ -1488,7 +1489,7 @@ export default function SprayField({
             : ' — no side split for him yet, so this is his overall usage.'}
           {' '}They start selected, so what you see first is the balls he put in play against
           pitches he&apos;ll see tonight.
-        </div>
+        </div></MoreNote>
       )}
 
 

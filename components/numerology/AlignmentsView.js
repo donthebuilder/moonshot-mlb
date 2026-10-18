@@ -1,4 +1,5 @@
 'use client'
+import MoreNote from '../MoreNote'
 import Tap from '../Tap'
 import { usePreview, ShowMoreButton } from '../ListPreview'
 import { useState } from 'react'
@@ -162,7 +163,7 @@ export default function AlignmentsView({
                   ? ` · median score ${tonight.medianScoreAligned.toFixed(1)} aligned vs ${tonight.medianScoreSlate.toFixed(1)} all` : ''}
               </summary>
               <div style={{ marginTop: 5 }}>
-          <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, margin: '4px 0 7px' }}>
+          <MoreNote label="What chance would give"><div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, margin: '4px 0 7px' }}>
             Expect about <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{Math.round(tonight.expectedTwoPlus)}</b>{' '}
             of those by arithmetic alone on a slate this size, so{' '}
             {tonight.twoPlus > tonight.expectedTwoPlus * 1.25
@@ -171,7 +172,7 @@ export default function AlignmentsView({
                 ? <>{W.night} is running <b style={{ color: C.text2 }}>below</b> its share</>
                 : <>{W.night} is <b style={{ color: C.text2 }}>about normal</b></>}
             {' '}— which is the honest read on nearly every night. Raw number → root on every chip.
-          </div>
+          </div></MoreNote>
           {/* ── NUMBERS FIRST, THEN THE BOT (2026-08-31) ───────────────────
               Donovan: "those predctions are base on the numbers first then how
               they socred on the bot to help with predicting."
@@ -189,7 +190,7 @@ export default function AlignmentsView({
               running the test on his own idea with his own data, every night,
               in public. */}
           {W.scoreName && tonight.medianScoreAligned != null && tonight.medianScoreSlate != null && (
-            <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, marginBottom: 7 }}>
+            <MoreNote label="How the score fits"><div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, marginBottom: 7 }}>
               The numbers pick the set; the <b style={{ color: C.text2 }}>{W.scoreName}</b> — {W.scoreRecord} — ranks what is in it. Median score among
               the aligned is{' '}
               <b style={{ fontFamily: NUM_FONT, color: C.text2 }}>{tonight.medianScoreAligned.toFixed(1)}</b>{' '}
@@ -200,12 +201,12 @@ export default function AlignmentsView({
                 : tonight.medianScoreAligned > tonight.medianScoreSlate
                   ? <> — {W.night} the aligned set happens to be the stronger half. One {W.unit} is not a finding.</>
                   : <> — {W.night} the aligned set is the weaker half. One {W.unit} is not a finding either way.</>}
-            </div>
+            </div></MoreNote>
           )}
               </div>
             </details>
           ) : (<>
-          <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, margin: '4px 0 7px' }}>
+          <MoreNote label="What chance would give"><div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, margin: '4px 0 7px' }}>
             Expect about <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{Math.round(tonight.expectedTwoPlus)}</b>{' '}
             of those by arithmetic alone on a slate this size, so{' '}
             {tonight.twoPlus > tonight.expectedTwoPlus * 1.25
@@ -214,7 +215,7 @@ export default function AlignmentsView({
                 ? <>{W.night} is running <b style={{ color: C.text2 }}>below</b> its share</>
                 : <>{W.night} is <b style={{ color: C.text2 }}>about normal</b></>}
             {' '}— which is the honest read on nearly every night. Raw number → root on every chip.
-          </div>
+          </div></MoreNote>
           {/* ── NUMBERS FIRST, THEN THE BOT (2026-08-31) ───────────────────
               Donovan: "those predctions are base on the numbers first then how
               they socred on the bot to help with predicting."
@@ -232,7 +233,7 @@ export default function AlignmentsView({
               running the test on his own idea with his own data, every night,
               in public. */}
           {W.scoreName && tonight.medianScoreAligned != null && tonight.medianScoreSlate != null && (
-            <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, marginBottom: 7 }}>
+            <MoreNote label="How the score fits"><div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, marginBottom: 7 }}>
               The numbers pick the set; the <b style={{ color: C.text2 }}>{W.scoreName}</b> — {W.scoreRecord} — ranks what is in it. Median score among
               the aligned is{' '}
               <b style={{ fontFamily: NUM_FONT, color: C.text2 }}>{tonight.medianScoreAligned.toFixed(1)}</b>{' '}
@@ -243,7 +244,7 @@ export default function AlignmentsView({
                 : tonight.medianScoreAligned > tonight.medianScoreSlate
                   ? <> — {W.night} the aligned set happens to be the stronger half. One {W.unit} is not a finding.</>
                   : <> — {W.night} the aligned set is the weaker half. One {W.unit} is not a finding either way.</>}
-            </div>
+            </div></MoreNote>
           )}
           </>)}
           <div style={{ fontSize: 8.5, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800, marginBottom: 4 }}>
@@ -304,12 +305,12 @@ export default function AlignmentsView({
           <NightBox title="Tonight, so far" night={todayArchive} empty="Nothing's landed yet tonight -- the first homer fills this in." C={C} NUM_FONT={NUM_FONT} accent={accent} />
           <div style={{ flex: '1 1 220px', minWidth: 0 }}>
             <div style={{ fontSize: 9, color: C.text3, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase' }}>Tomorrow&apos;s date</div>
-            <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: 2 }}>
+            <MoreNote label="Why tomorrow"><div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: 2 }}>
               {tomorrowKey} reduces to root <b style={{ color: C.text, fontFamily: NUM_FONT, fontSize: 13 }}>{tomorrowRoot}</b>.
               A hitter&apos;s jersey, birthday and life path don&apos;t change day to day, so anyone whose own
               numbers land on {tomorrowRoot} is worth a glance once tomorrow&apos;s slate loads — see your
               watchlist below.
-            </div>
+            </div></MoreNote>
           </div>
         </div>
       </div>
@@ -499,10 +500,10 @@ export default function AlignmentsView({
           ➕ Add {pickedRows.length ? `these ${pickedRows.length}` : 'them'} to my slip →
         </button>
       </div>
-      <div style={{ fontSize: 9, color: C.text3, marginTop: 5, lineHeight: 1.55 }}>
+      <MoreNote label="The fine print"><div style={{ fontSize: 9, color: C.text3, marginTop: 5, lineHeight: 1.55 }}>
         The alignment is why you noticed him; the slip only adds the ones with a price posted, and the slip&apos;s
         pair notes use the measured rules. The two claims never mix — a braid is watched, a ticket is graded.
-      </div>
+      </div></MoreNote>
       </>)}
       {children}
     </div>
