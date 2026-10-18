@@ -19,6 +19,8 @@ import TickerPill from './TickerPill'
 import Ticker from './Ticker'
 import DateMode from './DateMode'
 import SettingsSheet, { SheetLabel, SheetRow } from './SettingsSheet'
+import AlertBell from './AlertBell'
+import { SportTheme } from './SportTheme'
 import SignUpPill from './SignUpPill'
 import HeaderShell from './header/HeaderShell'
 
@@ -259,14 +261,17 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
 // are MOONSHOT's switches and words, unchanged.
 function MlbSettings() {
   return (
-    <SettingsSheet theme={C} accent={C.orange} title="View settings — palette, light/dark, quiet mode"
-      hint="Palette · light/dark · quiet mode. These stick on this device.">
+    <SettingsSheet theme={C} accent={C.orange} title="View settings — palette, light/dark, quiet mode, alerts"
+      hint="Palette · light/dark · quiet mode · alerts. These stick on this device.">
       <SheetLabel theme={C}>View</SheetLabel>
       <SheetRow>
         <PaletteButton />
         <ThemeModeButton />
         <QuietButton />
       </SheetRow>
+      {/* MOONSHOT's alerts (the shared bell, orange): the same one LAMP and TUDDY carry in their gear sheet (2026-10-18, phone parity) */}
+      <SheetLabel theme={C}>Alerts</SheetLabel>
+      <SheetRow><SportTheme theme={C} accent={C.orange} numFont={NUM_FONT}><AlertBell what="homers and the hitters you follow" /></SportTheme></SheetRow>
     </SettingsSheet>
   )
 }

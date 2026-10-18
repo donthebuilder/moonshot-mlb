@@ -4,6 +4,8 @@ import HeaderShell from '../header/HeaderShell'
 import SignUpPill from '../SignUpPill'
 import DateMode from '../DateMode'
 import SettingsSheet, { SheetLabel, SheetRow } from '../SettingsSheet'
+import AlertBell from '../AlertBell'
+import { SportTheme } from '../SportTheme'
 import QuietButton from '../QuietButton'
 import BucketsTicker from './BucketsTicker'
 import { etToday } from '../../lib/freshness'
@@ -29,9 +31,11 @@ export default function BucketsHeader({ setTab, live = 0, date = null, setDate =
       }
       account={<SignUpPill accent={C.purple} sport="nba" />}
       settings={
-        <SettingsSheet theme={C} accent={C.purple} title="View settings — quiet mode" hint="Quiet mode. Sticks on this device.">
+        <SettingsSheet theme={C} accent={C.purple} title="View settings — quiet mode, alerts" hint="Quiet mode and alerts. Stick on this device.">
           <SheetLabel theme={C}>View</SheetLabel>
           <SheetRow><QuietButton /></SheetRow>
+          <SheetLabel theme={C}>Alerts</SheetLabel>
+          <SheetRow><SportTheme theme={C} accent={C.purple} numFont={NUM_FONT}><AlertBell what="30-point games from the players you follow" /></SportTheme></SheetRow>
         </SettingsSheet>
       }>
       <BucketsTicker date={date} scores={scores} liveScores={liveScores} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} />
