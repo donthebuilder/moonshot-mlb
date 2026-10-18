@@ -1247,13 +1247,13 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           })
           .filter((x) => x.when !== 'done')
           .sort((a, b) => (a.when === b.when ? 0 : a.when === 'now' ? -1 : 1))
-          .slice(0, 8)
+          .slice(0, 12)
         if (!upcoming.length) return null
         return (
-          <NextUpBox title="🔮 Fits tonight's pattern, hasn't gone yet"
-            rows={upcoming.map((x) => ({ key: x.pid, when: x.when, name: x.name, chips: x.chips,
-              title: `${x.why.join('. ')}. HR score ${x.hrScore.toFixed(0)}.`, onClick: onPlayerClick ? () => onPlayerClick(x.p) : null }))}
-            about="Hitters not in the ledger who sit on whatever tonight is landing on — the leading root, a repeated number, the hot lineup spot, a jersey, a birth day, a life path, the name echo running tonight, or a straight match with somebody who already went: the same first name, the same surname, a name one letter apart, an odd syllable shape they share, or the same number on the back. ↔ is a match with that man. ⚡ means his game is live, ⏳ means first pitch is still ahead. Ranked by how many of those he sits on, then by HR score. A watch, not a prediction — nothing here is graded, scored, or fed to a pick." />
+          <NextUpBox title="🔮 Still to come, best fit first"
+            rows={upcoming.map((x) => ({ key: x.pid, when: x.when, name: x.name, chips: [...x.chips, ...(x.stat || [])],
+              title: `${x.why.length ? `${x.why.join('. ')}. ` : ''}HR score ${x.hrScore.toFixed(0)}.`, onClick: onPlayerClick ? () => onPlayerClick(x.p) : null }))}
+            about="Every hitter on tonight's slate who hasn't homered and whose game isn't over. Tags: whatever tonight is landing on (the leading root, a repeated number, the hot lineup spot, a jersey, a birth day, a life path, a name echo), then his own HR score, so a hitter no pattern fits still shows, on his bat. Live first. A watch, never a prediction." />
         )
       })()),
         /* 🔢 THE REPEATS — the number pattern, which is the whole reason this
