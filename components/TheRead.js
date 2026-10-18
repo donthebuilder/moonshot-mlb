@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { hr9Color } from '../lib/hr9'
+import { plural } from '../lib/format'
 import { quoteFor, fmtOdds, impliedPct } from '../lib/odds'
 import { nameOf, teamOf, oppOf, clean, n, playerId } from '../lib/player'
 import { isoAdjustedHr, isoMultiplier } from '../lib/scoring_additions'
@@ -123,7 +124,7 @@ function formClause(p) {
   const cold = num(p?.games_since_last_hr)
   if (!(l.h || l.r || l.rbi || l.xbh || l.hr)) {
     return cold != null && cold > 0
-      ? `He has been quiet — nothing in his last five, and ${cold} games since his last homer.`
+      ? `He has been quiet — nothing in his last five, and ${plural(cold, 'game')} since his last homer.`
       : 'He has been quiet — nothing across his last five.'
   }
   const bits = []
@@ -131,7 +132,7 @@ function formClause(p) {
   if (l.xbh) bits.push(`${l.xbh} for extra bases`)
   if (l.hr) bits.push(`${l.hr} over the fence`)
   if (l.rbi) bits.push(`${l.rbi} driven in`)
-  const tail = cold != null && cold > 0 && !l.hr ? ` He has gone ${cold} games without a homer.` : ''
+  const tail = cold != null && cold > 0 && !l.hr ? ` He has gone ${plural(cold, 'game')} without a homer.` : ''
   return `Last five: ${bits.join(', ')}.${tail}`
 }
 

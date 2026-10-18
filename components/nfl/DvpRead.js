@@ -98,7 +98,7 @@ export default function DvpRead({ matchup, def, position, role = null, slateSeas
           ))}
         </ol>
       ) : (
-        <p style={{ margin: 0, fontSize: 13, color: C.text2 }}>No door: nothing {def} allow {position}s is far enough above the league average to call.</p>
+        <p style={{ margin: 0, fontSize: 13, color: C.text2 }}>No weak spot: nothing {def} allow {position}s is far enough above the league average to call.</p>
       )}
 
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} style={{

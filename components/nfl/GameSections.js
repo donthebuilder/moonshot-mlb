@@ -10,7 +10,7 @@ import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { scoreboardRows, receiverEdge } from '../../lib/nfl/gameMatchup'
 import { offenseTiles, defenseTiles, factsNote } from './tabs/Matchups'
 import { softRole, softLine } from '../../lib/nfl/dvpSignal'
-import { ordinal } from '../../lib/format'
+import { mostWord } from '../../lib/format'
 import { Kicker } from './GameOffDef'
 import { TD_WORD } from '../../lib/nfl/teamTdModel'
 import { roleLabel } from '../../lib/nfl/roles'
@@ -117,7 +117,7 @@ export function KeyPlayers({ matchup, data, game, onPlayerClick, onOpenTeam }) {
         role: (r ? roleLabel(r) : t.position) || '—', side: (() => { const q = sideFor({ matchup, id: t.player_id, position: t.position }); return q.basis === 'role' ? `${q.word} · role` : q.word })(), share: Number(t.share), corner: c?.name || '—', slot: c ? (SLOT_WORD[c.slot] || c.slot) : '—', def: c ? def : '—',
         edge: i === 0 && edge ? edge.word : '', espn: r?.espn_id })
     })
-    notes.push(edge ? `${def} allow ${edge.yds} yards a game to a top receiver, ${ordinal(edge.rank)} most.` : `${off}'s three most-targeted players.`)
+    notes.push(edge ? `${def} allow ${edge.yds} yards a game to a top receiver, ${mostWord(edge.rank)}.` : `${off}'s three most-targeted players.`)
   }
   if (!list.length) return null
   const old = pg?.season && slate && pg.season < slate ? pg.season : null

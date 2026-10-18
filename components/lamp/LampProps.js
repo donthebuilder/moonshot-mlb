@@ -13,6 +13,7 @@ import { lampQuoteOf, lampAlsoPriced } from '../../lib/nhl/lampQuote'
 import { fmtOdds, impliedPct, payoutWords } from '../../lib/odds'
 import { nhlSeasonFacts } from '../../lib/nhl/sznRow'
 import GoalCompare from './GoalCompare'
+import { ordinal } from '../../lib/format'
 
 // 🏒 LAMP PROPS, MOONSHOT'S PAGE (2026-10-04, Donovan: "make sure the props
 // pages look like the mlb one"). The shared grid (components/props/PropCards.js)
@@ -31,7 +32,7 @@ const MARKETS = ['GOAL', 'SOG', 'NONE']
 const WORD = { GOAL: 'Goal', SOG: 'Shots 3+', NONE: 'On the board' }
 const BAR = { GOAL: '1+ goal', SOG: '3+ shots', NONE: '1+ goal' }
 const f2 = (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(2) : '—')
-const ord = (p) => (Number.isFinite(Number(p)) ? `${Math.round(Number(p))}th` : '—')
+const ord = (p) => (Number.isFinite(Number(p)) ? ordinal(Math.round(Number(p))) : '—')
 
 function lampAdapter(season, odds) {
   const color = (k) => (k === 'SOG' ? (C.teal || C.cyan) : k === 'GOAL' ? C.ice : C.text3)
