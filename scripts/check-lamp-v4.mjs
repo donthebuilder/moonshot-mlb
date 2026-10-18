@@ -15,7 +15,7 @@ const near = (name, got, want) => eq(name, Math.abs(got - want) < 1e-9, true)
 
 // ── versions by date ──
 eq('V3_FROM / V4_FROM', [V3_FROM, V4_FROM], ['2026-10-03', '2026-10-18'])
-eq('every market has three entries', Object.values(VERSIONS).map((a) => a.length), [3, 3, 3, 3, 3, 3, 3, 3])
+eq('every market has three entries', Object.values(VERSIONS).map((a) => a.length), [3, 3, 3, 3, 3, 3, 3, 3, 3])
 eq('10-02 -> v2 era', [versionsFor('2026-10-02').goal, versionsFor('2026-10-02').sog, versionsFor('2026-10-02').pts, versionsFor('2026-10-02').ast], ['lamp-goal-v2', 'lamp-sog-v1', 'lamp-pts-v1', 'lamp-ast-v1'])
 eq('10-03 -> v3', [versionsFor('2026-10-03').goal, versionsFor('2026-10-03').sog, versionsFor('2026-10-03').pts, versionsFor('2026-10-03').ast], ['lamp-goal-v3', 'lamp-sog-v2', 'lamp-pts-v2', 'lamp-ast-v2'])
 eq('10-17 (tonight) stays v3', versionsFor('2026-10-17').goal, 'lamp-goal-v3')
