@@ -6,6 +6,7 @@ import { useIsPhone } from '../MobileFold'
 import { asLogos } from '../TeamMark'
 import { TeamTap } from '../EntityTap'
 import { TYPE } from '../../lib/theme'
+import { Chip } from '../writeups/ChipLines'
 import { useCallGate, HiddenCalledLine } from '../MemberGate'
 import { lockedFor } from '../../lib/members/gate'
 
@@ -96,7 +97,7 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
                 display: 'flex', flexDirection: 'column',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '2px 6px', marginBottom: 4, flexWrap: 'wrap' }}>
                 {f.icon && <span style={{ fontSize: 12 }}>{f.icon}</span>}
                 <span style={{
                   fontSize: TYPE.micro, fontWeight: 900, color: f.color,
@@ -144,6 +145,11 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                       }}>
                         {lead.lines[1]}
+                      </div>
+                    )}
+                    {lead.chip && (
+                      <div style={{ marginTop: 5 }}>
+                        <Chip theme={{ C, NUM_FONT, TYPE, accent: f.color }} {...lead.chip} />
                       </div>
                     )}
                   </div>
