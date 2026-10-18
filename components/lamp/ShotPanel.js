@@ -322,11 +322,11 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
             {!(arena && gl) && legendNode}
             </div>
             <div style={{ flex: '1 1 180px', minWidth: 180 }}>
-              <div aria-live="polite" style={{ minHeight: 54, fontFamily: NUM_FONT, fontSize: 10.5, lineHeight: 1.7, color: C.text2 }}>
+              <div aria-live="polite" style={{ minHeight: 54, fontFamily: NUM_FONT, fontSize: 11, lineHeight: 1.7, color: C.text2 }}>
                 {!picked ? (
-                  <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.6 }}>
-                    Tap a shot for its result, type, distance and moment{m?.grid ? ' · on HEAT, tap a zone' : ''}.
-                    {' '}Showing <b style={{ color: C.text2 }}>{shots.length}</b> of the last {recent.length} attempts.
+                  <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.6 }}>
+                    Tap a shot{m?.grid ? ' or a zone' : ''} for details.
+                    {' '}<b style={{ color: C.text2 }}>{shots.length}</b> of {recent.length} shots shown.
                   </div>
                 ) : picked.zone && goalieRead ? (() => {
                   const r = goalieRead[picked.zone]
@@ -350,7 +350,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
                       {picked[9] ? ` · ${picked[9].replace(/-/g, ' ')}` : ''}
                     </div>
                     {/* the speed, only what is measured (1g) */}
-                    <div style={{ color: C.text3, fontSize: 10 }}>
+                    <div style={{ color: C.text3, fontSize: 11 }}>
                       {measuredMph(hardest, picked) != null
                         ? <><b style={{ color: C.ice }}>{measuredMph(hardest, picked)} MPH</b>, measured · one of his ten hardest</>
                         : speed ? <>HIS AVG SHOT {speed.avg} MPH (league {speed.leagueAvg}) — not this shot&apos;s speed</>
@@ -366,7 +366,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
                     const pct = Math.round(z.share * 100)
                     return (
                       <button key={z.key} type="button" onClick={() => setPicked({ zone: z.key })} title={`${z.label}: ${z.n} of ${who === 'He' ? 'his' : 'their'} ${shots.length} shots${z.r.thin ? '; the goalie is thin here' : `; ${goalie?.name} lets in ${(z.r.rate * 100).toFixed(1)}% (league ${(z.r.lg * 100).toFixed(1)}%)`}`}
-                        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', color: 'inherit' }}>
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', color: 'inherit' }}>
                         <span style={{ width: 70, color: z.match ? C.lamp : C.text3, fontFamily: NUM_FONT, fontWeight: z.match ? 800 : 400 }}>{z.label}</span>
                         <div style={{ flex: 1, height: 11, background: C.bg3, borderRadius: 2, outline: z.match ? `1px dashed ${C.lamp}` : 'none', outlineOffset: 1 }}>
                           <div style={{ width: `${Math.max(2, pct)}%`, height: '100%', background: alpha(C.ice, 0.75), borderRadius: 2 }} />

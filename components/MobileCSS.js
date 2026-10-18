@@ -938,6 +938,8 @@ export default function MobileCSS() {
         /* Spray field: drop the fixed pixel height so the SVG takes its own
            aspect ratio from the viewBox, then cap it. */
         .spray-svg { height: auto !important; max-height: 46vh !important; }
+        /* Its labels are drawn at 7-8.5 in viewBox units: ~5.5-6.6px on screen (scripts/check-chart-text.mjs). 12 units lands at ~9.5-10px. */
+        .spray-svg text { font-size: 12px; }
 
         /* Heatmap: give it the ceiling it never had. It is already a scroll
            container, so nothing is hidden — it just stops being the page. */

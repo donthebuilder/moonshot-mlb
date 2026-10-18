@@ -71,12 +71,12 @@ export default function FlatStage({
   tiles = null, legend = null, controls = null, more = null, foot = null, fullscreen = false, fullLabel = 'Chart, full screen',
   maxWidth = null, bare = false, foldTiles = false, storeKey = null, children,
 }) {
-  // PHONE (<= 430px): a COMPACT first screen -- one 44px header, the one-sentence read, the tiles in one row -- and the chart opens on a tap
-  // (remembered for the session, per storeKey). Wider screens draw the whole stage as before.
+  // PHONE (<= 430px): the chart is OPEN on first paint (2026-10-17, Donovan: the phone view was "missing the charts" -- it had been folded shut behind
+  // a tap). The header is a 44px toggle; a reader who folds it away is remembered for the session, per storeKey ('0'). Wider screens draw the whole stage.
   const phone = useIsPhone(430)
-  const [chartOpen, setChartOpen] = useState(false)
+  const [chartOpen, setChartOpen] = useState(true)
   const sk = `flat-stage:${storeKey || label}`
-  useEffect(() => { try { if (sessionStorage.getItem(sk) === '1') setChartOpen(true) } catch (e) { /* no storage: the choice is just not remembered */ } }, [sk])
+  useEffect(() => { try { if (sessionStorage.getItem(sk) === '0') setChartOpen(false) } catch (e) { /* no storage: the choice is just not remembered */ } }, [sk])
   const toggleChart = () => setChartOpen((v) => { const n = !v; try { sessionStorage.setItem(sk, n ? '1' : '0') } catch (e) { /* private window */ } return n })
   const compact = phone
   if (compact) foldTiles = false
