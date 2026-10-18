@@ -115,7 +115,6 @@ export default function Guide({ onNavigate, data }) {
         <Term tab="standings" go={go} icon="📊" term={NFL_NAV.standings.label} def="every division: record, points for and against, home and road, division and conference records, streak. Measured, not modeled." />
         <Term tab="leaders" go={go} icon="🏅" term="Leaders" def="who is first in each stat category, already sorted side by side — measured, with the model's scores as columns at the end of the table." />
         <Term tab="live" go={go} icon="📡" term="Live" def="every rung on the card against its bar while the game is on: cleared, live, or missed, plus the scoring plays." />
-        <Term tab="scores" go={go} icon="🏟️" term={NFL_NAV.scores.label} def="every game, one row each: kickoff or score. Tap a game for its box." />
         <Term tab="streaks" go={go} icon="🔥" term="Streaks" def="who is hot or cold at a line you pick, last 30 games, no model in the way. Hot is the play; cold is the fade." />
         <Term tab="ledger" go={go} icon="📒" term={NFL_NAV.ledger.label} def="one page, four tabs. This week: the week in names and numbers and how many touchdown calls scored. Called: every touchdown sorted into called, on the board, or not on the board. Record: public receipts for completed calls, including misses. Archive: past weeks and the whole season." />
         <Term tab="report" go={go} icon="📝" term="Report Card" def="backtests each model against a simple trailing-average baseline." />

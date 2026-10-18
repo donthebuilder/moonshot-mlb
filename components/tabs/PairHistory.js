@@ -1,4 +1,5 @@
 'use client'
+import MoreNote from '../MoreNote'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { arr, obj, n, clean, nameOf } from '../../lib/player'
@@ -124,7 +125,7 @@ export default function PairHistory({ summary, players = [], onPlayerClick }) {
         )
       })()}
 
-      <div style={{
+      <MoreNote label="Why a pair is two independent events"><div style={{
         fontSize: 10.5, color: C.text3, lineHeight: 1.6, margin: '6px 0 12px',
         borderLeft: `2px solid ${C.orange}`, paddingLeft: 10, maxWidth: 720,
       }}>
@@ -143,7 +144,7 @@ export default function PairHistory({ summary, players = [], onPlayerClick }) {
             play. */}
         <b style={{ color: C.text2 }}>A pair is two independent events — including in the same game.</b>{' '}
         Build a pair on the two names you like most, not the ballpark. <b style={{ color: C.text2 }}>Playable tonight</b> drops pairs with a half out of the lineup.
-      </div>
+      </div></MoreNote>
 
       {/* 🔥 HOT CONNECTIONS (2026-08-07) — the page's answer to "so what do
           I do with this": pairs BOTH playable tonight that connected in the

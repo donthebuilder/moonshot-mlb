@@ -132,8 +132,9 @@ export default function NamePatterns({ homers = [], population = [], sport = 'ml
           }}>{e.label}</span>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: C.text, lineHeight: 1.45 }}
-              title={e.phrase}>
-              {e.names.join(' · ')}
+              title={e.names.length > 8 ? `${e.phrase}: ${e.names.join(' · ')}` : e.phrase}>
+              {/* a long run of names (28 D/STs, 9 Tylers) is the longest line on the page: the first eight, then the count (the whole list is the tooltip) */}
+              {e.names.length > 8 ? `${e.names.slice(0, 8).join(' · ')} · +${e.names.length - 8} more` : e.names.join(' · ')}
             </div>
             {/* Rule 2: the claim and the count it came out of, one sentence. */}
             <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.5 }}>{e.detail}</div>

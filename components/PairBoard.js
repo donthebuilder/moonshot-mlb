@@ -1,4 +1,5 @@
 'use client'
+import MoreNote from './MoreNote'
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { arr, obj, n, clean, median } from '../lib/player'
@@ -246,9 +247,9 @@ export default function PairBoard({ pairBuilder, results, onPlayerClick }) {
             </div>
           ))}
         </div>
-        <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.55 }}>
+        <MoreNote label="How to read a pair"><div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.55 }}>
           Every line is MOONSHOT&apos;s own reason, tags and risk for that pair. Check the weaker side first: the pair is never better than its worse half.
-        </div>
+        </div></MoreNote>
       </div>
     </div>
   )

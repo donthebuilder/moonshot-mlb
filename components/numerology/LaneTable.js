@@ -1,4 +1,5 @@
 'use client'
+import MoreNote from '../MoreNote'
 import DenseTable from '../DenseTable'
 import TeamMark from '../TeamMark'
 import { useEffect, useMemo, useState } from 'react'
@@ -114,10 +115,10 @@ export default function LaneTable({ sport, theme: C, numFont, accent, tonight = 
           ]} />
       </div>
       {lanes.length > 5 && <button type="button" onClick={() => setAll((v) => !v)} style={{ marginTop: 6, minHeight: 44, padding: '0 10px', border: `1px solid ${C.border}`, borderRadius: 8, background: 'transparent', color: accent, fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>{all ? 'Show five' : `+${lanes.length - 5} more lanes`}</button>}
-      <div style={{ marginTop: 6, fontSize: 11, color: C.text3, lineHeight: 1.5 }}>
+      <MoreNote label="How to read the lanes"><div style={{ marginTop: 6, fontSize: 11, color: C.text3, lineHeight: 1.5 }}>
         {provisional ? <>Tracking: a lane needs {data.minNights || MIN_NIGHTS} nights and {data.minMatched || MIN_MATCHED} matches before it counts; under that, no z. </> : null}
         z = matched players vs the rest of the pool; |z| under 2 is chance. 95% Wilson ranges. Graded nights only.{allBase} Information only, never part of a score.
-      </div>
+      </div></MoreNote>
       {players}
     </section>
   )

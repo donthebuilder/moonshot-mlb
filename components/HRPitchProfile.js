@@ -1,4 +1,5 @@
 'use client'
+import MoreNote from './MoreNote'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, clean, obj, arr } from '../lib/player'
@@ -216,12 +217,12 @@ export default function HRPitchProfile({ player, slateMode }) {
                 </span>
               </div>
             )}
-            <div style={{ fontSize: 9, color: C.text3, flex: 1, minWidth: 200, lineHeight: 1.5 }}>
+            <MoreNote label="How this is weighted"><div style={{ fontSize: 9, color: C.text3, flex: 1, minWidth: 200, lineHeight: 1.5 }}>
               Weighted by how often {clean(player?.pitcher_name, 'he')} throws each pitch, over the{' '}
               {mixWeighted.hrs} homer{mixWeighted.hrs === 1 ? '' : 's'} that came off pitches in his
               arsenal — covering {mixWeighted.cover.toFixed(0)}% of tonight&apos;s mix. If it sits below
               his overall average, his longest balls came off pitches he won&apos;t see much of.
-            </div>
+            </div></MoreNote>
           </div>
         )}
       </div>
@@ -290,12 +291,12 @@ export default function HRPitchProfile({ player, slateMode }) {
             )
           })
         })()}
-        <div style={{ fontSize: 9, color: C.text3, marginTop: 8, lineHeight: 1.5 }}>
+        <MoreNote label="The fine print"><div style={{ fontSize: 9, color: C.text3, marginTop: 8, lineHeight: 1.5 }}>
           <b style={{ color: '#fca63a' }}>HITS IT</b> = his HR rate per batted ball against that pitch ·{' '}
           <b style={{ color: C.cyan }}>SEES IT</b> = how much of tonight&apos;s starter&apos;s mix it is.
           🎯 marks rows where BOTH run long — damage meeting supply. Bars are scaled within this card;
           the numbers at the end of each bar are the truth. Small sample by construction.
-        </div>
+        </div></MoreNote>
       </div>
     </div>
   )

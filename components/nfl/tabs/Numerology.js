@@ -1,4 +1,5 @@
 'use client'
+import MoreNote from '../../MoreNote'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import NflNote from '../NflNote'
@@ -169,7 +170,7 @@ export default function Numerology({ data, onPlayerClick }) {
       {nextGameDay ? <TonightsNumbers date={nextGameDay} theme={C} numFont={NUM_FONT} accent={C.green} label={`next game day · ${nextGameDay.slice(5).replace('-', '/')}`} /> : null}
       <HotNumbers sport="nfl" theme={C} numFont={NUM_FONT} accent={C.green} eventWord="TDs" />
       {zeroTdCount > 0 && (
-        <div style={{
+        <MoreNote label="Why root 1 is crowded"><div style={{
           border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.text3}`,
           background: C.bg2, borderRadius: 8, padding: '7px 11px', marginBottom: 12,
           fontSize: TYPE.micro, color: C.text3, lineHeight: 1.6, maxWidth: 860,
@@ -177,7 +178,7 @@ export default function Numerology({ data, onPlayerClick }) {
           <b style={{ color: C.text2 }}>Root 1 is crowded for a boring reason.</b>{' '}
           {zeroTdCount} players haven&apos;t scored yet, so each sits on 0 and his next touchdown is #1.
           That is the calendar, not a cluster. It thins out as the season goes.
-        </div>
+        </div></MoreNote>
       )}
         </>
       )}

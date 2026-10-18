@@ -87,7 +87,7 @@ export default function Guide({ onNavigate }) {
       </Section>
 
       <Section title="What LAMP does not do yet" emoji="🚧">
-        <P>No goalie in the score — the league feed names no starter before a game, so the board makes no claim about the net until the game is over, then records who actually started and his line beside the graded board. That archive is what a later version fits on. The score never reads a price: {NHL_NAV.longshots.label} shows what the books offer beside it, and nothing more.</P>
+        <P>No goalie in the score — the league feed names no starter before a game, so the board makes no claim about the net until the game is over, then records who actually started and his line beside the graded board. That archive is what a later version fits on. The score never reads a price: {NHL_NAV.odds.label} shows what the books offer beside it, and nothing more.</P>
       </Section>
     </div>
     </GuideTheme>
