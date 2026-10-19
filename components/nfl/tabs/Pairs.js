@@ -177,6 +177,12 @@ function buildSamePlayerRows(players, bars, results) {
         why: t.why,
         legA: sa,
         legB: sb,
+        // the bets themselves (10-18, Donovan: the card showed "our score instead of the line"): each leg's market, its bar, and
+        // what he did once graded (results.lines), for the featured card
+        legs: [t.a, t.b].map((m, i) => {
+          const got = results?.lines?.[String(p.player_id)]?.[m]
+          return { m, bar: bars[m], score: i ? sb : sa, got: got == null || got === '' ? null : Number(got), hit: i ? grade.hitB : grade.hitA }
+        }),
         weaker: Math.min(sa, sb),
         stronger: Math.max(sa, sb),
         gap: Math.abs(sa - sb),
@@ -377,9 +383,9 @@ export default function Pairs({ data, results, onPlayerClick, setTab = null }) {
         <div style={{
           background: `linear-gradient(155deg, ${lead.color}1c, ${lead.color}06)`,
           border: `1px solid ${lead.color}55`, borderRadius: 13,
-          padding: '11px 14px', marginBottom: 14,
+          padding: '10px 12px', marginBottom: 12,
         }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 5 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
             <span style={{ fontSize: TYPE.label, fontWeight: 900, color: lead.color, letterSpacing: '.09em', fontFamily: NUM_FONT }}>
               {leadTitle}
             </span>
@@ -396,14 +402,25 @@ export default function Pairs({ data, results, onPlayerClick, setTab = null }) {
               {lead.position} · {lead.team} {lead.opp}
             </span>
           </div>
-          <div style={{ fontSize: TYPE.micro, color: C.text2, marginTop: 4 }}>{lead.pairLabel}</div>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', marginTop: 5, flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900, color: C.text }}>{lead.stronger.toFixed(0)}</span>
-            <span style={{ color: C.text3, fontSize: TYPE.micro }}>+</span>
-            <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900, color: lead.weaker >= 60 ? lead.color : C.text3 }}>{lead.weaker.toFixed(0)}</span>
-            <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>gap {lead.gap.toFixed(0)}</span>
+          {/* THE TWO BETS (10-18): each leg as its line ("Rec 4+"), what he did once graded, our score small; two even tiles */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6, marginTop: 8 }}>
+            {lead.legs.map((l) => {
+              const word = String(MARKET_SHORT[l.m] || l.m).toLowerCase().replace(/^./, (c) => c.toUpperCase()).replace(/\btd\b/i, 'TD')
+              const lineTxt = l.m === 'TD' ? 'Any TD' : Number.isFinite(l.bar) ? `${word} ${l.bar}+` : word
+              return (
+                <div key={l.m} style={{ padding: '7px 9px', borderRadius: 9, border: `1px solid ${l.hit ? lead.color : C.border}`, background: l.hit ? `${lead.color}14` : C.bg2, minWidth: 0 }}>
+                  <div style={{ fontFamily: NUM_FONT, fontSize: 15, fontWeight: 900, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lineTxt}</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2, fontFamily: NUM_FONT, fontSize: 11 }}>
+                    {l.got != null
+                      ? <span style={{ color: l.hit ? lead.color : C.text3, fontWeight: 900 }}>got {l.got}{l.hit ? ' ✓' : ''}</span>
+                      : <span style={{ color: C.text3 }}>not played</span>}
+                    <span style={{ marginLeft: 'auto', color: C.text3 }}>score {Math.round(l.score)}</span>
+                  </div>
+                </div>
+              )
+            })}
           </div>
-          <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 4, lineHeight: 1.5 }}>{lead.why}</div>
+          <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 6, lineHeight: 1.45 }}>{lead.why}</div>
         </div>
       )}
 
