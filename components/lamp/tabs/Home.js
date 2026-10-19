@@ -26,7 +26,8 @@ import { MatchLogos } from '../../TeamMark'
 import NhlTonight from '../../tonight/NhlTonight'
 import { CardLockLine } from '../../MemberGate'
 import { overallRanks } from '../../../lib/positions'
-import { useLampCallGate, lampLocked } from './Board'
+import { useLampCallGate, lampLocked, lampAngles } from './Board'
+import TopTenList from '../../home/TopTenList'
 import ChampionshipFold from '../../ChampionshipFold'
 
 // 🏒 TONIGHT — LAMP's front page. Three things and no more (spec §6: the
@@ -53,6 +54,22 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
   const callGate = useLampCallGate(flatBoard, overallRanks(flatBoard, ({ r, g }) => `${g.game.id}|${r.playerId}`, ({ r }) => r.score ?? 0))
   const readableCalls = (g) => g.rows.filter((x) => x.status === 'called' && !lampLocked(callGate, { _row: x, _g: g }))
   const someHidden = Boolean(callGate) && boardGames.some((g) => g.rows.some((x) => x.status === 'called' && lampLocked(callGate, { _row: x, _g: g })))
+  // TUDDY'S HOME, SHARED (Donovan 10-18: "share everything NFL got"): Angles and the two Top 10s, from the
+  // same board reads, the members gate applied (a locked call is held back and counted, never shown).
+  const flatSog = (sogBoard.data?.games || []).filter((g) => !g.noMarketLock).flatMap((g) => g.rows.map((r) => ({ r, g })))
+  const sogGate = useLampCallGate(flatSog, overallRanks(flatSog, ({ r, g }) => `${g.game.id}|${r.playerId}`, ({ r }) => r.score ?? 0))
+  const topOf = (flat, gate) => {
+    const ranked = flat.filter(({ r }) => Number.isFinite(r.score)).sort((a, b) => b.r.score - a.r.score).slice(0, 10)
+    const open = ranked.filter(({ r, g }) => !lampLocked(gate, { _row: r, _g: g }))
+    return { held: ranked.length - open.length, rows: open.map(({ r, g }) => ({ key: `${g.game.id}|${r.playerId}`, id: r.playerId, name: r.name, team: r.team, pos: r.pos, score: r.score })) }
+  }
+  const topGoal = topOf(flatBoard, callGate)
+  const topSog = topOf(flatSog, sogGate)
+  const angleRows = lampAngles(flatBoard, 'GOAL').map((d) => {
+    const hits = flatBoard.filter((x) => Number.isFinite(x.r.score) && d.test(x)).sort((a, b) => b.r.score - a.r.score)
+    const best = hits.find(({ r, g }) => !lampLocked(callGate, { _row: r, _g: g }))
+    return best ? { key: d.key, label: d.label, n: hits.length, r: best.r } : null
+  }).filter(Boolean)
   const day = scores.data
   const games = sortGames(day?.games || [])
   const prev = usePreview(games, 6)
@@ -234,6 +251,24 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
       {/* ⭐ YOUR PLAYERS (2026-10-03): MOONSHOT's section, fed by the scores and board read above. */}
       <LampYourPlayers games={games} board={board.data} onOpenPlayer={onOpenPlayer} />
       <StorylinesStrip sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} max={3} onOpenTeam={onOpenTeam} onSeeAll={() => setTab?.('storylines')} onOpenPlayer={(id) => onOpenPlayer?.(Number(id))} />
+      {angleRows.length > 0 && (
+        <section aria-label="Angles">
+          <Kicker>ANGLES TONIGHT</Kicker>
+          <div style={{ display: 'grid', gap: 2 }}>
+            {angleRows.map((a) => (
+              <button key={a.key} type="button" onClick={() => onOpenPlayer?.(a.r.playerId)}
+                style={{ display: 'grid', gridTemplateColumns: '108px 18px minmax(0, 1fr) auto', alignItems: 'center', gap: 6, minHeight: 44, padding: '0 4px', background: 'none', border: 0, borderBottom: `1px solid ${C.border}`, color: C.text, font: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
+                <span style={{ font: `800 11px/1.2 ${NUM_FONT}`, color: C.ice, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.label}</span>
+                <TeamMark abbrev={a.r.team} size={16} />
+                <b style={{ fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.r.name}</b>
+                <span style={{ font: `800 11px/1 ${NUM_FONT}`, color: C.text3 }}>{a.r.score} · {a.n} tonight</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+      <TopTenList title="Top 10 · Goals" rows={topGoal.rows} held={topGoal.held} sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onOpen={(r) => onOpenPlayer?.(r.id)} onAll={() => setTab?.('fullboard')} />
+      <TopTenList title="Top 10 · Shots 3+" rows={topSog.rows} held={topSog.held} sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onOpen={(r) => onOpenPlayer?.(r.id)} onAll={() => setTab?.('shots')} />
       <LongshotsPreview plain sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onSeeAll={() => setTab?.('longshots')} onOpenPlayer={(id) => onOpenPlayer?.(id)} />
 
       {/* TONIGHT'S NUMBERS (numerology v2 step 6b): one line under the board, taps to Numerology. */}
