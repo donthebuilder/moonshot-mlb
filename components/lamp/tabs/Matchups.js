@@ -63,11 +63,11 @@ function Detail({ row, league, date = null, onOpenPlayer, onOpenTeam = null }) {
     ? (row.oppPp > league.pp && row.pk < league.pk ? 'the softest spot tonight is special teams' : row.pk < league.pk ? 'the penalty kill is below the league' : 'the penalty kill holds up')
     : null
   return (
-    <section id="lamp-def-detail" aria-label={`${row.def} defence`} style={{ display: 'flex', flexDirection: 'column', gap: 12, scrollMarginTop: 80 }}>
+    <section id="lamp-def-detail" aria-label={`${row.def} defense`} style={{ display: 'flex', flexDirection: 'column', gap: 12, scrollMarginTop: 80 }}>
       {/* MOONSHOT'S MATCHUP PARTS (2026-09-29, parity): title, section labels,
           bars and fact lines are components/matchup/MatchupParts.js -- the
           pieces MOONSHOT's and TUDDY's matchup details are built from. */}
-      <MatchupTitle logo={{ sport: 'nhl', abbr: row.def }} name={`${row.def} defence`} meta={`${row.home ? 'vs' : '@'} ${row.opp} · tap another row above to switch`} theme={C} numFont={NUM_FONT} />
+      <MatchupTitle logo={{ sport: 'nhl', abbr: row.def }} name={`${row.def} defense`} meta={`${row.home ? 'vs' : '@'} ${row.opp} · tap another row above to switch`} theme={C} numFont={NUM_FONT} />
 
       <div>
         <Kicker>POWER PLAY vs PENALTY KILL</Kicker>
@@ -154,12 +154,12 @@ export default function Matchups({ date = null, onOpenPlayer, onOpenTeam = null 
   ]
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <PageHeader eyebrow="LAMP · MATCHUPS" title="Defences to attack tonight"
+      <PageHeader eyebrow="LAMP · MATCHUPS" title="Defenses to attack tonight"
         note="Ranked by goals allowed a game. Tap a row for more."
         theme={C} numFont={NUM_FONT} accent={C.ice} />
       <DelayedBanner error={error} what="tonight's matchups" />
       {loading && !data ? <Loading what="tonight's matchups" /> : null}
-      {data && !rows.length ? <EmptyState title="NO GAMES TONIGHT" note="No NHL games on this date, so there are no defences to rank." /> : null}
+      {data && !rows.length ? <EmptyState title="NO GAMES TONIGHT" note="No NHL games on this date, so there are no defenses to rank." /> : null}
       {rows.length > 0 && (
         <>
           <div style={{ fontSize: 12.5, color: C.text2, lineHeight: 1.5 }}>

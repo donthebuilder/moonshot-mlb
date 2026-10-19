@@ -79,7 +79,7 @@ export default function DefensesTable({ matchup, data, win = 'season', active, o
       : <span style={{ color: C.text3 }}>—</span>) },
     { key: 'tough', label: 'Toughest spot', w: 170, heat: false, fmt: (v) => <span style={{ color: C.text3 }}>{v}</span> },
     ...(showTags ? [{ key: 'tags', label: 'Tags', w: 250, heat: false, numeric: false, group: { key: 'matchup', label: 'The matchup', order: 3 },
-      explain: 'Corners, pass rush and run defence, each tagged only when it sits in the best or worst quarter of the league on a stated number. Tap a tag for the number.',
+      explain: 'Corners, pass rush and run defense, each tagged only when it sits in the best or worst quarter of the league on a stated number. Tap a tag for the number.',
       fmt: (v, r) => (v ? <TagChips tags={book.team(r.def)} max={3} /> : <span style={{ color: C.text3 }}>none</span>) }] : []),
   ].map((c) => (showTags && !c.group ? { ...c, group: ['rank', 'def', 'opp'].includes(c.key) ? { key: 'who', label: 'Defense', order: 0 } : { key: 'edge', label: 'The edge', order: 1 } } : c))
 

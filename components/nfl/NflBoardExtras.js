@@ -204,7 +204,7 @@ export function NflBoardList({ games = null, players, market, weights, odds, pho
     ...top.map((k, i) => ({ group: CALL_GROUP, key: k, label: LABELS[k] || k, cset: i < 2 ? 'lean' : 'read', w: phone ? 74 : 86, scale: 'seq', domain: [0, 100] })),
     // TAGS: ball-security tags on him and the tags of the defence he faces; OFF until the Filters sheet turns it on (Tags > Show tags column)
     ...(tags?.show ? [{ key: 'tags', label: 'Tags', cset: 'read', w: phone ? 190 : 300, heat: false, numeric: false, group: TAGS_GROUP,
-      title: 'Fumble-prone and Interception-prone describe him; the club-named tags (ATL weak corners) describe the defence he faces. Tap a tag for the number and the season behind it. Labels, not forecasts: they change no score.',
+      title: 'Fumble-prone and Interception-prone describe him; the club-named tags (ATL weak corners) describe the defense he faces. Tap a tag for the number and the season behind it. Labels, not forecasts: they change no score.',
       fmt: (v, r) => (r._tags?.length ? <TagChips tags={r._tags} onPlayerRow max={phone ? 2 : 3} /> : <span style={{ color: C.text3 }}>—</span>) }] : []),
     ...(phone || !odds ? [] : [{ key: 'price', group: CALL_GROUP, label: 'Price', cset: 'read', w: 60, heat: false, fmt: (v) => (v == null ? '—' : v > 0 ? `+${v}` : String(v)) }]),
     ...(phone || !odds || !rows.some((r) => r.moveNum != null) ? [] : [{ key: 'moveNum', group: CALL_GROUP, label: 'Line moved', cset: 'read', w: 112, dp: 1,
@@ -395,7 +395,7 @@ export function useNflDrawerFilters(pool, games, market, ext = null) {
       {tagOpts.length > 0 && <>
         <div style={label}>Tags</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '7px 0 12px' }}>
-          <FilterPill active={showTags} onClick={() => setShowTags((v) => !v)} title="Add a Tags column to the table: his ball-security tags and the tags of the defence he faces">Show tags column</FilterPill>
+          <FilterPill active={showTags} onClick={() => setShowTags((v) => !v)} title="Add a Tags column to the table: his ball-security tags and the tags of the defense he faces">Show tags column</FilterPill>
           {tagOpts.map((o) => (
             <FilterPill key={o.key} active={tagKey === o.key} onClick={() => setTagKey(tagKey === o.key ? 'all' : o.key)} count={o.count}>{o.label}</FilterPill>
           ))}

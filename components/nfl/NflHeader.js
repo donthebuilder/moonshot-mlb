@@ -351,7 +351,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, logs = nul
               label={TD_WORD_SHORT}   // plain words (2026-10-04 user review #20: was "Proj TD")
               value={projTd ? projTd.toFixed(1) : '—'}
               color={C.green}
-              title={`${TD_WORD} across this slate's games: each club's touchdown rate against the other's defence, both clubs, every game added up.${
+              title={`${TD_WORD} across this slate's games: each club's touchdown rate against the other's defense, both clubs, every game added up.${
                 isPre ? ' Preseason caveat: it is built from last season, and starters play two series. Read it as the ceiling, not the projection.' : ''}`}
             />
             <Tile label="Strong picks" value={aGrade} color={C.green}
