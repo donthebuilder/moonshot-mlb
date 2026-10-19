@@ -55,13 +55,14 @@ export function teamPowerRows(players, scoring = 'ppr') {
   return rows.sort((a, b) => b.total - a.total)
 }
 
-export default function TeamPower({ players = [], statSeason, onPlayerClick }) {
+// `preview` (10-18): how many teams show before "All N" (12 on its own page; Home shows 4, the site's one show-more rule).
+export default function TeamPower({ players = [], statSeason, onPlayerClick, preview = 12 }) {
   const rows = useMemo(() => teamPowerRows(players), [players])
   const [open, setOpen] = useState(null)
   const [showAll, setShowAll] = useState(false)
   if (!rows.length) return null
   const max = rows[0].total || 1
-  const shown = showAll ? rows : rows.slice(0, 12)
+  const shown = showAll ? rows : rows.slice(0, preview)
   return (
     <section className="tuddy-team-power">
       <div className="tp-head">
@@ -99,8 +100,8 @@ export default function TeamPower({ players = [], statSeason, onPlayerClick }) {
           </div>
         )
       })}
-      {rows.length > 12 && (
-        <button className="tp-more" onClick={() => setShowAll((v) => !v)}>{showAll ? 'Top 12 only' : `All ${rows.length} teams`}</button>
+      {rows.length > preview && (
+        <button className="tp-more" onClick={() => setShowAll((v) => !v)}>{showAll ? 'Fewer' : `All ${rows.length} teams`}</button>
       )}
       <style>{`
         .tuddy-team-power{border:1px solid rgba(0,245,173,.22);border-radius:16px;padding:14px 14px 10px;background:linear-gradient(160deg,rgba(0,245,173,.06),transparent 60%)}

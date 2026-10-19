@@ -110,11 +110,12 @@ const DEFENSE_COLUMNS = [
 // chunk plays start; this ranks this week's receivers (not on bye) by it and
 // prints the number. Nothing is estimated; a man NGS doesn't qualify has no
 // SEP and simply isn't listed.
-function BigPlayWatch({ data, onPlayerClick }) {
+// `limit` (10-18): Home shows it too, open, four rows (Donovan: "good things just hidden").
+export function BigPlayWatch({ data, onPlayerClick, limit = 5 }) {
   const rows = useMemo(() => (data?.players || [])
     .filter((p) => !p.on_bye && ['WR', 'TE', 'RB'].includes(p.position) && Number.isFinite(Number(p.stats?.SEP)) && p.stats.SEP !== null)
     .sort((a, b) => Number(b.stats.SEP) - Number(a.stats.SEP))
-    .slice(0, 5), [data])
+    .slice(0, limit), [data, limit])
   if (!rows.length) return null
   return (
     <section aria-label="Big play watch" style={{ margin: '0 0 12px', padding: '11px 12px', border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2 }}>
