@@ -12,5 +12,12 @@ eq('earlier record apart', t.REC_YDS.earlier.map((e) => [e.bar, e.n, e.hit]), [[
 eq('unchanged market sums all weeks', [t.TD.n, t.TD.hit, t.TD.earlier.length], [15, 9, 0])
 const old = seasonTotals([{ totals: { X: { n: 2, hit: 1 } } }, { totals: { X: { n: 3, hit: 1 } } }])
 eq('no bars saved (old digest) -> one record', [old.X.n, old.X.earlier.length], [5, 0])
+// A 100+ yardage pick against the book's main line (TEST data): the quote is returned, flagged as a different bet, never as the bar's price
+const { quoteFor } = await import('../lib/nfl/oddsMatch.js')
+const odds = { by_player_id: { P1: { player_reception_yds: { line: 59.5, over: -115, implied: 53.5 }, player_rush_yds: { line: 99.5, over: 310 } } } }
+const off = quoteFor(odds, { player_id: 'P1' }, 'REC_YDS')
+eq('main-line quote is a different bet', [off.matches, off.line, off.over], [false, 59.5, -115])
+eq('a quote on the bar matches', quoteFor(odds, { player_id: 'P1' }, 'RUSH_YDS').matches, true)
+eq('no quote -> null', quoteFor(odds, { player_id: 'nobody' }, 'REC_YDS'), null)
 if (bad) { console.log(`${bad} FAILED`); process.exit(1) }
 console.log('check-bar-split: a new bar starts a new record; old weeks stay apart')
