@@ -251,7 +251,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
           // 5. THE MATCHUP, the important stats, then each defence's file
           matchup: () => (
                 <PanelAnchor id="matchup" gamePk={g.game_id} style={{ marginTop: 14 }}>
-                  <MatchupScoreboard matchup={matchup} data={data} game={g} />
+                  <MatchupScoreboard matchup={matchup} data={data} game={g} onPlayerClick={onPlayerClick} />
                   <ImportantStats matchup={matchup} data={data} game={g} onOpenTeam={onOpenTeam} />
                   {/* BOTH DEFENCES (2026-10-10): each club's defence tags and its key defenders, the defence the other offence faces */}
                   <DefenseFile matchup={matchup} slateSeason={data?.season} def={g.home} off={g.away} />
