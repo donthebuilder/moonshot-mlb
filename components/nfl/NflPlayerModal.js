@@ -11,7 +11,6 @@ import CardFlip from '../player/CardFlip'
 import CardsEarned from '../player/CardsEarned'
 const nflIdOf = (x) => String(x?.player_id ?? '')
 import { C, NUM_FONT, MARKETS, MARKET_SHORT, gradeFor } from '../../lib/nfl/theme'
-import PropsGrid from './PropsGrid'
 import { STAT_KEY } from './HitRate'
 import SlipAdd from '../SlipAdd'
 import PriceHistory from '../PriceHistory'
@@ -37,7 +36,8 @@ import MultiLine from '../ledger/MultiLine'
 import { injuryTag, injuryTitle, injuryColor } from '../../lib/nfl/injury'
 import NflPlayerRead from './NflPlayerRead'
 import LineMoveChip from '../LineMoveChip'
-import NflGameCombo, { AllSplits } from './NflGameCombo'
+import NflGameCombo from './NflGameCombo'
+import NflSplitsGroups from './NflSplitsGroups'
 import { roleLabel } from '../../lib/nfl/roles'
 import { alpha } from '../../lib/scales'
 import NflGameLog from './NflGameLog'
@@ -515,6 +515,17 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
 
       {/* OVERVIEW, MOONSHOT's order: the price (its timeline), TUDDY ON HIM (the role table), my note, in the ledger, his numbers; the rest is in More */}
       {tab === 'overview' && <>
+        {/* TUDDY ON HIM: each role TUDDY has called him in, on the graded record (components/nfl/NflOnHim.js, MOONSHOT's BotOnHim table) */}
+        <NflOnHim bot={bot} />
+        <PlayerNotes playerId={player.player_id} accent={C.green} />
+        {player.position !== 'DEF' && <InTheLedger sport="nfl" id={player.player_id} name={player.name} jersey={player.jersey_number} birthDate={player.birth_date} next={Number.isFinite(player?.season_td) ? player.season_td + 1 : null} date={etToday()} />}
+        {player.position !== 'DEF' && <HisNumbers name={player.name} jersey={player.jersey_number} birthDate={player.birth_date} next={Number.isFinite(player?.season_td) ? player.season_td + 1 : null} nextWord="TD" date={etToday()} theme={C} accent={C.green} numFont={NUM_FONT} />}
+        {player.carryover && (
+          <div style={{ marginTop: 14, fontSize: 12, color: C.text2, lineHeight: 1.6, background: `${C.text2}20`, border: `1px solid ${C.text2}4d`, borderRadius: 9, padding: '8px 10px' }}>
+            <b style={{ color: C.text2 }}>Carryover</b> — last season&apos;s per-game baseline.
+          </div>
+        )}
+        {/* THE PRICE, LAST (10-19, Donovan: "the price timeline should not lead"): his own record and numbers first, then the market */}
         {/* THE PRICE: the line for the market on screen, the best book, the break-even. */}
         {(() => {
           const q = cardLocked ? null : quoteFor(odds, player, market)
@@ -533,16 +544,6 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             <PriceHistory quote={q.matches !== false ? q : null} marketLabel={spec?.short || market} theme={C} numFont={NUM_FONT} />
           </>)
         })()}
-        {/* TUDDY ON HIM: each role TUDDY has called him in, on the graded record (components/nfl/NflOnHim.js, MOONSHOT's BotOnHim table) */}
-        <NflOnHim bot={bot} />
-        <PlayerNotes playerId={player.player_id} accent={C.green} />
-        {player.position !== 'DEF' && <InTheLedger sport="nfl" id={player.player_id} name={player.name} jersey={player.jersey_number} birthDate={player.birth_date} next={Number.isFinite(player?.season_td) ? player.season_td + 1 : null} date={etToday()} />}
-        {player.position !== 'DEF' && <HisNumbers name={player.name} jersey={player.jersey_number} birthDate={player.birth_date} next={Number.isFinite(player?.season_td) ? player.season_td + 1 : null} nextWord="TD" date={etToday()} theme={C} accent={C.green} numFont={NUM_FONT} />}
-        {player.carryover && (
-          <div style={{ marginTop: 14, fontSize: 12, color: C.text2, lineHeight: 1.6, background: `${C.text2}20`, border: `1px solid ${C.text2}4d`, borderRadius: 9, padding: '8px 10px' }}>
-            <b style={{ color: C.text2 }}>Carryover</b> — last season&apos;s per-game baseline.
-          </div>
-        )}
       </>}
 
       {/* THE READ (MOONSHOT's pill): the sentences, and the case against him */}
@@ -562,7 +563,8 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         {/* EVERY SPLIT FIRST (10-18): the even pairs from his logs (home / away, primetime, result, the defense at his role, roof,
             surface, rest), then the bot's game-state splits, then the combine filters. The sentence that explained the season
             buttons is gone: the buttons say it. */}
-        <AllSplits log={slog} market={market} dvp={matchup?.dvp?.season || null} role={roleLabel(player) || null} />
+        {/* MOONSHOT's splits (10-19, Donovan: "MLB's splits table shared"): its group pills, one dense table per group */}
+        <NflSplitsGroups log={slog} market={market} dvp={matchup?.dvp?.season || null} role={roleLabel(player) || null} />
         <SplitsForMarket player={player} market={market} data={splitMeta} />
         <NflGameCombo log={slog} venue={gameVenue(slate?.games, player.team, player.opp)} />
         {!(player?.splits && Object.keys(player.splits).length) && !hasContext(slog) && <div style={{ fontSize: 13, color: C.text3, lineHeight: 1.5 }}>{splitsWhy(player, fullLog, slate?.season)}</div>}
@@ -642,7 +644,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
               background: moreOpen ? 'transparent' : C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text,
             }}>
             <span style={{ fontSize: 12, fontWeight: 900, letterSpacing: '.03em' }}>More</span>
-            <span style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>props grid, multi-TD</span>
+            <span style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>your eye, multi-TD</span>
             <span style={{ marginLeft: 'auto', fontSize: 11, color: C.green, fontFamily: NUM_FONT, fontWeight: 800, flexShrink: 0 }}>{moreOpen ? '▴' : '▾'}</span>
           </button>
         </h2>
@@ -652,15 +654,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             {/* MOONSHOT's multi-HR line, TUDDY's words */}
             <MultiLine sport="nfl" playerId={player?.player_id} words={{ TD: 'multi-TD', PASS_TD: '2+ passing-TD' }} color={C.green} textColor={C.text2} />
             <SeasonToggle options={seasonOpts} value={seasonKey} onChange={setSeason} />
-            {slog && (() => {
-              // HIS BEST MARKET LEADS: the chart opens on the market he scores highest in.
-              const best = ratesFor(player, markets, slog)[0]
-              const lead = best?.key || market
-              // The market's published bar -- the week's, else the log file's own. Never a made-up 1.
-              const leadBar = Number((markets || []).find((m) => m.key === lead)?.bar ?? logs?.bars?.[lead]?.[1])
-              if (!Number.isFinite(leadBar) || !slog.length) return null
-              return <PropsGrid key={`${player.player_id}-${lead}-${seasonKey}`} log={slog} market={lead} defaultBar={leadBar} scores={player.scores} />
-            })()}
+            {/* the props grid left More (10-19, Donovan): it lives on the Props page */}
             {/* YOUR CARD is gone from here (Donovan 10-18: "I don't know what that is for. Just remove it.") */}
           </div>
         )}

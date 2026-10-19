@@ -100,7 +100,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
   const angleRows = lampAngles(flatBoard, 'GOAL').map((d) => {
     const hits = flatBoard.filter((x) => Number.isFinite(x.r.score) && d.test(x)).sort((a, b) => b.r.score - a.r.score)
     const best = hits.find(({ r, g }) => !lampLocked(callGate, { _row: r, _g: g }))
-    return best ? { key: d.key, label: d.label, n: hits.length, r: best.r } : null
+    return best ? { key: d.key, tag: d.label, n: hits.length, r: best.r } : null   // `tag`, not `label`: an angle, not a table column
   }).filter(Boolean)
   const day = scores.data
   const games = sortGames(day?.games || [])
@@ -289,7 +289,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
       {/* ANGLES TONIGHT on the shared list (10-19: the old row clipped names at 375): the angle and how many fit it ride the
           line under the name, the score on the right */}
       <RankList title="Angles tonight" ranked={false} sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice}
-        rows={angleRows.map((a) => ({ key: a.key, team: a.r.team, name: a.r.name, line: `${a.label} · ${a.n} fit tonight`, value: a.r.score, onOpen: onOpenPlayer ? () => onOpenPlayer(a.r.playerId) : null }))} />
+        rows={angleRows.map((a) => ({ key: a.key, team: a.r.team, name: a.r.name, line: `${a.tag} · ${a.n} fit tonight`, value: a.r.score, onOpen: onOpenPlayer ? () => onOpenPlayer(a.r.playerId) : null }))} />
       <TopTenList title="Top 10 · Goals" rows={topGoal.rows} held={topGoal.held} sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onOpen={(r) => onOpenPlayer?.(r.id)} onAll={() => setTab?.('fullboard')} />
       <TopTenList title="Top 10 · Shots 3+" rows={topSog.rows} held={topSog.held} sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onOpen={(r) => onOpenPlayer?.(r.id)} onAll={() => setTab?.('shots')} />
       <LongshotsPreview plain sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onSeeAll={() => setTab?.('longshots')} onOpenPlayer={(id) => onOpenPlayer?.(id)} />

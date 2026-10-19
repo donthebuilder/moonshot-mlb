@@ -243,7 +243,7 @@ function SeasonPills({ value, onChange, years }) {
 // takes whichever group list is currently available so the same component
 // drives the "bot file missing" branch (live groups only) and the normal
 // branch (everything).
-function GroupPicker({ groups, active, onPick }) {
+export function GroupPicker({ groups, active, onPick }) {   // exported (10-19): TUDDY's splits use the same picker (components/nfl/NflSplitsGroups.js)
   return (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
       {groups.map((g) => {
