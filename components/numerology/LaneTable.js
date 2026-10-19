@@ -117,7 +117,7 @@ export default function LaneTable({ sport, theme: C, numFont, accent, tonight = 
       {lanes.length > 5 && <button type="button" onClick={() => setAll((v) => !v)} style={{ marginTop: 6, minHeight: 44, padding: '0 10px', border: `1px solid ${C.border}`, borderRadius: 8, background: 'transparent', color: accent, fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>{all ? 'Fewer' : `All ${lanes.length} lanes`}</button>}
       <MoreNote label="How to read the lanes"><div style={{ marginTop: 6, fontSize: 11, color: C.text3, lineHeight: 1.5 }}>
         {provisional ? <>Tracking: a lane needs {data.minNights || MIN_NIGHTS} nights and {data.minMatched || MIN_MATCHED} matches before it counts; under that, no z. </> : null}
-        z = matched players vs the rest of the pool; |z| under 2 is chance. 95% Wilson ranges. Graded nights only.{allBase} Information only, never part of a score.
+        z = matched players vs the rest of the pool; |z| under 2 is chance. 95% Wilson ranges. Graded nights only.{allBase} Information only: never part of a score, never a call.
       </div></MoreNote>
       {players}
     </section>

@@ -34,7 +34,15 @@ function literals(src) {
       else if (ch === '}') { depth--; if (depth === 0) break }
     }
     const body = src.slice(i, j + 1)
-    if (/^\{\s*(?:answers:[^,]+,\s*)?key:\s*['"`$\w]/.test(body) && /\blabel:/.test(body)) {
+    // NOT A COLUMN (10-18): a group definition ({ key, label, order }) and an explain / chip object (it carries `text:`) were
+    // counted as ungrouped columns
+    const inner = body.slice(1, -1).replace(/`[^`]*`|'[^']*'|"[^"]*"/g, "''").replace(/\{[^{}]*\}/g, '{}')   // strings and nested objects out
+    const props = (inner.match(/(?:^|,)\s*(\w+)\s*:/g) || []).map((m) => m.replace(/[,:\s]/g, ''))
+    // ...and a tab / option list (const TABS = [ { key, label } ], VIEW_OPTIONS, PANELS): a menu, not a table
+    const before = src.slice(Math.max(0, i - 1500), i)
+    const inMenu = /\b\w*(?:TABS|OPTIONS|VIEWS|PANELS|options)\s*=\s*\{?\[[^\]]*$/.test(before)
+    const notColumn = props.includes('order') || props.includes('text') || inMenu
+    if (!notColumn && /^\{\s*(?:answers:[^,]+,\s*)?key:\s*['"`$\w]/.test(body) && /\blabel:/.test(body)) {
       const flat = body.replace(/\{[^{}]*\}/g, '{}')   // ignore nested objects when looking for the property
       out.push({ at: i, body, ungrouped: !/\bgroup\b/.test(body) && !/\.\.\.\w+/.test(flat.slice(1, 40)) })
       i = j   // do not descend into a column literal

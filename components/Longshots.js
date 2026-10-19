@@ -54,36 +54,37 @@ export default function Longshots({ sport, eyebrow, theme: C, numFont, accent, T
   const base = scope === 'called' ? rows.filter((r) => r.status === 'called') : rows
   const shown = useMemo(() => base.map((r) => (legOf.get(r.id) ? { ...r, slipOn: slip.has(legOf.get(r.id).key) ? 1 : 0 } : r)), [base, legOf, slip.legs]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Price and score first: on a phone they are the two columns in view.
+  // Price and score first: on a phone they are the two columns in view. Every column in its group (10-18, CLAUDE.md).
+  const GP = { key: 'p', label: 'Player', order: 0 }, GPR = { key: 'price', label: 'Price', order: 1 }, GM = { key: 'model', label: 'Model', order: 2 }, GS = { key: 'stats', label: 'His numbers', order: 3 }, GA = { key: 'about', label: 'About', order: 4 }
   const columns = [
-    { key: 'name', label: 'Player', w: 140, heat: false, sticky: true, bold: true },
+    { group: GP, key: 'name', label: 'Player', w: 140, heat: false, sticky: true, bold: true },
     // A REAL PRICE UP FRONT (2026-10-04 user review #17): PRICE was the median
     // of the books' implied chances turned back into odds -- '+1649', a number
     // no book posts. The price shown is now a real one (the best book's), its
     // book beside it; the median keeps its own, labelled column.
-    { key: 'best', label: 'PRICE', w: 58, heat: false, fmt: plus, title: 'The longest price any book is offering, at our newest snapshot — the BOOK column says which' },
+    { group: GPR, key: 'best', label: 'PRICE', w: 58, heat: false, fmt: plus, title: 'The longest price any book is offering, at our newest snapshot — the BOOK column says which' },
     ...(rows.some((r) => legOf.get(r.id)) ? [{
-      key: 'slipOn', label: '+', action: true, w: 44, heat: false, mark: '\u2713', markOff: '+', titleOn: 'Take off the slip', titleOff: 'Add to slip',
+      group: GPR, key: 'slipOn', label: '+', action: true, w: 44, heat: false, mark: '\u2713', markOff: '+', titleOn: 'Take off the slip', titleOff: 'Add to slip',
       show: (r) => Boolean(legOf.get(r.id)),
       onAction: (r) => { const leg = legOf.get(r.id); if (leg) slip.toggle({ ...leg, sport, source: 'player' }) },
     }] : []),
-    { key: 'score', label: 'SCORE', w: 54, primary: true, dp: 0, title: 'Our model\u2019s score for this market (0\u2013100), as the product publishes it' },
-    { key: 'median', label: 'MID BOOK', w: 64, heat: false, fmt: plus, title: 'The middle of the books, worked out from their implied chances — a reference, not a price any book posts' },
-    { key: 'team', label: 'Team', w: 46, heat: false, teamMark: sportKey(sport) },
-    { key: 'opp', label: 'Opp', w: 46, heat: false, teamMark: sportKey(sport) },
-    { key: 'statusWord', label: 'Call', w: 104, heat: false },
-    { key: 'bestBook', label: 'BOOK', w: 78, heat: false },
-    { key: 'books', label: 'BOOKS', w: 50, heat: false, title: 'How many books listed him' },
+    { group: GM, key: 'score', label: 'SCORE', w: 54, primary: true, dp: 0, title: 'Our model\u2019s score for this market (0\u2013100), as the product publishes it' },
+    { group: GPR, key: 'median', label: 'MID BOOK', w: 64, heat: false, fmt: plus, title: 'The middle of the books, worked out from their implied chances — a reference, not a price any book posts' },
+    { group: GP, key: 'team', label: 'Team', w: 46, heat: false, teamMark: sportKey(sport) },
+    { group: GP, key: 'opp', label: 'Opp', w: 46, heat: false, teamMark: sportKey(sport) },
+    { group: GM, key: 'statusWord', label: 'Call', w: 104, heat: false },
+    { group: GPR, key: 'bestBook', label: 'BOOK', w: 78, heat: false },
+    { group: GPR, key: 'books', label: 'BOOKS', w: 50, heat: false, title: 'How many books listed him' },
     // The bot's own numbers, per product (lib/odds/longshots.js STAT_COLUMNS).
     ...(data?.statColumns || []).map((c) => ({
-      key: `s_${c.key}`, label: c.label, title: c.title, w: c.w || 58, heat: false,
+      group: GS, key: `s_${c.key}`, label: c.label, title: c.title, w: c.w || 58, heat: false,
       fmt: (v) => fmtStat(v, c),
       // A pitcher's name in a hitter's row opens the pitcher, not the hitter
       // (audit 00A P0, found again here 2026-09-29): DenseTable's `link`.
       ...(c.link === 'pitcher' && onOpenPitcher ? { link: (r) => (r?.[`s_${c.linkId}`] ? () => onOpenPitcher(r[`s_${c.linkId}`]) : null) } : {}),
     })),
-    { key: 'flag', label: 'NOTE', w: 150, heat: false },
-    { key: 'asOf', label: 'AS OF', w: 80, heat: false },
+    { group: GA, key: 'flag', label: 'NOTE', w: 150, heat: false },
+    { group: GA, key: 'asOf', label: 'AS OF', w: 80, heat: false },
   ]
 
   return (
