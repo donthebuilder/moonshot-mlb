@@ -37,7 +37,12 @@ export default function FirstScorers({ sport, C, numFont, accent, day = null, em
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 40, fontSize: 12, flexWrap: 'wrap' }}>
           {/* 2026-10-03: the matchup as the two clubs' logos (was "VGK v ANA"), the
               name a step up, the status the shared stamp (CallStatusBadge) */}
-          <span style={{ color: C.text3, fontFamily: numFont, fontSize: 11, minWidth: 74 }}><Tap onClick={onOpenGame && (() => onOpenGame(g.gameId, g))}>{(() => { const [a, h] = String(g.game || '').split(/\s+(?:v|@|vs)\s+/); return a && h ? <MatchLogos sport={sport} away={a} home={h} px={18} gap={5} /> : g.game })()}</Tap></span>
+          <span style={{ color: C.text3, fontFamily: numFont, fontSize: 11, minWidth: 74 }}><Tap onClick={onOpenGame && (() => onOpenGame(g.gameId, g))}>{(() => {
+            // 10-18: "DEN v SEA" is the SCORER's club first (NFL / NHL / NBA feeds carry no home flag), so it draws as "DEN v SEA",
+            // never "DEN @ SEA" (Thursday's SEA @ DEN read backwards). Only MLB's "away @ home" keeps the @.
+            const m = /^(.+?)\s+(v|vs|@)\s+(.+)$/.exec(String(g.game || ''))
+            return m ? <MatchLogos sport={sport} away={m[1]} home={m[3]} sep={m[2] === '@' ? '@' : 'v'} px={18} gap={5} /> : g.game
+          })()}</Tap></span>
           <button type="button" onClick={() => g.playerId && onOpenPlayer?.(g.playerId, g)} style={{ background: 'transparent', border: 'none', padding: 0, cursor: g.playerId ? 'pointer' : 'default', color: C.text, fontWeight: 800, font: 'inherit', fontSize: 13.5 }}>{g.name}</button>
           <span style={{ color: C.text3, fontFamily: numFont, fontSize: 11 }}>{g.when}</span>
           <span style={{ marginLeft: 'auto' }}><CallStatusBadge status={g.status} accent={accent} theme={C} numFont={numFont} /></span>
