@@ -220,8 +220,9 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
       {/* WAVE 2 (2026-10-11, Donovan: "everything moving toward simplicity with the ability to dive deep into stats").
           The first screen is the hero, tonight's board (one called per team, as a table), the calls and the games. The rest of
           the page -- headlines, your players, storylines, longshots, hot numbers, division leaders -- is one fold, nothing
-          deleted. The first table row was y 1,994 on a phone; it was the games list under all of these. */}
-      <Fold id="lamp-home-more" title="More numbers" meta="headlines · your players · storylines · longshots · hot numbers · division leaders">
+          deleted. The first table row was y 1,994 on a phone; it was the games list under all of these.
+          10-18: open again (the TUDDY Home rule), each piece already a short strip or preview. */}
+      <>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       {/* FACES ON THE CARDS (2026-09-29, queue batch 5): MOONSHOT's and TUDDY's
           strips pass faceOf; LAMP's didn't. The shared PlayerFace, table
@@ -262,7 +263,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
       </section>
 
         </div>
-      </Fold>
+      </>
       {/* STANLEY CUP ODDS (2026-10-13): MOONSHOT's October fold for the NHL (components/PennantRace.js). Not drawn until the bot has published the file. */}
       <ChampionshipFold sport="nhl" />
       </>}

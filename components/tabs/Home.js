@@ -54,6 +54,7 @@ import MlbTonight from '../tonight/MlbTonight'
 import { TeamTap } from '../EntityTap'
 import { localTime } from '../../lib/localTime'
 import { sharedFetch } from '../../lib/sharedRead'
+import { ShowMoreButton } from '../ListPreview'
 
 // An Eastern calendar day n days from today (YYYY-MM-DD), on etToday's clock.
 const etShift = (n) => { const d = new Date(`${etToday()}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
@@ -295,6 +296,7 @@ export default function Home({
   // else this device's remembered choice. Storage reads/writes are wrapped
   // because private mode without localStorage must not take the page down.
   const [view, setView] = useState('tonight')
+  const [top10All, setTop10All] = useState(false)   // the two top-10 lists show four rows until opened (10-18)
   useEffect(() => {
     if (initial !== 'tonight' && HOME_VIEW_KEYS.has(initial)) { setView(initial); return }
     try {
@@ -1072,8 +1074,10 @@ export default function Home({
           (the money answer + the three doors). Every other panel that used to
           sit on the page is still here, one drawer down, closed by default —
           the Fold renders nothing until it is opened, so a closed drawer costs
-          the phone nothing. Same panels, same code, one level deeper. */}
-      <Fold id="more-tonight" title="••• More on tonight" meta="angles · top 10s · weakest arms">
+          the phone nothing. Same panels, same code, one level deeper.
+          10-18 (Donovan: "good stuff but hidden ... behind a collapsible shade"): open again, as on TUDDY's Home; the
+          top 10s show four rows until opened, so the page stays short. */}
+      <>
       {/* ── TONIGHT'S ANGLES — hero lines, not tables ─────────────────
           Renamed from "storylines" in the 2026-08-09 polish pass: the full
           Storylines engine renders directly below, and two adjacent panels
@@ -1081,7 +1085,7 @@ export default function Home({
           itself. These are the three hand-picked lines; that one is the
           whole ledger. */}
       {players.length > 0 && (
-        <Fold id="angles" title="📖 Tonight's angles" meta="air, parks, arms — every line from tonight's own data">
+        <>
         <div style={{
           background: C.bg2,
           border: `1px solid ${C.border}`, borderRadius: 14,
@@ -1244,7 +1248,7 @@ export default function Home({
                   background: 'none', border: 'none', padding: '3px 1px', cursor: 'pointer',
                   fontSize: TYPE.body, fontWeight: 800, color: C.amber, textDecoration: 'underline', textDecorationColor: 'rgba(252,211,77,.35)',
                 }}>{nameOf(nearMiss.p)}</button>
-                <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}> {teamOf(nearMiss.p)}</span>
+                <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}> <TeamTap abbr={teamOf(nearMiss.p)} /></span>
                 {' '}is <b style={{ fontFamily: NUM_FONT, color: nearMiss.since >= 10 ? C.red : C.orange }}>{nearMiss.since} games</b> without
                 a homer, but his recent window holds a <b style={{ fontFamily: NUM_FONT }}>{Math.round(nearMiss.d)} ft</b> ball
                 {nearMiss.e > 0 && <> at <b style={{ fontFamily: NUM_FONT }}>{nearMiss.e.toFixed(0)} mph</b></>}
@@ -1262,7 +1266,7 @@ export default function Home({
                 {pens.slice(0, 3).map((x, i) => (
                   <span key={x.ab}>
                     {i > 0 && ', '}
-                    <b style={{ color: x.tier.col }}>{x.ab}</b>
+                    <b style={{ color: x.tier.col }}><TeamTap abbr={x.ab}>{x.ab}</TeamTap></b>
                     <span title={`${x.ab} bullpen yesterday: ${x.t.used} relievers, ${x.t.pitches} pitches — ${(x.t.names || []).map((r2) => `${String(r2.name).split(' ').slice(-1)[0]} ${r2.pitches}p`).join(', ')}`}
                       style={{ fontSize: TYPE.micro, fontFamily: NUM_FONT, color: C.text3 }}> {x.tier.icon} {x.t.used} arms / {x.t.pitches}p yesterday</span>
                   </span>
@@ -1272,7 +1276,7 @@ export default function Home({
             </div>
           )}
         </div>
-        </Fold>
+        </>
       )}
 
 
@@ -1301,7 +1305,7 @@ export default function Home({
           by the site's own scores, with the ARM each bat gets to attack:
           ★ = weak lineup spot vs this starter, red HR/9 = a leaking arm. */}
       {players.length > 0 && (
-        <Fold id="top10" title="📊 Tonight's top 10s" meta="HR plays · hit plays, with the arm each bat attacks">
+        <>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
           {[
             { title: '💣 Top 10 — HR plays', col: '#FB923C', score: hrScore, door: 'fullboard' },
@@ -1309,6 +1313,8 @@ export default function Home({
           ].map(({ title, col, score, door }) => {
             const rows = [...players].sort((a, b) => score(b) - score(a)).slice(0, 10)
             const max = score(rows[0]) || 1
+            // OPEN ON HOME, FOUR ROWS (10-18, the TUDDY Home rule): the top four, then all ten in one tap
+            const shownRows = top10All ? rows : rows.slice(0, 4)
             return (
               <div key={title} style={{
                 flex: '1 1 340px', minWidth: 0,
@@ -1320,7 +1326,7 @@ export default function Home({
                   <button type="button" onClick={() => onNavigate?.(door)} style={{ ...BARE_BUTTON, marginLeft: 'auto', padding: '5px 3px', fontSize: TYPE.micro, color: C.text3, cursor: 'pointer', fontFamily: NUM_FONT }}>full board →</button>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {rows.map((p, i) => {
+                  {shownRows.map((p, i) => {
                     const s = score(p)
                     const hr9 = n(p?.pitcher_hr9, 0)
                     const leaky = isLeaky(hr9)
@@ -1352,6 +1358,7 @@ export default function Home({
                     )
                   })}
                 </div>
+                <ShowMoreButton open={top10All} restN={rows.length - shownRows.length} total={rows.length} toggle={() => setTop10All((v) => !v)} />
                 <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
                   Ranked by the site&apos;s own score · ★ weak spot vs tonight&apos;s starter ·{' '}
                   <b style={{ color: C.red }}>red HR/9</b> = a leaking arm. Tap a name for his card.
@@ -1360,7 +1367,7 @@ export default function Home({
             )
           })}
         </div>
-        </Fold>
+        </>
       )}
 
       {/* ── WEAKEST ARMS TONIGHT (2026-08-08, Donovan: "top weakest pitchers
@@ -1369,7 +1376,7 @@ export default function Home({
           and 📉 last-3-starts HR/9 vs season / the bot's own trend direction
           (who's leaking RIGHT NOW). */}
       {players.length > 0 && (
-        <Fold id="arms" title="🩹 Weakest arms tonight" meta="who leaks homers, and who's leaking right now">
+        <>
       {(() => {
         const arms = new Map()
         players.forEach((p) => {
@@ -1491,12 +1498,12 @@ export default function Home({
           </div>
         )
       })()}
-        </Fold>
+        </>
       )}
 
       {/* SIMPLIFY (2026-10-17, Donovan): the fold is three sub-folds -- angles, top 10s, weakest arms. The snapshot, steal looks, the game to circle, The Read, October odds,
           the Comeback board, the empty moneyline fold and Your night left Home; each is still reachable (Steals, Games, Bot, Leaders, Watchlist -> My picks). */}
-      </Fold>
+      </>
 
       {/* ── NOTHING BUILT YET. One honest card instead of eight strips each
              quietly rendering nothing — an empty page that says why is a
