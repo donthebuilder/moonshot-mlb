@@ -135,7 +135,7 @@ export function KeyPlayers({ matchup, data, game, onPlayerClick, onOpenTeam }) {
   ]
   return (
     <section aria-label="Key players" style={{ marginBottom: 16 }}>
-      <Kicker>KEY PLAYERS · WHO GETS THE BALL, AND THE CORNER HE FACES</Kicker>
+      <Kicker>WHO GETS THE BALL · HIS CORNER</Kicker>
       <NflTable rows={list} columns={cols} onRowClick={(r) => onPlayerClick?.(r?._raw ?? r)} bare maxRows={3} maxHeight={9999}
         nameCell="player" faceOf={(r) => ({ sport: 'nfl', espnId: r.espn, team: r.team, name: r.name })}
         caption={`${notes.join(' ')}${old ? ` (${old} season)` : ''} Rows pair the depth chart in order. No source says who really covers whom. Side is from his own targets (left and right as the offence faces the defense), or 'role' when only his depth spot is known.`} />
@@ -202,14 +202,16 @@ export function MatchupScoreboard({ matchup, data, game }) {
     <section aria-label="Matchup" style={{ marginBottom: 16 }}>
       <Kicker>THE MATCHUP</Kicker>
       <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))' }}>{cols}</div>
-      <p style={{ margin: '10px 0 0', fontSize: 12, lineHeight: 1.5, color: C.text3 }}>
-        &quot;2nd most&quot; = the 2nd most in the league. Season numbers{oldSeason ? `; pass rush, zone or man and long passes are ${oldSeason}` : ''}.
-      </p>
+      {/* 10-18 (less text): the "2nd most = ..." gloss is gone; only a different season is worth a line */}
+      {oldSeason ? <p style={{ margin: '8px 0 0', fontSize: 12, color: C.text3 }}>Pass rush, coverage and long passes: {oldSeason}.</p> : null}
     </section>
   )
 }
 
 // ── 5. IMPORTANT STATS: rest, the weakest spot by position, then the rest of the numbers ──
+/** Rest as one word (10-18): SHORT under 6 days or a flagged short week, LONG at 10+ days (a bye week), else NORMAL. */
+export const restWord = (days, shortWeek = false) => (shortWeek || Number(days) < 6 ? 'SHORT' : Number(days) >= 10 ? 'LONG' : 'NORMAL')
+
 export function ImportantStats({ matchup, data, game: g, onOpenTeam = null }) {
   const [more, setMore] = useState(false)
   const rest = g.away_rest_days != null && g.home_rest_days != null
@@ -219,10 +221,20 @@ export function ImportantStats({ matchup, data, game: g, onOpenTeam = null }) {
   return (
     <section aria-label="Important stats" style={{ marginBottom: 16 }}>
       <Kicker>IMPORTANT STATS</Kicker>
+      {/* REST AS A CHIP (Donovan 10-18: "instead of showing the days it could just be short or long"): SHORT under 6 days
+          (or the feed's short-week flag), LONG at 10+ (a bye), else NORMAL; the days ride the chip's title. */}
       {rest && (
-        <div style={{ display: 'flex', gap: 12, minHeight: 36, alignItems: 'center', borderTop: `1px solid ${C.border}`, fontSize: 13 }}>
-          <span style={{ flex: '0 0 100px', color: C.text2 }}>Rest</span>
-          <span style={{ color: C.text, fontWeight: 700 }}>{g.away} {g.away_rest_days} days{g.away_short_week ? ' (short week)' : ''} · {g.home} {g.home_rest_days} days{g.home_short_week ? ' (short week)' : ''}</span>
+        <div style={{ display: 'flex', gap: 8, minHeight: 40, alignItems: 'center', flexWrap: 'wrap', borderTop: `1px solid ${C.border}`, fontSize: 13 }}>
+          <span style={{ flex: '0 0 56px', color: C.text2 }}>Rest</span>
+          {[[g.away, g.away_rest_days, g.away_short_week], [g.home, g.home_rest_days, g.home_short_week]].map(([t, d, sw]) => {
+            const word = restWord(d, sw)
+            const hot = word !== 'NORMAL'
+            return (
+              <span key={t} title={`${t}: ${d} days of rest`} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 999, border: `1px solid ${hot ? C.green : C.border2}`, color: hot ? C.green : C.text2, font: `800 11px/1.2 ${NUM_FONT}`, letterSpacing: '.06em' }}>
+                <TeamMark sport="nfl" abbr={t} variant="logo" px={14} />{word}
+              </span>
+            )
+          })}
         </div>
       )}
       {soft.map(([def, s]) => (

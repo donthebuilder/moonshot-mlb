@@ -10,6 +10,7 @@ import { panelPairs, panelSubs, gameSections } from '../../lib/game/sections'
 import { GameFilterRail, SlateStrip, GamePanelPills, PanelAnchor, GameFrame, PrevNextGame } from '../slate/SlateParts'
 import GameOffDef, { Kicker } from './GameOffDef'
 import { GameHeader, KeyPlayers, MatchupScoreboard, ImportantStats } from './GameSections'
+import { GameDvp } from './tabs/Matchups'
 import ShareCardButton from '../card/ShareCardButton'
 import { shareUrl, slug, stamp, gameDay } from '../../lib/cards/saveCard'
 import { tdStatusFor } from '../../lib/nfl/tdStatus'
@@ -242,7 +243,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
           // 4. THE PLAYERS: every scored player in the game, all the numbers
           players: () => (
                 <PanelAnchor id="players" gamePk={g.game_id}>
-                  <Kicker>ALL PLAYERS IN THE GAME, BY TD SCORE</Kicker>
+                  <Kicker>EVERY PLAYER · TD SCORE</Kicker>
                   <NflTable {...full} onRowClick={(r) => onPlayerClick?.(r?._raw ?? r)} maxRows={8} maxHeight={9999}
                     caption={`${full.rows.length} players · sorted by TD score`} />
                 </PanelAnchor>
@@ -289,6 +290,9 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
                   action={<ShareCardButton sport="nfl" what="this game" style={{ margin: '-12px 0' }} url={shareUrl({ kind: 'game', sport: 'nfl', game: g.game_id })} filename={`game-${slug(g.away)}-${slug(g.home)}_${stamp(gameDay(g.kickoff))}.png`} />}
                   outLine={(() => { const oc = outCounts([g.away, g.home]); return oc?.out ? `${oc.out} out` : null })()} />
                 <GameTotalLine sport="nfl" row={gameTotals?.[String(g.game_id)]} style={{ marginTop: 8 }} />
+                {/* THE DVP GRID, AT THE TOP (Donovan 10-18): what each defense allows each role, one tap to switch clubs */}
+                <GameDvp key={g.game_id} matchup={matchup} away={g.away} home={g.home} slateSeason={data?.season}
+                  onOpenMatchups={() => { try { window.location.hash = 'sport=nfl&tab=matchups' } catch { /* ignore */ } }} />
               </div>
               <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px 14px', background: 'rgba(0,0,0,.15)' }}>
                 <GamePanelPills panels={PANELS} subs={SUBS} panel={panel} setPanel={setPanel} gamePk={g.game_id} isPhone={isPhone} accent={C.green} stickyTop="var(--gsw-h, 0px)"
