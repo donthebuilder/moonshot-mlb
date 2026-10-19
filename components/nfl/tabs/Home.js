@@ -223,7 +223,7 @@ function LookOut({ matchup, games }) {
       <SectionTitle eyebrow="BEFORE IT HAPPENS" title="The Look-Out" />
       <h3>Defenses leaking touchdowns</h3>
       <div className="tuddy-leaks">
-        {leaks.map((row) => <div key={`${row.team}-${row.role}`}><b><a className="tap-box" href={teamHref('nfl', row.team)} style={{ color: 'inherit', textDecoration: 'none' }}>{row.team}</a></b><span>{row.role}</span><em>#{row.td_rank} TD matchup · {number(row.td).toFixed(0)} allowed</em></div>)}
+        {leaks.map((row) => <div key={`${row.team}-${row.role}`}><b><a className="tap-box" href={teamHref('nfl', row.team)} aria-label={`Open ${row.team}`} style={{ color: 'inherit', textDecoration: 'none', display: 'inline-flex' }}><TeamMark sport="nfl" abbr={row.team} variant="logo" px={22} /></a></b><span>{row.role}</span><em>#{row.td_rank} TD matchup · {number(row.td).toFixed(0)} allowed</em></div>)}
         {!leaks.length && <p>The slate has no top-eight TD matchup flagged in the published defense table.</p>}
       </div>
       {/* "Who needs what" is gone (HISTORY WATCH 2 step 5, 2026-09-27): every

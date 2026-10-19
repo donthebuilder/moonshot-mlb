@@ -78,8 +78,7 @@ export default function TeamPower({ players = [], statSeason, onPlayerClick, pre
           <div key={r.team} className={`tp-row${isOpen ? ' open' : ''}`}>
             <button onClick={() => setOpen(isOpen ? null : r.team)} title={`${r.team}: passing ${r.pass.toFixed(1)} · rushing ${r.ground.toFixed(1)} · receiving ${r.air.toFixed(1)}${r.missing ? ` · ${r.missing} slot${r.missing === 1 ? '' : 's'} unfilled in the feed` : ''}`}>
               <span className="tp-rank">{i + 1}</span>
-              <TeamMark sport="nfl" variant="logo" px={24} abbr={r.team} />
-              <b>{r.team}</b>
+              <TeamMark sport="nfl" variant="logo" px={24} abbr={r.team} />{/* the logo is the club (check-logos); no code beside it */}
               <span className="tp-bar"><span style={{ width: `${(100 * r.total) / max}%` }} /></span>
               <em>{r.total.toFixed(1)}</em>
               <i>{r.missing ? '·' : ''}{isOpen ? '▲' : '▼'}</i>
@@ -112,7 +111,6 @@ export default function TeamPower({ players = [], statSeason, onPlayerClick, pre
         .tp-row{border-top:1px solid rgba(255,255,255,.06)}
         .tp-row>button{display:flex;align-items:center;gap:9px;width:100%;padding:7px 2px;background:transparent;border:none;color:inherit;cursor:pointer;text-align:left;min-width:0}
         .tp-rank{width:20px;text-align:right;font:900 11px/1 var(--num-font,ui-monospace,monospace);opacity:.55}
-        .tp-row b{width:36px;font-size:12px}
         .tp-bar{flex:1;height:8px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden;min-width:40px}
         .tp-bar>span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,${RAMP[0]},${RAMP[2]},${RAMP[5]})}
         .tp-row em{font:900 12px/1 var(--num-font,ui-monospace,monospace);font-style:normal;min-width:40px;text-align:right}
