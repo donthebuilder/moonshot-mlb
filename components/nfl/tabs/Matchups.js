@@ -251,16 +251,16 @@ export function offenseTiles(matchup, team) {
   if (p?.pressure_pct != null) {
     const r = q.rank?.[id]
     out.push({ k: 'QB PRESSURED', v: `${p.pressure_pct}%`, sub: r ? `${ordinal(r)}-most` : p.name })
-    if (p.blitz?.n >= 10 && p.no_blitz?.n >= 10) out.push({ k: 'VS BLITZ', v: `${p.blitz.ypd} yds`, sub: `${p.no_blitz.ypd} when not` })
+    if (p.blitz?.n >= 10 && p.no_blitz?.n >= 10) out.push({ k: 'BLITZED', v: `${p.blitz.ypd} yds`, sub: `a dropback · ${p.no_blitz.ypd} not blitzed` })   // 10-18: say what it is
   }
   const t = matchup?.tendencies
   const o = t?.offense?.[team]
   if (o) {
     const r = t.rank?.offense?.[team] || {}
     const gun = o.shotgun_pct != null && o.under_center_pct != null && o.shotgun_pct >= o.under_center_pct
-    if (gun ? o.shotgun_pct != null : o.under_center_pct != null) out.push({ k: gun ? 'SHOTGUN' : 'UNDER CENTER', v: `${gun ? o.shotgun_pct : o.under_center_pct}%`, sub: rk(gun ? r.shotgun_pct : r.under_center_pct, t.offense) })
-    if (o.motion_pct != null) out.push({ k: 'MOTION', v: `${o.motion_pct}%` })
-    if (o.play_action_pct != null) out.push({ k: 'PLAY-ACTION', v: `${o.play_action_pct}%`, sub: rk(r.play_action_pct, t.offense) })
+    if (gun ? o.shotgun_pct != null : o.under_center_pct != null) out.push({ k: gun ? 'SHOTGUN' : 'UNDER CENTER', v: `${gun ? o.shotgun_pct : o.under_center_pct}%`, sub: ['of snaps', rk(gun ? r.shotgun_pct : r.under_center_pct, t.offense)].filter(Boolean).join(' · ') })
+    if (o.motion_pct != null) out.push({ k: 'MOTION', v: `${o.motion_pct}%`, sub: 'of snaps' })
+    if (o.play_action_pct != null) out.push({ k: 'PLAY-ACTION', v: `${o.play_action_pct}%`, sub: ['of dropbacks', rk(r.play_action_pct, t.offense)].filter(Boolean).join(' · ') })
   }
   return out
 }
