@@ -7,7 +7,8 @@ import { STATE, alpha } from '../../lib/scales'
 import { fetchJSON, groupGames } from '../../lib/data'
 import { clean, teamOf } from '../../lib/player'
 import { Empty } from '../ui'
-import { RunHistogram, runChip as chip, runOdds } from '../runs/RunParts'
+import { runChip as chip, runOdds } from '../runs/RunParts'
+import { HeatQuadrant, ValueBars } from '../runs/StreakViews'
 import Sparkline from '../Sparkline'
 import DenseTable from '../DenseTable'
 import { boardRow, boardRowContext, withBoardColumns, placeAfter, BOARD_GROUPS } from '../../lib/boardColumns'
@@ -250,6 +251,7 @@ function DonutLine({ g }) {
 
 export default function Runs({ players = [], onPlayerClick, onOpenPitcher = null }) {
   const [data, setData] = useState(undefined)
+  const [runPick, setRunPick] = useState(null)   // the hitter whose games the value bars draw (10-18)
   const [mk, setMk] = useState('hit')
   const [thr, setThr] = useState(1)
   const [split, setSplit] = useState('all')
@@ -505,20 +507,31 @@ export default function Runs({ players = [], onPlayerClick, onOpenPitcher = null
           : `Nobody on tonight's card has five ${split === 'all' ? '' : 'qualifying '}games logged for ${label}.`} />
       ) : (
         <>
-          {/* ── WHERE TONIGHT'S RUNS ACTUALLY SIT (2026-08-31) ────────────
-              Donovan: "make the patters page cooler."
-
-              The cards were six big numbers with nothing to be big AGAINST.
-              A 13 and a 4 sat in the same row wearing the same green, and the
-              only way to learn that 13 was the tail of the board was to scroll
-              the whole board. This is that scroll, as one row: every hitter's
-              active run on this bar, stacked by length.
-
-              It is a histogram of the thing the board is sorted by, so it can
-              never disagree with the cards under it — same rows, same `run`,
-              just counted. Hot to the right, cold to the left, and the column
-              a card belongs to is the one wearing its own colour. */}
-          <RunHistogram runs={rows.map(({ r }) => r.run)} label={label} />   {/* components/runs/RunParts.js */}
+          {/* THE HEAT QUADRANT + HIS GAMES (10-18, the TUDDY streaks views carried to MOONSHOT; Donovan picked them: "copy these
+              to MLB"). Every hitter as a dot: across = how often he cleared the bar over his last 30, up = his last 5; a tap picks
+              him and draws his last 10 games as values against the bar. Replaces the run histogram (the drought / run bars he
+              disliked on TUDDY). The table under it is unchanged. components/runs/StreakViews.js. */}
+          {(() => {
+            const pts = rows.filter(({ r }) => r.l5 && (r.l30 || r.l15)).map(({ p, r }) => ({ id: String(p.player_id), name: p.name, x: Math.round((r.l30 || r.l15).pct), y: Math.round(r.l5.pct), title: `${p.name}: last ${(r.l30 || r.l15).n} ${(r.l30 || r.l15).ok}/${(r.l30 || r.l15).n}, last 5 ${r.l5.ok}/5` }))
+            const pick = rows.find(({ p }) => String(p.player_id) === runPick) || rows[0]
+            const last = pick ? pick.r.strip.slice(-10) : []
+            return (
+              <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', marginBottom: 12 }}>
+                <section aria-label="Heat quadrant" style={{ padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2 }}>
+                  <HeatQuadrant points={pts} picked={pick ? String(pick.p.player_id) : null} onPick={setRunPick} side={dir === 'hot' ? 'over' : 'under'} xLabel="→ last 30" yLabel="↑ last 5" C={C} accent={C.orange} numFont={NUM_FONT} />
+                </section>
+                {pick && (
+                  <section aria-label={`${pick.p.name}: his games against ${label}`} style={{ padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+                      <button type="button" className="tap-box" onClick={() => onPlayerClick?.(pick.p)} style={{ border: 0, background: 'transparent', padding: 0, color: C.text, font: `900 15px/1.2 ${NUM_FONT}`, cursor: 'pointer' }}>{pick.p.name} ›</button>
+                      <span style={{ fontFamily: NUM_FONT, fontSize: 12, color: C.text3 }}>L5 <b style={{ color: C.text }}>{Math.round(pick.r.l5?.pct ?? 0)}%</b>{pick.r.l15 ? ` · L15 ${Math.round(pick.r.l15.pct)}%` : ''}{pick.r.l30 ? ` · L30 ${Math.round(pick.r.l30.pct)}%` : ''}</span>
+                    </div>
+                    <ValueBars values={last.map((g) => ({ v: g.v, label: String(g.date || '').slice(5).replace('-', '/') }))} line={bar} ariaLabel={`${pick.p.name}'s last ${last.length} games against ${label}`} C={C} accent={C.orange} numFont={NUM_FONT} />
+                  </section>
+                )}
+              </div>
+            )
+          })()}
 
           <DenseTable
             key={dir}
