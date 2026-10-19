@@ -20,12 +20,21 @@ const WORD = {
 export default function FirstScorers({ sport, C, numFont, accent, day = null, emptyWhy, onOpenPlayer, onOpenGame = null }) {
   const [data, setData] = useState(null)
   const [err, setErr] = useState(false)
+  // FRESH WHEN YOU COME BACK (10-18: the list still showed Thursday's game hours into Sunday, though nfl_td_feed had the
+  // London game's first TD at 13:59 UTC, ~10 minutes after the play). It was read once, at mount; an app tab opened before
+  // kickoff kept it all day. Now it is read again when the tab comes back into view. No timer, no polling.
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    const back = () => { if (document.visibilityState === 'visible') setTick((n) => n + 1) }
+    document.addEventListener('visibilitychange', back)
+    return () => document.removeEventListener('visibilitychange', back)
+  }, [])
   useEffect(() => {
     let alive = true
     fetch(`/api/ledger/first?sport=${sport}${day ? `&day=${day}` : ''}`).then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-      .then((j) => { if (alive) setData(j) }).catch(() => { if (alive) setErr(true) })
+      .then((j) => { if (alive) { setData(j); setErr(false) } }).catch(() => { if (alive && !data) setErr(true) })
     return () => { alive = false }
-  }, [sport, day])
+  }, [sport, day, tick]) // eslint-disable-line react-hooks/exhaustive-deps
   const w = WORD[sport]
   const s = data?.season
   return (
