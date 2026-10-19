@@ -24,6 +24,9 @@ const IN_PAGE = {
     bot: ['components/Dashboard.js', 'the lower half of Props (Dashboard routing)'],
     triples: ['components/Storylines.js', 'Gap / Storylines link'],
   },
+  nhl: {
+    shots: ['components/lamp/LampDashboard.js', "Rankings' SHOTS market chip (m=sog -> shots); out of More 10-18"],
+  },
 }
 
 const SPORTS = [['mlb', R.MLB_TABS, R.MLB_MORE_GROUPS], ['nfl', R.NFL_TABS, R.NFL_MORE_GROUPS], ['nhl', R.NHL_TABS, R.NHL_MORE_GROUPS], ['nba', R.NBA_TABS, R.NBA_MORE_GROUPS]]
