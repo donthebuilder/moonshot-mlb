@@ -92,7 +92,8 @@ export default function DefensesTable({ matchup, data, win = 'season', active, o
   const sample = !lastSeason && gLo != null ? `${gLo === gHi ? gLo : `${gLo}-${gHi}`} games this season` : ''
   const swapped = Object.keys(matchup?.dvp_team_season || {}).filter((t) => rows.some((r) => r.def === t)).length
   const lead = rows[0]
-  const btn = { minHeight: 44, padding: '0 12px', borderRadius: 10, border: `1px solid ${C.border2}`, background: C.bg2, color: C.green, font: `800 11px/1 ${NUM_FONT}`, cursor: 'pointer' }
+  // small pills, side by side (10-18: "Show tags / All 32 defenses ... way too big"); className tap-box gives the 44px tap area
+  const btn = { minHeight: 0, padding: '6px 12px', borderRadius: 999, border: `1px solid ${C.border2}`, background: C.bg2, color: C.green, font: `800 11px/1 ${NUM_FONT}`, cursor: 'pointer' }
   return (
     <section aria-label="The defenses to attack this week" style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
@@ -120,15 +121,11 @@ export default function DefensesTable({ matchup, data, win = 'season', active, o
       <p style={{ margin: '6px 0 0', fontSize: 11, lineHeight: 1.5, color: C.text3 }}>
         Edge: how far above average this defense gives up. 1.0+ = a soft spot. <QMark label="About Edge" text="Edge counts how many standard deviations a defense's softest starter-role matchup sits above the league average for that role and stat. Starters only: depth roles swing on two plays." />{lastSeason ? ' Last season\'s numbers until three weeks are played.' : ''}
       </p>
-      <div style={{ marginTop: 6 }}>
-        <button type="button" onClick={() => setShowTags((v) => !v)} aria-pressed={showTags} style={{ ...btn, color: showTags ? C.green : C.text3 }}>{showTags ? 'Hide tags' : 'Show tags'}</button>
+      <div style={{ marginTop: 6, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="button" className="tap-box" onClick={() => setShowTags((v) => !v)} aria-pressed={showTags} style={{ ...btn, color: showTags ? C.green : C.text3 }}>{showTags ? 'Hide tags' : 'Show tags'}</button>
+        {/* Off-slate defenses only exist in a bye week; the switch shows then. */}
+        {(all || byeWeek) && <button type="button" className="tap-box" onClick={() => setAll((v) => !v)} aria-pressed={all} style={{ ...btn, color: all ? C.green : C.text3 }}>{all ? 'This week only' : 'All 32 defenses'}</button>}
       </div>
-      {/* Off-slate defenses only exist in a bye week; the switch shows then. */}
-      {(all || byeWeek) && (
-        <div style={{ marginTop: 6 }}>
-          <button type="button" onClick={() => setAll((v) => !v)} aria-pressed={all} style={{ ...btn, color: all ? C.green : C.text3 }}>{all ? 'This week only' : 'All 32 defenses'}</button>
-        </div>
-      )}
     </section>
   )
 }
