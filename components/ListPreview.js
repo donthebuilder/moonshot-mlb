@@ -10,15 +10,20 @@ import { C, NUM_FONT } from '../lib/theme'
 // "Show N more" toggle) for the watchlist; this lifts that same mechanism
 // and look out to a shared place so the next wall-of-N reuses it instead of
 // growing its own slightly-different cap, which is its own kind of clutter.
-export function usePreview(items = [], n = 5) {
+//
+// ONE SHOW-MORE RULE (Donovan 10-18: "show eight more out of the 28 -- just show all or don't show
+// that at all ... show like four or three if you're gonna have a show more"): a list previews 4,
+// then ONE tap shows all of it. The button says the whole count ("All 28"), never "Show 8 more".
+export const PREVIEW_ROWS = 4
+export function usePreview(items = [], n = PREVIEW_ROWS) {
   const [open, setOpen] = useState(false)
   const shown = open ? items : items.slice(0, n)
   const restN = Math.max(0, items.length - shown.length)
   const toggle = () => setOpen((v) => !v)
-  return { shown, open, restN, toggle }
+  return { shown, open, restN, toggle, total: items.length }
 }
 
-export function ShowMoreButton({ open, restN, toggle, itemWord = '' }) {
+export function ShowMoreButton({ open, restN, toggle, itemWord = '', total = null }) {
   if (restN <= 0 && !open) return null
   return (
     <button
@@ -34,7 +39,7 @@ export function ShowMoreButton({ open, restN, toggle, itemWord = '' }) {
         color: C.text3, letterSpacing: '.04em',
       }}
     >
-      {open ? 'Show less' : `Show ${restN} more${itemWord ? ` ${itemWord}` : ''}`}
+      {open ? 'Fewer' : total ? `All ${total}${itemWord ? ` ${itemWord}` : ''}` : `+${restN} more${itemWord ? ` ${itemWord}` : ''}`}
     </button>
   )
 }

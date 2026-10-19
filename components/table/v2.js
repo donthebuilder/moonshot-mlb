@@ -55,6 +55,10 @@ export function roleHue(v, C) {
 }
 
 // the one short line that explains tiers (it is also the ＋ tier button's tooltip, and it is printed on screen while a tier is being added, so a tap reads it too)
+// What may ride the phone sub-line under a name (10-18): a position, with an optional depth number.
+const SUB_POS = /^(QB|RB|WR|TE|FB|K|P|DST|DEF|SP|RP|C|1B|2B|3B|SS|LF|CF|RF|DH|OF|IF|UT|LW|RW|D|G|F|PG|SG|SF|PF)\d?$/
+// An opponent column (opp, oppTxt, vs, opponent): never under the name.
+const OPP_KEY = /^(opp|vs$|opponent)/i
 const TIER_HELP = 'Your first column groups the rows (top, middle, bottom). Each column you add puts the rows in order inside their group.'
 const headBtn = { background: 'none', border: 'none', color: 'inherit', textDecoration: 'underline dotted', cursor: 'pointer', fontFamily: 'inherit', fontSize: 10, padding: '11px 8px', margin: '-11px -2px -11px 4px', minHeight: 0, lineHeight: 1 }
 const SORT_ALPHA = 0.35
@@ -153,7 +157,8 @@ export function v2Css(C, ac, NUM_FONT) {
     /* on a mouse, the ⓘ's tap padding must not swallow a click meant to sort */
     @media (pointer: fine) { .dtv2 .h-row th .explain-dot { padding: 2px 3px !important; margin: -2px -1px -2px 2px !important; } }
     /* on touch, the ⓘ's tap padding must exist wherever a v2 table renders: MobileCSS only mounts in the app shell, so on /called and /start the ⓘ was a bare 10x11 (check-mobile, landscape). Same box as MobileCSS's, negative margins keep the label where it was. */
-    @media (pointer: coarse) { .dtv2 .h-row th .explain-dot { display: inline-block; padding: 17px 17px; margin: -17px -15px -17px -8px; } }
+    /* 10-18: no info dot in the headers on a touch screen. It sat on the spot you tap to sort or add a tier; the table's one Columns tap explains them all. */
+    @media (pointer: coarse) { .dtv2 .h-row th .explain-dot { display: none !important; } }
     .dtv2 .h-row th > span { line-height: 0; }
     /* DESKTOP FIT (2026-10-03, Donovan: "columns on desktop need to be sized
        right"): a header label may wrap to two lines at its spaces, so a
@@ -216,7 +221,11 @@ export function v2Css(C, ac, NUM_FONT) {
       .dtv2 .h-row th.long { white-space: normal; line-height: 1.15; vertical-align: bottom; min-width: 0 !important; }
       .dtv2 .bar { width: 20px; margin-right: 4px; }
       /* the pieces of the sub-line (status, club, opponent) wrap onto a second line rather than ending in an \"…\" (2026-10-07: a phone's tap targets are 32px wide, so three of them never fit one 110px line) */
-      .dtv2 .sub { display: flex; flex-wrap: wrap; align-items: center; gap: 0 7px; font: 700 8.5px/1.15 ${NUM_FONT}; color: ${C.text3}; letter-spacing: .02em; margin-top: 1px; }
+      .dtv2 .sub { display: flex; flex-wrap: nowrap; overflow: hidden; align-items: center; gap: 0 7px; font: 700 8.5px/1.15 ${NUM_FONT}; color: ${C.text3}; letter-spacing: .02em; margin-top: 1px; }
+      /* 10-18: the logo under the name is a link, and the site's touch rule gave its button a 32px floor, so every
+         row was 50px, not 32px. The layout box is the 11px logo again; the tap box is 9px / 10px of invisible
+         padding handed back as negative margin (the player cell's chip trick), so the logo stays a ~30px target. */
+      .dtv2 .sub .tap-link, .dtv2 .sub button { min-height: 0 !important; min-width: 0 !important; padding: 9px 10px !important; margin: -9px -10px !important; line-height: 0; }
       /* the dots between the pieces of the sub-line are tight (2026-10-07): spaces around them pushed the opponent off a 122px cell as an "…" */
       .dtv2 .sub .dot { margin: 0 3px; }
       /* a phone shows the whole sub-line again (status, club, opponent), and a called row still drops the opponent's logo */
@@ -582,27 +591,28 @@ export function renderV2(ctx) {
                     if (!folds(fc) || fc.action) continue
                     const fv = r[fc.key]
                     if (isBlank(fv)) continue
-                    // a called row has no room for the opponent at 122px (plan: rough edge)
                     if (logoOf(fc)) {
-                      // logos only (Donovan 10-02: "just do logos simple"); the code rides the logo's title / alt
-                      // the logo is a link like its own column's: the column's link, else the
-                      // product's team door (a tap on the sub-line logo used to fall through to the row's player card)
-                      // a sub-only opponent keeps its code beside the logo on desktop, where there is room (the
-                      // phone's called rows still drop it, see the `opp-called` rule in the sheet)
-                      const dropOnCalled = called && !firstTeam
-                      if (fc.subOnly || !dropOnCalled) {
-                        // the logo alone (2026-10-15: the code printed beside it was a bare club code; it rides the logo's title / alt)
-                        const mk = <TeamMark sport={logoOf(fc)} abbr={fv} variant="logo" px={11} />
-                        const goTeam = fc.link ? fc.link(r._raw ?? r) : (onOpenTeam && /^[A-Z]{2,4}$/.test(String(fv)) ? () => onOpenTeam(String(fv)) : null)
-                        sub.push(<span key={fc.key} data-vs={firstTeam ? undefined : 1} data-cls={fc.subOnly ? `sub-only${dropOnCalled ? ' opp-called' : ''}` : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>{firstTeam ? null : 'v '}{goTeam ? <Tap onClick={goTeam}>{mk}</Tap> : mk}</span>)
-                      }
+                      // ONE LOGO UNDER THE NAME (Donovan 10-18: "one team logo is fine, not all this other extra shit
+                      // under the name"): his club only. The opponent left the sub-line, as it left the player name
+                      // cell on 10-14; the matchup is on every page already. The logo alone; the code rides its title / alt.
+                      if (!firstTeam || OPP_KEY.test(fc.key)) continue
+                      const mk = <TeamMark sport={logoOf(fc)} abbr={fv} variant="logo" px={11} />
+                      const goTeam = fc.link ? fc.link(r._raw ?? r) : (onOpenTeam && /^[A-Z]{2,4}$/.test(String(fv)) ? () => onOpenTeam(String(fv)) : null)
+                      sub.push(<span key={fc.key} style={{ display: 'inline-flex', alignItems: 'center' }}>{goTeam ? <Tap onClick={goTeam}>{mk}</Tap> : mk}</span>)
                       firstTeam = false
                     } else if (fc.key !== 'role' && !fc._status) {
                       // a short folded value (POS "RB", a G2) rides the sub-line; a long one
                       // (a role sentence) stays on the desktop column only. A sub-only value (the
                       // opponent, a game) is always short enough and keeps its own link.
                       const txt = String(fc.fmt ? fc.fmt(fv, r) : fv)
-                      if (fc.subOnly || txt.length <= 6) {
+                      // 10-18: under the name rides a position (WR, RB1, LW, SS) or a sub-only label that tells a
+                      // player's rows apart (the market on the calls sheet, LAMP's game). A line ("1+"), the
+                      // opponent and other short codes stay in their own columns.
+                      // His club as a text code (Pairs' "LA") is his logo, the same one logo as a logo column.
+                      const ownCode = sport && !OPP_KEY.test(fc.key) ? teamCodeOf(fc.key, txt) : null
+                      if (ownCode && !firstTeam) continue
+                      if (ownCode) firstTeam = false
+                      if (ownCode || (fc.subOnly ? !OPP_KEY.test(fc.key) : SUB_POS.test(txt.trim()))) {
                         const goT = fc.link ? fc.link(r._raw ?? r) : (onOpenTeam && teamCodeOf(fc.key, txt) ? () => onOpenTeam(teamCodeOf(fc.key, txt)) : null)
                         const subCode = sport ? teamCodeOf(fc.key, txt) : null   // an opponent / team code is its logo, not text
                         const shownTxt = subCode ? <TeamMark sport={sport} abbr={subCode} variant="logo" px={11} /> : txt
@@ -833,22 +843,37 @@ export function renderV2(ctx) {
       {gateOf && gateOf.hidden > 0 && <HiddenCalledLine n={gateOf.hidden} C={C} NUM_FONT={NUM_FONT} style={{ marginTop: 2 }} />}
       {!bare && <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          {(() => {
-            const full = caption || 'Colour follows what you sort by: the sorted column is graded, ▲ above the middle of the rows on screen, ▼ below. Click a header to sort, a row to open the hitter.'
-            const m = String(full).match(/^([\s\S]*?[.!?])\s+(?=[A-Z“"])/)
-            const headTxt = m ? m[1] : full
-            const rest = m ? String(full).slice(m[0].length) : ''
-            return (
-              <div style={{ marginTop: 6 }}>
-                {headTxt}{rest && <>{' '}
-                  <button type="button" onClick={() => setCapOpen((v) => !v)} style={{ background: 'none', border: 'none', padding: '17px 10px', margin: '-17px -10px', minHeight: 0, cursor: 'pointer', color: C.text2, fontSize: 9.5, textDecoration: 'underline dotted', textUnderlineOffset: 3, fontFamily: 'inherit' }}>{capOpen ? 'less ▴' : 'why ▸'}</button>
-                  {capOpen && <> {rest} <b style={{ color: C.text2 }}>To sort in tiers,</b> tap {'\uff0b'} Tiers (or shift-click a header), then tap the next column: {TIER_HELP} Blanks always sort to the bottom.</>}
-                </>}
-              </div>
-            )
-          })()}
+          {/* THE COLOUR KEY (10-18, Donovan: someone said they don't understand the colours): one line of
+              swatches instead of a sentence, and ONE Columns tap that explains every column at once (the
+              per-header info dot is gone on touch screens: it sat on the spot you tap to sort or add a tier). */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 12px', marginTop: 6, fontSize: 11, lineHeight: 1.3, color: C.text3 }}>
+            {heatMode !== 'none' && <>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><i aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 3, background: withAlpha(ac, 0.34), display: 'inline-block' }} />top 20%</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><i aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 3, background: C.bg, border: `1px solid ${C.border}`, display: 'inline-block' }} />bottom 20%</span>
+              <span>▲▼ vs the middle</span>
+            </>}
+            <button type="button" onClick={() => setCapOpen((v) => !v)} aria-expanded={capOpen}
+              style={{ background: 'none', border: 'none', padding: '14px 8px', margin: '-14px -8px', minHeight: 0, cursor: 'pointer', color: capOpen ? ac : C.text2, fontSize: 11, fontWeight: 700, textDecoration: 'underline dotted', textUnderlineOffset: 3, fontFamily: 'inherit' }}>{capOpen ? 'Columns ▴' : 'Columns ▸'}</button>
+          </div>
+          {capOpen && (
+            <div style={{ marginTop: 8, padding: '8px 10px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, lineHeight: 1.45, color: C.text2 }}>
+              {caption ? <div style={{ marginBottom: 6 }}>{caption}</div> : null}
+              {columns.filter((c) => !c._status && !isRank(c) && !c.action && String(c.label || '').trim()).map((c) => {
+                const plain = c.explain || (dict ? explainFrom(dict, c.term, c.key, c.label) : explainFor(c.term, c.key, c.label)) || (c.answers ? ANSWERS[c.answers]?.what : null)
+                if (!plain) return null
+                return (
+                  <div key={c.key} style={{ padding: '3px 0' }}>
+                    <b style={{ color: C.text, fontFamily: NUM_FONT, fontSize: 11, letterSpacing: '.04em' }}>{c.label}</b>{' '}{typeof plain === 'string' ? plain : null}
+                    {(c.art || c.answers) && <button type="button" onClick={() => setExplain({ key: c.key, label: c.label, text: plain, art: c.art || null, answers: c.answers || null })}
+                      style={{ background: 'none', border: 'none', padding: '10px 6px', margin: '-10px -2px -10px 4px', minHeight: 0, cursor: 'pointer', color: ac, fontSize: 11, fontFamily: 'inherit' }}>more ›</button>}
+                  </div>
+                )
+              })}
+              <div style={{ marginTop: 6, color: C.text3 }}><b style={{ color: C.text2 }}>Tiers:</b> tap {'＋'} Tiers, then a header. {TIER_HELP} Blanks sort last.</div>
+            </div>
+          )}
           {truncated > 0 && (
-            <ShowMoreButton open={false} restN={Math.min(moreStep || maxRows, truncated)} toggle={() => setExtra((n) => n + (moreStep || maxRows))} itemWord={`of ${sorted.length}`} />
+            <ShowMoreButton open={false} restN={truncated} total={sorted.length} toggle={() => setExtra(sorted.length)} />
           )}
           {extra > 0 && (
             <ShowMoreButton open restN={0} toggle={() => setExtra(0)} />

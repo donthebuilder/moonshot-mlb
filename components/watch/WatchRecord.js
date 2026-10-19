@@ -142,7 +142,7 @@ export default function WatchRecord({ sport = 'mlb', pricesPath = null, theme = 
         caption={`Your list first, then each ${S.noun}. Tap a name for his card.`}
         onRowClick={onOpen ? (r) => { if (!r._list) onOpen(r) } : null}
         dimRow={(r) => !r._list && r.starts < 3} />
-      <ShowMoreButton open={preview.open} restN={preview.restN} toggle={preview.toggle} itemWord="names" />
+      <ShowMoreButton open={preview.open} restN={preview.restN} toggle={preview.toggle} total={preview.total} itemWord="names" />
       <div style={{ fontSize: 9, color: C.text3, lineHeight: 1.55, marginTop: 6 }}>
         A night counts when he was on your list for that game and the game is over — saved and didn&apos;t play is
         <b style={{ color: C.text2 }}> void, not a miss</b>. Results are his own line from the game log.
