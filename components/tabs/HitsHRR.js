@@ -5,6 +5,8 @@ import { useCalledLastLens } from '../../lib/calledLast/useCalledLast'
 import { leaveTarget } from '../../lib/openTarget'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
+import NotScoredTable from '../table/NotScoredTable'
+import { useMlbNotScored, notScoredHitters, MLB_NOT_SCORED_COLUMNS } from '../../lib/mlb/notScored'
 import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import LensRow, { LensAnswer } from '../LensRow'
 import RankedBoard, { CARD_TYPES } from './RankedBoard'
@@ -496,6 +498,8 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
   // rather than guessing. Lifted here (not left inside RankedBoard) so the
   // filter panel — bar, band, score range, games, chips — survives a lens
   // switch instead of silently resetting every time view changes.
+  const nsFile = useMlbNotScored(slateDate, rankings)
+  const unscored = useMemo(() => notScoredHitters(nsFile, slateDate), [nsFile, slateDate])
   // CALLED LAST NIGHT (2026-10-10): the previous slate's calls and results; a filter in the sheet, a section under the board
   const cln = useCalledLastLens('mlb', slateDate, null, { enabled: rankings && Boolean(slateDate) })
   // POSITION (2026-10-10): Rankings only; the pills and pos= ride the shared filter (components/BoardFilters.js)
@@ -786,6 +790,12 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
           {/* UNDER THE BOARD on every width, so the first ranked row does not move */}
           {rankings && <CalledLastNight lens={cln} accent={C.orange} logoSport="mlb"
             onOpen={(r) => { const p = (allPlayers.length ? allPlayers : players).find((x) => String(mlbId(x)) === r.pid); if (p) onPlayerClick?.(p) }} />}
+          {/* NOT SCORED (10-18): lineup hitters the PA filter left off the board, with their season line (lib/mlb/notScored.js) */}
+          {rankings && <NotScoredTable rows={unscored} columns={MLB_NOT_SCORED_COLUMNS} theme={C} teamMark="mlb"
+            faceOf={(r) => ({ sport: 'mlb', id: String(r.id), name: r.name })}
+            // MOONSHOT's player card is built for slate hitters: off the slate it fills a grade and a pick he does not have,
+            // so an unscored man opens his own MLB.com page (real numbers, nothing of ours)
+            onOpen={(r) => { if (r.id) window.open(`https://www.mlb.com/player/${encodeURIComponent(r.id)}`, '_blank', 'noopener,noreferrer') }} />}
         </>
       )}
     </div>
