@@ -7,6 +7,7 @@ import { useBucketsExpected } from '../../../lib/nba/useBuckets'
 import { useGatedBoard } from '../useGatedBoard'
 import { NBA_MARKETS, LEG_LABEL, fmtLeg, RAW_OF } from '../../../lib/nba/legs'
 import BucketsTable from '../BucketsTable'
+import NotScoredTable from '../../table/NotScoredTable'
 import { faceOf, XPTS_TITLE } from '../boardTable'
 import { EmptyState, DelayedBanner, Loading, DayPager, Why, fmtDay, fmtTip } from '../ui'
 
@@ -31,6 +32,12 @@ const LEG_KEYS = (() => {
 
 // `embedded`: drawn inside the Rankings page (Board.js, the ALL MARKETS pill), which owns the header and the day.
 // `keep`: the Rankings page's search / team / game filters, as a predicate on a row
+const NBA_NOT_SCORED = [
+  { key: 'GP', label: 'GP', group: 'Season', w: 40, dp: 0 }, { key: 'MIN', label: 'MIN', group: 'Per game', w: 44, dp: 1 },
+  { key: 'PTS', label: 'PTS', group: 'Per game', w: 44, dp: 1 }, { key: 'REB', label: 'REB', group: 'Per game', w: 44, dp: 1 },
+  { key: 'AST', label: 'AST', group: 'Per game', w: 44, dp: 1 }, { key: '3PM', label: '3PM', group: 'Per game', w: 44, dp: 1 },
+]
+
 export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onOpenGame, embedded = false, keep = null, empty = null }) {
   const pts = useGatedBoard(date, 'pts'), reb = useGatedBoard(date, 'reb'), ast = useGatedBoard(date, 'ast')
   const tpm = useGatedBoard(date, '3pm'), pra = useGatedBoard(date, 'pra'), first = useGatedBoard(date, 'first')
@@ -41,7 +48,7 @@ export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onO
   const data = pts.data
   const shown = data?.date || date
   const games = data?.games || []
-  const rows = useMemo(() => {
+  const allRows = useMemo(() => {
     const by = new Map()
     const gm = new Map(games.map((g) => [g.id, g]))
     for (const k of KEYS) {
@@ -52,11 +59,20 @@ export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onO
         row[`s_${k}`] = r.score
         for (const [lk, lv] of Object.entries(r.legs || {})) if (lv != null && row[lk] == null) row[lk] = lv
         row[`st_${k}`] = r.status
+        if (r.line && !row.line) row.line = r.line
+        if (r.reason && !row.reason) row.reason = r.reason
         by.set(id, row)
       }
     }
-    return [...by.values()].filter((r) => KEYS.some((k) => r[`s_${k}`] != null) && (!keep || keep(r)))
+    return [...by.values()].filter((r) => (!keep || keep(r)))
   }, [games, xptsBy, keep, pts.data, reb.data, ast.data, tpm.data, pra.data, dd.data, td.data, first.data]) // eslint-disable-line react-hooks/exhaustive-deps
+  const rows = useMemo(() => allRows.filter((r) => KEYS.some((k) => r[`s_${k}`] != null)), [allRows])
+  // NOT SCORED (10-18, components/table/NotScoredTable): ranked in no market tonight, shown with his season line
+  const unscored = useMemo(() => allRows.filter((r) => !KEYS.some((k) => r[`s_${k}`] != null)).map((r) => ({
+    _id: r._id, id: r.playerId, name: r.name, team: r.team, pos: r.pos,
+    why: /\bout\b/i.test(r.reason || '') ? 'out' : /fewer than/i.test(r.reason || '') ? 'few games' : 'no line',
+    GP: r.line?.gp ?? null, MIN: r.line?.min ?? null, PTS: r.line?.pts ?? null, REB: r.line?.reb ?? null, AST: r.line?.ast ?? null, '3PM': r.line?.tpm ?? null,
+  })).sort((a, b) => (b.MIN || 0) - (a.MIN || 0) || String(a.name).localeCompare(String(b.name))), [allRows])
   const calledN = rows.reduce((n, r) => n + KEYS.filter((k) => r[`st_${k}`] === 'called').length, 0)
   const columns = [
     { key: 'name', label: 'Player', group: 'Player', w: 150, heat: false, bold: true, sticky: true },
@@ -89,6 +105,8 @@ export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onO
           initialSort={{ key: 's_pts', dir: 'desc' }} heatMode="sorted" maxHeight={620} maxRows={Math.max(rows.length, 1)}
           caption="Every rated player, every market. Column headers sort; each row opens that player; the team and opponent open the club." />
       )}
+      <NotScoredTable rows={unscored} Table={BucketsTable} theme={C} teamMark="nba" onOpenTeam={onOpenTeam}
+        columns={NBA_NOT_SCORED} faceOf={(r) => ({ sport: 'nba', id: r.id, name: r.name })} onOpen={onOpenPlayer ? (r) => onOpenPlayer(r.id) : null} />
     </div>
   )
 }

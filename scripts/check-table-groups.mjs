@@ -41,7 +41,7 @@ function literals(src) {
     // ...and a tab / option list (const TABS = [ { key, label } ], VIEW_OPTIONS, PANELS): a menu, not a table
     const before = src.slice(Math.max(0, i - 1500), i)
     const inMenu = /\b\w*(?:TABS|OPTIONS|VIEWS|PANELS|options)\s*=\s*\{?\[[^\]]*$/.test(before)
-    const notColumn = props.includes('order') || props.includes('text') || inMenu
+    const notColumn = props.includes('order') || props.includes('text') || props.includes('onClear') || inMenu   // onClear: an active-filter chip
     if (!notColumn && /^\{\s*(?:answers:[^,]+,\s*)?key:\s*['"`$\w]/.test(body) && /\blabel:/.test(body)) {
       const flat = body.replace(/\{[^{}]*\}/g, '{}')   // ignore nested objects when looking for the property
       out.push({ at: i, body, ungrouped: !/\bgroup\b/.test(body) && !/\.\.\.\w+/.test(flat.slice(1, 40)) })

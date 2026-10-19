@@ -16,6 +16,9 @@ import { twoBoard } from '../../../lib/nfl/twoScore'
 import HowToRead from '../../HowToRead'
 import { STATUS_WORD } from '../../../lib/callStatus'
 import Boards from './Boards'
+import NotScoredTable from '../../table/NotScoredTable'
+import NflTable from '../NflTable'
+import { notScoredRows, NOT_SCORED_COLUMNS } from '../../../lib/nfl/notScored'
 import Picks from './Picks'
 import { tdStatusFor } from '../../../lib/nfl/tdStatus'
 import { useGameCalls } from '../GameCalls'
@@ -126,6 +129,12 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
   const teams = useMemo(() => [...new Set((slate?.players || data?.players || []).map((p) => p.team).filter(Boolean))].sort(), [slate, data])
   const games = useMemo(() => nflGameOptions(slate?.games || data?.games), [slate, data])
   const top = { query, team, game }
+  // NOT SCORED (10-18): this market's positions (TD's for the own-model markets), ranked by nobody, with their numbers
+  const unscored = useMemo(() => {
+    const ms = data?.markets || []
+    const spec = ms.find((m) => m.key === market) || ms.find((m) => m.key === 'TD')
+    return notScoredRows(data?.players, spec?.positions, team || 'all')
+  }, [data, market, team])
   // The row the "How to read this" picture draws: this week's real #1 on the
   // TD board (tdPool, the board's own order). Its label comes from
   // tdCallStatus -- on the bot's card (picks.card.TD) = CALLED, top third =
@@ -223,6 +232,9 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
           : market === 'TD'
           ? <Touchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} oddsStatus={oddsStatus} logs={logs} top={top} results={results} liveSnap={liveSnap} statusOf={tdStatus.statusOf} showOpts={!phone || opts} viewCtl={viewCtl} />
           : <Boards data={data} logs={logs} matchup={matchup} onPlayerClick={onPlayerClick} odds={odds} oddsStatus={oddsStatus} market={market} hideMarketPicker top={top} showOpts={!phone || opts} viewCtl={viewCtl} />}
+      {view === 'board' && <NotScoredTable rows={unscored} columns={NOT_SCORED_COLUMNS} Table={NflTable} theme={C} teamMark="nfl"
+        faceOf={(r) => ({ sport: 'nfl', espnId: r._raw?.espn_id, team: r.team, name: r.name })}
+        onOpen={onPlayerClick ? (r) => onPlayerClick(r._raw, market) : null} />}
     </div>
   )
 }
