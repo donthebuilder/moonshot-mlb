@@ -25,7 +25,7 @@ import { useMemo, useState } from 'react'
 import { C as MLB_C, NUM_FONT as MLB_NUM } from '../../lib/theme'
 import { oddsAdapter } from '../../lib/odds/adapters'
 import { nameOf, teamOf, oppOf, n, clean } from '../../lib/player'
-import { fmtOdds, impliedPct } from '../../lib/odds'
+import { fmtOdds, impliedPct, fairOdds } from '../../lib/odds'
 import { shortBook, bookSpread } from '../../lib/odds/shop'
 import { SPORT_ACCENT } from '../../lib/sportAccent'
 import DenseTable from '../DenseTable'
@@ -69,6 +69,7 @@ export function shopRows(players, odds, A = oddsAdapter('mlb')) {
         line: Number.isFinite(line) ? line : null, std, offStd: Number.isFinite(line) && Math.abs(line - std) > 1e-9,
         books: n(q.books, books.length), linesSeen: n(q.lines_seen, lines.length || 1),
         perBook, spread, split, splitText: split ? books.map(([bk, b]) => `${shortBook(bk)} ${b.line}`).join(' / ') : '',
+        over: Number.isFinite(n(q.over, NaN)) ? n(q.over, NaN) : null,   // the consensus (median) price at the line
         best: Number.isFinite(bestOver) ? bestOver : null, bestBook: bestQ ? shortBook(bestQ.bk) : shortBook(clean(q.best_book, '')),
         worst: worstQ ? worstQ.over : null, worstBook: worstQ ? shortBook(worstQ.bk) : '',
         // LINE MOVES, where we hold history (the feed's opening price against our latest read; lib/odds/lineMove.js)
@@ -81,6 +82,84 @@ export function shopRows(players, odds, A = oddsAdapter('mlb')) {
     })
   })
   return { rows: out, hasByBook }
+}
+
+/**
+ * SPOT IT (Donovan 10-18: the odds page should "help people spot discrepancies"; he picked the outlier book, line moves and the
+ * fair price, up front). Three short lists over the same rows the Line shop builds (shopRows), so the numbers match the tables:
+ *   OUTLIER BOOK   one book's price well longer than the median of the others at the same line (3+ books), in break-even points
+ *   MOVED          the price's move since it opened (the feed's from_open_pp), ▲ shortened (money came in), ▼ drifted
+ *   BEATS FAIR     the best price against the market's own no-vig price (fair_over): how many points better than fair
+ * Four each, biggest first; a list with nothing in it is not drawn. A tap opens the player. Nothing here is a call.
+ */
+export function spotLists(rows, startedOf = null) {
+  const amer = (v) => Number.isFinite(v) && Math.abs(v) >= 100   // a real American price (a 0 or a blank is no price)
+  // only what can still be bet: a frozen quote (game under way) and a game that has kicked off are left out
+  rows = rows.filter((r) => !r.frozen && !(startedOf && startedOf(r._p)))
+  const med = (xs) => { const v = [...xs].sort((a, b) => a - b); const m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2 }
+  const outlier = []
+  for (const r of rows) {
+    const at = Object.entries(r.perBook || {}).filter(([, b]) => amer(b.over) && (r.line == null || b.line === r.line))
+    if (at.length < 3) continue
+    let best = null
+    for (const [bk, b] of at) {
+      const mine = impliedPct(b.over), others = med(at.filter(([k]) => k !== bk).map(([, o]) => impliedPct(o.over)))
+      const diff = others - mine   // positive: this book pays longer than the rest
+      if (!best || diff > best.diff) best = { bk, price: b.over, diff, others }
+    }
+    if (best && best.diff >= 2) outlier.push({ r, ...best })
+  }
+  const moved = rows.filter((r) => r.moveOpen != null && !r.lineChanged && Math.abs(r.moveOpen) >= 1.5 && amer(r.openOver) && amer(r.over))
+  const fair = rows.filter((r) => amer(r.fairOver) && amer(r.best)).map((r) => ({ r, gap: impliedPct(r.fairOver) - impliedPct(r.best) })).filter((x) => x.gap >= 1)
+  return {
+    outlier: outlier.sort((a, b) => b.diff - a.diff).slice(0, 4),
+    moved: moved.sort((a, b) => Math.abs(b.moveOpen) - Math.abs(a.moveOpen)).slice(0, 4),
+    fair: fair.sort((a, b) => b.gap - a.gap).slice(0, 4),
+  }
+}
+
+export function OddsSpot({ players = [], odds = null, onPlayerClick, sport = 'mlb', theme = null, numFont = null, startedOf = null }) {
+  const C = theme || MLB_C, NUM_FONT = numFont || MLB_NUM
+  const A = oddsAdapter(sport)
+  const accent = SPORT_ACCENT[A.sport] || C.orange
+  const { rows } = useMemo(() => shopRows(players, odds, A), [players, odds, A])
+  const L = useMemo(() => spotLists(rows, startedOf), [rows, startedOf])
+  if (!L.outlier.length && !L.moved.length && !L.fair.length) return null
+  const pts = (v) => `${Math.abs(v).toFixed(1)} pts`
+  const box = { padding: '9px 11px', border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2, minWidth: 0 }
+  const head = (t, sub) => <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}><span style={{ font: `900 11px/1 ${NUM_FONT}`, letterSpacing: '.1em', color: accent }}>{t}</span><span style={{ fontSize: 11, color: C.text3 }}>{sub}</span></div>
+  const line = (key, r, right, sub) => (
+    <button key={key} type="button" className="tap-box" onClick={() => onPlayerClick?.(r._p)}
+      style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: '0 8px', width: '100%', minHeight: 44, padding: '5px 0', border: 0, borderTop: `1px solid ${C.border}`, background: 'transparent', color: C.text, textAlign: 'left', cursor: 'pointer' }}>
+      <span style={{ minWidth: 0 }}>
+        <span style={{ display: 'block', fontSize: 13, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.player}</span>
+        <span style={{ display: 'block', fontSize: 11, color: C.text3, fontFamily: NUM_FONT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.market}{r.line != null ? ` ${r.line}` : ''}{sub ? ` · ${sub}` : ''}</span>
+      </span>
+      <span style={{ alignSelf: 'center', textAlign: 'right', fontFamily: NUM_FONT, fontSize: 13, fontWeight: 900 }}>{right}</span>
+    </button>
+  )
+  return (
+    <section aria-label="Spot it" style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', marginBottom: 12 }}>
+      {L.outlier.length > 0 && (
+        <div style={box}>
+          {head('OUTLIER BOOK', 'one book far off the rest')}
+          {L.outlier.map((x) => line(`o-${x.r.id}`, x.r, <span style={{ color: accent }}>{x.bk} {fmtOdds(x.price)}</span>, `others ${fmtOdds(fairOdds(x.others))} · ${pts(x.diff)} longer`))}
+        </div>
+      )}
+      {L.moved.length > 0 && (
+        <div style={box}>
+          {head('MOVED', 'since it opened')}
+          {L.moved.map((r) => line(`m-${r.id}`, r, <span style={{ color: r.moveOpen > 0 ? accent : C.text2 }}>{r.moveOpen > 0 ? '▲' : '▼'} {pts(r.moveOpen)}</span>, r.openOver != null && r.over != null ? `${fmtOdds(r.openOver)} → ${fmtOdds(r.over)}` : null))}
+        </div>
+      )}
+      {L.fair.length > 0 && (
+        <div style={box}>
+          {head('BEATS FAIR', 'best price vs the no-vig price')}
+          {L.fair.map((x) => line(`f-${x.r.id}`, x.r, <span style={{ color: accent }}>{fmtOdds(x.r.best)} <span style={{ color: C.text3, fontWeight: 700 }}>{x.r.bestBook}</span></span>, `fair ${fmtOdds(x.r.fairOver)} · ${pts(x.gap)} better`))}
+        </div>
+      )}
+    </section>
+  )
 }
 
 export default function OddsDiscrepancies({ players = [], odds = null, onPlayerClick, sport = 'mlb', theme = null, numFont = null, Table = DenseTable }) {
