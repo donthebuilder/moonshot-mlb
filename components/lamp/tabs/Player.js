@@ -400,7 +400,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
           {logRows.length
             ? <>
                 <ScrollHint><LampTable rows={log.shown} columns={goalie ? G_LOG_COLS : SK_LOG_COLS} maxHeight={9999} maxRows={100} heatMode="standouts" onRowClick={(r) => onOpenGame?.(r.gameId)} /></ScrollHint>
-                <ShowMoreButton open={log.open} restN={log.restN} toggle={log.toggle} itemWord="games" />
+                <ShowMoreButton open={log.open} restN={log.restN} toggle={log.toggle} total={log.total} itemWord="games" />
               </>
             : <EmptyState title="NO GAMES LOGGED" note="No regular-season games for him in that span yet. Try another season above." />}
         </section>
@@ -425,7 +425,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
             <section aria-label="Season by season">
               <Kicker>SEASON BY SEASON · NHL REGULAR SEASON</Kicker>
               <ScrollHint><LampTable rows={seasonPrev.shown} columns={cols} maxHeight={9999} maxRows={100} heatMode="standouts" /></ScrollHint>
-              <ShowMoreButton open={seasonPrev.open} restN={seasonPrev.restN} toggle={seasonPrev.toggle} itemWord="seasons" />
+              <ShowMoreButton open={seasonPrev.open} restN={seasonPrev.restN} toggle={seasonPrev.toggle} total={seasonPrev.total} itemWord="seasons" />
               {(playoffSeasons.length > 0 || otherLeagues.length > 0) && (
                 <div style={{ color: C.text3, fontSize: 12, marginTop: 6 }}>
                   Also on file: {playoffSeasons.length ? `${playoffSeasons.length} NHL playoff run${playoffSeasons.length === 1 ? '' : 's'}` : ''}{playoffSeasons.length && otherLeagues.length ? ' and ' : ''}{otherLeagues.length ? `${otherLeagues.length} season${otherLeagues.length === 1 ? '' : 's'} in ${[...new Set(otherLeagues.map((s) => s.league))].join(', ')}` : ''}.
@@ -443,7 +443,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
                   { key: 'times', label: 'Won', w: 44, dp: 0, fmt: (v) => `${v} ×` },
                   { key: 'seasons', label: 'Seasons', heat: false, numeric: false, w: 200, fmt: (v) => <span style={{ fontFamily: NUM_FONT, color: C.text3, fontSize: 11 }}>{v.map((x) => `${String(x).slice(0, 4)}-${String(x).slice(6, 8)}`).join(', ')}</span> },
                 ]} />
-              <ShowMoreButton open={awardsPrev.open} restN={awardsPrev.restN} toggle={awardsPrev.toggle} itemWord="trophies" />
+              <ShowMoreButton open={awardsPrev.open} restN={awardsPrev.restN} toggle={awardsPrev.toggle} total={awardsPrev.total} itemWord="trophies" />
             </section>
           )}
         </>

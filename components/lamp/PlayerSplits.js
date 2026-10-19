@@ -58,7 +58,7 @@ function Section({ id, title, meta, rows, columns, caption, preview = 6, itemWor
         {meta && <span style={{ fontSize: 12, color: C.text3, fontFamily: NUM_FONT }}>{meta}</span>}
       </div>
       <LampTable rows={pv.shown} columns={columns} maxHeight={9999} maxRows={200} heatMode="standouts" initialSort={null} caption={caption} />
-      <ShowMoreButton open={pv.open} restN={pv.restN} toggle={pv.toggle} itemWord={itemWord} />
+      <ShowMoreButton open={pv.open} restN={pv.restN} toggle={pv.toggle} total={pv.total} itemWord={itemWord} />
     </div>
   )
 }

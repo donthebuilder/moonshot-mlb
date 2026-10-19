@@ -340,7 +340,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
               ? <>
                   <ScrollHint><BucketsTable rows={logPv.shown} columns={logCols} onRowClick={(r) => onOpenGame?.((r?._raw ?? r).id)} heatMode="standouts" maxHeight={9999} maxRows={logRows.length}
                     caption="Newest first. Each row opens the game." /></ScrollHint>
-                  <ShowMoreButton open={logPv.open} restN={logPv.restN} toggle={logPv.toggle} itemWord="games" />
+                  <ShowMoreButton open={logPv.open} restN={logPv.restN} toggle={logPv.toggle} total={logPv.total} itemWord="games" />
                   {[...new Set(logRows.map((g) => g.seasonType))].filter((t) => t && t !== 2).map((t) => <SeasonTypeChip key={t} type={t} />)}
                 </>
               : <EmptyState title="NO GAMES LOGGED" note="No regular-season games for him in that span yet. Try another season above." />}

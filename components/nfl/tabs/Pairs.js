@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { btnStyle } from '../../ui'
-import { C, NUM_FONT, MARKETS, TYPE } from '../../../lib/nfl/theme'
+import { C, NUM_FONT, MARKETS, TYPE, MARKET_SHORT } from '../../../lib/nfl/theme'
 import NflTable from '../NflTable'
 import PairHistV2Table from '../../PairHistV2Table'
 import { SportTheme } from '../../SportTheme'
@@ -171,6 +171,8 @@ function buildSamePlayerRows(players, bars, results) {
         team: p.team,
         opp: p.opp ? `vs ${p.opp}` : '',
         pairLabel: t.label,
+        // the table's short form (10-18, Donovan: "the pairing could be abbreviated"): "Rec yds + Any TD"
+        pairShort: [t.a, t.b].map((m) => { const w = String(MARKET_SHORT[m] || m).toLowerCase(); return w.charAt(0).toUpperCase() + w.slice(1).replace(/\btd\b/, 'TD') }).join(' + '),
         color: t.color,
         why: t.why,
         legA: sa,
@@ -418,7 +420,7 @@ export default function Pairs({ data, results, onPlayerClick, setTab = null }) {
             { key: 'position', label: 'Pos', heat: false, w: 36, mono: true, dim: true },
             { key: 'team', label: 'Tm', heat: false, w: 36, mono: true, dim: true },
             { key: 'opp', label: 'Opp', heat: false, w: 56, mono: true, dim: true },
-            { key: 'pairLabel', label: 'Pairing', heat: false, w: 210, dim: true,
+            { key: 'pairShort', label: 'Pairing', heat: false, w: 118, dim: true, titleKey: 'pairLabel',
               title: 'Which two markets are paired — the two legs, in order.' },
             { key: 'legA', label: 'Leg 1', w: 48, dp: 0,
               title: 'Score on the FIRST market named in Pairing.' },

@@ -196,7 +196,7 @@ export function NflBoardList({ games = null, players, market, weights, odds, pho
     ...(lastNight?.on ? [{ ...lastNightColumn({ w: phone ? 190 : 240, group: { key: 'lastNight', label: 'Last night', order: 0.4 } }), cset: 'lean' }] : []),
     { key: 'score', group: CALL_GROUP, label: 'Score', cset: 'lean', w: 52, primary: true, scale: 'seq', domain: [0, 100], art: SCORE_ART[market] || null, answers: market === 'TD' ? 'nfl-td' : null },
     ...(phone ? [] : [{ key: 'grade', group: CALL_GROUP, label: 'Grade', cset: 'read', w: 56, heat: false }]),
-    { ...whyColumn({ textOf: (r) => whyOf(r._p)?.text || '', itemOf: whyItem, open: openWhy, theme: C, numFont: NUM_FONT, w: phone ? 124 : 260, tidy: true }), group: CALL_GROUP, cset: 'lean' },
+    { ...whyColumn({ textOf: (r) => whyOf(r._p)?.text || '', shortOf: (r) => whyOf(r._p)?.short || '', itemOf: whyItem, open: openWhy, theme: C, numFont: NUM_FONT, w: phone ? 140 : 260, tidy: true }), group: CALL_GROUP, cset: 'lean' },
     // Status right after Why (2026-10-06): short on a phone, so Why shows without a swipe
     ...(statusOf ? [{ key: 'status', group: CALL_GROUP, label: 'Status', heat: false, statusCol: true, w: phone ? 64 : 118, fmt: (v, r) => <CallStatusBadge status={statusOf(r._p)} accent={C.green} short={phone} gate={gateOf ? gateOf(r) : null} /> }] : []),
     ...(rows.some((r) => r._leg) ? [{ key: 'slipOn', group: CALL_GROUP, label: '+', cset: 'lean', action: true, w: 44, heat: false, mark: '\u2713', markOff: '+', titleOn: 'Take off the slip', titleOff: 'Add to slip',
