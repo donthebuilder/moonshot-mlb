@@ -27,12 +27,12 @@ import NflTable from './NflTable'
 // here is one the page already had; only the words and the sizes changed.
 
 // ── 1. THE GAME, ONCE ───────────────────────────────────────────────────────
+// CLUBS ARE LOGOS (scripts/check-logos.mjs, 10-19): the 44px logo is the club; its code rides the logo's title / alt.
 export function GameHeader({ game: g, when, air, xtd, heat, past, onOpenTeam, outLine = null, action = null }) {
   const live = g.state === 'in'
   const Team = ({ t }) => (
     <Tap onClick={onOpenTeam && (() => onOpenTeam(t))} title={`Open ${t}`} style={{ minHeight: 48, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
       <TeamMark sport="nfl" abbr={t} variant="logo" px={44} />
-      <span style={{ fontFamily: NUM_FONT, fontSize: 26, fontWeight: 900, letterSpacing: '-.02em', color: past ? C.text3 : C.text }}>{t}</span>
     </Tap>
   )
   return (
