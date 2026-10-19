@@ -282,6 +282,15 @@ export function v2Css(C, ac, NUM_FONT) {
 
 // A CLUB CODE IN A TEXT CELL (nav audit 10-06): an opponent / team column's code
 // ("UTA", LAMP's "@BUF") is a club link; the code is what the door gets, never the "@".
+// THE OPPONENT IS QUIET TEXT (CLAUDE.md; Donovan 10-18: "the fucking logos for both teams ... one team logo is fine").
+// His club is the logo; an opponent column (opp / oppTxt / lastOpp / vs / opponent) draws its code in quiet text, still the
+// club's link. A sticky column is the row's own identity (h2h's Opponent rows), so it keeps its logo.
+const OPP_RE = /^(opp|lastopp|vs\b|vs$|opponent)/i
+const isOppCol = (c) => !c.sticky && OPP_RE.test(String(c.key))
+const quietCode = (code, away, open) => {
+  const t = <span data-opp="" style={{ fontSize: 11, fontWeight: 600, opacity: 0.62, letterSpacing: '.02em' }}>{away ? '@' : ''}{code}</span>
+  return open ? <Tap onClick={open}>{t}</Tap> : t
+}
 const teamCodeOf = (key, v) => {
   if (!/^(opp|team)/i.test(String(key))) return null
   const m = /^@?\s*([A-Z]{2,4})$/.exec(String(v ?? '').trim())
@@ -561,6 +570,11 @@ export function renderV2(ctx) {
                     </td>
                   )
                 }
+                if (logoOf(c) && isOppCol(c) && v && v !== '—') {
+                  const code = String(v).replace(/^@\s*/, '')
+                  const open = go || (onOpenTeam && /^[A-Z]{2,4}$/.test(code) ? () => onOpenTeam(code) : null)
+                  return <td key={c.key} className={cls(c, 'txt')} title={code} style={{ ...pin, ...(bgTint || {}) }}>{quietCode(code, /^@/.test(String(v)), open)}</td>
+                }
                 if (logoOf(c) && v && v !== '—' && !/^tie$/i.test(String(v))) {   // a tied meeting (h2h Winner) has no club to draw
                   const mark = <TeamMark sport={logoOf(c)} abbr={v} variant="logo" px={18} />   // 14 -> 18 (10-03: "logos need to be bigger")
                   // `code` (fix5-nflgame, 10-06): a one-game table names the club beside its logo
@@ -574,6 +588,9 @@ export function renderV2(ctx) {
                 // logo, never "TB" in text). One rule for every sport's Opp / Vs / Team column: the code rides the logo's
                 // title / alt, LAMP's "@BUF" keeps a quiet "@", and the cell stays the club's link (the column's own, else the team door).
                 const clubCode = !isName && c.key !== 'role' && typeof content !== 'object' && sport ? teamCodeOf(c.key, content) : null
+                if (clubCode && isOppCol(c)) {
+                  return <td key={c.key} className={cls(c, 'txt')} title={clubCode} style={{ ...pin, ...(bgTint || {}) }}>{quietCode(clubCode, /^@/.test(String(content).trim()), go)}</td>
+                }
                 if (clubCode) {
                   const away = /^@/.test(String(content).trim())
                   const mk = <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, verticalAlign: 'middle' }}>{away ? <span aria-hidden="true" style={{ opacity: 0.5 }}>@</span> : null}<TeamMark sport={sport} abbr={clubCode} variant="logo" px={18} /></span>

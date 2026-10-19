@@ -156,7 +156,7 @@ export default function Matchups({ players = [], onPlayerClick, onNavigate = nul
       </span>) },
     { key: 'vs', label: 'Faces', w: 96, heat: false, fmt: (v, r) => (
       <span title={`${r.team} v ${v}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
-        <TeamMark sport="mlb" abbr={r.team} variant="logo" px={16} />{r.team}<span style={{ color: C.text3 }}>v</span><TeamMark sport="mlb" abbr={v} variant="logo" px={16} />{v}
+        <TeamMark sport="mlb" abbr={r.team} variant="logo" px={16} /><span data-opp="" style={{ color: C.text3 }}>v {v}</span>{/* one logo, the opponent quiet (10-18) */}
       </span>) },
     { key: 'fit', label: 'Lineup fit', w: 70, primary: true, scale: 'seq', domain: [40, 80], dp: 1 },
     { key: 'mixTxt', label: 'His top pitches', w: 120, heat: false },

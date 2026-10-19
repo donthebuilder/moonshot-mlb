@@ -43,7 +43,7 @@ function Picker({ players, value, onChange, placeholder }) {
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder} />
       {hits.length > 0 && (
         <div className="ss-hits">
-          {hits.map((p) => <button key={p.player_id} onClick={() => { onChange(p); setQ('') }}><TeamMark sport="nfl" variant="logo" px={18} abbr={p.team} /><b>{p.name}</b><small>{p.team} · {roleLabel(p)}</small></button>)}
+          {hits.map((p) => <button key={p.player_id} onClick={() => { onChange(p); setQ('') }}><TeamMark sport="nfl" variant="logo" px={18} abbr={p.team} /><b>{p.name}</b><small>{roleLabel(p)}</small></button>)}
         </div>
       )}
     </div>

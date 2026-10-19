@@ -272,7 +272,7 @@ function MiniBoard({ market, title, players, onPlayerClick, onBoards }) {
       <SectionTitle eyebrow="POWER RANKINGS" title={title} action="Full board" onAction={onBoards} />
       {pv.shown.map((player, index) => {
         const grade = gradeFor(player.scores[market])
-        return <button key={player.player_id} onClick={() => onPlayerClick?.(player, market)}><span>{index + 1}</span><TeamMark sport="nfl" variant="logo" px={22} abbr={player.team} /><b>{player.name}</b><em>{player.team} · {player.position}</em><strong style={{ color: grade.color }}>{Math.round(player.scores[market])}</strong></button>
+        return <button key={player.player_id} onClick={() => onPlayerClick?.(player, market)}><span>{index + 1}</span><TeamMark sport="nfl" variant="logo" px={22} abbr={player.team} /><b>{player.name}</b><em>{player.position}</em><strong style={{ color: grade.color }}>{Math.round(player.scores[market])}</strong></button>
       })}
       <ShowMoreButton open={pv.open} restN={pv.restN} toggle={pv.toggle} total={pv.total} />
     </section>

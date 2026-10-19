@@ -75,7 +75,7 @@ function lampAdapter(season, odds) {
         meta: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, minWidth: 0, maxWidth: '100%' }}>
           <TeamMark sport="nhl" abbr={r.team} variant="logo" px={16} />
           <span>{r.home ? 'vs' : '@'}</span>
-          <TeamMark sport="nhl" abbr={r.opp} variant="logo" px={16} />
+          <span data-opp="" style={{ opacity: .62 }}>{r.opp}</span>{/* the opponent is quiet text: one logo per player (10-18) */}
           <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>· {r.pos}</span>
         </span>,
         // the price, and where it opened when it has moved (lib/odds/lineMove.js: the feed's opening price against our newest read; no opening price, no chip)

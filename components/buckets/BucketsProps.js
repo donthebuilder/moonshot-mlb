@@ -66,7 +66,7 @@ function bucketsAdapter(startOf, odds) {
         meta: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, minWidth: 0, maxWidth: '100%' }}>
           <TeamMark sport="nba" abbr={r.team} variant="logo" px={16} />
           <span>{r.home ? 'vs' : '@'}</span>
-          <TeamMark sport="nba" abbr={r.opp} variant="logo" px={16} />
+          <span data-opp="" style={{ opacity: .62 }}>{r.opp}</span>{/* the opponent is quiet text: one logo per player (10-18) */}
           {r.pos ? <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>· {r.pos}</span> : null}
         </span>,
         metaRight: (() => { const q = quoteOf(r, k); return q ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{fmtOdds(q.best_over ?? q.over)}<LineMoveChip quote={q} theme={C} numFont={NUM_FONT} compact /></span> : null })(),
