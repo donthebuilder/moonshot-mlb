@@ -5,7 +5,8 @@ import { FiltersSheet } from '../player'
 import useHashFilters from '../../lib/useHashFilters'
 import NflTable from './NflTable'
 import { SportTheme } from '../SportTheme'
-import { comboFields, filterGames, aggregateNflGames, stadiumRecord, hasContext, VERY_THIN_G } from '../../lib/nfl/gameSplits'
+import { comboFields, filterGames, aggregateNflGames, stadiumRecord, hasContext, VERY_THIN_G, splitPairs } from '../../lib/nfl/gameSplits'
+import { alpha } from '../../lib/scales'
 
 // TUDDY'S COMBINE FILTERS (2026-10-06) -- MOONSHOT's ComboFilter, per game.
 // Same control (components/ComboFilterBar.js, lifted from PlayerSplits), same
@@ -77,5 +78,51 @@ export default function NflGameCombo({ log, venue = null }) {
         </div>
       )}
     </SportTheme>
+  )
+}
+
+// EVERY SPLIT AS EVEN PAIRS (Donovan 10-18: "they gotta be nice ... I like symmetrical ... pristine"). One row per question, its two
+// sides side by side: the market's number big, games small, the better side lit, a side on fewer than three games dimmed. The
+// numbers are lib/nfl/gameSplits splitPairs (his logged games); nothing estimated, a side with no games says so.
+const SPLIT_PICK = {
+  TD: { k: 'tdPerG', fmt: (v) => v.toFixed(2), unit: 'TD/G' }, REC_YDS: { k: 'recyd', fmt: (v) => v.toFixed(1), unit: 'rec yds/G' },
+  REC: { k: 'rec', fmt: (v) => v.toFixed(1), unit: 'rec/G' }, RUSH_YDS: { k: 'ruyd', fmt: (v) => v.toFixed(1), unit: 'rush yds/G' },
+  RUSH_ATT: { k: 'car', fmt: (v) => v.toFixed(1), unit: 'carries/G' }, PASS_YDS: { k: 'payd', fmt: (v) => v.toFixed(0), unit: 'pass yds/G' },
+}
+export function AllSplits({ log, market = 'TD', dvp = null, role = null }) {
+  const pairs = splitPairs(log, { dvp, role })
+  const pick = SPLIT_PICK[market] || SPLIT_PICK.TD
+  if (!pairs.length) return null
+  return (
+    <section aria-label="Every split" style={{ margin: '4px 0 12px' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '0 0 6px' }}>
+        <span style={{ fontSize: TYPE.label, fontWeight: 900, color: C.text3, letterSpacing: '.1em', fontFamily: NUM_FONT }}>EVERY SPLIT</span>
+        <span style={{ fontSize: 12, color: C.text3, fontFamily: NUM_FONT }}>{pick.unit} · his logged games</span>
+      </div>
+      <div style={{ display: 'grid', gap: 6 }}>
+        {pairs.map((p) => {
+          const vals = p.sides.map((s) => (s.g ? s[pick.k] : null))
+          const best = vals[0] != null && vals[1] != null && vals[0] !== vals[1] ? (vals[0] > vals[1] ? 0 : 1) : -1
+          return (
+            <div key={p.key} style={{ display: 'grid', gridTemplateColumns: '78px minmax(0,1fr) minmax(0,1fr)', gap: 6, alignItems: 'stretch' }}>
+              <span style={{ alignSelf: 'center', fontSize: 12, fontWeight: 800, color: C.text2 }}>{p.label}</span>
+              {p.sides.map((s, i) => {
+                const v = vals[i], thin = s.g > 0 && s.g < VERY_THIN_G
+                return (
+                  <div key={s.label} title={s.g ? `${s.label}: ${s.g} game${s.g === 1 ? '' : 's'}, ${s.td} TD` : `${s.label}: no games`}
+                    style={{ padding: '6px 9px', borderRadius: 9, border: `1px solid ${best === i ? alpha(C.green, 0.55) : C.border}`, background: best === i ? alpha(C.green, 0.08) : C.bg2, opacity: thin ? 0.55 : 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.label}</div>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+                      <b style={{ fontFamily: NUM_FONT, fontSize: 17, color: best === i ? C.green : C.text }}>{v == null ? '—' : pick.fmt(v)}</b>
+                      <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text3 }}>{s.g ? `${s.g} G` : 'no games'}</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })}
+      </div>
+    </section>
   )
 }
