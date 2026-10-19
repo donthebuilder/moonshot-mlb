@@ -162,7 +162,7 @@ export function CappedTiles({ cap = null, word = 'leaders', className, style, ch
       {cap && phone && rest > 1 ? (
         <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
           style={{ display: 'block', width: '100%', minHeight: 44, margin: '0 0 10px', padding: '0 12px', borderRadius: 10, border: `1px solid ${C.border}`, background: 'transparent', color: C.text2, font: `800 12px/1 ${NUM_FONT}`, letterSpacing: '.04em', cursor: 'pointer' }}>
-          {open ? 'Fewer leaders' : `+${rest} more ${word}`}
+          {open ? 'Fewer' : `All ${kids.length} ${word}`}
           <span aria-hidden style={{ marginLeft: 8, color: accent }}>{open ? '▴' : '▾'}</span>
         </button>
       ) : null}

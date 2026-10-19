@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
-import LeaderTile from '../../LeaderTile'
+import LeaderTile, { LEADER_GRID } from '../../LeaderTile'
 import TeamMark from '../../TeamMark'
 import LampTable from '../LampTable'
 import { SportTheme } from '../../SportTheme'
@@ -186,10 +186,7 @@ export default function Leaders({ onOpenPlayer }) {
                 ? <>Every leader below is <b style={{ color: C.text2 }}>playing tonight</b> — tiles show who each one faces, plus the #2 and #3.</>
                 : <>No games tonight, so the tiles rank <b style={{ color: C.text2 }}>the whole league</b>, with the #2 and #3.</>}
             </LeadersLead>
-            <CappedTiles cap={2} word="leaders" className="bot-picks-grid" style={{
-              display: 'grid', gap: 8, marginBottom: 12,
-              gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
-            }}>
+            <CappedTiles cap={4} word="leaders" className="leader-grid" style={{ ...LEADER_GRID, marginBottom: 12 }}>
               {(goalies ? GOALIE_TILES : SKATER_TILES).map(([k, label, f, col, min]) => (
                 <LeaderTile key={k} label={label} rows={top3(k, min)}
                   fmt={(r) => f(r[k])} color={C[col] || C.ice}
