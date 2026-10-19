@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import PageHeader from '../../PageHeader'
-import LeaderTile from '../../LeaderTile'
+import LeaderTile, { LEADER_GRID } from '../../LeaderTile'
 import NflTeamMark from '../NflTeamMark'
 import { TeamTap } from '../../EntityTap'
 import NflTable from '../NflTable'
@@ -213,10 +213,7 @@ export default function Leaders({ data, onPlayerClick }) {
             {dropped > 0 && <LeadersLead>
               {dropped} categor{dropped === 1 ? 'y' : 'ies'} we don&apos;t carry yet {dropped === 1 ? 'is' : 'are'} left out rather than shown empty.
             </LeadersLead>}
-            <CappedTiles cap={2} word="leaders" className="bot-picks-grid" style={{
-              display: 'grid', gap: 8, marginBottom: 12,
-              gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
-            }}>
+            <CappedTiles cap={4} word="leaders" className="leader-grid" style={{ ...LEADER_GRID, marginBottom: 12 }}>
               {TILE_KEYS.map((k) => cards.find((c) => c.col.key === k)).filter(Boolean).map(({ col, rows: top }) => (
                 <LeaderTile key={col.key} label={col.desc || col.label} rows={top}
                   fmt={(r) => fmt(r.v, col.dp, col.pct)} color={C[FAMILY[col.key] || 'green']}

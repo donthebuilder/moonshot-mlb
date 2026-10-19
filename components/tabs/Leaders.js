@@ -6,7 +6,7 @@ import { PanelTitle, Empty } from '../ui'
 import HelpTip from '../HelpTip'
 import DenseTable from '../DenseTable'
 import MlbTeamMark from '../MlbTeamMark'
-import SharedLeaderTile from '../LeaderTile'
+import SharedLeaderTile, { LEADER_GRID } from '../LeaderTile'
 import { LeadersFilterBar, LeadersLead, LeagueTopCard, LeadersSection } from '../leaders/LeadersParts'
 import {
   leagueLeaders, LEADER_CATS,
@@ -539,10 +539,7 @@ export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
       <LeadersLead>
         Every leader below is <b style={{ color: C.text2 }}>on tonight&apos;s slate</b>, with who he faces and the #2 and #3.
       </LeadersLead>
-      <div className="bot-picks-grid" style={{
-        display: 'grid', gap: 8, marginBottom: 12,
-        gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
-      }}>
+      <div className="leader-grid" style={{ ...LEADER_GRID, marginBottom: 12 }}>
         <LeaderTile label="AVG" rows={top3('avg')} fmt={(r) => r.avg.toFixed(3)} color={C.orange} onPlayerClick={onPlayerClick} />
         <LeaderTile label="OPS" rows={top3('ops')} fmt={(r) => r.ops.toFixed(3)} color={C.orange} onPlayerClick={onPlayerClick} />
         <LeaderTile label="Home runs" rows={top3('hr')} fmt={(r) => r.hr} color={C.orange} onPlayerClick={onPlayerClick} />
