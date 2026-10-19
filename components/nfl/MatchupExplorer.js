@@ -232,11 +232,11 @@ function Holes({ matchup, byId, onPlayerClick, season }) {
         <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12, padding: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6, fontFamily: NUM_FONT, fontSize: TYPE.label, color: C.text2 }}>
             <b style={{ color: C.text }}>{defTeam ? `${defTeam} defense allow` : 'League, yards a carry'}</b>
-            {defTeam && <button type="button" onClick={() => setDefTeam(null)} style={{ minHeight: 44, padding: '0 12px', borderRadius: 999, border: `1px solid ${C.border2}`, background: 'transparent', color: C.text2, cursor: 'pointer', fontFamily: NUM_FONT, fontWeight: 800 }}>Show the league ✕</button>}
+            {defTeam && <button type="button" className="tap-box" onClick={() => setDefTeam(null)} style={{ minHeight: 0, padding: '5px 12px', borderRadius: 999, border: `1px solid ${C.border2}`, background: 'transparent', color: C.text2, cursor: 'pointer', fontFamily: NUM_FONT, fontWeight: 800 }}>Show the league ✕</button>}
           </div>
           <RunLineField cells={cells} pickedKey={hole} onPick={setHole} hue={C.green} label={`${defTeam || 'League'} yards a carry through each hole`} />
           <div style={{ fontSize: TYPE.label, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
-            Offense lined up as they stand; the bar over each man is yards a carry through his hole, the carries above the number. Dashed = too few carries to call it (under {minAtt}). Tap a defense in the table below to see its holes. {season} season.
+            Yds a carry per hole · dashed = under {minAtt} carries · {season}
           </div>
         </div>
       </div>
