@@ -8,6 +8,8 @@ import * as THREE from 'three'
 import { labelSprite } from '../lib/three/sprites'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { C, NUM_FONT } from '../lib/theme'
+import { densityGrid } from '../lib/charts/terrain'
+import { buildHills, rgb01 } from '../lib/three/hills'
 import StadiumShell from './charts/StadiumShell'
 import { catColor } from '../lib/scales'
 import { solveFlight } from '../lib/trajectory'
@@ -114,6 +116,10 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
   // effect's own handle (apiRef.preset / setView) so a chip can move the camera.
   const [full, setFull] = useState(false)
   const [preset, setPreset] = useState('press')
+  // THE HILLS (10-19, the shared 3D look): where his batted balls land, lifted; MOONSHOT orange where his home-run
+  // rate there beats his own overall rate. Balls = the flights as before.
+  const [layer, setLayer] = useState('balls')
+  const layerRef = useRef(layer); layerRef.current = layer
   const apiRef = useRef({})
   const motionRef = useRef(motion); motionRef.current = motion
   const orbitRef = useRef(orbit); orbitRef.current = orbit
@@ -464,6 +470,28 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     // every arc, tube and glow — hidden from the plate seat, where a 3-ft
     // tube drawn for a 400-ft park is a wall of colour across the frame
     const arcGroup = new THREE.Group(); scene.add(arcGroup)
+    // the hills: landing spots on a 5-ft grid over the fair ground (x -350..350 ft, z 0..470 ft from the plate)
+    let hills = null
+    {
+      const pts = hits.filter((h) => Number.isFinite(h?.r) && Number.isFinite(h?.ang) && h.r > 0).map((h) => ({ x: -h.r * Math.sin(h.ang * DEG) + 350, y: h.r * Math.cos(h.ang * DEG), hr: Boolean(h.hr) }))
+      if (pts.length >= 8) {
+        const sig = pts.length < 60 ? 26 : 16   // a handful of balls spread wider, so a small sample reads as ground, not spikes
+        const g = densityGrid(pts, { w: 700, h: 470, cell: 5, sigma: sig })
+        const gh = densityGrid(pts.filter((p) => p.hr), { w: 700, h: 470, cell: 5, sigma: sig })
+        const rate = pts.filter((p) => p.hr).length / pts.length
+        const acc = rgb01(C.orange), pale = [0.96, 0.95, 0.92]
+        if (g.vmax) {
+          hills = buildHills(g, {
+            toWorld: (gx, gy, h) => new THREE.Vector3(gx - 350, h, gy),
+            colorAt: (gx, gy) => { const k = Math.round(gy / 5) * g.gw + Math.round(gx / 5); const v = g.grid[k], hv = gh.grid[k]; return rate > 0 && v > 0.15 * g.vmax && hv / v > rate * 1.25 ? acc : pale },
+            height: 46, floor: 0.06,
+          })
+          scene.add(hills)
+        }
+      }
+    }
+    apiRef.current.showLayer = (l) => { arcGroup.visible = l !== 'hills' || !hills; if (hills) hills.visible = l === 'hills' }
+    apiRef.current.showLayer(layerRef.current)
     const flightOfHit = []   // hit index → flight index, for LIVE's "only the new one flies"
     hits.forEach((h, hi) => {
       if (!Number.isFinite(h?.r) || !Number.isFinite(h?.ang)) return
@@ -687,7 +715,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         rim.rotation.x = -Math.PI / 2
         rim.scale.setScalar(dot.scale.x)
         rim.position.set(v.x, seatY + 0.3, v.z)
-        scene.add(rim)
+        arcGroup.add(rim)
       }
       // the shapes have an axis; spin each by its own angle so a row of
       // pyramids does not read as a formation
@@ -699,7 +727,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         }))
         br.rotation.x = -Math.PI / 2
         br.position.set(v.x, seatY + 0.5, v.z)
-        scene.add(br)
+        arcGroup.add(br)
       }
 
       if (inSeats) {
@@ -708,7 +736,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
           new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.30, depthWrite: false }),
         )
         pin.position.set(v.x, (seatY - 2) / 2, v.z)
-        scene.add(pin)
+        arcGroup.add(pin)
 
         const ring = new THREE.Mesh(
           new THREE.RingGeometry(3.4, 4.6, 24),
@@ -719,7 +747,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         )
         ring.position.set(v.x, seatY + 0.6, v.z)
         ring.lookAt(camera.position)
-        scene.add(ring)
+        arcGroup.add(ring)
 
         // The same halo the flying ball carries, so a landing in the seats is
         // lit rather than merely coloured — it is the loudest outcome on the
@@ -727,7 +755,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         const hh = makeHalo(col)
         hh.scale.setScalar(1.9)
         hh.position.set(v.x, seatY + 0.6, v.z)
-        scene.add(hh)
+        arcGroup.add(hh)
       }
       dot.userData.info = info
       // BUG (crashed the stadium view on click): flightIdx was never
@@ -737,7 +765,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       // hit was just pushed to `flights` above, in the same `if (f)`
       // block, so its index is simply the last slot in that array.
       if (f) { dot.userData.flightIndex = flights.length - 1; flightOfHit[hi] = flights.length - 1 }
-      scene.add(dot)
+      arcGroup.add(dot)
       pickables.push(dot)
     })
 
@@ -770,7 +798,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       hoverFlight.start(flightIndex, { pts: fl.pts, dur, mesh, onStep: (m) => { if (m.userData.shadow) placeShadow(m.userData.shadow, m.position) } })
       const sh = new THREE.Mesh(shadowGeo, shadowMat.clone())
       sh.rotation.x = -Math.PI / 2
-      scene.add(sh)
+      arcGroup.add(sh)
       mesh.userData.shadow = sh
     }
     const stepHoverFlight = (now) => hoverFlight.step(now)
@@ -1306,7 +1334,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
   // The motion modes + orbit row (was floating top-right on the canvas): now
   // StadiumShell's chip slot, under the canvas, at a thumb's 44px.
   const chipBtn = (on, col) => ({
-    minHeight: 44, padding: '0 14px', fontSize: 12, fontWeight: 800, borderRadius: 999,
+    minHeight: 0, padding: '6px 11px', fontSize: 12, fontWeight: 800, borderRadius: 999,   // small pills (10-18)
     cursor: 'pointer', fontFamily: NUM_FONT,
     border: `1px solid ${on ? col : C.border2}`,
     background: on ? `${col}22` : 'transparent', color: on ? col : C.text2,
@@ -1321,6 +1349,9 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         <button key={k} type="button" title={tip}
           onClick={() => { setMotion(k); if (k === 'replay' && replayRef.current) replayRef.current() }}
           style={chipBtn(motion === k, k === 'live' ? C.green : k === 'hold' ? C.text2 : C.orange)}>{txt}</button>
+      ))}
+      {[['balls', 'Balls'], ['hills', 'Hills']].map(([k, txt]) => (
+        <button key={k} type="button" className="tap-box" aria-pressed={layer === k} onClick={() => { setLayer(k); apiRef.current.showLayer?.(k) }} style={chipBtn(layer === k, C.orange)}>{txt}</button>
       ))}
       <button type="button" onClick={() => setOrbit((v) => !v)}
         title={orbit ? 'Stop the slow turn' : 'Turn slowly around the park until you grab it'}

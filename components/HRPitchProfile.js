@@ -264,7 +264,7 @@ export default function HRPitchProfile({ player, slateMode }) {
                   <span style={{ fontSize: 13, fontWeight: 800, width: 104, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {both ? '🎯 ' : ''}{r.pitch}
                   </span>
-                  <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>{r.code}</span>
+                  <span data-pitch="" style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>{r.code}</span>
                   <span style={{ marginLeft: 'auto', fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     n={r.seen} · {r.hrs} HR{r.avgDist ? ` · ${Number(r.avgDist).toFixed(0)}ft` : ''}{r.maxDist ? ` (max ${Number(r.maxDist).toFixed(0)})` : ''}{r.avgEV ? ` · ${Number(r.avgEV).toFixed(1)} EV` : ''}
                   </span>

@@ -37,6 +37,8 @@ import { ChartLegend, ChartEmpty } from '../charts'
 import { vsCells, vsAlpha, VS_MIN, heatAlpha, shotInk, HEAT_MIN_SOG, HEAT_FULL } from './Rink'
 import { measuredMph } from '../../lib/nhl/shotPath'
 import { GOALIE_ZONES, ZONE_SHAPES, tintAlpha } from '../../lib/nhl/zones'
+import { densityGrid } from '../../lib/charts/terrain'
+import { buildHills, rgb01 } from '../../lib/three/hills'
 
 // where a line ends at the net, by result / miss reason (the rink's y: +y is
 // the shooter's left). The net mouth is y -3..3; "wide" ends 1.5 ft outside it.
@@ -69,7 +71,10 @@ function shotTip(sh, speed, hardest) {
 }
 
 export default function RinkArena({ shots = [], map = null, league = null, slot = null, gridSpec = null, view = 'dots', onPick = null, onPickCell = null, title = '', subtitle = '', venue = null,
-  speed = null, hardest = null, stats = null, dockChips = [], onClearAll = null, totalShots = null, slotPct = null, goalieRead = null, onPickZone = null }) {
+  speed = null, hardest = null, stats = null, dockChips = [], onClearAll = null, totalShots = null, slotPct = null, goalieRead = null, onPickZone = null, hillShots = null }) {
+  // THE HILLS (10-19, the shared 3D look): where he shoots from, lifted; ice-blue where he scores at a better rate than his own overall
+  const [layer, setLayer] = useState('hills')
+  const layerRef = useRef(layer); layerRef.current = layer
   const tipRef = useRef(null)
   // on a phone the dock starts shut and carries no stats line: the same numbers
   // sit in the line above the rink, and an open dock would cover the ice
@@ -153,6 +158,27 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
     // ── the marks: one puck per attempt, at its (x, y), the 2D's colour rule
     const disposables = []
     const group = new THREE.Group(); scene.add(group); disposables.push(group)
+    // the hills (lib/charts/terrain + lib/three/hills): the attacking end, blue line (x 25) to the end boards (x 100)
+    const hs = (hillShots || shots).filter((sh) => sh[0] >= 25)
+    let hills = null
+    if (hs.length) {
+      const pts = hs.map((sh) => ({ x: sh[0] - 25, y: sh[1] + RINK_W / 2 }))
+      const g = densityGrid(pts, { w: 75, h: RINK_W, cell: 1, sigma: hs.length > 300 ? 3 : 4 })
+      const gg = densityGrid(pts.filter((_, i) => hs[i][2] === 'goal'), { w: 75, h: RINK_W, cell: 1, sigma: hs.length > 300 ? 3 : 4 })
+      const goals = hs.filter((sh) => sh[2] === 'goal').length, rate = goals / hs.length
+      const ice = rgb01(C.ice), pale = [0.38, 0.43, 0.52]   // slate, not pale: the ice is white (a pale hill vanished on it)
+      if (g.vmax) {
+        hills = buildHills(g, {
+          toWorld: (gx, gy, h) => rinkPoint(gx + 25, gy - RINK_W / 2, h),
+          colorAt: (gx, gy) => { const k = Math.round(gy) * g.gw + Math.round(gx); const v = g.grid[k], gv = gg.grid[k]; return v > 0.15 * g.vmax && rate > 0 && gv / v > rate * 1.25 ? ice : pale },
+          height: 16, opacity: 0.8,
+        })
+        scene.add(hills)
+      }
+    }
+    const showLayer = (l) => { group.visible = l !== 'hills' || !hills; if (hills) hills.visible = l === 'hills' }
+    showLayer(layerRef.current)
+    apiRef.current.showLayer = showLayer
     // THE MARKS (BATCH-3D-V2 1a): real pucks are black. On net a charcoal disc
     // with a thin light rim; a goal lamp red, 1.5x, glowing; a miss a small
     // dark x; a block a short dark stub. Each keeps a minimum on-screen size.
@@ -425,17 +451,20 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
       look.dispose(); renderer.dispose()
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement)
     }
-  }, [shots, map, slot, gridSpec, view, full, league, slotPct, hardest, goalieRead])
+  }, [shots, map, slot, gridSpec, view, full, league, slotPct, hardest, goalieRead, hillShots])
 
   if (!ok) return <ChartEmpty theme={C}>This device can&apos;t draw WebGL, so the arena isn&apos;t available here — the rink above shows the same shots.</ChartEmpty>
 
   const chipBtn = (on, col) => ({
-    minHeight: 44, padding: '0 14px', fontSize: 12, fontWeight: 800, borderRadius: 999, cursor: 'pointer', fontFamily: NUM_FONT,
+    minHeight: 0, padding: '6px 11px', fontSize: 12, fontWeight: 800, borderRadius: 999, cursor: 'pointer', fontFamily: NUM_FONT,   // small pills (10-18); .tap-box keeps 44px to tap
     border: `1px solid ${on ? col : C.border2}`, background: on ? `${col}22` : 'transparent', color: on ? col : C.text2,
   })
   const chips = (
     <>
-      <button type="button" style={chipBtn(orbit, C.cream)} onClick={() => setOrbit((v) => !v)} title="Turn slowly round the rink until you grab it">⟳ orbit</button>
+      {[['hills', 'Hills'], ['chart', 'As drawn']].map(([k, label]) => (
+        <button key={k} type="button" className="tap-box" style={chipBtn(layer === k, C.ice)} aria-pressed={layer === k} onClick={() => { setLayer(k); apiRef.current.showLayer?.(k) }}>{label}</button>
+      ))}
+      <button type="button" className="tap-box" style={chipBtn(orbit, C.cream)} onClick={() => setOrbit((v) => !v)} title="Turn slowly round the rink until you grab it">⟳ orbit</button>
     </>
   )
   const PRESETS = [
@@ -448,14 +477,14 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
     <div style={{ marginTop: 6 }}>
       {/* THE BUILDING (Donovan 10-02, "just show whatever building they are at"): its name, nothing modelled */}
       {venue ? <div style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, letterSpacing: '.06em', color: C.text2, marginBottom: 4 }}>🏟 {venue}</div> : null}
-      <ChartLegend theme={C} items={view === 'vs'
+      {layer === 'hills' ? <div style={{ fontSize: 11, color: C.text2, fontFamily: NUM_FONT }}>Higher hill = more of his shots from there · <b style={{ color: C.ice }}>ice-blue</b> = he scores there at a better rate than his overall, slate = the rest</div> : <ChartLegend theme={C} items={view === 'vs'
         ? [{ key: 'vs', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.lamp}aa` }} />, label: 'more than the league / blue fewer, as on the rink above' }]
         : view === 'heat'
         ? [{ key: 'heat', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.ice}88` }} />, label: 'shooting % per zone, as on the flat rink' }]
         : [{ key: 'goal', mark: <b aria-hidden="true" style={{ color: C.lamp }}>●</b>, label: 'goal' },
           { key: 'sog', mark: <b aria-hidden="true" style={{ color: RINK.puck, WebkitTextStroke: `0.6px ${RINK.puckRim}` }}>●</b>, label: 'on net (saved)' },
           { key: 'miss', mark: <b aria-hidden="true">✕</b>, label: 'missed' },
-          { key: 'block', mark: <b aria-hidden="true">╱</b>, label: 'blocked' }]} />
+          { key: 'block', mark: <b aria-hidden="true">╱</b>, label: 'blocked' }]} />}
       <div style={{ fontSize: 10, color: C.text3, marginTop: 4, lineHeight: 1.5, fontFamily: NUM_FONT }}>
         {view === 'dots' ? 'Lines run from the shot to the net along the ice — not tracked puck paths. ' : ''}{view === 'dots' ? <>The same {shots.length} shot{shots.length === 1 ? '' : 's'} as the rink above</> : 'The same zones as the rink above'} · drag to orbit · hover or tap a puck and it plays (pace from his average shot speed, NHL EDGE; real speed only for his measured ten hardest)
       </div>
