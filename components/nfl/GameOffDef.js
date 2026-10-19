@@ -56,7 +56,7 @@ export function injuryStatusOf(layer, p) {
   return tag ? { chip: 'Q', word: 'Questionable', blocked: false } : null
 }
 
-export default function GameOffDef({ matchup, players, game, onPlayerClick = null, defending = null, onDefend = null }) {
+export default function GameOffDef({ matchup, players, game, onPlayerClick = null, defending = null, onDefend = null, initialPass = true }) {
   const phone = useIsPhone(430)
   const [three, setThree] = useState(false)   // 3D is off by default, as every 3D view is; only on the passing field, only where WebGL works
   const [gl, setGl] = useState(false)
@@ -64,7 +64,7 @@ export default function GameOffDef({ matchup, players, game, onPlayerClick = nul
   const [zonePick, setZonePick] = useState(null)
   const layer = useInjuryLayer()
   const [mode, setMode] = useState('overlap')
-  const [pass, setPass] = useState(true)
+  const [pass, setPass] = useState(initialPass)   // the game page opens it on the run game (10-19: passing is the ThrowMap)
   const [side, setSide] = useState(defending ? (defending === game.home ? 'away' : 'home') : 'away')
   const off = side === 'away' ? game.away : game.home
   const def = side === 'away' ? game.home : game.away
