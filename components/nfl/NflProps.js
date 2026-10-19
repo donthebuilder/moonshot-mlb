@@ -77,6 +77,13 @@ function nflAdapter({ players, card, markets, odds, games }) {
       // the best book's price on this bar, what it pays, what it assumes (2026-10-04
       // user review, build 1). No fair price / room until TUDDY passes a calibration gate.
       if (q) { const px = q.best_over ?? q.over; chips.push({ t: `${payoutWords(px)} · ${q.best_book || 'best book'} · needs ${impliedPct(px)}%`, warn: false }) }
+      // A yardage pick is graded at 100+ / 300+ (2026-10-18) but the book's line sits near 55 / 60 / 250 and no alt line is published on our plan. With no price on the bar,
+      // show the book's own line and price, said to be a different bet (Donovan: "the closing line then to the pick, that's free"). It is never counted as the pick's price:
+      // Priced, the sort and the price column above still read only a quote that is on the bar.
+      if (!q) {
+        const off = quoteFor(odds, r, mk)
+        if (off && off.over != null && off.matches === false) chips.push({ t: `book line o${off.line} ${Number(off.over) > 0 ? `+${off.over}` : off.over} · not the ${card?.[mk]?.bar ?? off.wantLine + 0.5}+ bar`, warn: false })
+      }
       if (r.coverage_mismatch_tag && chips.length < 2) chips.push({ t: r.coverage_mismatch_tag, warn: false })
       return {
         photo: faceUrl({ sport: 'nfl', espnId: r.espn_id, size: 96 }),
