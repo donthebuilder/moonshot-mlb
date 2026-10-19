@@ -16,6 +16,10 @@ import { usePreview, ShowMoreButton } from '../ListPreview'
 import TeamMark from '../TeamMark'
 import Tap from '../Tap'
 import { Kicker } from './GameOffDef'
+import dynamic from 'next/dynamic'
+
+// the 3D (10-19, the shared hills): the same areas lifted on TUDDY's 3D field; loaded only when opened
+const GameArena = dynamic(() => import('./GameArena'), { ssr: false })
 
 const RW = ['behind', 'short', 'mid', 'deep'], CL = ['left', 'middle', 'right']
 const YARD = { behind: [-5, 0], short: [0, 10], mid: [10, 20], deep: [20, 35] }
@@ -117,6 +121,7 @@ export default function ThrowMap({ matchup, players, game, onPlayerClick = null,
     return (zs.find(([, z]) => throwFlags(z).atk) || [...zs].sort((a, b) => b[1].share - a[1].share)[0])[0]
   }, [map])
   const [pickRaw, setPick] = useState(null)
+  const [three, setThree] = useState(false)
   const pick = pickRaw && map?.zones[pickRaw] ? pickRaw : best
   const drawn = useMemo(() => (map && W > 0 ? fieldSvg(map, W, pick, def) : null), [map, W, pick, def])
   const z = map && pick ? map.zones[pick] : null
@@ -134,13 +139,15 @@ export default function ThrowMap({ matchup, players, game, onPlayerClick = null,
             <TeamMark sport="nfl" abbr={t} variant="logo" px={14} />{t} ball
           </button>
         ))}
-        {onRun ? <button type="button" className="tap-box" onClick={onRun} style={{ ...pill(false), marginLeft: 'auto' }}>Run game ›</button> : null}
+        <button type="button" className="tap-box" aria-pressed={three} onClick={() => setThree((v) => !v)} style={{ ...pill(three), marginLeft: 'auto' }}>3D</button>
+        {onRun ? <button type="button" className="tap-box" onClick={onRun} style={pill(false)}>Run ›</button> : null}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', font: `700 11px/1.2 ${NUM_FONT}`, color: C.text2, marginBottom: 6 }}>
         <span>higher ground = more throws</span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><i aria-hidden="true" style={{ width: 11, height: 11, border: `1.5px dashed ${C.green}`, borderRadius: 2 }} />{def} weak</span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><i aria-hidden="true" style={{ width: 11, height: 11, border: `1.5px solid ${C.green}`, borderRadius: 2 }} />attack</span>
       </div>
+      {three ? <div style={{ marginBottom: 8 }}><GameArena hills={{ zones: Object.fromEntries(Object.entries(map.zones).map(([k, z]) => [k, { share: z.share, weak: throwFlags(z).weak }])) }} title={`${off} throws vs ${def}`} /></div> : null}
       <div ref={box} onClick={(e) => { const k = e.target?.closest?.('[data-z]')?.getAttribute('data-z'); if (k) { setPick(k); pv.open && pv.toggle() } }}
         style={{ width: '100%', minHeight: drawn ? drawn.Hh : 280 }} dangerouslySetInnerHTML={drawn ? { __html: drawn.svg } : undefined} />
       {z ? (

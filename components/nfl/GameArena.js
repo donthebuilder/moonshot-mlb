@@ -18,6 +18,8 @@ import { fieldSpots, FM, RUN_GAP_X } from '../../lib/nfl/fieldMen'
 import { LANES } from '../../lib/nfl/fieldModel'
 import { makeComposer, isCoarse } from '../../lib/stadiumLook'
 import { webglOk } from '../../lib/webglOk'
+import { densityGrid } from '../../lib/charts/terrain'
+import { buildHills, rgb01 } from '../../lib/three/hills'
 import { labelSprite, declutterLabels } from '../../lib/three/sprites'
 import StadiumShell from '../charts/StadiumShell'
 import { ChartEmpty } from '../charts'
@@ -58,14 +60,16 @@ function faceTexture(m, ring, alive) {
   return tex
 }
 
-export default function GameArena({ cells = {}, men = [], defMen = [], hue = C.green, title = '', onPlayer = null, pass = true }) {
+// `hills` (10-19, the shared 3D look, the Throw map's 3D): { zones: { 'left|short': { share, weak } } } -> the throw
+// share lifted into hills over the field, green over areas the defense is weak in; no columns or men are drawn with it.
+export default function GameArena({ cells = {}, men = [], defMen = [], hue = C.green, title = '', onPlayer = null, pass = true, hills = null }) {
   const mountRef = useRef(null)
   const [ok, setOk] = useState(true)
   const [preset, setPreset] = useState('endzone')
   const [full, setFull] = useState(false)
   const apiRef = useRef({})
   const playerRef = useRef(onPlayer); playerRef.current = onPlayer
-  const sig = `${pass ? 'pass' : 'run'}|${Object.entries(cells).map(([k, c]) => `${k}:${c.heat}:${c.big}`).join(',')}|${men.map((m) => m.id + m.side + m.slot).join(',')}|${defMen.map((m) => m.id).join(',')}|${hue}`
+  const sig = `${pass ? 'pass' : 'run'}|${Object.entries(cells).map(([k, c]) => `${k}:${c.heat}:${c.big}`).join(',')}|${men.map((m) => m.id + m.side + m.slot).join(',')}|${defMen.map((m) => m.id).join(',')}|${hue}|${hills ? Object.entries(hills.zones).map(([k, z]) => `${k}${z.share}${z.weak ? 'w' : ''}`).join(',') : ''}`
 
   useEffect(() => {
     const mount = mountRef.current
@@ -129,8 +133,17 @@ export default function GameArena({ cells = {}, men = [], defMen = [], hue = C.g
         }
       }
     }
+    // THE HILLS: each area's share of the throws as a weighted bump at its centre (yards: -5 to 35 down, 53.3 across)
+    if (hills) {
+      const pts = []
+      SIDES.forEach((side, i) => Object.entries(BAND_YD).forEach(([d, [y0, y1]]) => { const z = hills.zones[`${side}|${d}`]; if (z?.share) pts.push({ x: (y0 + y1) / 2 + 5, y: ((i + 0.5) / 3) * 53.3, w: z.share }) }))
+      const g = densityGrid(pts, { w: 41, h: 53.3, cell: 0.5, sigma: 4.2 })
+      const green = rgb01(hue), pale = [0.95, 0.96, 0.95]
+      const zoneAt = (gx, gy) => { const air = gx - 5, side = SIDES[Math.min(2, Math.floor((gy / 53.3) * 3))]; const d = air < 0 ? 'behind' : air < 10 ? 'short' : air < 20 ? 'mid' : 'deep'; return hills.zones[`${side}|${d}`] }
+      if (g.vmax) group.add(buildHills(g, { toWorld: (gx, gy, h) => new THREE.Vector3((gx - 5) * YD, h, across(gy / 53.3)), colorAt: (gx, gy) => (zoneAt(gx, gy)?.weak ? green : pale), height: 34, floor: 0.07 }))
+    }
     // ZONES: a column per lit zone, height = its heat, the number on top
-    if (pass) SIDES.forEach((s, i) => {
+    if (pass && !hills) SIDES.forEach((s, i) => {
       for (const [d, [y0, y1]] of Object.entries(BAND_YD)) {
         const c = cells[`${s}|${d}`]
         if (!c || c.heat == null) continue
@@ -246,7 +259,7 @@ export default function GameArena({ cells = {}, men = [], defMen = [], hue = C.g
   return (
     <StadiumShell theme={C} accent={C.green} presets={PRESETS} active={preset}
       onPreset={(k) => { setPreset(k); apiRef.current.preset?.(k) }} onFullChange={setFull}
-      caption={<div style={{ marginTop: 6, fontSize: 11, color: C.text3, lineHeight: 1.5, fontFamily: NUM_FONT }}>Columns = {pass ? 'zones' : 'run gaps'}, taller = more. Faces stand where the flat field puts them; corners by chart slot, nobody says who covers whom. Dashed ring = by role. Tap a face for his card.{title ? ` ${title}` : ''}</div>}>
+      caption={<div style={{ marginTop: 6, fontSize: 11, color: C.text3, lineHeight: 1.5, fontFamily: NUM_FONT }}>{hills ? <>Higher hill = more of their throws. <b style={{ color: hue }}>Green</b> = the defense is weak there. Drag to turn.</> : <>Columns = {pass ? 'zones' : 'run gaps'}, taller = more. Faces stand where the flat field puts them; corners by chart slot, nobody says who covers whom. Dashed ring = by role. Tap a face for his card.</>}{title ? ` ${title}` : ''}</div>}>
       <div style={{ position: 'relative', ...(full ? { height: '100%' } : {}) }}>
         <div ref={mountRef} style={{ width: '100%', ...(full ? { height: '100%' } : { minHeight: 340, aspectRatio: '1 / 0.75' }), borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }} />
       </div>

@@ -260,7 +260,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
             <RinkArena shots={view === 'zones' || view === 'dots' || view === 'goalie' ? shots : NO_SHOTS} goalieRead={view === 'goalie' ? goalieRead : null} onPickZone={(z) => setPicked({ zone: z })} map={m} league={data.league} slot={data.slot} gridSpec={data.gridSpec} view={view === 'zones' ? 'dots' : view}
               speed={speed} hardest={hardest} stats={stats} dockChips={dockChips} onClearAll={clearAll} totalShots={recent.length} slotPct={slotStat?.v ? parseInt(slotStat.v, 10) : null}
               title={sel?.name || sel?.team || sel?.against || ''} subtitle={`${shots.length} of the last ${recent.length} attempts`} venue={venue}
-              onPick={(sh) => setPicked(sh)} onPickCell={(cell) => setPicked({ cell })} />
+              onPick={(sh) => setPicked(sh)} onPickCell={(cell) => setPicked({ cell })} hillShots={shots} />
           )}
           {/* 2D / 3D, one chart (2026-10-03): the flat rink and the arena share the chart's place; the toggle rides with the view buttons */}
           {arena && gl && viewToggle}

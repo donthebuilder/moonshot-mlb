@@ -56,7 +56,7 @@ for (const path of pages) {
       const out = { total: 0, bad: [] }
       for (const el of document.querySelectorAll('body *')) {
         if (el.children.length) continue
-        if (el.closest('header,nav,[aria-hidden="true"],title,script,style')) continue
+        if (el.closest('header,nav,[aria-hidden="true"],title,script,style,[data-pitch]')) continue   // [data-pitch]: a pitch code (KC = knuckle curve, not Kansas City)
         const t = (el.textContent || '').trim()
         if (!t || t.length > 40) continue
         const k = kind(t)
