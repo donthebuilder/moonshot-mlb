@@ -1,5 +1,4 @@
 'use client'
-import DenseTable from '../DenseTable'
 import { useEffect, useState } from 'react'
 import { dateNumberRows, dayBefore, NUMBERS_NOTE } from '../../lib/numerology/dayNumbers'
 
@@ -31,6 +30,7 @@ export default function DayNumbers({ sport, date, theme: C, numFont, accent, eve
   const recap = useJson(yday ? `/api/numerology/day?sport=${encodeURIComponent(sport)}&day=${yday}` : null)
   const [openT, setOpenT] = useState(false)
   const [openY, setOpenY] = useState(false)
+  const [yOpen, setYOpen] = useState(false)
   if (!date) return null
   const box = { padding: '11px 12px', border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2 }
   const head = (t, d) => <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.1em', color: accent, fontFamily: numFont, marginBottom: 4 }}>{t} <span style={{ color: C.text3 }}>· {fmt(d)}</span></div>
@@ -41,15 +41,25 @@ export default function DayNumbers({ sport, date, theme: C, numFont, accent, eve
     { key: 'reduces', label: 'Reduces', heat: false, w: 104, fmt: (v) => <span style={{ fontFamily: numFont }}>{v}</span> },
     { key: 'how', label: 'How', heat: false, w: 150, fmt: (v) => <span style={{ color: C.text3, whiteSpace: 'normal' }}>{v}</span> },
   ]
+  // THE NUMBERS AS TILES (Donovan 10-18: "make this easier to read, chip things up, make it look cool"). Each number is a tile in an
+  // even grid: its name small, the number big, its reduction beside it (11 / 22 / 33 marked master); the sum that makes it rides the
+  // tile's title. Four show, then all of them. Same rows as the table that was here (dateNumberRows).
   const table = (rows, open, setOpen, cap) => {
     const shown = open ? rows : rows.slice(0, PREVIEW)
     return (
       <>
-        <div style={{ overflowX: 'auto' }}>
-          <DenseTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={Math.max(shown.length, 1)} accent={accent} caption={cap}
-            rows={shown.map((r) => ({ ...r, _key: r.key }))} columns={numCols} />
+        <div role="list" aria-label={cap} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 6 }}>
+          {shown.map((r) => (
+            <div role="listitem" key={r.key} title={r.how} style={{ padding: '7px 9px', border: `1px solid ${r.master ? accent : C.border}`, borderRadius: 9, background: C.bg }}>
+              <div style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.label}{r.master ? <span style={{ marginLeft: 4, color: accent, fontWeight: 800 }}>master</span> : null}</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
+                <b style={{ fontFamily: numFont, fontSize: 20, color: C.text }}>{r.value}</b>
+                {r.reduces && String(r.reduces) !== String(r.value) ? <span style={{ fontFamily: numFont, fontSize: 11, color: C.text3 }}>{String(r.reduces).replace(/^\S+\s*/, '')}</span> : null}
+              </div>
+            </div>
+          ))}
         </div>
-        {rows.length > PREVIEW && <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} style={{ marginTop: 4, minHeight: 44, padding: '0 10px', border: `1px solid ${C.border}`, borderRadius: 8, background: 'transparent', color: accent, fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>{open ? 'Show fewer' : `+${rows.length - PREVIEW} more numbers`}</button>}
+        {rows.length > PREVIEW && <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} style={{ marginTop: 6, minHeight: 44, padding: '0 10px', border: `1px solid ${C.border}`, borderRadius: 8, background: 'transparent', color: accent, fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>{open ? 'Fewer' : `All ${rows.length} numbers`}</button>}
       </>
     )
   }
@@ -66,7 +76,6 @@ export default function DayNumbers({ sport, date, theme: C, numFont, accent, eve
     <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'minmax(0, 1fr)' }}>
       <section aria-label="Today's numbers" style={box}>
         {head("TODAY'S NUMBERS", date)}
-        <div style={{ ...small, marginBottom: 4 }}>The date, added up the lane ways. 11, 22 and 33 stay as they are.</div>
         {table(dateNumberRows(date), openT, setOpenT, `The numbers for ${date}`)}
         {hotRows.length > 0 && (
           <div style={{ marginTop: 8 }}>
@@ -84,12 +93,16 @@ export default function DayNumbers({ sport, date, theme: C, numFont, accent, eve
         )}
         <div style={{ ...small, marginTop: 6 }}>{NUMBERS_NOTE}</div>
       </section>
+      {/* YESTERDAY, FOLDED (10-18: less scroll): one row until it is opened; the same numbers and what they did */}
       {yday && (
         <section aria-label="Yesterday's numbers" style={box}>
-          {head('YESTERDAY', yday)}
-          <div style={{ ...small, marginBottom: 4 }}>The preceding day&apos;s numbers, and what they did once the games were graded.</div>
-          {table(dateNumberRows(yday), openY, setOpenY, `The numbers for ${yday}`)}
-          <div style={{ marginTop: 8 }}>
+          <button type="button" onClick={() => setYOpen((v) => !v)} aria-expanded={yOpen}
+            style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, margin: '-8px 0', padding: 0, border: 0, background: 'transparent', color: 'inherit', cursor: 'pointer', textAlign: 'left' }}>
+            <span style={{ flex: 1 }}>{head('YESTERDAY', yday)}</span>
+            <span aria-hidden="true" style={{ color: accent, fontFamily: numFont, fontSize: 12 }}>{yOpen ? '▴' : 'what they did ▾'}</span>
+          </button>
+          {yOpen && <div style={{ marginTop: 10 }}>{table(dateNumberRows(yday), openY, setOpenY, `The numbers for ${yday}`)}</div>}
+          {yOpen && <div style={{ marginTop: 8 }}>
             <div style={{ ...small, fontWeight: 800, color: C.text2 }}>WHAT THEY DID</div>
             {recap === undefined ? <div style={small}>Loading the record…</div>
               : !y ? <div style={small}>Nothing graded for {fmt(yday)} yet (a day with no game stays empty). It fills in after the finals; nothing is guessed.</div>
@@ -111,8 +124,7 @@ export default function DayNumbers({ sport, date, theme: C, numFont, accent, eve
                     {(y.udRows.length > 3 || y.lanes.length > 3) && <li style={small}>+{Math.max(0, y.udRows.length - 3) + Math.max(0, y.lanes.length - 3)} more in the lane scoreboard below</li>}
                   </ul>
                 )}
-          </div>
-          <div style={{ ...small, marginTop: 6 }}>{NUMBERS_NOTE}</div>
+          </div>}
         </section>
       )}
     </div>

@@ -25,13 +25,13 @@ import { ordinal } from '../../lib/format'
 //   SpotBars      "Homers by lineup spot" -- a small bar per bucket
 // "+N more" -- the phone rule's long-list preview (TUDDY / LAMP pass `preview`;
 // MOONSHOT passes none and shows everything, as it always has).
-function More({ n, open, setOpen, accent }) {
-  if (n <= 0) return null
+function More({ n, open, setOpen, accent, total = null }) {
+  if (n <= 0) return null   // the site's one show-more rule (10-18): the whole count, "All 42", never "Show 30 more"
   return (
     <button type="button" className="tap-box" onClick={() => setOpen((v) => !v)} style={{
       alignSelf: 'center', minHeight: 32, padding: '4px 10px', borderRadius: 8, cursor: 'pointer',
       border: `1px dashed ${C.border2}`, background: 'transparent', color: accent, fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800,
-    }}>{open ? 'Show less' : `Show ${n} more`}</button>
+    }}>{open ? 'Fewer' : total ? `All ${total}` : `+${n} more`}</button>
   )
 }
 
@@ -133,7 +133,7 @@ export function AlignBox({ title, sub, chips = [], foot, accent = C.orange, prev
             ))}
           </button>
         ))}
-        {preview ? <More n={chips.length - preview} open={open} setOpen={setOpen} accent={accent} /> : null}
+        {preview ? <More n={chips.length - preview} total={chips.length} open={open} setOpen={setOpen} accent={accent} /> : null}
       </div>
       {foot && <div style={{ fontSize: 11, color: C.text3, marginTop: 5, lineHeight: 1.5 }}>{foot}</div>}
     </div>
@@ -185,8 +185,10 @@ export function LookOutBox({ title, tag, rows = [], foot, accent = C.orange }) {
         .lookout-row{margin-top:7px}
         .lookout-label{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;margin-bottom:5px;font-size:10.5px;font-weight:800;color:${C.text}}
         .lookout-label i{color:${C.text3};font-family:${NUM_FONT};font-size:8px;font-weight:800;font-style:normal;letter-spacing:.06em;text-transform:uppercase;border-bottom:1px dotted ${C.border2}}
-        .lookout-chips{display:flex;flex-wrap:wrap;gap:5px}
-        .lookout-chips :global(.chip){display:inline-flex;align-items:baseline;gap:5px;padding:4px 8px;border:1px solid ${C.border};border-radius:999px;background:${C.bg}}
+        .lookout-chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+        /* AN EVEN GRID (Donovan 10-18: "it's all not even ... not structured properly"): every chip one cell, name left, number right */
+        .lookout-chips :global(.chip){display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:40px;padding:4px 10px;border:1px solid ${C.border};border-radius:10px;background:${C.bg};min-width:0}
+        .lookout-chips :global(.chip > span){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         .lookout-chips :global(.chip-hot){border-color:${alpha(accent, 0.45)};background:${alpha(accent, 0.08)}}
         .lookout-chips :global(.chip b){font-size:10.5px;font-weight:800;color:${C.text}}
         .lookout-chips :global(.chip-hot b){color:${accent}}
@@ -271,34 +273,39 @@ export function ScorerChips({ cards = [], accent = C.orange, preview = null, spo
   const themed = !!useSportTheme()?.themed   // 44px on a touch screen in TUDDY / LAMP / BUCKETS (.fp-themed)
   if (!cards.length) return null
   const shown = preview && !open ? cards.slice(0, preview) : cards
+  // AN EVEN GRID, TWO LINES A CARD (Donovan 10-18: "not symmetrical ... not built right" in portrait). Line one: his club, his
+  // name, ×N. Line two: the count (only when it is a milestone, lit), his spot, then the badges (the numbers that aligned).
+  // `c.num` shows only when `numHot` (a round number) unless the caller sets `numAlways`.
   return (
-    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 6, marginBottom: 10 }}>
       {shown.map((c) => (
         <button key={c.key} onClick={c.onClick || undefined} className={themed ? 'fp-themed' : undefined}
           title={c.title}
           style={{
-            display: 'flex', gap: 7, alignItems: 'center', cursor: c.onClick ? 'pointer' : 'default',
+            display: 'grid', gap: 3, alignContent: 'center', textAlign: 'left', minWidth: 0, cursor: c.onClick ? 'pointer' : 'default',
             border: `1px solid ${c.milestone ? alpha(accent, 0.6) : C.border}`,
             background: c.milestone ? alpha(accent, 0.10) : C.bg2,
-            borderRadius: 10, padding: '6px 11px', minHeight: 40,
+            borderRadius: 10, padding: '6px 10px', minHeight: 48,
           }}>
-          {sport && c.team ? <TeamMark sport={sport} abbr={c.team} variant="logo" px={18} /> : <span style={{ fontSize: 12 }}>{c.icon}</span>}
-          <span style={{ fontSize: 12.5, fontWeight: 800, color: C.text }}>{c.name}</span>
-          {c.times > 1 && <span style={{ fontSize: 11, fontFamily: NUM_FONT, color: accent, fontWeight: 900 }}>×{c.times}</span>}
-          <span style={{ fontSize: 11, fontFamily: NUM_FONT, color: c.numHot ? accent : C.text3, fontWeight: c.numHot ? 900 : 600 }}>
-            {c.num}
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+            {sport && c.team ? <TeamMark sport={sport} abbr={c.team} variant="logo" px={16} /> : <span style={{ fontSize: 12 }}>{c.icon}</span>}
+            <span style={{ fontSize: 12.5, fontWeight: 800, color: C.text, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+            {c.times > 1 && <span style={{ fontSize: 11, fontFamily: NUM_FONT, color: accent, fontWeight: 900, flex: 'none' }}>×{c.times}</span>}
           </span>
-          {c.spot && <span style={{ fontSize: 11, fontFamily: NUM_FONT, color: C.text3 }}>{c.spot}</span>}
-          {(c.badges || []).map((b) => (
-            <span key={b.k} title={b.title}
-              style={{
-                fontSize: 11, fontFamily: NUM_FONT, fontWeight: 900, letterSpacing: '.04em',
-                color: b.color || accent, border: `1px solid ${b.color || accent}55`, borderRadius: 4, padding: '1px 4px',
-              }}>{b.label}</span>
-          ))}
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flexWrap: 'wrap' }}>
+            {(c.numHot || c.numAlways) && c.num && <span style={{ fontSize: 11, fontFamily: NUM_FONT, color: c.numHot ? accent : C.text3, fontWeight: 900 }}>{c.num}</span>}
+            {c.spot && <span style={{ fontSize: 11, fontFamily: NUM_FONT, color: C.text3 }}>{c.spot}</span>}
+            {(c.badges || []).map((b) => (
+              <span key={b.k} title={b.title}
+                style={{
+                  fontSize: 11, fontFamily: NUM_FONT, fontWeight: 900, letterSpacing: '.02em', whiteSpace: 'nowrap',
+                  color: b.color || accent, border: `1px solid ${b.color || accent}55`, borderRadius: 4, padding: '1px 4px',
+                }}>{b.label}</span>
+            ))}
+          </span>
         </button>
       ))}
-      {preview ? <More n={cards.length - preview} open={open} setOpen={setOpen} accent={accent} /> : null}
+      {preview ? <More n={cards.length - preview} total={cards.length} open={open} setOpen={setOpen} accent={accent} /> : null}
     </div>
   )
 }
@@ -312,7 +319,8 @@ export function SpotBars({ title, bars = [], foot, accent = C.orange }) {
       <div style={{ fontSize: 11, color: C.text3, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', fontFamily: NUM_FONT, marginBottom: 4 }}>
         {title}
       </div>
-      <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: 46 }}>
+      {/* no fixed height (10-18): a 46px box held a 13px number + a 26px bar + a 13px label, so the number sat on the bar */}
+      <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end' }}>
         {bars.map((b) => (
           <div key={b.key} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }} title={b.title}>
             {/* a zero says 0 (dimmed), never blank: a blank collapsed its row and the numbers slid
