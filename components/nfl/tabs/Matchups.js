@@ -181,6 +181,62 @@ function ByPosition({ matchup, team, win, setWin, slateSeason }) {
   )
 }
 
+// THE DVP GRID ON THE GAME PAGE (Donovan 10-18: "I love this ... I need to be able to see this from the get-go"). The
+// Matchups page's by-role grid (ByPosition, the same data and the same table) at the top of one game: one defense at a time
+// (a tap on the other club's logo switches), the six starting roles first and the rest one tap away, the season window.
+export function GameDvp({ matchup, away, home, slateSeason, onOpenMatchups = null }) {
+  const dvpSeason = useDvpSeason(matchup)
+  const data = dvpSeason.view
+  const soft = (t) => softRole(data, t, 'season', STARTER_ROLES)?.z ?? -99
+  const [def, setDef] = useState(() => (soft(away) > soft(home) ? away : home))
+  const [all, setAll] = useState(false)
+  const blob = data?.dvp?.season?.[def]
+  const known = (data?.dvp_roles || []).filter((r) => blob?.[r])
+  const roles = all ? known : known.filter((r) => STARTER_ROLES.includes(r))
+  const labels = data?.dvp_labels || {}
+  const stats = (data?.dvp_stats || []).filter((st) => roles.some((r) => blob[r]?.[st] != null))
+  if (!known.length || !stats.length) return null
+  const rows = roles.map((r) => {
+    const o = { _id: r, role: r }
+    for (const st of stats) { const rk = blob[r]?.[`${st}_rank`]; o[st] = Number.isFinite(rk) ? 33 - rk : null; o[`${st}__v`] = blob[r]?.[st]; o[`${st}__r`] = rk }
+    return o
+  })
+  const columns = [
+    { key: 'role', label: 'Role', w: 58, heat: false, sticky: true, group: 'Role', fmt: (v) => <b>{v}</b> },
+    ...stats.map((st) => ({
+      key: st, label: labels[st] || st, w: 62, scale: 'seq', domain: [1, 32], group: 'Allowed · rank of 32',
+      fmt: (v, r) => (v == null ? '—' : <span><b>{Number.isInteger(r[`${st}__v`]) ? r[`${st}__v`] : Number(r[`${st}__v`]).toFixed(1)}</b> <span style={{ fontSize: 10, opacity: 0.7 }}>#{r[`${st}__r`]}</span></span>),
+    })),
+  ]
+  const off = def === home ? away : home
+  return (
+    <section aria-label={`What ${def} allows each role`} style={{ marginTop: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+        <span style={{ font: `900 11px/1 ${NUM_FONT}`, letterSpacing: '.12em', color: C.green }}>{def} ALLOWS</span>
+        <span style={{ fontSize: 12, color: C.text3 }}>to {off}&apos;s roles · #1 = softest</span>
+        <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 6 }}>
+          {[away, home].map((t) => (
+            <button key={t} type="button" className="tap-box" onClick={() => setDef(t)} aria-pressed={t === def} title={`What ${t} allows`}
+              style={{ ...btnStyle(C.green, t === def), display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px' }}>
+              <TeamMark sport="nfl" abbr={t} variant="logo" px={18} />{t} D
+            </button>
+          ))}
+        </span>
+      </div>
+      <NflTable rows={rows} columns={columns} heatMode="full" maxHeight={9999} bare />
+      <div style={{ display: 'flex', gap: '0 14px', alignItems: 'center', flexWrap: 'wrap', marginTop: 4, whiteSpace: 'nowrap' }}>
+        {known.length > roles.length || all ? (
+          <button type="button" className="tap-box" onClick={() => setAll((v) => !v)} style={{ border: 0, background: 'transparent', padding: '10px 0', color: C.green, font: `800 12px/1 ${NUM_FONT}`, cursor: 'pointer' }}>
+            {all ? 'Starters only' : `All ${known.length} roles`}
+          </button>
+        ) : null}
+        {onOpenMatchups && <button type="button" className="tap-box" onClick={onOpenMatchups} style={{ border: 0, background: 'transparent', padding: '10px 0', color: C.text2, font: `800 12px/1 ${NUM_FONT}`, cursor: 'pointer' }}>L10 · L5 · L3 →</button>}
+        <SourceSeason matchup={data} kind="stats" slateSeason={slateSeason} team={def} />
+      </div>
+    </section>
+  )
+}
+
 // THE SAME FACTS AS TILES (2026-10-04, Donovan: "all these words give me
 // anxiety"). offenseFacts / defenseFacts as sentences said each number's rank,
 // season and game count inline, on every line. Here: one label, the number,
