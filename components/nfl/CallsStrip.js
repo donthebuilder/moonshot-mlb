@@ -36,7 +36,7 @@ export function CallCard({ x, onPlayerClick, onOpenTeam }) {
             <Tap onClick={onPlayerClick ? () => onPlayerClick(x.row || { player_id: x.player_id, name: x.name }, 'TD') : null}
               style={{ minHeight: 44, display: 'flex', alignItems: 'center', fontSize: 17, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-.01em', lineHeight: 1.05, color: C.text, transform: 'skewX(-8deg)', transformOrigin: 'left center' }}>{x.name}</Tap>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: C.text2, marginTop: -4 }}>
-              <Tap onClick={onOpenTeam && (() => onOpenTeam(x.team))} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 4 }}><TeamMark sport="nfl" abbr={x.team} variant="logo" px={16} />{x.team}</Tap>
+              <Tap onClick={onOpenTeam && (() => onOpenTeam(x.team))} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 4 }}><TeamMark sport="nfl" abbr={x.team} variant="logo" px={16} /></Tap>
               <span>· {x.depth_role || x.position}</span>
             </div>
           </div>

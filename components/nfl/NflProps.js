@@ -95,7 +95,7 @@ function nflAdapter({ players, card, markets, odds, games }) {
         meta: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, minWidth: 0, maxWidth: '100%' }}>
           <TeamMark sport="nfl" abbr={r.team} variant="logo" px={16} />
           <span>vs</span>
-          <TeamMark sport="nfl" abbr={r.opp} variant="logo" px={16} />
+          <span data-opp="" style={{ opacity: .62 }}>{r.opp}</span>{/* the opponent is quiet text: one logo per player (10-18) */}
           <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>· {r.position}</span>
         </span>,
         metaRight: q ? (() => { const px = Number(q.best_over ?? q.over); return px > 0 ? `+${px}` : String(px) })() : null,

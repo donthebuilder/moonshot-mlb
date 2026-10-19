@@ -71,7 +71,8 @@ export default function BroadcastBars({ games = [], thr, numFont, look, sport = 
               <div style={{ height: LH, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
                 {full ? (
                   <>
-                    {g.opp ? <TeamMark sport={sport} abbr={g.opp} variant="logo" px={20} /> : <span style={{ height: 20 }} />}
+                    {/* the opponent as quiet text, not a logo per bar (10-18: "logos for both teams ... throughout the site") */}
+                    <span data-opp="" style={{ height: 20, display: 'flex', alignItems: 'center', fontFamily: numFont, fontSize: 11, fontWeight: 700, color: look.ink2 }}>{g.opp || ''}</span>
                     <span style={{ fontFamily: numFont, fontSize: 11, fontWeight: 800, lineHeight: 1, color: newest ? look.rule : look.ink2 }}>
                       {g.week != null ? `W${g.week}` : ''}
                     </span>

@@ -46,7 +46,7 @@ for (const path of PAGES) {
       const game = new RegExp(`^(?:.*\\s)?(${codes.join('|')})\\s?@\\s?(${codes.join('|')})(?:\\s.*)?$`)
       const bare = [], games = []
       for (const el of document.querySelectorAll('body *')) {
-        if (el.closest('option, select, script, style, title, th, [aria-hidden="true"]')) continue   // th: a column header ('TB' = total bases)
+        if (el.closest('option, select, script, style, title, th, [aria-hidden="true"], [data-opp]')) continue   // [data-opp]: an opponent, quiet text by rule (CLAUDE.md 'the opponent is quiet text'; Donovan 10-18: one logo per player)   // th: a column header ('TB' = total bases)
         const own = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('').trim()
         if (!own || own.length > 40) continue
         const r = el.getBoundingClientRect()

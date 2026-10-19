@@ -204,7 +204,7 @@ function mlbAdapter(odds, pairSummary = null) {
         meta: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, minWidth: 0, maxWidth: '100%' }}>
           <MlbTeamMark abbr={teamOf(r)} style={{ height: 16 }} />
           <span>vs</span>
-          <MlbTeamMark abbr={oppOf(r)} style={{ height: 16 }} />
+          <span data-opp="" style={{ opacity: .62 }}>{oppOf(r)}</span>{/* the opponent is quiet text: one logo per player (10-18) */}
           {arm ? <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>· {arm}{hand ? ` (${hand})` : ''}</span> : null}
         </span>,
         metaRight: priceFor(odds, r, role),

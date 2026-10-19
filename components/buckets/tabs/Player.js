@@ -256,7 +256,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
           </>}
           badge={row ? ptsMarket.label : 'NO GAME'} badgeQuiet={!shownRow || shownRow.status !== 'called'}
           meta={<>
-            {card.team ? <Tap onClick={onOpenTeam ? () => onOpenTeam(card.team) : null} title={`Open ${card.team}`}><TeamMark sport="nba" abbr={card.team} variant="logo" px={14} /> {card.team}</Tap> : null}
+            {card.team ? <Tap onClick={onOpenTeam ? () => onOpenTeam(card.team) : null} title={`Open ${card.team}`}><TeamMark sport="nba" abbr={card.team} variant="logo" px={14} /></Tap> : null}
             {oppTxt ? <>{' '}{row?.home ?? data.nextGame?.home ? 'vs' : '@'}{' '}<Tap onClick={onOpenTeam ? () => onOpenTeam(row?.opp || data.nextGame?.opp) : null} title={`Open ${row?.opp || data.nextGame?.opp}`}>{row?.opp || data.nextGame?.opp}</Tap></> : null}
             {row?.gameId && onOpenGame ? <>{' · '}<Tap onClick={() => onOpenGame(row.gameId)} title="Open his game">Game ›</Tap></> : null}
           </>}
