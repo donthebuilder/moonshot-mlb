@@ -704,6 +704,8 @@ const LEG_FMT = { shotsPg: (v) => v.toFixed(1), goalsPg: (v) => v.toFixed(2), to
 const ordW = (p) => { const n = Math.round(p); const r = n % 100; return `${n}${r >= 11 && r <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'}` }
 const GROUPS = { call: { key: 'call', label: 'Call', order: 0 }, signal: { key: 'signal', label: 'The signal', order: 1 }, shooter: { key: 'shooter', label: 'The shooter', order: 2 } }
 
+// the Why cell's short tags (10-18: the numbers, not a sentence)
+const LEG_TAG = { shotsPg: 'SOG/g', goalsPg: 'G/g', toi: 'TOI', oppSaPg: 'opp SA/g', ptsPg: 'P/g', astPg: 'A/g', oppGaPg: 'opp GA/g', shPct: 'Sh%' }
 const LEG_WORDS = { shotsPg: 'shots per game', goalsPg: 'goals per game', toi: 'ice time', oppSaPg: 'shots his opponent allows', ptsPg: 'points per game', astPg: 'assists per game', oppGaPg: 'goals his opponent allows' }
 /** One plain sentence: his strongest part of the score, and where it ranks tonight. `short` is the table's line. */
 export function plainWhy(r, market) {
@@ -712,7 +714,9 @@ export function plainWhy(r, market) {
   if (!placed.length) return { lead: r.reason || null, short: r.reason || '', watch: null }
   const top = placed[0]; const low = placed[placed.length - 1]
   const w = LEG_WORDS[top.d.key] || top.d.label.toLowerCase()
-  return { lead: `His best part is ${w}: ${ordW(top.p)} percentile among tonight’s skaters.`, short: `${w[0].toUpperCase()}${w.slice(1)}, ${ordW(top.p)} percentile`,
+  const v = Number(r.legs?.[top.d.key]); const f = LEG_FMT[top.d.key]
+  const num = `${Number.isFinite(v) && f ? `${f(v)} ` : ''}${LEG_TAG[top.d.key] || top.d.label} · ${ordW(top.p)}`   // the numbers (10-18)
+  return { num, lead: `His best part is ${w}: ${ordW(top.p)} percentile among tonight’s skaters.`, short: `${w[0].toUpperCase()}${w.slice(1)}, ${ordW(top.p)} percentile`,
     watch: low !== top && low.p <= 25 ? `${LEG_WORDS[low.d.key] || low.d.label.toLowerCase()}, ${ordW(low.p)} percentile.` : null }
 }
 /** The sheet's item for one row: the board's own sentence, its numbers, and where to look next. */
@@ -781,7 +785,7 @@ export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam, onOpenGa
       )
     } },
     { key: 'score', label: 'SCORE', cset: 'lean', primary: true, scale: 'seq', domain: [0, 100], w: 50, group: GROUPS.signal, explain: scoreTitle(market, kept[0]?.g), art: SCORE_ART[market] || null, answers: market === 'GOAL' ? 'nhl-goal' : null },
-    { ...whyColumn({ textOf: (r) => plainWhy(r._row, market).short, itemOf: (r) => whyItemFor(r._row, market, r.rank), open, theme: C, numFont: NUM_FONT, group: GROUPS.signal, w: 140, tidy: true }), cset: 'lean' },
+    { ...whyColumn({ textOf: (r) => plainWhy(r._row, market).short, shortOf: (r) => plainWhy(r._row, market).num, itemOf: (r) => whyItemFor(r._row, market, r.rank), open, theme: C, numFont: NUM_FONT, group: GROUPS.signal, w: 140, tidy: true }), cset: 'lean' },
     { key: 'gameRank', label: 'GAME #', cset: 'read', heat: false, mono: true, w: 52, group: GROUPS.signal, title: 'His rank in his own game. CALLED is the top-scored skater on each team (three in a game on the shots, points and assists boards).' },
     ...rateCols(market).map((c, i) => ({ ...c, cset: i === 0 ? 'lean' : 'read', group: GROUPS.shooter })),
     { key: 'toi', label: 'TOI', cset: 'read', primary: true, w: 48, group: GROUPS.shooter, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
