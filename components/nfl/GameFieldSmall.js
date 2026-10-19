@@ -15,7 +15,7 @@ import { LANES, LANE_WORD } from '../../lib/nfl/fieldModel'
 import { usePreview, ShowMoreButton } from '../ListPreview'
 import TeamMark from '../TeamMark'
 import Tap from '../Tap'
-import { Kicker } from './GameOffDef'
+import { Kicker } from './Kicker'
 import PassAreaField, { areaName } from './PassAreaField'
 import RunLineField from './RunLineField'
 

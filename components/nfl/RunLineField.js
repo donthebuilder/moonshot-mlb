@@ -18,7 +18,8 @@ import { LANES } from '../../lib/nfl/fieldModel'
 //
 // COOLER (Donovan 10-18: the run-gap chart "make it cooler", no new chart font, less text under it): each hole is a
 // tapered run arrow out of the backfield, its length the yards a carry; a run path curves from the back to it. The
-// table rule (skin v2): the best holes glow in the product's accent, the worst recede; no red / green.
+// table rule (skin v2): the best holes in the product's accent, the worst recede; no red / green.
+// LESS GLOW (Donovan 10-19): no blur, no halo on the line; a softer fill; the line of scrimmage the pass field's thin blue.
 //
 // cells: { 'left|end': { big, sub, yards (the bar's length, true to scale), thin, title } }
 const W = 320
@@ -37,7 +38,7 @@ export default function RunLineField({ cells = {}, pickedKey = null, onPick = nu
   const maxLen = LOS - 62
   const top = Math.max(6, ...LANES.map((k) => (cells[k]?.thin ? 0 : Number(cells[k]?.yards) || 0)))
   const per = maxLen / top   // pixels a yard, the same for every bar and the yard lines
-  // standouts: rank the measured holes by yards a carry; top two glow, bottom two recede
+  // standouts: rank the measured holes by yards a carry; top two in the accent, bottom two recede
   const measured = LANES.filter((k) => cells[k] && !cells[k].thin && Number.isFinite(Number(cells[k].yards))).sort((a, b) => cells[b].yards - cells[a].yards)
   const tier = (k) => { const i = measured.indexOf(k); if (i < 0) return 'thin'; if (i < 2) return 'top'; if (i >= measured.length - 2 && measured.length > 4) return 'low'; return 'mid' }
   const OP = { top: 1, mid: 0.62, low: 0.3, thin: 0.25 }
@@ -46,8 +47,7 @@ export default function RunLineField({ cells = {}, pickedKey = null, onPick = nu
     <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label} style={{ width: '100%', maxWidth: 440, display: 'block' }}>
       <defs>
         <clipPath id={`c${uid}`}><rect x="0" y="0" width={W} height={H} rx="10" /></clipPath>
-        <linearGradient id={`b${uid}`} x1="0" y1="1" x2="0" y2="0"><stop offset="0" stopColor={hue} stopOpacity="0.05" /><stop offset="0.55" stopColor={hue} stopOpacity="0.55" /><stop offset="1" stopColor={hue} stopOpacity="1" /></linearGradient>
-        <filter id={`g${uid}`} x="-50%" y="-20%" width="200%" height="140%"><feGaussianBlur stdDeviation="3.2" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+        <linearGradient id={`b${uid}`} x1="0" y1="1" x2="0" y2="0"><stop offset="0" stopColor={hue} stopOpacity="0.04" /><stop offset="0.6" stopColor={hue} stopOpacity="0.35" /><stop offset="1" stopColor={hue} stopOpacity="0.7" /></linearGradient>
       </defs>
       <g clipPath={`url(#c${uid})`}>
         <rect width={W} height={H} fill={C.turf2} />
@@ -81,7 +81,7 @@ export default function RunLineField({ cells = {}, pickedKey = null, onPick = nu
           <g key={key} opacity={on ? 1 : OP[t]}>
             {thin
               ? <path d={d} fill="none" stroke={C.text} strokeOpacity="0.5" strokeDasharray="3 3" strokeLinejoin="round" />
-              : <path d={d} fill={`url(#b${uid})`} stroke={on ? C.text : t === 'top' ? hue : 'none'} strokeWidth={on ? 2 : 1} strokeLinejoin="round" filter={on || t === 'top' ? `url(#g${uid})` : undefined} />}
+              : <path d={d} fill={`url(#b${uid})`} stroke={on ? C.text : t === 'top' ? hue : 'none'} strokeWidth={on ? 2 : 1} strokeLinejoin="round" />}
             <text x={x} y={tip - 6} textAnchor="middle" fontSize={on ? 20 : 17} fontWeight="900" fontFamily={NUM_FONT} fill={on || t === 'top' ? hue : C.text} style={OUT}>{thin ? '—' : c.big ?? '—'}</text>
             {c.sub && <text x={x} y={tip - 26} textAnchor="middle" fontSize="10" fontWeight="800" fontFamily={NUM_FONT} fill={C.text2} style={OUT}>{c.sub}</text>}
           </g>
@@ -89,7 +89,7 @@ export default function RunLineField({ cells = {}, pickedKey = null, onPick = nu
       })}
 
       {/* the line of scrimmage and the men on it */}
-      <line x1="0" x2={W} y1={LOS} y2={LOS} stroke={C.text} strokeWidth="3" style={{ filter: `drop-shadow(0 0 4px ${hue})` }} />
+      <line x1="0" x2={W} y1={LOS} y2={LOS} stroke={C.losBlue} strokeWidth="2.2" />
       {GAPS.map(([t, x], i) => <text key={`g${i}`} x={x} y={LOS + 6} textAnchor="middle" fontSize="10" fontWeight="800" fontFamily={NUM_FONT} fill={hue} opacity="0.9">{t}</text>)}
       {POS.map((t, i) => {
         const x = X0 + STEP * i
