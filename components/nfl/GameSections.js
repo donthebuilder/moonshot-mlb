@@ -1,12 +1,14 @@
 'use client'
 import { QMark } from './NflNote'
+import { useState } from 'react'
 import TeamMark from '../TeamMark'
 import { nflNickname } from '../../lib/nfl/teams'
 import PlayerFace from '../PlayerFace'
 import Tap from '../Tap'
 import { Dial } from '../VerdictHero'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
-import { scoreboardRows, receiverEdge } from '../../lib/nfl/gameMatchup'
+import { receiverEdge } from '../../lib/nfl/gameMatchup'
+import { attackRows } from '../../lib/nfl/attackSheet'
 import { factsNote } from './tabs/Matchups'
 import { softRole, softLine } from '../../lib/nfl/dvpSignal'
 import { mostWord } from '../../lib/format'
@@ -142,52 +144,49 @@ export function KeyPlayers({ matchup, data, game, onPlayerClick, onOpenTeam }) {
   )
 }
 
-// HOW THEY DEFEND (Donovan 10-18: "the matchup page needs a full redo"; "I like symmetrical ... pristine"). The two defenses
-// side by side in one even table: a row per measure (pass rush, blitz, zone or man, long passes allowed), each cell the
-// number, its rank of 32 and a thin bar for where it sits in the league. Neutral ink, no accent: a lot of pressure is not
-// good or bad on its own (the old block's rule); the top eight are brighter. What each defense GIVES UP by role moved to the
-// DvP grid at the top of the game (GameDvp), so the "gives up" chips are not drawn twice.
-function DefendCell({ c }) {
-  if (!c) return <span style={{ color: C.text3 }}>—</span>
-  const value = c.chip?.label && /coverage/.test(c.chip.label) ? `${c.chip.value} ${c.chip.label.replace(' coverage', '')}` : c.chip?.value
-  return (
-    <span title={`${c.text} · ${c.word}`} style={{ display: 'block' }}>
-      <span style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: 6 }}>
-        <b style={{ font: `900 14px/1.1 ${NUM_FONT}`, color: C.text }}>{value}</b>
-        <span style={{ font: `800 11px/1 ${NUM_FONT}`, color: c.rank <= 8 ? C.text : C.text3 }}>#{c.rank}</span>
-      </span>
-      <span aria-hidden="true" style={{ display: 'block', height: 3, marginTop: 4, borderRadius: 2, background: C.border, position: 'relative' }}>
-        <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.round(Math.max(0.04, Math.min(1, c.pos)) * 100)}%`, borderRadius: 2, background: c.rank <= 8 ? C.text2 : C.text3 }} />
-      </span>
-    </span>
-  )
-}
-
-export function MatchupScoreboard({ matchup, data, game }) {
-  const rows = scoreboardRows(matchup, game.away, game.home)
-  const slate = Number(data?.season) || null
+// HOW THEY DEFEND = THE ATTACK SHEET (Donovan 10-19, "G2" on the Chart Lab, after three rounds of prototypes and "I'm
+// still confused how to use this data or what to attack with it"). Pick whose ball it is; each row is one thing the other
+// defense does (the word, the number, its rank of 32) and the player on this offense who beats it, with the number that
+// says so (lib/nfl/attackSheet.js). The most extreme traits come first; a standout (top or bottom 8) wears the defense's
+// colour, the middle plain ink. The play-type words are the usual football answer, said once under the rows.
+export function MatchupScoreboard({ matchup, data, game, onPlayerClick = null }) {
+  const [ball, setBall] = useState(game.home)
+  const def = ball === game.home ? game.away : game.home
+  const rows = attackRows(matchup, data?.players, ball, def)
   const chart = Number(matchup?.chart_season)
-  const oldSeason = slate && chart && chart < slate ? chart : null
-  if (!rows.length) return null
-  const grid = { display: 'grid', gridTemplateColumns: 'minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr)', gap: 12, alignItems: 'center' }
+  const slate = Number(data?.season) || null
+  if (!attackRows(matchup, data?.players, game.home, game.away).length && !attackRows(matchup, data?.players, game.away, game.home).length) return null
+  const pill = (t) => ({ minHeight: 0, padding: '6px 12px', borderRadius: 999, cursor: 'pointer', font: `800 12px/1 ${NUM_FONT}`, background: 'transparent',
+    border: `1px solid ${t === ball ? C.green : C.border2}`, color: t === ball ? C.green : C.text2, display: 'inline-flex', alignItems: 'center', gap: 6 })
   return (
     <section aria-label="How they defend" style={{ marginBottom: 16 }}>
-      <Kicker>HOW THEY DEFEND</Kicker>
-      <div style={{ ...grid, paddingBottom: 6 }}>
-        <span style={{ font: `800 11px/1 ${NUM_FONT}`, color: C.text3, letterSpacing: '.08em' }}>RANK OF 32</span>
+      <Kicker>HOW TO ATTACK THEM</Kicker>
+      <div role="group" aria-label="Whose ball" style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
         {[game.away, game.home].map((t) => (
-          <span key={t} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, font: `900 12px/1 ${NUM_FONT}`, color: C.text }}>
-            <TeamMark sport="nfl" abbr={t} variant="logo" px={20} />{t} D
-          </span>
+          <button key={t} type="button" className="tap-box" aria-pressed={t === ball} onClick={() => setBall(t)} style={pill(t)}>
+            <TeamMark sport="nfl" abbr={t} variant="logo" px={16} />{t} ball
+          </button>
         ))}
       </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.08em', color: C.text3, padding: '4px 0' }}>
+        <span>{def} DEFENSE · RANK OF 32</span><span>WHO BEATS IT</span>
+      </div>
       {rows.map((r) => (
-        <div key={r.key} style={{ ...grid, minHeight: 44, borderTop: `1px solid ${C.border}` }}>
-          <span style={{ fontSize: 13, color: C.text2 }}>{r.label}</span>
-          {r.cells.map((c, i) => <DefendCell key={i} c={c} />)}
+        <div key={r.k} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 0.9fr) 14px minmax(0, 1.3fr)', gap: 8, alignItems: 'center', minHeight: 44, padding: '6px 0', borderTop: `1px solid ${C.border}` }}>
+          <span style={{ display: 'grid', gap: 2, minWidth: 0 }}>
+            <b style={{ font: `900 12px/1.15 ${NUM_FONT}`, letterSpacing: '.03em', color: r.tier === 1 ? C.text2 : C.text }}>{r.word}</b>
+            <span style={{ font: `700 11px/1.2 ${NUM_FONT}`, color: C.text3 }}>{r.val} · #{r.rank}</span>
+          </span>
+          <span aria-hidden="true" style={{ font: `900 14px/1 ${NUM_FONT}`, color: C.green, textAlign: 'center' }}>→</span>
+          <span style={{ display: 'grid', gap: 2, minWidth: 0 }}>
+            <b style={{ fontSize: 13, lineHeight: 1.2, color: C.text }}>{r.player && onPlayerClick ? <Tap onClick={() => onPlayerClick(r.player, 'TD')}>{r.name}</Tap> : r.name}</b>
+            <span style={{ fontSize: 11, color: C.text2, lineHeight: 1.3 }}>{r.why}</span>
+          </span>
         </div>
       ))}
-      {oldSeason ? <p style={{ margin: '8px 0 0', fontSize: 12, color: C.text3 }}>Pass rush, coverage and long passes: {oldSeason}.</p> : null}
+      <p style={{ margin: '6px 0 0', fontSize: 11, color: C.text3, lineHeight: 1.4 }}>
+        Quick throws, go deep, run it: the usual answer to that trait; the player and his number are real.{chart && slate && chart < slate ? ` Pass rush, coverage and receivers vs zone / man: ${chart}.` : ''}
+      </p>
     </section>
   )
 }
@@ -198,50 +197,13 @@ export const restWord = (days, shortWeek = false) => (shortWeek || Number(days) 
 
 // STATS AS RATES, BOTH SIDES (Donovan 10-18: "show the rate, not 9 of 27 ... and the other side's rate"; "vs blitz,
 // under center, play-action -- explain them or drop them"; keep the "3x the league average" lines, make them stand out:
-// "target this"). Each row is one fight: the offense's rate beside the defense's rate it runs into, each with its rank.
+// "target this"). The offense-vs-defense rates live in the attack sheet above (10-19); this keeps rest and TARGET THIS.
 // Formation, motion and play-action left this page (no defense rate answers them; the Matchups page keeps them).
-const rankIn = (map, get, v) => (Number.isFinite(v) ? 1 + Object.values(map || {}).map(get).filter((x) => Number.isFinite(x) && x > v).length : null)
-function fightRows(matchup, off, def) {
-  const rows = []
-  const q = matchup?.qb_pressure
-  const qb = q?.starter?.[off] ? q.qbs?.[q.starter[off]] : null
-  const dis = matchup?.disruption_team || {}
-  const dPress = dis[def]?.pressure?.created_pct
-  const oPress = qb?.pressure_pct ?? dis[off]?.pressure?.allowed_pct
-  if (Number.isFinite(oPress) || Number.isFinite(dPress)) rows.push({ k: 'pressure', label: 'Pressure, of dropbacks',
-    o: Number.isFinite(oPress) ? { v: `${oPress}%`, r: qb ? rankIn(Object.values(q.starter || {}).map((id) => q.qbs?.[id]), (x) => x?.pressure_pct, oPress) : rankIn(dis, (x) => x?.pressure?.allowed_pct, oPress), what: qb ? `${qb.name} pressured` : 'allowed' } : null,   // among the 32 starters, so 'rank of 32' is true
-    d: Number.isFinite(dPress) ? { v: `${dPress}%`, r: rankIn(dis, (x) => x?.pressure?.created_pct, dPress), what: 'created' } : null })
-  const t = matchup?.tendencies
-  const dt = t?.defense?.[def]
-  const blitzOk = qb?.blitz?.n >= 10 && qb?.no_blitz?.n >= 10
-  if (blitzOk || Number.isFinite(dt?.blitz_pct)) rows.push({ k: 'blitz', label: 'The blitz',
-    o: blitzOk ? { v: `${qb.blitz.ypd} yds`, what: `a dropback blitzed (${qb.no_blitz.ypd} not)` } : null,
-    d: Number.isFinite(dt?.blitz_pct) ? { v: `${dt.blitz_pct}%`, r: t.rank?.defense?.[def]?.blitz_pct, what: 'blitz rate' } : null })
-  const exp = matchup?.def_explosive?.[def]
-  if (exp && Number.isFinite(exp.deep_pct)) rows.push({ k: 'deep', label: 'Deep passes',
-    o: null, d: { v: `${exp.deep_pct}%`, r: rankIn(matchup.def_explosive, (x) => x?.deep_pct, exp.deep_pct), what: `caught · ${exp.deep_td} TD` } })
-  if (Number.isFinite(dt?.box8_pct)) rows.push({ k: 'box', label: '8+ in the box',
-    o: null, d: { v: `${dt.box8_pct}%`, r: rankIn(t.defense, (x) => x?.box8_pct, dt.box8_pct), what: 'of runs' } })
-  return rows
-}
-function FightCell({ c }) {
-  if (!c) return <span style={{ color: C.text3 }}>—</span>
-  return (
-    <span style={{ display: 'grid', justifyItems: 'end', gap: 2 }} title={c.what}>
-      <span style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
-        <b style={{ font: `900 14px/1.1 ${NUM_FONT}`, color: C.text }}>{c.v}</b>
-        {c.r ? <span style={{ font: `800 11px/1 ${NUM_FONT}`, color: c.r <= 8 ? C.text : C.text3 }}>#{c.r}</span> : null}
-      </span>
-      <span style={{ fontSize: 11, color: C.text3, textAlign: 'right' }}>{c.what}</span>
-    </span>
-  )
-}
 
 export function ImportantStats({ matchup, data, game: g, onOpenTeam = null }) {
   const rest = g.away_rest_days != null && g.home_rest_days != null
   const soft = [g.away, g.home].map((def) => [def, softRole(matchup, def)]).filter(([, s]) => s?.standout)
   const note = factsNote(matchup, g.away, g.home, data?.season)
-  const grid = { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)', gap: 10, alignItems: 'center' }
   return (
     <section aria-label="Important stats" style={{ marginBottom: 16 }}>
       <Kicker>IMPORTANT STATS</Kicker>
@@ -268,25 +230,7 @@ export function ImportantStats({ matchup, data, game: g, onOpenTeam = null }) {
           <Tap onClick={onOpenTeam && (() => onOpenTeam(def))} title={`Open ${def}`}><TeamMark sport="nfl" abbr={def} variant="logo" px={16} style={{ verticalAlign: '-3px', marginRight: 4 }} /><b style={{ color: C.text }}>{nflNickname(def)}</b></Tap> {softLine(s)}.
         </div>
       ))}
-      {[[g.away, g.home], [g.home, g.away]].map(([off, def]) => {
-        const rows = fightRows(matchup, off, def)
-        return rows.length ? (
-          <div key={off} style={{ marginTop: 10 }}>
-            <div style={{ ...grid, paddingBottom: 4 }}>
-              <span style={{ font: `800 11px/1 ${NUM_FONT}`, color: C.text3, letterSpacing: '.08em' }}>RANK OF 32</span>
-              <span style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 5, font: `900 12px/1 ${NUM_FONT}`, color: C.text }}><TeamMark sport="nfl" abbr={off} variant="logo" px={16} />OFF</span>
-              <span style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 5, font: `900 12px/1 ${NUM_FONT}`, color: C.text }}><TeamMark sport="nfl" abbr={def} variant="logo" px={16} />DEF</span>
-            </div>
-            {rows.map((r) => (
-              <div key={r.k} style={{ ...grid, minHeight: 44, borderTop: `1px solid ${C.border}`, padding: '4px 0' }}>
-                <span style={{ fontSize: 13, color: C.text2 }}>{r.label}</span>
-                <FightCell c={r.o} />
-                <FightCell c={r.d} />
-              </div>
-            ))}
-          </div>
-        ) : null
-      })}
+      {/* the OFF | DEF rate table (10-19) left: the attack sheet above answers each fight with the other side's player and number */}
       {note && <p style={{ margin: '6px 0 0', fontSize: 12, color: C.text3 }}>{note}</p>}
     </section>
   )
