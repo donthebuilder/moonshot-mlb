@@ -54,7 +54,7 @@ export function boardColumns(market, { onOpenTeam, onOpenGame, withGame = true, 
     ...(withGame ? [{ key: 'tip', label: 'Game', cset: 'read', group: 'Game', w: 84, heat: false, mono: true, dim: true,
       link: (r) => (onOpenGame ? () => onOpenGame(r.gameId) : null),
       fmt: (v, r) => (r.gameState === 'live' ? <span style={{ color: C.rim }}><RimDot size={6} />LIVE</span> : r.gameState === 'final' ? 'FINAL' : v ? fmtTip(v) : '—') }] : []),
-    ...(whyCol ? [] : [{ key: 'why', label: 'Why', cset: 'lean', group: 'Game', w: 300, heat: false, fmt: (v, r) => <span style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap' }}>{r.status === 'off' && r.reason ? r.reason : v || ''}{r.injury ? ` · ${r.injury}` : ''}</span> }]),
+    ...(whyCol ? [] : [{ key: 'why', label: 'Why', cset: 'lean', group: 'Game', w: 150, heat: false, fmt: (v, r) => <span title={v || undefined} style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap', fontFamily: NUM_FONT }}>{r.status === 'off' && r.reason ? r.reason : r.whyShort || v || ''}{r.injury ? ` · ${r.injury}` : ''}</span> }]),   // the numbers (10-18); the sentence on the title
   ]
 }
 export const faceOf = (r) => ({ sport: 'nba', id: r.playerId, name: r.name })

@@ -518,6 +518,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               title: 'Which game of a doubleheader. G1 is the earlier first pitch. A hitter whose team plays twice appears once per game and both rows are real — his board rank is the same in both.' }] : []),
             ...(whyOn ? [{ ...whyColumn({
               textOf: (r) => r._locked ? '' : (r._why?.why?.[0] ? `${r._why.why[0].text}.` : r._why?.watch ? `Against him: ${r._why.watch.text}.` : ''),
+              shortOf: (r) => (r._locked ? '' : r._why?.why?.[0]?.short || ''),   // the numbers (10-18); the sentence stays in the sheet
               itemOf: whyItem, open: openWhy, theme: C, numFont: NUM_FONT, w: compact ? 168 : 230, group: WHY_GROUP, tidy: true,
             }), fold: false }] : []),
             // The pitcher opens the PITCHER, not the hitter whose row he's in
