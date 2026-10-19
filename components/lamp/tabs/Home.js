@@ -11,7 +11,7 @@ import LongshotsPreview from '../../LongshotsPreview'
 import HeroStat from '../../HeroStat'
 import { C, NUM_FONT, TYPE } from '../../../lib/nhl/theme'
 import LampYourPlayers from '../LampYourPlayers'
-import { useLampStandings, useLampBoard, useLampLeaders, useLampRecord, useLampHotSticks } from '../../../lib/nhl/useLamp'
+import { useLampStandings, useLampBoard, useLampLeaders, useLampRecord, useLampHotSticks, useLampSpecialTeams, useLampLedger, useLampSeasonStats } from '../../../lib/nhl/useLamp'
 import { buildLampHeadlines } from '../../../lib/nhl/headlines'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
 import Fold from '../../Fold'
@@ -28,6 +28,8 @@ import { CardLockLine } from '../../MemberGate'
 import { overallRanks } from '../../../lib/positions'
 import { useLampCallGate, lampLocked, lampAngles } from './Board'
 import TopTenList from '../../home/TopTenList'
+import RankList from '../../home/RankList'
+import CallStatusBadge from '../../CallStatusBadge'
 import ChampionshipFold from '../../ChampionshipFold'
 
 // 🏒 TONIGHT — LAMP's front page. Three things and no more (spec §6: the
@@ -64,6 +66,36 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
     return { held: ranked.length - open.length, rows: open.map(({ r, g }) => ({ key: `${g.game.id}|${r.playerId}`, id: r.playerId, name: r.name, team: r.team, pos: r.pos, score: r.score })) }
   }
   const topGoal = topOf(flatBoard, callGate)
+  // THE LAMP TWINS (Donovan 10-19 "yes"): TUDDY's power rankings, TD ledger and Look-Out, in hockey, from feeds LAMP already reads.
+  //   Offense, ranked  every club by goals a game this season (standings gf / gp), PP% beside it (special teams)
+  //   Goal ledger      last night's scorers, goals each, CALLED where LAMP called him (the shared record's status)
+  //   Leaky nets       tonight's clubs by goals allowed a game, their starting goalie's save % ("expected" until
+  //                    ESPN confirms him) and their PK%; who faces them is the quiet code
+  const special = useLampSpecialTeams()
+  const lastNight = useLampLedger({ days: 1 })
+  const seasonStats = useLampSeasonStats()
+  const perGame = (n, gp) => (Number(gp) > 0 && Number.isFinite(Number(n)) ? Number(n) / Number(gp) : null)
+  const stRow = new Map((special.data?.teams || []).map((t) => [t.abbrev, t]))
+  const pctTxt = (v) => (Number.isFinite(v) ? `${(v * (v <= 1 ? 100 : 1)).toFixed(1)}%` : '—')
+  const offenseRows = (standings.data?.rows || []).map((t) => ({ t, gfg: perGame(t.gf, t.gp) })).filter((x) => x.gfg != null)
+    .sort((a, b) => b.gfg - a.gfg)
+    .map(({ t, gfg }) => ({ key: t.abbrev, team: t.abbrev, name: t.nickname || t.name || t.abbrev, line: `PP ${pctTxt(stRow.get(t.abbrev)?.ppPct)} · ${t.gp} GP`, value: `${gfg.toFixed(2)} G/GP`, onOpen: onOpenTeam ? () => onOpenTeam(t.abbrev) : null }))
+  const ledgerRows = (lastNight.data?.season?.hitters || []).filter((h) => Number(h.value) > 0)
+    .sort((a, b) => b.value - a.value || (b.score ?? 0) - (a.score ?? 0))
+    .map((h) => ({ key: String(h.id), team: h.team, name: h.name, value: <>{h.status === 'called' ? <CallStatusBadge status="called" accent={C.ice} short size={8} theme={C} numFont={NUM_FONT} /> : null}{h.value} G</>, onOpen: onOpenPlayer ? () => onOpenPlayer(Number(h.id)) : null }))
+  const goalieByName = new Map((seasonStats.data?.goalies || []).map((x) => [String(x.name).toLowerCase(), x]))
+  const leakRows = boardGames.flatMap((g) => ['away', 'home'].map((side) => {
+    const team = g.game[side].abbrev, opp = g.game[side === 'away' ? 'home' : 'away'].abbrev
+    const st = (standings.data?.rows || []).find((t) => t.abbrev === team)
+    const gag = perGame(st?.ga, st?.gp)
+    if (gag == null) return null
+    const gk = g.starters?.[side]
+    const gs = gk?.name ? goalieByName.get(String(gk.name).toLowerCase()) : null
+    const sv = gs && Number.isFinite(gs.svPct) ? `.${String(Math.round(gs.svPct * 1000)).padStart(3, '0')}` : null
+    const pk = g.spots?.[side]?.pkPct
+    const line = [gk?.name ? `${gk.name.split(' ').slice(-1)[0]}${sv ? ` ${sv}` : ''}${gk.confirmed ? '' : ' (exp.)'}` : null, Number.isFinite(pk) ? `PK ${Math.round(pk * (pk <= 1 ? 100 : 1))}%` : null].filter(Boolean).join(' · ')
+    return { key: `${g.game.id}|${team}`, team, name: <>{st?.nickname || team} <span data-opp="" style={{ fontWeight: 600, fontSize: 11, color: C.text3 }}>vs {opp}</span></>, line, value: `${gag.toFixed(2)} GA/GP`, gag, onOpen: onOpenTeam ? () => onOpenTeam(team) : null }
+  })).filter(Boolean).sort((a, b) => b.gag - a.gag)
   const topSog = topOf(flatSog, sogGate)
   const angleRows = lampAngles(flatBoard, 'GOAL').map((d) => {
     const hits = flatBoard.filter((x) => Number.isFinite(x.r.score) && d.test(x)).sort((a, b) => b.r.score - a.r.score)
@@ -251,22 +283,13 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
       {/* ⭐ YOUR PLAYERS (2026-10-03): MOONSHOT's section, fed by the scores and board read above. */}
       <LampYourPlayers games={games} board={board.data} onOpenPlayer={onOpenPlayer} />
       <StorylinesStrip sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} max={3} onOpenTeam={onOpenTeam} onSeeAll={() => setTab?.('storylines')} onOpenPlayer={(id) => onOpenPlayer?.(Number(id))} />
-      {angleRows.length > 0 && (
-        <section aria-label="Angles">
-          <Kicker>ANGLES TONIGHT</Kicker>
-          <div style={{ display: 'grid', gap: 2 }}>
-            {angleRows.map((a) => (
-              <button key={a.key} type="button" onClick={() => onOpenPlayer?.(a.r.playerId)}
-                style={{ display: 'grid', gridTemplateColumns: '108px 18px minmax(0, 1fr) auto', alignItems: 'center', gap: 6, minHeight: 44, padding: '0 4px', background: 'none', border: 0, borderBottom: `1px solid ${C.border}`, color: C.text, font: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
-                <span style={{ font: `800 11px/1.2 ${NUM_FONT}`, color: C.ice, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.label}</span>
-                <TeamMark abbrev={a.r.team} size={16} />
-                <b style={{ fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.r.name}</b>
-                <span style={{ font: `800 11px/1 ${NUM_FONT}`, color: C.text3 }}>{a.r.score} · {a.n} tonight</span>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
+      <RankList title="Offense, ranked" sub={standings.data?.seasonLabel || null} rows={offenseRows} sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onAll={() => setTab?.('standings')} allLabel="Standings" />
+      <RankList title="Goal ledger" sub={lastNight.data?.season?.to ? `last night · ${fmtDay(lastNight.data.season.to)}` : 'last night'} rows={ledgerRows} ranked={false} sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onAll={() => setTab?.('ledger')} allLabel="Ledger" />
+      <RankList title="Leaky nets" sub="tonight" rows={leakRows} sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} />
+      {/* ANGLES TONIGHT on the shared list (10-19: the old row clipped names at 375): the angle and how many fit it ride the
+          line under the name, the score on the right */}
+      <RankList title="Angles tonight" ranked={false} sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice}
+        rows={angleRows.map((a) => ({ key: a.key, team: a.r.team, name: a.r.name, line: `${a.label} · ${a.n} fit tonight`, value: a.r.score, onOpen: onOpenPlayer ? () => onOpenPlayer(a.r.playerId) : null }))} />
       <TopTenList title="Top 10 · Goals" rows={topGoal.rows} held={topGoal.held} sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onOpen={(r) => onOpenPlayer?.(r.id)} onAll={() => setTab?.('fullboard')} />
       <TopTenList title="Top 10 · Shots 3+" rows={topSog.rows} held={topSog.held} sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onOpen={(r) => onOpenPlayer?.(r.id)} onAll={() => setTab?.('shots')} />
       <LongshotsPreview plain sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onSeeAll={() => setTab?.('longshots')} onOpenPlayer={(id) => onOpenPlayer?.(id)} />
