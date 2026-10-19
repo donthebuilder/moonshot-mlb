@@ -1022,3 +1022,26 @@ key from its own file in the tab that draws it (a site batch, per tab), and only
 `nfl_matchup.json`.
 
 **Not asked:** `nfl_logs.json` `splits` stays whole (Donovan, 2026-10-13: do not split it).
+
+## NFL run defence by gap: who makes the stop, in which lane (asked 2026-10-18)
+
+**Why.** The run view of the field (components/nfl/GameOffDef.js, BroadcastField.js, GameArena.js) draws the seven gaps and how much each
+defence leaks (`matchup.field.def_rush[team][lane]`, built from the play-by-play `run_gap` / `run_location` in `nfl_field.py`). It cannot
+put a defender on a gap, because no published file says which defender makes the stop where. What the site shows instead is the club's
+top DL / LB / S by season tackles for loss and tackles (components/nfl/RunDefenders.js), with a line saying nobody is placed on a gap.
+
+**What exists (read, not verified on a run).** The bot already filters carries to `run_gap` / `run_location` lanes (`nfl_field.py`: the lane key
+is `side|gap`, `middle|middle`, 7 lanes). nflverse play-by-play also carries the tackler ids on each play (`solo_tackle_1_player_id`,
+`assist_tackle_1_player_id` ... , `tackle_for_loss_1_player_id` ...); nothing in `bots/` reads them today (grep, 2026-10-18). Please
+confirm the column names against the loaded season before building.
+
+**Ask (bot repo, `bots/nfl/nfl_field.py` + the matchup export).** Beside `field.def_rush[team][lane]`, add `field.def_stops[team][lane]` = a list
+of `{ player_id (gsis), name, tkl, tfl }` for the defenders credited with a tackle (solo or assist) or a TFL on a carry in that lane, season
+to date, with the same lane keys, the same unlabelled-play rule (a carry with no `run_gap` is not counted) and the same season fields as
+`def_rush`. Cap at the top 3 defenders per team per lane by tackles. Keep the lane's `att` so the site can say "n stops on m carries".
+
+**What the site does with it (a later site batch, after it publishes).** The run view puts each defender's face on the lane he stops the most
+runs in, only when he has at least a stated minimum of stops there, and says it is "where he makes the tackle", not where he lines up (a tackle
+location is not an alignment). Until the field exists the run view keeps the chip row and the "nobody is placed" line.
+
+**Not asked:** alignment / snap-by-snap front-seven positions (not in the free play-by-play). No new model, no new grading.
