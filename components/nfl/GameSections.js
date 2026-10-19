@@ -1,6 +1,5 @@
 'use client'
 import { QMark } from './NflNote'
-import { useState } from 'react'
 import TeamMark from '../TeamMark'
 import { nflNickname } from '../../lib/nfl/teams'
 import PlayerFace from '../PlayerFace'
@@ -8,7 +7,7 @@ import Tap from '../Tap'
 import { Dial } from '../VerdictHero'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { scoreboardRows, receiverEdge } from '../../lib/nfl/gameMatchup'
-import { offenseTiles, defenseTiles, factsNote } from './tabs/Matchups'
+import { factsNote } from './tabs/Matchups'
 import { softRole, softLine } from '../../lib/nfl/dvpSignal'
 import { mostWord } from '../../lib/format'
 import { Kicker } from './GameOffDef'
@@ -143,8 +142,6 @@ export function KeyPlayers({ matchup, data, game, onPlayerClick, onOpenTeam }) {
   )
 }
 
-const USED = new Set(['PRESSURE', 'BLITZ', 'ZONE', 'MAN', '20+ PASSES'])
-
 // HOW THEY DEFEND (Donovan 10-18: "the matchup page needs a full redo"; "I like symmetrical ... pristine"). The two defenses
 // side by side in one even table: a row per measure (pass rush, blitz, zone or man, long passes allowed), each cell the
 // number, its rank of 32 and a thin bar for where it sits in the league. Neutral ink, no accent: a lot of pressure is not
@@ -199,12 +196,52 @@ export function MatchupScoreboard({ matchup, data, game }) {
 /** Rest as one word (10-18): SHORT under 6 days or a flagged short week, LONG at 10+ days (a bye week), else NORMAL. */
 export const restWord = (days, shortWeek = false) => (shortWeek || Number(days) < 6 ? 'SHORT' : Number(days) >= 10 ? 'LONG' : 'NORMAL')
 
+// STATS AS RATES, BOTH SIDES (Donovan 10-18: "show the rate, not 9 of 27 ... and the other side's rate"; "vs blitz,
+// under center, play-action -- explain them or drop them"; keep the "3x the league average" lines, make them stand out:
+// "target this"). Each row is one fight: the offense's rate beside the defense's rate it runs into, each with its rank.
+// Formation, motion and play-action left this page (no defense rate answers them; the Matchups page keeps them).
+const rankIn = (map, get, v) => (Number.isFinite(v) ? 1 + Object.values(map || {}).map(get).filter((x) => Number.isFinite(x) && x > v).length : null)
+function fightRows(matchup, off, def) {
+  const rows = []
+  const q = matchup?.qb_pressure
+  const qb = q?.starter?.[off] ? q.qbs?.[q.starter[off]] : null
+  const dis = matchup?.disruption_team || {}
+  const dPress = dis[def]?.pressure?.created_pct
+  const oPress = qb?.pressure_pct ?? dis[off]?.pressure?.allowed_pct
+  if (Number.isFinite(oPress) || Number.isFinite(dPress)) rows.push({ k: 'pressure', label: 'Pressure, of dropbacks',
+    o: Number.isFinite(oPress) ? { v: `${oPress}%`, r: qb ? rankIn(Object.values(q.starter || {}).map((id) => q.qbs?.[id]), (x) => x?.pressure_pct, oPress) : rankIn(dis, (x) => x?.pressure?.allowed_pct, oPress), what: qb ? `${qb.name} pressured` : 'allowed' } : null,   // among the 32 starters, so 'rank of 32' is true
+    d: Number.isFinite(dPress) ? { v: `${dPress}%`, r: rankIn(dis, (x) => x?.pressure?.created_pct, dPress), what: 'created' } : null })
+  const t = matchup?.tendencies
+  const dt = t?.defense?.[def]
+  const blitzOk = qb?.blitz?.n >= 10 && qb?.no_blitz?.n >= 10
+  if (blitzOk || Number.isFinite(dt?.blitz_pct)) rows.push({ k: 'blitz', label: 'The blitz',
+    o: blitzOk ? { v: `${qb.blitz.ypd} yds`, what: `a dropback blitzed (${qb.no_blitz.ypd} not)` } : null,
+    d: Number.isFinite(dt?.blitz_pct) ? { v: `${dt.blitz_pct}%`, r: t.rank?.defense?.[def]?.blitz_pct, what: 'blitz rate' } : null })
+  const exp = matchup?.def_explosive?.[def]
+  if (exp && Number.isFinite(exp.deep_pct)) rows.push({ k: 'deep', label: 'Deep passes',
+    o: null, d: { v: `${exp.deep_pct}%`, r: rankIn(matchup.def_explosive, (x) => x?.deep_pct, exp.deep_pct), what: `caught · ${exp.deep_td} TD` } })
+  if (Number.isFinite(dt?.box8_pct)) rows.push({ k: 'box', label: '8+ in the box',
+    o: null, d: { v: `${dt.box8_pct}%`, r: rankIn(t.defense, (x) => x?.box8_pct, dt.box8_pct), what: 'of runs' } })
+  return rows
+}
+function FightCell({ c }) {
+  if (!c) return <span style={{ color: C.text3 }}>—</span>
+  return (
+    <span style={{ display: 'grid', justifyItems: 'end', gap: 2 }} title={c.what}>
+      <span style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+        <b style={{ font: `900 14px/1.1 ${NUM_FONT}`, color: C.text }}>{c.v}</b>
+        {c.r ? <span style={{ font: `800 11px/1 ${NUM_FONT}`, color: c.r <= 8 ? C.text : C.text3 }}>#{c.r}</span> : null}
+      </span>
+      <span style={{ fontSize: 11, color: C.text3, textAlign: 'right' }}>{c.what}</span>
+    </span>
+  )
+}
+
 export function ImportantStats({ matchup, data, game: g, onOpenTeam = null }) {
-  const [more, setMore] = useState(false)
   const rest = g.away_rest_days != null && g.home_rest_days != null
   const soft = [g.away, g.home].map((def) => [def, softRole(matchup, def)]).filter(([, s]) => s?.standout)
-  const tiles = (list) => list.filter((t) => !USED.has(t.k))
   const note = factsNote(matchup, g.away, g.home, data?.season)
+  const grid = { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)', gap: 10, alignItems: 'center' }
   return (
     <section aria-label="Important stats" style={{ marginBottom: 16 }}>
       <Kicker>IMPORTANT STATS</Kicker>
@@ -224,33 +261,33 @@ export function ImportantStats({ matchup, data, game: g, onOpenTeam = null }) {
           })}
         </div>
       )}
+      {/* TARGET THIS (10-18: he loves the "3x the league average" lines; make them stand out) */}
       {soft.map(([def, s]) => (
-        <p key={def} style={{ margin: 0, padding: '8px 0', borderTop: `1px solid ${C.border}`, fontSize: 13, lineHeight: 1.5, color: C.text2 }}><Tap onClick={onOpenTeam && (() => onOpenTeam(def))} title={`Open ${def}`}><TeamMark sport="nfl" abbr={def} variant="logo" px={16} style={{ verticalAlign: '-3px', marginRight: 4 }} /><b style={{ color: C.text }}>{nflNickname(def)}</b></Tap> {softLine(s)}.</p>
-      ))}
-      <button type="button" onClick={() => setMore((v) => !v)} aria-expanded={more}
-        style={{ minHeight: 44, padding: '0 2px', border: 0, borderTop: `1px solid ${C.border}`, width: '100%', textAlign: 'left', background: 'transparent', color: C.green, font: `800 13px/1 ${NUM_FONT}`, cursor: 'pointer' }}>
-        {more ? 'Fewer numbers ▴' : 'More numbers ▾'}
-      </button>
-      {more && (
-        <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))' }}>
-          {[[g.away, g.home], [g.home, g.away]].map(([off, def]) => (
-            <div key={off} style={{ minWidth: 0 }}>
-              {[[`${off} offense`, tiles(offenseTiles(matchup, off))], [`${def} defense`, tiles(defenseTiles(matchup, def))]].map(([label, list]) => list.length ? (
-                <div key={label} style={{ marginBottom: 8 }}>
-                  <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: '.08em', color: C.text2, fontFamily: NUM_FONT, marginBottom: 2 }}>{label.toUpperCase()}</div>
-                  {list.map((t) => (
-                    <div key={t.k} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, minHeight: 32, alignItems: 'center', borderTop: `1px solid ${C.border}`, fontSize: 13 }}>
-                      <span style={{ color: C.text2, textTransform: 'capitalize' }}>{t.k.toLowerCase()}</span>
-                      <span style={{ textAlign: 'right' }}><b style={{ fontFamily: NUM_FONT, color: C.text }}>{t.v}</b>{t.sub ? <span style={{ color: C.text3, fontSize: 12 }}> · {t.sub}</span> : null}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : null)}
-            </div>
-          ))}
+        <div key={def} style={{ margin: '8px 0', padding: '8px 10px', borderRadius: 10, border: `1px solid ${C.green}`, background: `${C.green}14`, fontSize: 13, lineHeight: 1.45, color: C.text2 }}>
+          <span style={{ display: 'block', font: `900 11px/1 ${NUM_FONT}`, letterSpacing: '.1em', color: C.green, marginBottom: 4 }}>🎯 TARGET THIS</span>
+          <Tap onClick={onOpenTeam && (() => onOpenTeam(def))} title={`Open ${def}`}><TeamMark sport="nfl" abbr={def} variant="logo" px={16} style={{ verticalAlign: '-3px', marginRight: 4 }} /><b style={{ color: C.text }}>{nflNickname(def)}</b></Tap> {softLine(s)}.
         </div>
-      )}
-      {more && note && <p style={{ margin: 0, fontSize: 12, color: C.text3 }}>{note}</p>}
+      ))}
+      {[[g.away, g.home], [g.home, g.away]].map(([off, def]) => {
+        const rows = fightRows(matchup, off, def)
+        return rows.length ? (
+          <div key={off} style={{ marginTop: 10 }}>
+            <div style={{ ...grid, paddingBottom: 4 }}>
+              <span style={{ font: `800 11px/1 ${NUM_FONT}`, color: C.text3, letterSpacing: '.08em' }}>RANK OF 32</span>
+              <span style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 5, font: `900 12px/1 ${NUM_FONT}`, color: C.text }}><TeamMark sport="nfl" abbr={off} variant="logo" px={16} />OFF</span>
+              <span style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 5, font: `900 12px/1 ${NUM_FONT}`, color: C.text }}><TeamMark sport="nfl" abbr={def} variant="logo" px={16} />DEF</span>
+            </div>
+            {rows.map((r) => (
+              <div key={r.k} style={{ ...grid, minHeight: 44, borderTop: `1px solid ${C.border}`, padding: '4px 0' }}>
+                <span style={{ fontSize: 13, color: C.text2 }}>{r.label}</span>
+                <FightCell c={r.o} />
+                <FightCell c={r.d} />
+              </div>
+            ))}
+          </div>
+        ) : null
+      })}
+      {note && <p style={{ margin: '6px 0 0', fontSize: 12, color: C.text3 }}>{note}</p>}
     </section>
   )
 }
