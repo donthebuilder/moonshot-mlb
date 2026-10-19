@@ -241,8 +241,8 @@ export function v2Css(C, ac, NUM_FONT) {
     /* THE PLAYER NAME CELL (2026-10-13, PLAYER-ROWS; components/table/PlayerNameCell.js). ONE ROW HEIGHT: 52px on a desktop, 58px on a
        phone, for every row, whatever the name or the Why sentence says (the cell is centred; a Why is two clamped lines). The face is
        36px on a phone, 40px on a desktop. The geometry (cell width, face, gap) is PC_GEOM, the component's twin of these numbers. */
-    .dtv2-pc td { height: 52px; vertical-align: middle; }
-    .dtv2.dtv2-pc td.name, .dtv2.dtv2-pc th.name { width: 210px !important; min-width: 210px !important; max-width: 210px !important; }
+    .dtv2-pc td { height: 44px; vertical-align: middle; }
+    .dtv2.dtv2-pc td.name, .dtv2.dtv2-pc th.name { width: 200px !important; min-width: 200px !important; max-width: 200px !important; }
     .dtv2.dtv2-pc td.pcell { padding: 0 7px !important; overflow: visible; white-space: normal; }
     .dtv2 .pc { display: flex; align-items: center; gap: 8px; min-width: 0; }
     .dtv2 .pc-face { flex: none; display: inline-flex; margin: 2px; }
@@ -268,10 +268,13 @@ export function v2Css(C, ac, NUM_FONT) {
       .dtv2 td.dense-action, .dtv2 .h-row th.act { width: 44px !important; min-width: 44px !important; max-width: 44px !important; }
     }
     @media (max-width: 640px) {
-      .dtv2-pc td { height: 58px; }
-      .dtv2.dtv2-pc52 td { height: 52px; }   /* compactPhoneRow: 52px on a phone too (LAMP watchlist) */
-      .dtv2.dtv2-pc td.name, .dtv2.dtv2-pc th.name { width: 164px !important; min-width: 164px !important; max-width: 164px !important; }
+      .dtv2-pc td { height: 40px; }
+      .dtv2.dtv2-pc52 td { height: 40px; }   /* compactPhoneRow: 52px on a phone too (LAMP watchlist) */
+      .dtv2.dtv2-pc td.name, .dtv2.dtv2-pc th.name { width: 156px !important; min-width: 156px !important; max-width: 156px !important; }
       .dtv2.dtv2-pc td.pcell { padding: 0 6px !important; }
+      /* 40px rows (10-18): one line of name (the cell picks the surname when the full name does not fit), chips under it */
+      .dtv2 .pc-nm { -webkit-line-clamp: 1; white-space: nowrap; text-overflow: ellipsis; display: block; }
+      .dtv2 .pc-body { gap: 1px; }
       .dtv2 .pc { gap: 7px; }
     }
   `

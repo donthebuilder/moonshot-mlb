@@ -31,10 +31,11 @@ export function ShowMoreButton({ open, restN, toggle, itemWord = '', total = nul
       className="tap-box show-more"
       onClick={toggle}
       aria-expanded={open}
+      // a small pill (10-18: "the little buttons are way too big ... they take up a hell of a page"); the tap area is .tap-box's 44px ::after
       style={{
-        width: '100%', marginTop: 6, padding: '6px 9px',
+        display: 'inline-block', width: 'auto', marginTop: 6, padding: '5px 12px',
         background: 'transparent', border: `1px solid ${C.border}`,
-        borderRadius: 8, cursor: 'pointer',
+        borderRadius: 999, cursor: 'pointer',
         fontSize: 10, fontWeight: 800, fontFamily: NUM_FONT,
         color: C.text3, letterSpacing: '.04em',
       }}

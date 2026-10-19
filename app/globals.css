@@ -200,7 +200,8 @@ button {
    - Fold's closed header was 41px (its padding is 10.5px now: +3px a closed section, components/Fold.js); ListPreview's "Show N more" was 32px (+12px under a list that already ended, its last row never moves).
    - A phone turned sideways (>760px wide: the desktop header and the floating dock) had 20-34px header and dock items: the wordmark, the other-product pills (a 44px hit box over the same 20px pill),
      Today / Tmrw, the gear, the sign-up pill, and the dock buttons (the dock grows 46 -> 56px, its page padding with it). Portrait phones (<=760px) have their own 44px rules and are untouched. */
-@media (pointer: coarse) { .tap-box.show-more { min-height: 44px; } }
+/* 10-18 (Donovan: "the buttons are way too big ... I'm scrolling past shit just because the buttons are big"): the show-more pill keeps its
+   small look; its 44px tap area is the .tap-box ::after above, not a 44px-tall box. */
 @media (pointer: coarse) and (min-width: 761px) {
   .hdr-word-row > button { min-height: 44px; }
   .hdr-date .date-mode-switch button { min-height: 44px; }

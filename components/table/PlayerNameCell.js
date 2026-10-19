@@ -19,8 +19,10 @@ import { fitName, planChips, estimateWidth } from '../../lib/nameFit'
 
 // the cell's geometry, the css's twin (v2Css .dtv2.pc): name column width, face, gap, side padding
 export const PC_GEOM = {
-  phone: { cell: 164, face: 36, gap: 7, pad: 12, ring: 4 },
-  desk: { cell: 210, face: 40, gap: 8, pad: 14, ring: 4 },
+  // THE TABLE STANDARD (Donovan 10-18: the game page's 'Every player · TD score' table is how every phone table should look;
+  // faces only as small circles): 24px faces in 40px rows on a phone (were 36 / 58), 28 / 44 on a desktop (were 40 / 52)
+  phone: { cell: 156, face: 24, gap: 6, pad: 12, ring: 3 },
+  desk: { cell: 200, face: 28, gap: 7, pad: 14, ring: 3 },
 }
 export const pcRoom = (phone) => { const g = phone ? PC_GEOM.phone : PC_GEOM.desk; return g.cell - g.pad - g.face - g.ring - g.gap }
 
@@ -49,7 +51,7 @@ export function makeMeasure(family) {
  * @param {import('react').ReactNode} [p.mark]  the spotlight mark, before the name
  */
 export default function PlayerNameCell({ name, face = null, chips = [], phone, numFont, onOpen = null, mark = null, sizes = null }) {
-  const fit = fitName(name, { room: pcRoom(phone) - (mark ? 12 : 0), measure: makeMeasure(null), sizes: sizes || (phone ? [12, 11] : [13, 12]), maxLines: 2 })
+  const fit = fitName(name, { room: pcRoom(phone) - (mark ? 12 : 0) - (phone ? 4 : 0), measure: makeMeasure(null), sizes: sizes || (phone ? [12, 11] : [13, 12]), maxLines: phone ? 1 : 2 })   // one line on a phone (10-18: 40px rows): 'C. McCaffrey'
   const g = phone ? PC_GEOM.phone : PC_GEOM.desk
   const room = pcRoom(phone)
   const mono = makeMeasure(numFont)

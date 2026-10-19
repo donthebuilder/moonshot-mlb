@@ -22,7 +22,7 @@ export default function NflOnHim({ bot }) {
     { key: 'miss', label: 'Missed', group: 'All calls', w: 54, heat: false, numeric: true },
     { key: 'did', label: 'Did the job', group: 'All calls', w: 66, heat: false, title: 'Cleared that role’s bar, of the games he was called in' },
     { key: 'last', label: 'Last call', group: 'Latest', w: 104, heat: false },
-    { key: 'lastOpp', label: 'Opp', group: 'Latest', w: 44, heat: false },
+    { key: 'lastOpp', label: 'Opp', group: 'Latest', w: 44, heat: false, teamMark: 'nfl' },   // a club is its logo + link (10-18: the 'ARI' check-clickable kept flagging)
     { key: 'price', label: 'Price', group: 'Latest', w: 54, heat: false, title: 'The best price at the lock for that call' },
   ]
   const sub = <>{nflSampleLine(bot)}<HelpTip label="Role record" text={TEXT} /></>
