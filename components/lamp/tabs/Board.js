@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import LampTable from '../LampTable'
+import NotScoredTable from '../../table/NotScoredTable'
 import { AngleRow, Segmented, PillRow, PositionNote, PositionEmpty } from '../../Filters'
 import usePositionFilter from '../../../lib/usePositionFilter'
 import { overallRanks, canonPos } from '../../../lib/positions'
@@ -151,6 +152,12 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   const [timeWindow, setTimeWindow] = useState('all')
   const [minPpg, setMinPpg] = useState(0)
   const flat = useMemo(() => games.filter((g) => !g.noMarketLock).flatMap((g) => g.rows.filter((r) => r.status !== 'off').map((r) => ({ r, g }))), [games])
+  // NOT SCORED (10-18): a skater the model could not rank tonight (under 3 games, split squad) -- his season line, shared table
+  const unscored = useMemo(() => games.filter((g) => !g.noMarketLock).flatMap((g) => g.rows.filter((r) => r.score == null).map((r) => ({
+    _id: `${g.game.id}|${r.playerId}`, id: r.playerId, name: r.name, team: r.team, pos: r.pos, season: g.game.season,
+    why: /split squad/i.test(r.reason || '') ? 'split squad' : /fewer than/i.test(r.reason || '') ? 'few games' : 'no line',
+    GP: r.line?.gp ?? r.games?.cur ?? null, G: r.line?.g ?? null, A: r.line?.a ?? null, PTS: r.line?.pts ?? null, SOG: r.line?.shots ?? null, TOI: r.line?.toi ?? null,
+  }))).sort((a, b) => (b.GP || 0) - (a.GP || 0) || String(a.name).localeCompare(String(b.name))), [games])
   // The row the "How to read this" picture draws: tonight's real top goal
   // score. Its label is the row's own status (goalModel scoreNight), never
   // re-derived here.
@@ -372,6 +379,9 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
           : <AllGamesTable cln={cln} wk={wk} rankMv={rankMv} overall={overall} kept={kept} market={market} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} gateOf={gateOf} />)
           : (pf.active ? <PositionEmpty control={pf.control} othersActive={othersActive} onClearAll={clearAll} /> : <EmptyState title="NOTHING MATCHES" note="Clear a filter above." />)
       )}
+      {view === 'all' && <NotScoredTable rows={unscored} Table={LampTable} theme={C} teamMark="nhl" onOpenTeam={onOpenTeam}
+        columns={NHL_NOT_SCORED} faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(r.season, r.team, r.id), name: r.name })}
+        onOpen={onOpenPlayer ? (r) => onOpenPlayer(r.id) : null} />}
       {view === 'game' && games.map((g) => (g.noMarketLock
         ? (filtering ? null : <EmptyState key={g.game.id} title={`${g.game.away.abbrev} @ ${g.game.home.abbrev} · NO ${M.label} LOCK`} note={`No call: it locked before the ${M.label} board existed.`} />)
         : (!filtering || g.rows.some((r) => keepIds.has(`${g.game.id}|${r.playerId}`)))
@@ -799,6 +809,13 @@ export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam, onOpenGa
     {sheet}
   </>)
 }
+
+const NHL_NOT_SCORED = [
+  { key: 'GP', label: 'GP', group: 'Season', w: 40, dp: 0 }, { key: 'G', label: 'G', group: 'Season', w: 36, dp: 0 },
+  { key: 'A', label: 'A', group: 'Season', w: 36, dp: 0 }, { key: 'PTS', label: 'PTS', group: 'Season', w: 40, dp: 0 },
+  { key: 'SOG', label: 'SOG', group: 'Season', w: 42, dp: 0 },
+  { key: 'TOI', label: 'TOI', group: 'Season', w: 48, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
+]
 
 export function NavBtn({ children, onClick, disabled, strong = false, ...rest }) {
   return <button type="button" className="fp-themed" {...rest} onClick={onClick} disabled={disabled} style={{ height: 28, padding: '0 11px', borderRadius: 8, cursor: disabled ? 'default' : 'pointer', border: `1px solid ${strong ? C.ice : C.border2}`, background: strong ? `${C.ice}14` : C.bg2, color: strong ? C.ice : C.text2, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.04em', opacity: disabled ? .5 : 1 }}>{children}</button>
