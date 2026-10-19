@@ -68,7 +68,7 @@ export default function Home({ today, date, setTab, onOpenPlayer, onOpenGame, on
         <Kicker>THE GAMES{day?.date ? ` · ${fmtDay(day.date)}` : ''}</Kicker>
         {day && !games.length ? <EmptyState title="NO GAMES TODAY" note="Nothing on the league’s calendar today. Page a day on Live, or open a club’s schedule."><NavBtn onClick={() => setTab('scores')} strong>Open Live</NavBtn></EmptyState> : null}
         {games.length > 0 && <GameList games={prev.shown} onOpenGame={onOpenGame} />}
-        {prev.restN > 0 && <ShowMoreButton open={prev.open} restN={prev.restN} toggle={prev.toggle} itemWord="games" />}
+        {prev.restN > 0 && <ShowMoreButton open={prev.open} restN={prev.restN} toggle={prev.toggle} total={prev.total} itemWord="games" />}
       </section>
 
       {(pts.data?.rows || []).length > 0 && <BucketWatch rows={pts.data.rows} date={pts.data.date} onOpenPlayer={onOpenPlayer} />}

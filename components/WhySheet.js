@@ -83,7 +83,10 @@ export function useWhySheet({ theme, accent, numFont }) {
 // so every row is the same whole-pixel height (a 16.2px line made fractional rows and a 1px stair-step in the
 // row rules) and the arrow no longer drops to a third line. Absent: the markup every other sport has.
 const WHY_MAX = 150
-export function whyColumn({ textOf, itemOf, open, theme: C, numFont, group, w: wide = 230, tidy = false }) {
+// `shortOf(row)` (10-18, Donovan: the Why "doesn't help and it's very generic"): when a sport can say its top
+// reason as numbers ("2.5 RZ opp · #9 WR"), the cell shows those, one line in the number font; the sentence moves
+// to the sheet's lead. A sport without it keeps the sentence.
+export function whyColumn({ textOf, itemOf, open, theme: C, numFont, group, w: wide = 230, tidy = false, shortOf = null }) {
   // ONE width for every sport (2026-10-17, Donovan: the Why was too big): two clamped lines, never wider than WHY_MAX
   const w = Math.min(wide, WHY_MAX)
   return {
@@ -91,6 +94,16 @@ export function whyColumn({ textOf, itemOf, open, theme: C, numFont, group, w: w
     title: 'Why he is ranked here, in one line. Tap it for the numbers behind it and where to look next.',
     fmt: (v, r) => {
       const t = textOf(r)
+      const sh = shortOf ? shortOf(r) : ''
+      if (sh) {
+        return (
+          <button type="button" onClick={(e) => { e.stopPropagation(); open(itemOf(r)) }} aria-label={`Why ${r.name || 'he'} is ranked here: ${t || sh}`}
+            style={{ display: 'flex', alignItems: 'center', gap: 4, width: w, minWidth: w, height: 44, padding: 0, border: 0, background: 'transparent', color: C.text2, fontFamily: numFont, fontSize: 11, fontWeight: 700, textAlign: 'left', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{sh}</span>
+            <span aria-hidden="true" style={{ color: C.text3, flex: '0 0 auto' }}>{'\u203a'}</span>
+          </button>
+        )
+      }
       if (tidy) {
         return (
           <button type="button" onClick={(e) => { e.stopPropagation(); open(itemOf(r)) }} aria-label={`Why ${r.name || 'he'} is ranked here`}

@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { PREVIEW_ROWS } from './ListPreview'
 import { C, NUM_FONT } from '../lib/theme'
 import { useSpotlight } from '../lib/spotlight'
 import { usePickLight, rowPid, pickColorOf } from '../lib/pickLight'
@@ -377,7 +378,10 @@ export default function DenseTable({
   // this keeps the cap and adds the door: one control that raises it a page
   // at a time, and one that lifts it entirely for anyone who wants the lot.
   const [extra, setExtra] = useState(0)
-  const cap = maxRows + extra
+  // THE ONE SHOW-MORE RULE (Donovan 10-18; components/ListPreview.js): a short table (cap 12 or less) that
+  // would cut rows previews PREVIEW_ROWS, and one tap shows all of it. A big board (Rankings, 60) keeps its cap.
+  const baseCap = maxRows <= 12 && sorted.length > maxRows ? Math.min(maxRows, PREVIEW_ROWS) : maxRows
+  const cap = baseCap + extra
   const view = sorted.length > cap ? sorted.slice(0, cap) : sorted
 
   // 📄 THE CHEAT SHEET (2026-08-15, from ballparkpal's Export CSV). Every

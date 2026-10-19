@@ -7,7 +7,7 @@ import { NBA_NAV, NBA_MORE_GROUPS } from '../../lib/nba/routes'
 // BUCKETS' phone bar: the shared MobileTabBar with basketball's words, read
 // from lib/nba/routes.js -- the shape of MobileTabBarLamp. Props · Boards ·
 // Live · Slate, the words the other three bars use; the wordmark is home.
-// One bar everywhere (2026-10-04, Donovan): Tonight · Props · Rankings · Live.
+// One bar everywhere (2026-10-04, Donovan): Tonight · Props · Rankings · Slate (Slate replaced Live 10-18).
 const MAIN_KEYS = BAR_KEYS.nba   // lib/routes.js, the one list
 const MAIN = MAIN_KEYS.map((k) => [k, NBA_NAV[k].icon, NBA_NAV[k].label])
 const MORE = [

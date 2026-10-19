@@ -84,8 +84,12 @@ export default function Slip({ sport = 'mlb', C, NUM_FONT, accent, onOpenProps =
     const vv = window.visualViewport
     fullH.current = Math.max(fullH.current, vv ? vv.height : 0, window.innerHeight)
     let t = null
-    const run = () => { t = null; if (!document.hidden) { const h = vv ? vv.height : window.innerHeight; if (h > fullH.current) fullH.current = h; placeChip(chip, fullH) } }
+    // while the chip slides with the bar (or is tucked away with it) its box is not where it will rest: place it after
+    const run = () => { t = null; if (document.querySelector('.mobileTabBar.tucked')) return; if (chip.getAnimations?.().length) { later(120); return } if (!document.hidden) { const h = vv ? vv.height : window.innerHeight; if (h > fullH.current) fullH.current = h; placeChip(chip, fullH) } }
     const later = (ms = 160) => { if (t) clearTimeout(t); t = setTimeout(run, ms) }
+    // OUT OF THE WAY WITH THE BAR (Donovan 10-18: "hide just like the nav does when scrolling"): no listener of its own.
+    // The bottom bar (components/MobileTabBar.js, every sport) tucks on a scroll down and comes back on a scroll up, near
+    // the top and at the bottom; the chip follows its .tucked class in the CSS below, same distance, same .22s.
     const kb = () => { if (!document.hidden) placeChip(chip, fullH) }   // the keyboard opening or closing: no wait, the chip must not sit on the input
     window.addEventListener('scroll', later, { passive: true, capture: true })
     window.addEventListener('resize', later)
@@ -123,11 +127,15 @@ export default function Slip({ sport = 'mlb', C, NUM_FONT, accent, onOpenProps =
         .slipChip[data-pos=right-up],.slipChip[data-pos=left-up]{margin-bottom:52px}
         .slipChip[data-pos=tab]{right:0;border-radius:22px 0 0 22px!important;transform:translateX(calc(100% - 24px))}
         .slipChip[data-hide]{visibility:hidden;pointer-events:none}
+        .slipChip{transition:translate .22s ease,opacity .22s ease}
+        body:has(.mobileTabBar.tucked:not(:focus-within)) .slipChip{translate:0 calc(100% + 140px);opacity:0;pointer-events:none}
+        @media(prefers-reduced-motion:reduce){.slipChip{transition:none}}
         .slipSheet{position:fixed;z-index:420;right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));width:min(440px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow-y:auto;overscroll-behavior:contain}
         @media(max-width:760px){
           .slipChip{bottom:${DOCK_CLEAR_PHONE}}
-          /* EMPTY SLIP, ON A PHONE (2026-10-18): "Slip · 0" said nothing and sat over the cards' text. Until a leg is added it is a slim edge tab (the receipt icon, 34px in); with a leg it is the full chip again */
-          .slipChip[data-empty="1"]{right:0!important;left:auto!important;margin-bottom:0!important;border-radius:22px 0 0 22px!important;transform:translateX(calc(100% - 34px))!important}
+          /* EMPTY SLIP, ON A PHONE (Donovan 10-18: "it needs to show up when it's being used and go away when it's not"): no chip
+             until a leg is added. Every pick's "+ slip" still adds one; the chip appears with it. */
+          .slipChip[data-empty="1"]{display:none!important}
           body:has([role=note].account-nudge) .slipChip{bottom:calc(${DOCK_CLEAR_PHONE} + 62px)}   /* the free-account line sits at the dock too: stack above it, never under it */
           .slipSheet{left:max(8px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));width:auto;max-height:calc(100dvh - 16px - env(safe-area-inset-top))}
           main.dashboard-main{padding-bottom:156px!important}

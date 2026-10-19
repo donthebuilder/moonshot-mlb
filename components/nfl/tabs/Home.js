@@ -1,7 +1,7 @@
 'use client'
 
 import Tap from '../../Tap'
-import { playerHref } from '../../../lib/routes'
+import { playerHref, teamHref } from '../../../lib/routes'
 import { fmtCountdown } from '../../../lib/headlines'
 import { dayLine } from '../../../lib/dayLine'
 import HeroStat from '../../HeroStat'
@@ -17,6 +17,8 @@ import TeamPower from '../TeamPower'
 import StartSit from '../StartSit'
 import StorylinesStrip from '../../StorylinesStrip'
 import Fold from '../../Fold'
+import { usePreview, ShowMoreButton } from '../../ListPreview'
+import { BigPlayWatch } from './Explosive'
 import TonightsCalls from '../../phone/TonightsCalls'
 import ScoreRail from '../../ScoreRail'
 import { useLockOf } from '../../MemberGate'
@@ -191,6 +193,7 @@ function TouchdownLedger({ results, playersById, onPlayerClick }) {
     .filter((row) => row.touchdowns > 0)
     .sort((a, b) => b.touchdowns - a.touchdowns), [results, playersById])
   const total = scorers.reduce((sum, row) => sum + row.touchdowns, 0)
+  const pv = usePreview(scorers)   // 10-18: open on Home, four names, then all of them
 
   return (
     <section className="tuddy-panel">
@@ -199,7 +202,7 @@ function TouchdownLedger({ results, playersById, onPlayerClick }) {
       <div className="tuddy-ledger-list">
         {/* A NAME IS A LINK (0g A1, 2026-10-01): his card when he is on this
             week's slate, else his player page. */}
-        {scorers.slice(0, 8).map((row) => <div key={row.playerId}><TeamMark sport="nfl" variant="logo" px={26} abbr={row.player?.team || 'FA'} /><b>{(() => {
+        {pv.shown.map((row) => <div key={row.playerId}><TeamMark sport="nfl" variant="logo" px={26} abbr={row.player?.team || 'FA'} /><b>{(() => {
           const name = row.player?.name || results?.names?.[row.playerId] || row.playerId
           return row.player && onPlayerClick
             ? <Tap onClick={() => onPlayerClick(row.player)}>{name}</Tap>
@@ -207,6 +210,7 @@ function TouchdownLedger({ results, playersById, onPlayerClick }) {
         })()}</b><em>{row.touchdowns} TD{row.touchdowns === 1 ? '' : 's'}</em></div>)}
         {!scorers.length && <p>Kickoff hasn’t produced a graded touchdown yet. This ledger fills from the public results feed.</p>}
       </div>
+      <ShowMoreButton open={pv.open} restN={pv.restN} toggle={pv.toggle} total={pv.total} itemWord="scorers" />
     </section>
   )
 }
@@ -219,7 +223,7 @@ function LookOut({ matchup, games }) {
       <SectionTitle eyebrow="BEFORE IT HAPPENS" title="The Look-Out" />
       <h3>Defenses leaking touchdowns</h3>
       <div className="tuddy-leaks">
-        {leaks.map((row) => <div key={`${row.team}-${row.role}`}><b>{row.team}</b><span>{row.role}</span><em>#{row.td_rank} TD matchup · {number(row.td).toFixed(0)} allowed</em></div>)}
+        {leaks.map((row) => <div key={`${row.team}-${row.role}`}><b><a className="tap-box" href={teamHref('nfl', row.team)} style={{ color: 'inherit', textDecoration: 'none' }}>{row.team}</a></b><span>{row.role}</span><em>#{row.td_rank} TD matchup · {number(row.td).toFixed(0)} allowed</em></div>)}
         {!leaks.length && <p>The slate has no top-eight TD matchup flagged in the published defense table.</p>}
       </div>
       {/* "Who needs what" is gone (HISTORY WATCH 2 step 5, 2026-09-27): every
@@ -229,7 +233,7 @@ function LookOut({ matchup, games }) {
   )
 }
 
-function Angles({ players, matchup }) {
+function Angles({ players, matchup, onPlayerClick }) {
   const eligible = players.filter((player) => !player.low_sample)
   const best = (field, label, suffix = '') => eligible
     .filter((player) => Number.isFinite(Number(player.stats?.[field])))
@@ -245,7 +249,7 @@ function Angles({ players, matchup }) {
   return (
     <section className="tuddy-angles">
       <SectionTitle eyebrow="FROM THIS SLATE'S DATA" title="Angles worth opening" />
-      <div>{rows.map((row, index) => <article key={row.label}><span>0{index + 1}</span><div><small>{row.label}</small><b>{row.player.name}</b><p>{row.player.team} vs {row.player.opp} · published rate {row.value}</p></div></article>)}</div>
+      <div>{rows.map((row, index) => <article key={row.label}><span>0{index + 1}</span><div><small>{row.label}</small><b>{onPlayerClick ? <Tap onClick={() => onPlayerClick(row.player)}>{row.player.name}</Tap> : row.player.name}</b><p>{row.player.team ? <a className="tap-box" href={teamHref('nfl', row.player.team)} style={{ color: 'inherit', textDecoration: 'none' }}>{row.player.team}</a> : null} vs {row.player.opp ? <a className="tap-box" href={teamHref('nfl', row.player.opp)} style={{ color: 'inherit', textDecoration: 'none' }}>{row.player.opp}</a> : '—'} · published rate {row.value}</p></div></article>)}</div>
     </section>
   )
 }
@@ -262,13 +266,15 @@ function boardOpener(setTab) {
 function MiniBoard({ market, title, players, onPlayerClick, onBoards }) {
   const rows = [...players].filter((player) => Number.isFinite(player.scores?.[market]) && !player.low_sample)
     .sort((a, b) => b.scores[market] - a.scores[market]).slice(0, 10)
+  const pv = usePreview(rows)   // 10-18: open on Home, the top four, then the ten
   return (
     <section className="tuddy-mini-board">
       <SectionTitle eyebrow="POWER RANKINGS" title={title} action="Full board" onAction={onBoards} />
-      {rows.map((player, index) => {
+      {pv.shown.map((player, index) => {
         const grade = gradeFor(player.scores[market])
         return <button key={player.player_id} onClick={() => onPlayerClick?.(player, market)}><span>{index + 1}</span><TeamMark sport="nfl" variant="logo" px={22} abbr={player.team} /><b>{player.name}</b><em>{player.team} · {player.position}</em><strong style={{ color: grade.color }}>{Math.round(player.scores[market])}</strong></button>
       })}
+      <ShowMoreButton open={pv.open} restN={pv.restN} toggle={pv.toggle} total={pv.total} />
     </section>
   )
 }
@@ -476,6 +482,16 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
       {/* THIS WEEK'S CALLS AS CARDS (2026-10-18, PHONE-PARITY 9a): MOONSHOT's swipe deck (components/phone/TonightsCalls.js), shut by default: one 44px row, no request until opened */}
       <Fold id="tuddy-calls" title="🃏 This week's calls" meta="swipe the real cards"><TonightsCalls sport="nfl" /></Fold>
 
+      {/* THE GOOD STUFF, OPEN (Donovan 10-18: "good stuff but hidden ... behind a collapsible shade"). Power rankings,
+          the touchdown ledger and the Look-Out, the angles, the two top 10s and Big Play Watch were inside a fold inside
+          a fold ("More on this slate"). They are open now, each a short preview (four rows, then "All N"), so the page
+          is a research tool you can read at a glance, not a feed you scroll forever. */}
+      <TeamPower players={players} statSeason={data?.stat_season} onPlayerClick={onPlayerClick} preview={4} />
+      <div className="tuddy-home-split"><TouchdownLedger results={results} playersById={playersById} onPlayerClick={onPlayerClick}/><LookOut matchup={matchup} games={games}/></div>
+      <Angles players={players} matchup={matchup} onPlayerClick={onPlayerClick}/>
+      <div className="tuddy-board-split"><MiniBoard market="TD" title="Top 10 · Anytime TD" players={players} onPlayerClick={onPlayerClick} onBoards={() => openBoard('TD')}/><MiniBoard market="REC_YDS" title="Top 10 · Receiving" players={players} onPlayerClick={onPlayerClick} onBoards={() => openBoard('REC_YDS')}/></div>
+      <BigPlayWatch data={data} onPlayerClick={onPlayerClick} limit={4} />
+
       {/* —— THE MONEY-ANSWER SLOT (parity pass, 2026-09-16) ————————————
           MOONSHOT puts a compact MoneyAnswer right here -- one bordered
           claim, one button through to the full page -- reading a real
@@ -511,36 +527,9 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
         ))}
       </div>
 
-      {/* —— EVERYTHING ELSE, BEHIND ONE FOLD (parity pass, 2026-09-16;
-          moved again the same day to sit after Doors, not before it --
-          MOONSHOT's own order is Doors then the "More on tonight" fold, the
-          deepest tools last). Donovan, building Fold.js for MOONSHOT: "it's
-          a lot going on on this site... I don't want that to happen when
-          NFL starts." It happened anyway -- every one of these five
-          sections rendered, unconditionally, on every visit, with no
-          MLB-side equivalent of "closed by default, still says what it
-          holds." Same component (components/Fold.js, sport-agnostic --
-          only reads lib/theme's neutral chrome colors, not a sport accent),
-          same nested-Fold-inside-a-parent-Fold shape MOONSHOT's own "More
-          on tonight" drawer uses. Nothing removed, nothing recomputed
-          differently -- every section below is byte-identical to what
-          rendered inline before, just closed until tapped open. */}
-      <Fold id="tuddy-more" title="••• More on this slate" meta="team power · start/sit · touchdown ledger · the look-out · angles · top 10s">
-        <Fold id="tuddy-power" title="📊 Team power rankings" meta="all 32 teams, ranked">
-          <TeamPower players={players} statSeason={data?.stat_season} onPlayerClick={onPlayerClick} />
-        </Fold>
-        <Fold id="tuddy-startsit" title="⚖️ Start/Sit compare" meta="pick two names, see the case for each">
-          <StartSit players={players} onPlayerClick={onPlayerClick} />
-        </Fold>
-        <Fold id="tuddy-lookout" title="🩹 The Look-Out" meta="who's scored · defenses leaking touchdowns">
-          <div className="tuddy-home-split"><TouchdownLedger results={results} playersById={playersById} onPlayerClick={onPlayerClick}/><LookOut matchup={matchup} games={games}/></div>
-        </Fold>
-        <Fold id="tuddy-angles" title="📖 Tonight's angles" meta="every line from this slate's own data">
-          <Angles players={players} matchup={matchup}/>
-        </Fold>
-        <Fold id="tuddy-top10" title="📊 Tonight's top 10s" meta="anytime TD · receiving">
-          <div className="tuddy-board-split"><MiniBoard market="TD" title="Top 10 · Anytime TD" players={players} onPlayerClick={onPlayerClick} onBoards={() => openBoard('TD')}/><MiniBoard market="REC_YDS" title="Top 10 · Receiving" players={players} onPlayerClick={onPlayerClick} onBoards={() => openBoard('REC_YDS')}/></div>
-        </Fold>
+      {/* Start/Sit is a tool, not a list: it keeps its fold (the sections that were beside it are open above, 10-18). */}
+      <Fold id="tuddy-startsit" title="⚖️ Start/Sit compare" meta="pick two names">
+        <StartSit players={players} onPlayerClick={onPlayerClick} />
       </Fold>
 
       {/* SUPER BOWL ODDS (2026-10-13): MOONSHOT's October fold for the NFL (components/PennantRace.js). Not drawn until the bot has published the file. */}

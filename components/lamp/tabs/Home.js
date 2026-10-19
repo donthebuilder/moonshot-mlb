@@ -188,7 +188,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
             ]} />
         )}
         {someHidden && <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ marginTop: 6 }} />}
-        <ShowMoreButton open={boardPrev.open} restN={boardPrev.restN} toggle={boardPrev.toggle} itemWord="games" />
+        <ShowMoreButton open={boardPrev.open} restN={boardPrev.restN} toggle={boardPrev.toggle} total={boardPrev.total} itemWord="games" />
       </section>
 
 
@@ -212,7 +212,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
         {games.length > 0 && (
           <>
             <ScoreTable games={prev.shown} onOpen={onOpenGame} compact />
-            <ShowMoreButton open={prev.open} restN={prev.restN} toggle={prev.toggle} itemWord="games" />
+            <ShowMoreButton open={prev.open} restN={prev.restN} toggle={prev.toggle} total={prev.total} itemWord="games" />
           </>
         )}
       </section>
