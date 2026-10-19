@@ -114,6 +114,7 @@ export default function FiltersDrawer({
         <div ref={wrap} style={{ position: 'relative', ...(compact ? { flex: '0 0 auto' } : null) }}>
           <button
             type="button"
+            className="tap-box"
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
             style={{
