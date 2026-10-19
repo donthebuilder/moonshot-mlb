@@ -63,7 +63,7 @@ for (const s of ['mlb', 'nfl', 'nhl', 'nba']) {
 // The record keeps its own icon, distinct from the Ledger's
 for (const s of ['mlb', 'nhl', 'nba']) if (NAVS[s].results.icon === NAVS[s].ledger.icon) fail(`${s}: The record and The Ledger share an icon`)
 if (NAVS.nfl.accountability.icon === NAVS.nfl.ledger.icon) fail('nfl: The record and The Ledger share an icon')
-// the bar is unchanged: Tonight / Props / Rankings / Live (+ More)
+// the bar: Tonight / Props / Rankings / Slate (+ More); Slate replaced Live 10-18
 const bar = JSON.stringify(R.BAR_KEYS)
 if (!bar.includes('"home"') || Object.values(R.BAR_KEYS).some((k) => k.includes('ledger'))) fail(`bar changed: ${bar}`)
 console.log(bad ? `${bad} problem(s)` : `OK ledger aliases: ${CASES.length - 1} old keys x 4 sports land on #tab=ledger and the right sub-tab; The Ledger is the 2nd More group, 📒, on every sport`)
