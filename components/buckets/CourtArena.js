@@ -18,6 +18,10 @@ import { buildCourt, courtPoint, shotArc, COURT_W, HALF_L } from '../../lib/cour
 import { buildArenaRect } from '../../lib/arena'
 import { makeComposer, isCoarse } from '../../lib/stadiumLook'
 import { webglOk } from '../../lib/webglOk'
+import { densityGrid } from '../../lib/charts/terrain'
+import { buildHills, rgb01 } from '../../lib/three/hills'
+import { leaguePct } from '../../lib/nba/leagueZones'
+import { zoneOf } from './ShotChart'
 import StadiumShell from '../charts/StadiumShell'
 import StadiumDock from '../charts/stadium/StadiumDock'
 import LowerThird from '../charts/stadium/LowerThird'
@@ -40,6 +44,9 @@ export default function CourtArena({ shots = [], names = {}, title = 'Shot chart
   const tipRef = useRef(null)
   const [ok, setOk] = useState(true)
   const [view, setView] = useState('baseline')
+  // THE HILLS (10-19, the shared 3D look): the shot chart's contour ground lifted; Shots = the old discs
+  const [layer, setLayer] = useState('hills')
+  const layerRef = useRef(layer); layerRef.current = layer
   const [picked, setPicked] = useState(null)
   const [full, setFull] = useState(false)
   const [dockOpen, setDockOpen] = useState(true)
@@ -87,6 +94,21 @@ export default function CourtArena({ shots = [], names = {}, title = 'Shot chart
     const idx = shots.map((_, i) => i)
     const madeMesh = build(idx.filter((i) => shots[i].made), new THREE.CircleGeometry(0.55, 20), made)
     const missMesh = build(idx.filter((i) => !shots[i].made), new THREE.RingGeometry(0.38, 0.55, 20), miss)
+    // the hills: density on a 0.5-ft grid over 40 ft, height by sqrt(share of the peak); a zone the shooter beats the
+    // league in is BUCKETS' purple, the rest a pale neutral (lib/three/hills, lib/charts/terrain)
+    const g = densityGrid(shots.map((s) => ({ x: s.x, y: s.y + 4.25 })).filter((p) => p.y >= 0 && p.y <= 40), { w: 50, h: 40, cell: 0.5, sigma: shots.length > 300 ? 2.2 : 2.8 })
+    const zp = {}
+    for (const s of shots) { const z = zoneOf(s); const a = (zp[z] ||= { m: 0, a: 0 }); a.a += 1; if (s.made) a.m += 1 }
+    const up = Object.fromEntries(Object.entries(zp).map(([k, v]) => [k, leaguePct(k) != null && (100 * v.m) / v.a > leaguePct(k)]))
+    const acc = rgb01(ACCENT), pale = [0.95, 0.93, 0.9]
+    const hills = g.vmax ? buildHills(g, {
+      toWorld: (gx, gy, h) => new THREE.Vector3(gx - 25, h, gy - HALF_L / 2),
+      colorAt: (gx, gy) => { const fy = gy - 4.25; const three = Math.hypot(gx - 25, gy - 5.25) > 23.75 || (gy <= 14 && Math.abs(gx - 25) >= 22); return up[zoneOf({ x: gx, y: fy, three })] ? acc : pale },
+      height: 9,
+    }) : null
+    if (hills) scene.add(hills)
+    const showLayer = (l) => { madeMesh.visible = missMesh.visible = l === 'shots'; if (hills) hills.visible = l === 'hills' }
+    showLayer(layerRef.current)
     // the drawn arc for a picked shot
     let arc = null
     const showArc = (s) => {
@@ -124,7 +146,7 @@ export default function CourtArena({ shots = [], names = {}, title = 'Shot chart
     renderer.domElement.addEventListener('pointerleave', onLeave)
     renderer.domElement.addEventListener('pointerdown', onDown)
     renderer.domElement.addEventListener('pointerup', onUp)
-    api.current = { go }
+    api.current = { go, showLayer }
     // the render loop runs only on screen and in a visible tab
     let raf = 0, onScreen = true
     const tick = () => { controls.update(); look.render(); raf = requestAnimationFrame(tick) }
@@ -143,6 +165,7 @@ export default function CourtArena({ shots = [], names = {}, title = 'Shot chart
       renderer.domElement.removeEventListener('pointerdown', onDown); renderer.domElement.removeEventListener('pointerup', onUp)
       renderer.domElement.removeEventListener('pointermove', onMove); renderer.domElement.removeEventListener('pointerleave', onLeave)
       for (const m of [madeMesh, missMesh]) { m.geometry.dispose(); m.dispose() }
+      if (hills) { hills.geometry.dispose(); hills.material.dispose() }
       controls.dispose(); look.dispose?.(); renderer.dispose(); if (renderer.domElement.parentNode === el) el.removeChild(renderer.domElement)
     }
   }, [shots, full]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -160,10 +183,10 @@ export default function CourtArena({ shots = [], names = {}, title = 'Shot chart
   ].filter(Boolean)
   const caption = (
     <div style={{ marginTop: 6 }}>
-      <ChartLegend theme={C} items={[
+      {layer === 'hills' ? <div style={{ fontSize: 11, color: C.text2, fontFamily: NUM_FONT }}>Higher hill = more shots · <b style={{ color: ACCENT }}>purple</b> = a zone he beats the league in</div> : <ChartLegend theme={C} items={[
         { key: 'made', mark: <b aria-hidden="true" style={{ color: ACCENT }}>●</b>, label: 'made' },
         { key: 'miss', mark: <b aria-hidden="true" style={{ color: C.text3 }}>○</b>, label: 'missed' },
-      ]} />
+      ]} />}
       <div style={{ fontSize: 11, color: C.text3, marginTop: 4, lineHeight: 1.5, fontFamily: NUM_FONT }}>
         {picked ? <b style={{ color: picked.made ? ACCENT : C.text }}>{shotWords(picked, names)}. </b> : null}
         Where each shot was taken is the feed&apos;s own spot. The arc to the rim is drawn, not measured: no release point or arc height is published. The same {shots.length} shot{shots.length === 1 ? '' : 's'} · drag to turn · tap a shot to draw it
@@ -173,6 +196,12 @@ export default function CourtArena({ shots = [], names = {}, title = 'Shot chart
   return (
     <StadiumShell theme={C} accent={ACCENT} presets={VIEWS.map((v) => ({ key: v.k, label: v.label, title: v.title }))} active={view}
       onPreset={(k) => { setView(k); api.current.go?.(k) }} onFullChange={setFull} caption={caption}>
+      <div role="group" aria-label="What the 3D shows" style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+        {[['hills', 'Hills'], ['shots', 'Shots']].map(([k, label]) => (
+          <button key={k} type="button" className="tap-box" aria-pressed={layer === k} onClick={() => { setLayer(k); api.current.showLayer?.(k) }}
+            style={{ minHeight: 0, padding: '5px 11px', borderRadius: 999, cursor: 'pointer', font: `800 12px/1 ${NUM_FONT}`, background: 'transparent', border: `1px solid ${layer === k ? ACCENT : C.border2}`, color: layer === k ? ACCENT : C.text2 }}>{label}</button>
+        ))}
+      </div>
       <div style={{ position: 'relative', ...(full ? { height: '100%' } : {}) }}>
         <div ref={mount} style={{ width: '100%', ...(full ? { height: '100%' } : { minHeight: 340 }), borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }} />
         <StadiumDock open={dockOpen} onToggle={() => setDockOpen((v) => !v)} now={shots.length} all={shots.length} chips={[]}

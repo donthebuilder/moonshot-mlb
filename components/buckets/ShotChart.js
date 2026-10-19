@@ -12,8 +12,11 @@ import { useMemo, useState } from 'react'
 import { ChipGroup, ChartLegend, StatStrip } from '../charts'
 import FlatStage from '../charts/FlatStage'
 import { C, NUM_FONT } from '../../lib/theme'
+import { C as NBA } from '../../lib/nba/theme'   // the contour court's floor tokens (wood, line paint)
 import FiltersSheet from '../player/FiltersSheet'
 import useHashFilters from '../../lib/useHashFilters'
+import { densityGrid, levelsOf, terraceImage, isolines } from '../../lib/charts/terrain'
+import { leaguePct, LEAGUE_ZONES_SEASON } from '../../lib/nba/leagueZones'
 
 const ACCENT = C.purple
 // drawn with the baseline at 0: a feed y + FEED_TO_COURT. The rim: feed (25, 1) = court (25, 5.25)
@@ -31,6 +34,9 @@ export function zoneOf(s) {
 const ZONES = [['rim', 'Restricted area'], ['paint', 'Paint'], ['mid', 'Mid-range'], ['corner3', 'Corner 3'], ['above3', 'Above the break 3']]
 const pct = (m, a) => (a ? `${Math.round((100 * m) / a)}%` : '—')
 const HEAT_AT = 400
+const GROUND_D = 40   // the contour court is drawn to 40 ft from the baseline (past it: heaves)
+// each zone's label spot on the court (feet from the left sideline, from the baseline), the same every time
+const ZONE_SPOT = { rim: [25, 2.7], paint: [25, 14.5], mid: [25, 23.6], above3: [25, 33.5] }
 const BIN = 2
 function binsOf(shots) {
   const m = new Map()
@@ -45,8 +51,8 @@ function binsOf(shots) {
   return [...m.values()]
 }
 
-function Court() {
-  const line = { fill: 'none', stroke: C.border2, strokeWidth: 0.25 }
+function Court({ stroke = C.border2, soft = false }) {
+  const line = { fill: 'none', stroke, strokeWidth: soft ? 0.16 : 0.25, strokeOpacity: soft ? 0.7 : 1 }
   // the three-point arc: corners straight to y 14, then the 23.75 ft arc around the rim
   const a = Math.acos((25 - 3) / 23.75), y0 = RIM.y + 23.75 * Math.sin(a)
   return (
@@ -78,7 +84,7 @@ export default function ShotChart({ shots = [], names = {}, teams = {}, title = 
   const [picked, setPicked] = useState(null)
   // HEAT for a season's worth (a club's is 7,000+ attempts: as dots it is one
   // purple blot). 2 ft bins, shaded by attempts; tap a bin for its makes / attempts.
-  const [view, setView] = useState(shots.length > HEAT_AT ? 'heat' : 'dots')
+  const [view, setView] = useState(shots.length > HEAT_AT ? 'ground' : 'dots')   // GROUND = the contour court (10-19, Donovan's pick, N1)
   const [bin, setBin] = useState(null)
   const teamIds = [...new Set(shots.map((s) => s.team_id))]
   const shown = useMemo(() => shots.filter((s) => (res === 'all' || (res === 'made') === s.made)
@@ -93,13 +99,21 @@ export default function ShotChart({ shots = [], names = {}, teams = {}, title = 
   }, [shots, team])
   const made = shown.filter((s) => s.made).length, threes = shown.filter((s) => s.three), pts = shown.filter((s) => s.made).reduce((t, s) => t + (s.three ? 3 : 2), 0)
   const bins = useMemo(() => (view === 'heat' ? binsOf(shown) : []), [view, shown])
+  // THE GROUND (lib/charts/terrain): a smooth bump per shot on a 1-ft grid, five faint terraces + isolines; the court to 40 ft
+  const ground = useMemo(() => {
+    if (view !== 'ground' || !shown.length) return null
+    const g = densityGrid(shown.map((x) => ({ x: x.x, y: x.y + FEED_TO_COURT })).filter((p) => p.y >= 0 && p.y <= GROUND_D), { w: 50, h: GROUND_D, cell: 1, sigma: shown.length > 300 ? 2.2 : 2.8 })
+    if (!g.vmax) return null
+    const lv = levelsOf(g)
+    return { img: terraceImage(g, lv), lines: isolines(g, lv) }
+  }, [view, shown])
   const maxA = bins.reduce((n, b) => Math.max(n, b.a), 1)
   const zones = ZONES.map(([k, label]) => { const z = shown.filter((s) => zoneOf(s) === k); return { k, label, a: z.length, m: z.filter((s) => s.made).length } })
   const props = { theme: C, numFont: NUM_FONT }
   return (
     <section aria-label={title || 'Shot chart'} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-        {shots.length > HEAT_AT && <ChipGroup {...props} first label="View" value={view} onChange={(k) => { setView(k); setBin(null); setPicked(null) }} color={ACCENT} options={[{ k: 'heat', label: 'Heat' }, { k: 'dots', label: 'Dots' }]} />}
+        <ChipGroup {...props} first label="View" value={view} onChange={(k) => { setView(k); setBin(null); setPicked(null) }} color={ACCENT} options={[{ k: 'ground', label: 'Ground' }, { k: 'dots', label: 'Dots' }]} />
         <FiltersSheet onReset={() => { resetF(); setPicked(null) }} groups={[
           { key: 'res', label: 'Result', value: res, defaultValue: 'all', onChange: (k) => { setF('res', k); setPicked(null) }, options: [{ value: 'all', label: 'All' }, { value: 'made', label: 'Made' }, { value: 'missed', label: 'Missed' }] },
           { key: 'kind', label: 'Type', value: kind, defaultValue: 'all', onChange: (k) => { setF('kind', k); setPicked(null) }, options: [{ value: 'all', label: 'All' }, { value: '2', label: '2s' }, { value: '3', label: '3s' }] },
@@ -133,8 +147,20 @@ export default function ShotChart({ shots = [], names = {}, teams = {}, title = 
         ))}
       </div>
         ) }}>
-        <svg viewBox="-1 -1 52 49" role="img" aria-label={`${shown.length} ${shown.length === 1 ? 'shot' : 'shots'} on a half court`} style={{ width: '100%', maxWidth: 560, display: 'block', margin: '0 auto' }}>
-          <Court />
+        <svg viewBox={view === 'ground' ? `0 0 50 ${GROUND_D}` : '-1 -1 52 49'} role="img" aria-label={`${shown.length} ${shown.length === 1 ? 'shot' : 'shots'} on a half court`} style={{ width: '100%', maxWidth: 560, display: 'block', margin: '0 auto' }}>
+          {view === 'ground' ? (
+            <g>
+              {Array.from({ length: Math.ceil(GROUND_D / 1.6) }, (_, i) => <rect key={i} x={0} y={i * 1.6} width={50} height={1.6} fill={i % 2 ? NBA.wood1 : NBA.wood2} />)}
+              {ground?.img ? <image href={ground.img} x={0} y={0} width={50} height={GROUND_D} preserveAspectRatio="none" /> : null}
+              {ground?.lines.map((d, i) => <path key={i} d={d} fill="none" stroke={C.text} strokeOpacity={0.25 + i * 0.1} strokeWidth={0.12} />)}
+            </g>
+          ) : null}
+          <Court stroke={view === 'ground' ? NBA.courtLine : C.border2} soft={view === 'ground'} />
+          {view === 'ground' ? zones.filter((z) => z.a).map((z) => {
+            const p = (100 * z.m) / z.a, up = leaguePct(z.k) != null && p > leaguePct(z.k)
+            const t = (x, y, rot) => <text key={`${z.k}${x}`} x={x} y={y} textAnchor="middle" fontSize={1.9} fontWeight={900} fill={up ? ACCENT : C.text} stroke={NBA.wood1} strokeWidth={0.45} paintOrder="stroke" fontFamily={NUM_FONT} transform={rot ? `rotate(-90 ${x} ${y})` : undefined}>{Math.round(p)}%</text>
+            return z.k === 'corner3' ? <g key={z.k}>{t(1.6, 8.5, true)}{t(48.4, 8.5, true)}</g> : t(ZONE_SPOT[z.k][0], ZONE_SPOT[z.k][1])
+          }) : null}
           {view === 'heat' && bins.map((b) => (
             <rect key={b.k} x={b.bx * BIN} y={b.by * BIN} width={BIN} height={BIN} onClick={() => setBin(b)} style={{ cursor: 'pointer' }}
               fill={ACCENT} fillOpacity={0.12 + 0.88 * Math.sqrt(b.a / maxA)} stroke={bin?.k === b.k ? C.text : 'none'} strokeWidth={0.2} />
@@ -148,6 +174,9 @@ export default function ShotChart({ shots = [], names = {}, teams = {}, title = 
           ))}
         </svg>
       </FlatStage>
+      {view === 'ground' ? (
+        <p style={{ margin: 0, fontSize: 12, color: C.text2, fontFamily: NUM_FONT }}>Higher ground = more shots. A zone&apos;s % in purple = better than the league ({LEAGUE_ZONES_SEASON}).</p>
+      ) : null}
       {view === 'heat' ? (
         <p style={{ margin: 0, fontSize: 12, color: C.text2, fontFamily: NUM_FONT, minHeight: 18 }}>
           {bin ? <>This spot ({BIN} ft square): <b style={{ color: C.text }}>{bin.m}/{bin.a}</b> made · {pct(bin.m, bin.a)}</> : 'Darker = more attempts from that spot. Tap a square for its makes over attempts.'}
