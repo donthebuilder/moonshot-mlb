@@ -91,7 +91,10 @@ export default function Slip({ sport = 'mlb', C, NUM_FONT, accent, onOpenProps =
     // The bottom bar (components/MobileTabBar.js, every sport) tucks on a scroll down and comes back on a scroll up, near
     // the top and at the bottom; the chip follows its .tucked class in the CSS below, same distance, same .22s.
     const kb = () => { if (!document.hidden) placeChip(chip, fullH) }   // the keyboard opening or closing: no wait, the chip must not sit on the input
-    window.addEventListener('scroll', later, { passive: true, capture: true })
+    // the page's own scroll and a scroll box a person moves (a table), never the NFL score ticker, which scrolls itself ~60
+    // times a second and kept placement from ever settling (10-18)
+    const onScroll = (e) => { const tg = e?.target; if (tg?.closest?.('.nfl-ticker-shell') || tg?.classList?.contains?.('nfl-ticker-shell')) return; later() }
+    window.addEventListener('scroll', onScroll, { passive: true, capture: true })
     window.addEventListener('resize', later)
     window.addEventListener('hashchange', () => later(400))
     window.addEventListener('focusin', kb); window.addEventListener('focusout', () => later(120))
@@ -100,7 +103,7 @@ export default function Slip({ sport = 'mlb', C, NUM_FONT, accent, onOpenProps =
     const mo = new MutationObserver(() => later(300))
     mo.observe(document.body, { childList: true, subtree: true })
     later(300)
-    return () => { if (t) clearTimeout(t); window.removeEventListener('scroll', later, { capture: true }); window.removeEventListener('resize', later); window.removeEventListener('focusin', kb); vv?.removeEventListener('resize', kb); mo.disconnect() }
+    return () => { if (t) clearTimeout(t); window.removeEventListener('scroll', onScroll, { capture: true }); window.removeEventListener('resize', later); window.removeEventListener('focusin', kb); vv?.removeEventListener('resize', kb); mo.disconnect() }
   }, [])
   useEffect(() => {
     if (!open) return undefined

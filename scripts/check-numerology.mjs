@@ -252,7 +252,8 @@ check(laneTable(nights(30, 'gem_date_ordinal', 100, 1, 15, 0))[0].shown === true
 const ab = allLanesBase([...nights(2, 'a', 100, 5, 10, 1), ...nights(2, 'b', 100, 5, 20, 1), { lane: 'c', day: 'd', eligible: 9, matched: 0, eligible_hits: null, matched_hits: null, graded_at: null }])
 check(ab.n === 400 && ab.hits === 60 && Math.abs(ab.rate - 0.15) < 1e-9 && ab.range.length === 2, 'all-lanes base rate pools graded eligible rows only (60/400 = 15%)')
 const note = multiLaneNote(29)
-check(note === "29 lanes tested: some will look hot by chance; each lane's record shows its own n and the all-lanes base rate.", 'the multiple-lanes note, exact')
+// the copy diet (10-17) shortened the note on purpose; the check follows the shipped words
+check(note === '29 lanes tested: some look hot by chance. Each shows its own n and the base rate.', 'the multiple-lanes note, exact')
 const SRC = (f) => fsm.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8')
 const ltSrc = SRC('components/numerology/LaneTable.js')
 check(/multiLaneNote\(/.test(ltSrc) && /never a call/.test(ltSrc) && /never part of a score/i.test(ltSrc) && /tracking/.test(ltSrc) && /rng\(l\.range\)/.test(ltSrc) && /allBase/.test(ltSrc), 'LaneTable renders the note, the disclosure, "tracking", n + Wilson range and the all-lanes base rate')
@@ -291,7 +292,8 @@ check(NUMBERS_NOTE === 'Information only: never part of a score, never a call.',
 const dsrc = SRC('components/numerology/DayNumbers.js')
 check(/TODAY'S NUMBERS/.test(dsrc) && /'YESTERDAY'/.test(dsrc) && /NUMBERS_NOTE/.test(dsrc) && /All \$\{rows\.length\} numbers/.test(dsrc) && !/\bdue\b|winner/i.test(dsrc) && !/easternToday|new Date\(\)|Date\.now/.test(dsrc), 'DayNumbers: both blocks, the disclosure, an All-N preview, no clock, no "due"/"winner"')
 check([['components/Alignments.js', 'mlb'], ['components/lamp/tabs/Numerology.js', 'nhl'], ['components/nfl/tabs/Numerology.js', 'nfl']].every(([f, sp]) => new RegExp(`<DayNumbers sport="${sp}"`).test(SRC(f))), 'MLB, NHL and NFL Numerology tabs draw DayNumbers')
-check(/'align', 'numbers'/.test(SRC('components/ledger/LedgerBody.js')) && [['components/HomerLedger.js', 'mlb'], ['lib/sports/nhl/ledger.js', 'nhl'], ['lib/sports/nfl/ledger.js', 'nfl']].every(([f, sp]) => new RegExp(`<DayNumbers sport="${sp}"`).test(SRC(f)) && new RegExp(`<LaneTable sport="${sp}"`).test(SRC(f))), 'the shared Ledger has a numbers section on MLB, NHL and NFL: today/yesterday numbers + the lane scoreboard (cipher lanes)')
+// every ledger draws the numbers through one wrapper since 10-18 (components/ledger/NumbersBox.js: DayNumbers + LaneTable)
+check(/'align', 'numbers'/.test(SRC('components/ledger/LedgerBody.js')) && /<DayNumbers sport=\{sport\}/.test(SRC('components/ledger/NumbersBox.js')) && /<LaneTable sport=\{sport\}/.test(SRC('components/ledger/NumbersBox.js')) && [['components/HomerLedger.js', 'mlb'], ['lib/sports/nhl/ledger.js', 'nhl'], ['lib/sports/nfl/ledger.js', 'nfl']].every(([f, sp]) => new RegExp(`<NumbersBox sport="${sp}"`).test(SRC(f))), 'the shared Ledger has a numbers section on MLB, NHL and NFL: today/yesterday numbers + the lane scoreboard (cipher lanes)')
 check(['lib/sports/nhl/ledger.js', 'lib/sports/nfl/ledger.js', 'lib/sports/nba/ledger.js', 'components/HisNumbers.js', 'components/ledger/InTheLedger.js'].every((f) => /displayLanes\(matchLanes/.test(SRC(f))), 'every Ledger lane chip list goes through displayLanes (cipher shown, no duplicate any-cipher chip)')
 
 console.log(failed ? `\n${failed} FAILED` : '\nall green')
