@@ -207,6 +207,8 @@ export function LookOutBox({ title, tag, rows = [], foot, accent = C.orange }) {
 /** rows: [{ key, when ('now' | 'later'), name, onClick, title, chips: [string], more }] */
 /** rows: [{ key, when: 'now'|'later', name, chips: [string | { label, onClick }], title, onClick }] */
 export function NextUpBox({ title, rows = [], about, color = C.orange }) {
+  // a chip with `explain` (lib/numerology/lanePlayers alignChip: the numbers, then which lane gave which) opens its words on a tap
+  const [opened, setOpened] = useState(null)
   if (!rows.length) return null
   return (
     <div style={{
@@ -229,9 +231,10 @@ export function NextUpBox({ title, rows = [], about, color = C.orange }) {
             {/* a chip is its text, or { label, onClick } when it names something that opens (BUCKETS' game, 10-05) */}
             {x.chips.slice(0, 4).map((c) => {
               const label = typeof c === 'string' ? c : c.label
-              const go = typeof c === 'string' ? null : c.onClick || null
+              const exKey = typeof c !== 'string' && c.explain ? `${x.key}|${label}` : null
+              const go = typeof c === 'string' ? null : c.onClick || (exKey ? () => setOpened((o) => (o === exKey ? null : exKey)) : null)
               return (
-                <span key={label} onClick={go || undefined} role={go ? 'link' : undefined} style={{
+                <span key={label} onClick={go || undefined} role={go ? (exKey ? 'button' : 'link') : undefined} title={typeof c === 'string' ? undefined : c.title} aria-expanded={exKey ? opened === exKey : undefined} className={exKey ? 'tap-box' : undefined} style={{
                   fontSize: 11, fontFamily: NUM_FONT, padding: '1px 5px', whiteSpace: 'nowrap',
                   borderRadius: 5, border: `1px solid ${color}44`, color, ...(go ? { cursor: 'pointer' } : null),
                 }}>{label}</span>
@@ -241,6 +244,9 @@ export function NextUpBox({ title, rows = [], about, color = C.orange }) {
               <span style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT }}
                 title={x.title}>+{x.chips.length - 4}</span>
             )}
+            {x.chips.map((c) => (typeof c !== 'string' && c.explain && opened === `${x.key}|${c.label}`
+              ? <span key={`ex-${c.label}`} style={{ flexBasis: '100%', fontSize: 12, lineHeight: 1.45, color: C.text2, padding: '2px 0 4px 18px' }}>{c.explain}.</span>
+              : null))}
           </div>
         ))}
       </div>
