@@ -11,7 +11,7 @@ import { streakMarkets, barChoices, rateRows } from '../../../lib/nfl/streaks'
 import PageHeader from '../../PageHeader'
 import { FilterPill } from '../../Filters'
 import NflExplain from '../NflExplain'
-import { HeatQuadrant, ValueBars } from '../StreakViews'
+import { HeatQuadrant, ValueBars } from '../../runs/StreakViews'
 import NflTable from '../NflTable'
 import { SportTheme } from '../../SportTheme'
 import { useIsPhone } from '../../MobileFold'
@@ -130,7 +130,7 @@ export default function Streaks({ data, logs, onPlayerClick }) {
             {/* D + B side by side on a wide screen, stacked on a phone: the field at a glance, then one man's games */}
             <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))' }}>
               <section aria-label="Heat quadrant" style={{ padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2 }}>
-                <HeatQuadrant rows={ladder} picked={pr?.player.player_id} onPick={setPicked} side={side} labels={phone ? 5 : 8} />
+                <HeatQuadrant points={ladder.map((r) => ({ id: r.player.player_id, name: r.player.name, x: r.szn.pct, y: r.l5.pct, title: `${r.player.name}: season ${r.szn.hit}/${r.szn.n}, last 5 ${r.l5.hit}/5` }))} picked={pr?.player.player_id} onPick={setPicked} side={side} labels={phone ? 5 : 8} C={C} accent={C.green} numFont={NUM_FONT} />
               </section>
               {pr && (
                 <section aria-label={`${pr.player.name}: value against the line`} style={{ padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2 }}>
@@ -139,7 +139,7 @@ export default function Streaks({ data, logs, onPlayerClick }) {
                       style={{ border: 0, background: 'transparent', padding: 0, color: C.text, font: `900 15px/1.2 ${NUM_FONT}`, cursor: 'pointer' }}>{pr.player.name} ›</button>
                     <span style={{ fontFamily: NUM_FONT, fontSize: 12, color: C.text3 }}>L5 <b style={{ color: C.text }}>{pct(pr.l5)}</b> · L10 {pct(pr.l10)} · Szn {pct(pr.szn)}</span>
                   </div>
-                  <ValueBars row={pr} bar={line} />
+                  <ValueBars values={pr.last.map((g) => ({ v: g.v, label: `W${g.w}` }))} line={line} ariaLabel={`${pr.player.name}'s last ${pr.last.length} games against ${line}`} C={C} accent={C.green} numFont={NUM_FONT} />
                   <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>his last {pr.last.length} games · dashed = {line}</div>
                 </section>
               )}
