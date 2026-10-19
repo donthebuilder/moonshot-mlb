@@ -15,7 +15,7 @@ export const NBA_TEXTS = {
   watchlist: { what: 'The players you starred. A star lasts for his next game; every night you starred him is graded below.' },
   ledger: { what: 'The Ledger: every player who cleared a bar tonight, live, and the record of every graded night.' },
   hot: { what: 'Every rotation player’s last 5 and last 10 games beside his season. ± is last 5 minus season.' },
-  matchups: { what: 'Each side against what the other defence gives up a game, with its rank among the 30 (1 = gives up the most).' },
+  matchups: { what: 'Each side against what the other defense gives up a game, with its rank among the 30 (1 = gives up the most).' },
   standings: { what: 'Both conferences, seeded. Before opening night this is last season’s final table, and it says so.' },
   teams: { what: 'The 30 clubs by division. Tap a club for its roster, schedule and season lines.' },
   team: { what: 'One club: record and seed, the roster with season lines, and the schedule.' },

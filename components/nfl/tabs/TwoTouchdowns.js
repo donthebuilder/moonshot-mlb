@@ -160,7 +160,7 @@ export default function TwoTouchdowns({ data, matchup, odds, onPlayerClick, odds
       )}
 
       <p style={{ margin: '13px 0 0', maxWidth: 620, fontSize: 12, lineHeight: 1.55, color: C.text3 }}>
-        Ranked by our two-score number: expected touchdowns, goal-line and red-zone chances, the team&apos;s implied total, snap share and the defence he faces.
+        Ranked by our two-score number: expected touchdowns, goal-line and red-zone chances, the team&apos;s implied total, snap share and the defense he faces.
         It is a 0–100 ranking, not a probability. ON THE BOARD is the top third of this list. {PRICES_STORED.nfl ? '' : `No ${rule.label} prices are published, so this board shows none and the Card cannot take a ${rule.label} straight. `}
         The two-score picks are recorded before kickoff and graded on the real result: two or more touchdowns, rushing plus receiving. Information only.
       </p>

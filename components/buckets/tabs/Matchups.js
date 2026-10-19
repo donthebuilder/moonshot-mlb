@@ -22,7 +22,7 @@ export default function Matchups({ date, setDate, onOpenTeam, onOpenGame }) {
   const games = data?.games || []
   const statCols = (sub) => STATS.map(([k, label]) => ({
     key: k, label, group: sub, w: 64, heat: false, mono: true,
-    title: `${label} this defence allows a game, and its rank among the 30 (1 = gives up the most)`,
+    title: `${label} this defense allows a game, and its rank among the 30 (1 = gives up the most)`,
     fmt: (v, r) => <span style={{ display: 'inline-grid', lineHeight: 1.15 }}><b>{fmt(k, v)}</b><span style={{ fontSize: 10, color: rankTone(r.ranks?.[k]) }}>#{r.ranks?.[k] ?? '—'}</span></span>,
   }))
   const sides = games.flatMap((g) => [[g.away, g.home], [g.home, g.away]].map(([att, def]) => ({ _id: `${g.id}-${att.abbrev}`, gameId: g.id, att: att.abbrev, def: def.abbrev, tip: g.start, state: g.state, ...(by.get(def.abbrev) || {}), defName: by.get(def.abbrev)?.name || def.abbrev })))
@@ -31,7 +31,7 @@ export default function Matchups({ date, setDate, onOpenTeam, onOpenGame }) {
     // its own column on a phone too: folded under the attack, a row didn't say which defence it was
     { key: 'def', label: 'vs D', group: 'Matchup', w: 52, heat: false, mono: true, teamMark: 'nba', fold: false, link: (r) => (onOpenTeam ? () => onOpenTeam(r.def) : null) },
     { key: 'tip', label: 'Game', group: 'Matchup', w: 76, heat: false, mono: true, dim: true, link: (r) => (onOpenGame ? () => onOpenGame(r.gameId) : null), fmt: (v, r) => (r.state === 'final' ? 'FINAL' : r.state === 'live' ? 'LIVE' : fmtTip(v)) },
-    ...statCols('What that defence allows a game (rank of 30)'),
+    ...statCols('What that defense allows a game (rank of 30)'),
   ]
   const allCols = [
     { key: 'abbrev', label: 'Club', group: 'Defence', w: 64, heat: false, sticky: true, mono: true, teamMark: 'nba', link: (r) => (onOpenTeam ? () => onOpenTeam(r.abbrev) : null) },
@@ -41,25 +41,25 @@ export default function Matchups({ date, setDate, onOpenTeam, onOpenGame }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <PageHeader eyebrow="BUCKETS · MATCHUPS" title={data?.date ? fmtDay(data.date) : 'Tonight'} theme={C} numFont={NUM_FONT} accent={C.purple}
-        note={<>Each side against what the other defence gives up. <Why label="Matchups" text="Each side against what the other defence gives up a game, with its rank among the 30 (1 = gives up the most). Measured from the league’s team stats, not projected." /></>} />
+        note={<>Each side against what the other defense gives up. <Why label="Matchups" text="Each side against what the other defense gives up a game, with its rank among the 30 (1 = gives up the most). Measured from the league’s team stats, not projected." /></>} />
       <DayPager shown={data?.date || date} date={date} setDate={setDate} disabled={loading} />
-      {data?.stale && <LastSeasonNote label={data.seasonLabel} what="defence numbers" />}
+      {data?.stale && <LastSeasonNote label={data.seasonLabel} what="defense numbers" />}
       <DelayedBanner error={error} what="the league’s team stats" />
-      {loading && !data ? <Loading what="the defences" /> : null}
+      {loading && !data ? <Loading what="the defenses" /> : null}
       <section>
         <Kicker>THAT DAY’S MATCHUPS</Kicker>
-        {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Try another day, or read every defence below." />}
+        {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Try another day, or read every defense below." />}
         {sides.length > 0 && (
           <>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>{games.map((g) => <span key={g.id} style={{ fontSize: 12, color: C.text3 }}><MatchLogos sport="nba" away={g.away.abbrev} home={g.home.abbrev} px={16} /></span>)}</div>
             <BucketsTable rows={sides} columns={sideCols} heatMode="none" maxHeight={9999} maxRows={sides.length}
-              caption="Two rows a game: each club's attack against the other's defence. A rank of #1-5 (rim orange) is one of the five softest defences for that stat." />
+              caption="Two rows a game: each club's attack against the other's defense. A rank of #1-5 (rim orange) is one of the five softest defenses for that stat." />
           </>
         )}
       </section>
       {(data?.teams || []).length > 0 && (
         <section>
-          <Kicker>EVERY DEFENCE · {data.seasonLabel}</Kicker>
+          <Kicker>EVERY DEFENSE · {data.seasonLabel}</Kicker>
           <BucketsTable rows={data.teams.map((t) => ({ ...t, _id: t.abbrev }))} columns={allCols} onRowClick={(r) => onOpenTeam?.((r?._raw ?? r).abbrev)}
             initialSort={{ key: 'oppPts', dir: 'desc' }} heatMode="sorted" maxHeight={620} maxRows={30}
             caption="What each club allows a game. Column headers sort; each row opens the club." />

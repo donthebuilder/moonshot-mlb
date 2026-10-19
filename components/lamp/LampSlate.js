@@ -140,7 +140,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
     if (!p) return `No ${XG_WORDS} number for this game yet.`
     return `${p.total.toFixed(1)} ${XG_WORDS} in this game: ${g.game.away.abbrev} ${p.away.goals.toFixed(1)} + ${g.game.home.abbrev} ${p.home.goals.toFixed(1)}. `
       + (p.source === 'xg'
-        ? "Each club's shots, how good they are, the other side's defence and goalie, pulled toward its goals a game. "
+        ? "Each club's shots, how good they are, the other side's defense and goalie, pulled toward its goals a game. "
         : "Each club's goals a game and what the other side lets in (the shot history is not in yet). ")
       + 'The ring fills against all games, not just tonight.'
   }

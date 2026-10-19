@@ -23,7 +23,7 @@ const PROJ = 'Proj TD'
 const KEPT = "Kept players' xTD"
 const SUMS = [['Rec', 'REC'], ['Rec yds', 'RECYD'], ['Rush yds', 'RUYD']]
 const KEPT_EXPLAIN = "The sum of the expected touchdowns of the players your filter keeps. It is a different question from Proj TD: Proj TD is the whole game from the team model; this counts only the tracked players (about 80% of real touchdowns) who are left after the filter, so it is smaller and moves with every chip."
-const PROJ_EXPLAIN = `${TD_WORD[0].toUpperCase()}${TD_WORD.slice(1)} from the team model: each club's touchdown rate against the other's defence. The same number as the dial on the Slate's game cards; filters never change it.`
+const PROJ_EXPLAIN = `${TD_WORD[0].toUpperCase()}${TD_WORD.slice(1)} from the team model: each club's touchdown rate against the other's defense. The same number as the dial on the Slate's game cards; filters never change it.`
 
 export default function NflProjected({ data, matchup, logs, players: pool = [], games = [], watchlist = null, onOpenGame = null, onOpenTeam = null }) {
   const [active, setActive] = useState(() => new Set())

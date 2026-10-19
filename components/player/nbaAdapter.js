@@ -43,7 +43,7 @@ const SIGNAL_LEGS = [
   ['minPg', 'Big minutes', 'Minutes a game in the top fifth of tonight’s players.'],
   ['fgaPg', 'Volume shooter', 'Shots a game in the top fifth of tonight’s players.'],
   ['ftaPg', 'Draws fouls', 'Free-throw attempts a game in the top fifth of tonight’s players.'],
-  ['oppPts', 'Soft defence', 'His opponent allows points at a rate in the top fifth of tonight’s defences.'],
+  ['oppPts', 'Soft defense', 'His opponent allows points at a rate in the top fifth of tonight’s defenses.'],
 ]
 
 /** The flags the board asserts about him, real ones only: the row's lock state, his place tonight, a leg in the top fifth, starter, the injury report. */
