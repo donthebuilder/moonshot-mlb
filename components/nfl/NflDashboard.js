@@ -21,6 +21,7 @@ import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { AccentProvider } from '../Filters'
 import useBlendedMatchup from '../../lib/nfl/useBlendedMatchup'
 import { withRoles } from '../../lib/nfl/roles'
+import { kickoffFor } from '../../lib/nfl/kickoff'
 import { withUsageShares } from '../../lib/nfl/usageShares'
 import { fetchNfl, nflSlatePaths, nflMetaPaths, nflMatchupPaths, nflLogPaths, nflPicksPaths, nflResultsPaths, nflOddsPaths, nflOddsStatusPaths, nflSlateLooksReal, nflMatchupLooksReal, nflPicksLooksReal, nflOddsLooksReal } from '../../lib/nfl/dataSource'
 import { initialHashParams, setSport } from '../../lib/sport'
@@ -564,7 +565,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'explosive' && <Explosive matchup={matchup} data={data} onPlayerClick={openPlayer} />}
             {tab === 'redzone' && <RedZone data={data} matchup={matchup} onPlayerClick={openPlayer} />}
             {/* MOONSHOT's Odds page, sport="nfl" (2026-10-02): this week's players, their prices, moves and books */}
-            {tab === 'odds' && <OddsWithLongshots odds={<OddsBoard sport="nfl" players={data?.players || []} theme={C} numFont={NUM_FONT} Table={NflTable} onPlayerClick={(p) => p && openPlayer(p, 'TD')} />}
+            {tab === 'odds' && <OddsWithLongshots odds={<OddsBoard sport="nfl" players={data?.players || []} theme={C} numFont={NUM_FONT} Table={NflTable} onPlayerClick={(p) => p && openPlayer(p, 'TD')} startedOf={(p) => { const t = kickoffFor(data?.games, p); return Number.isFinite(t) && t <= Date.now() }} />}
               longshots={<Longshots sport="nfl" eyebrow="TUDDY · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.green} Table={NflTable} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p, 'TD') }} />} />}
             {tab === 'numerology' && <Numerology data={data} onPlayerClick={openPlayer} />}
             {/* THE LEDGER (2026-10-07): one tab, four sub-tabs (components/pages/LedgerShell). This week's Ledger, the TD

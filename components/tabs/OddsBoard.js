@@ -12,7 +12,7 @@ import { CalibrationScatter } from '../OddsChart'
 import DenseTable from '../DenseTable'
 import OddsStatus, { useOddsStatus, siteHasPrices } from '../OddsStatus'
 import { oddsAgeHours, oddsExpired } from '../../lib/oddsFreshness'
-import OddsDiscrepancies from './OddsDiscrepancies'
+import OddsDiscrepancies, { OddsSpot } from './OddsDiscrepancies'
 import OddsTimeline from '../OddsTimeline'
 import { btnStyle } from '../ui'
 import { localStamp } from '../../lib/localTime'
@@ -170,7 +170,8 @@ function useOddsPayload(sport, want) {
   return want ? body : null
 }
 
-export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick, initialView = 'board', sport = 'mlb', theme = null, numFont = null, Table = DenseTable }) {
+// startedOf(player) -> true once his game has started (TUDDY passes it from the week's kickoffs): the Spot-it lists leave those out
+export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick, initialView = 'board', sport = 'mlb', theme = null, numFont = null, Table = DenseTable, startedOf = null }) {
   const A = oddsAdapter(sport)
   const C = theme || MLB_C
   const tapCls = theme ? 'fp-themed' : undefined   // TUDDY / LAMP pass their theme: their pills and search are 44px on a touch screen (.fp-themed); MOONSHOT's stay 32
@@ -582,6 +583,7 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
     return (
       <div>
         {viewBar}
+        <OddsSpot players={players} odds={odds} onPlayerClick={onPlayerClick} sport={sport} theme={theme} numFont={numFont} startedOf={startedOf} />
         <OddsDiscrepancies players={players} odds={odds} onPlayerClick={onPlayerClick} sport={sport} theme={theme} numFont={numFont} Table={Table} />
       </div>
     )
@@ -742,6 +744,9 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
       <style>{'@keyframes oddsIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}@keyframes oddsDot{0%,100%{opacity:1}50%{opacity:.25}}'}</style>
 
       {viewBar}
+
+      {/* SPOT IT, UP FRONT (Donovan 10-18): the outlier book, the moves since open and the best price against fair, before the board */}
+      <OddsSpot players={players} odds={odds} onPlayerClick={onPlayerClick} sport={sport} theme={theme} numFont={numFont} startedOf={startedOf} />
 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
         <h2 style={{ fontSize: TYPE.title, fontWeight: 900, margin: 0 }}>💵 The odds</h2>
