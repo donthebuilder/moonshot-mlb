@@ -734,7 +734,7 @@ export function whyItemFor(r, market, rank) {
       { label: 'His page: season, last five, game log', href: `#sport=nhl&tab=player&player=${id}` },
       { label: 'Where he shoots from', href: `#sport=nhl&tab=shotmap&player=${id}` },
       { label: 'Who is hot: last 5 and 10 games', href: '#sport=nhl&tab=power&lens=hot' },
-      { label: 'Tonight’s defences, ranked', href: '#sport=nhl&tab=matchups' },
+      { label: 'Tonight’s defenses, ranked', href: '#sport=nhl&tab=matchups' },
     ],
   }
 }

@@ -96,7 +96,7 @@ export default function LineUp({ off, def, offMen = [], defMen = [], pass, onPla
       <div aria-hidden="true" style={{ position: 'absolute', inset: 0, display: 'flex' }}>{['LEFT', 'MIDDLE', 'RIGHT'].map(col)}</div>
       {/* the line of scrimmage */}
       <div aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, top: '34%', height: 3, background: C.text, boxShadow: `0 0 8px ${C.green}` }} />
-      <span aria-hidden="true" style={{ position: 'absolute', left: 8, top: '30%', font: `900 11px/1 ${NUM_FONT}`, letterSpacing: '.1em', color: C.text2 }}>{def} DEFENCE</span>
+      <span aria-hidden="true" style={{ position: 'absolute', left: 8, top: '30%', font: `900 11px/1 ${NUM_FONT}`, letterSpacing: '.1em', color: C.text2 }}>{def} DEFENSE</span>
       <span aria-hidden="true" style={{ position: 'absolute', right: 8, bottom: 8, font: `900 11px/1 ${NUM_FONT}`, letterSpacing: '.1em', color: C.text2 }}>{off} OFFENCE</span>
       {defMen.length === 0 && (
         <span style={{ position: 'absolute', left: 10, right: 10, top: '19%', transform: 'translateY(-50%)', textAlign: 'center', font: `700 12px/1.4 ${NUM_FONT}`, color: C.text3 }}>{pass ? `${def}'s line-up: no corner on the chart` : `How ${def} line up against the run is not published`}</span>

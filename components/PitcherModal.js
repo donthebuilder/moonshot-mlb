@@ -525,7 +525,7 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
                     'Share of the baserunners he allows that he picks off. Refused under twenty baserunners.')}
                   {rg.defence.ok && rg.defence.oaa != null && cell('Defence',
                     `${rg.defence.oaa > 0 ? '+' : ''}${rg.defence.oaa}`, 'OAA behind him',
-                    'Outs Above Average for the defence playing behind him, from Baseball Savant. Positive means the gloves have been taking hits away.')}
+                    'Outs Above Average for the defense playing behind him, from Baseball Savant. Positive means the gloves have been taking hits away.')}
                 </div>
                 {runningGameLine(rg) && (
                   <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.5, marginTop: 6 }}>

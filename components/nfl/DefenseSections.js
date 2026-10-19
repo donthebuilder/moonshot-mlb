@@ -27,7 +27,7 @@ const PCT_GROUP = { DL: 'defensive linemen', LB: 'linebackers', CB: 'defensive b
 function DefenceTags({ book, team }) {
   const tags = book.team(team)
   if (tags.length) return <TagChips tags={tags} />
-  return <span style={muted}>{team} has no defence tag: its corners, pass rush and run defence sit in the middle of the league, or it has under 3 games to read.</span>
+  return <span style={muted}>{team} has no defense tag: its corners, pass rush and run defense sit in the middle of the league, or it has under 3 games to read.</span>
 }
 
 function keyRows(rows) {
@@ -120,7 +120,7 @@ export function DefenderFile({ player, matchup, slateSeason = null }) {
   return (
     <div style={{ marginTop: 6 }}>
       {matchup && <div style={{ margin: '0 0 10px' }}>
-        <div style={{ ...muted, marginBottom: 4 }}>{player.team} defence tags</div>
+        <div style={{ ...muted, marginBottom: 4 }}>{player.team} defense tags</div>
         <DefenceTags book={book} team={player.team} />
       </div>}
       {line ? (

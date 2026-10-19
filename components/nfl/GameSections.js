@@ -43,7 +43,7 @@ export function GameHeader({ game: g, when, air, xtd, heat, past, onOpenTeam, ou
           <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 16 }}>@</span>
           <Team t={g.home} />
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, width: 84 }} title={xtd == null ? TD_WORD : `${xtd.toFixed(1)} ${TD_WORD} between the two teams: each club's touchdown rate against the other's defence. The ring shows where it sits among all matchups in the league.`}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, width: 84 }} title={xtd == null ? TD_WORD : `${xtd.toFixed(1)} ${TD_WORD} between the two teams: each club's touchdown rate against the other's defense. The ring shows where it sits among all matchups in the league.`}>
           <Dial value={xtd} dp={1} pct={100 * heat} col={C.green} size={64} title={xtd == null ? TD_WORD : `${xtd.toFixed(1)} ${TD_WORD} in this game`} />
           <span style={{ fontSize: 12, lineHeight: 1.25, color: C.text2, textAlign: 'center' }}>{TD_WORD}</span>
         </div>
@@ -131,14 +131,14 @@ export function KeyPlayers({ matchup, data, game, onPlayerClick, onOpenTeam }) {
     { key: 'corner', label: 'Corner', heat: false, w: 120, group: 'THE CORNER HE FACES' },
     { key: 'slot', label: 'Spot', heat: false, w: 84, group: 'THE CORNER HE FACES' },
     { key: 'def', label: 'Vs', heat: false, w: 44, group: 'THE CORNER HE FACES', teamMark: 'nfl' },
-    { key: 'edge', label: 'Edge', heat: false, w: 76, group: 'THE EDGE', title: "The pass defence's edge: how many yards it allows a top receiver, against the league" },
+    { key: 'edge', label: 'Edge', heat: false, w: 76, group: 'THE EDGE', title: "The pass defense's edge: how many yards it allows a top receiver, against the league" },
   ]
   return (
     <section aria-label="Key players" style={{ marginBottom: 16 }}>
       <Kicker>KEY PLAYERS · WHO GETS THE BALL, AND THE CORNER HE FACES</Kicker>
       <NflTable rows={list} columns={cols} onRowClick={(r) => onPlayerClick?.(r?._raw ?? r)} bare maxRows={3} maxHeight={9999}
         nameCell="player" faceOf={(r) => ({ sport: 'nfl', espnId: r.espn, team: r.team, name: r.name })}
-        caption={`${notes.join(' ')}${old ? ` (${old} season)` : ''} Rows pair the depth chart in order. No source says who really covers whom. Side is from his own targets (left and right as the offence faces the defence), or 'role' when only his depth spot is known.`} />
+        caption={`${notes.join(' ')}${old ? ` (${old} season)` : ''} Rows pair the depth chart in order. No source says who really covers whom. Side is from his own targets (left and right as the offence faces the defense), or 'role' when only his depth spot is known.`} />
     </section>
   )
 }
