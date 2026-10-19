@@ -11,6 +11,8 @@ import StadiumShell from './charts/StadiumShell'
 import { buildPark, lerp5, fieldPoint, GENERIC_DIMS, GENERIC_HEIGHTS } from '../lib/stadiumWorld'
 import { makeComposer, enableShadows, loadPhotoSurfaces, loadSky, loadModels, isCoarse } from '../lib/stadiumLook'
 import { PARK_WALLS } from '../lib/parkWalls'
+import { densityGrid } from '../lib/charts/terrain'
+import { buildHills, rgb01 } from '../lib/three/hills'
 // The same sequential ramp the 2D grid paints its temp bands with. Importing
 // it — rather than picking colours here — is what keeps the two maps from
 // disagreeing about what "hot" looks like, and keeps this file free of hex.
@@ -173,6 +175,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
     const SHOT = {
       matchup: { pos: [0, cy, -5.4], look: [0, cy, 0], fov: 40 },
       command: { pos: [0.5, cy + 0.25, -5.7], look: [0, cy, 0], fov: 40 },
+      hills:   { pos: [4.6, cy + 1.4, -7.2], look: [0, cy, -0.3], fov: 40 },   // off the corner, so the relief reads
       flight:  { pos: [1.4, cy + 0.8, -13], look: [0, cy, 6], fov: 40 },
       tunnel:  { pos: [4.2, cy + 1.9, -19], look: [0, cy, 13], fov: 42 },
     }
@@ -510,6 +513,29 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
         fill.position.z = Z_CMD + 0.005
         cmdGroup.add(fill)
       })
+    }
+
+    // ── HILLS (2026-10-19, the shared 3D look, lib/three/hills.js): tonight's plate crossings as ground, raised toward the
+    //    catcher, so where he lives is a hill. Orange where the share of swings and misses beats his own rate tonight.
+    //    Eight crossings before a hill is drawn. Plate feet on a 0.1-ft grid, x -2.5..2.5, height 0..5.
+    const hillGroup = new THREE.Group(); add(hillGroup)
+    {
+      const pts = live.filter((p) => Number.isFinite(p.x) && Number.isFinite(p.z) && p.x > -2.5 && p.x < 2.5 && p.z > 0 && p.z < 5)
+        .map((p) => ({ x: p.x + 2.5, y: p.z, wh: p.kind === 'whiff' }))
+      if (pts.length >= 8) {
+        const sig = pts.length < 40 ? 0.42 : 0.3
+        const g = densityGrid(pts, { w: 5, h: 5, cell: 0.1, sigma: sig })
+        const gw = densityGrid(pts.filter((q) => q.wh), { w: 5, h: 5, cell: 0.1, sigma: sig })
+        const rate = pts.filter((q) => q.wh).length / pts.length
+        const acc = rgb01(C.orange), pale = [0.96, 0.95, 0.92]
+        if (g.vmax) {
+          hillGroup.add(buildHills(g, {
+            toWorld: (gx, gy, h) => PT(gx - 2.5, gy, -h),
+            colorAt: (gx, gy) => { const k = Math.round(gy / 0.1) * g.gw + Math.round(gx / 0.1); const v = g.grid[k]; return rate > 0 && v > 0.3 * g.vmax && gw.grid[k] / v > rate * 1.25 ? acc : pale },
+            height: 0.9, floor: 0.06, fade: true, opacity: 0.72,
+          }))
+        }
+      }
     }
 
     // ── TUNNEL. One ring at the point downrange where the pitches are still
@@ -868,9 +894,10 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
       matchGroup.visible = mode === 'matchup'
       markGroup.visible = mode !== 'matchup'
       cmdGroup.visible = mode === 'command'
+      hillGroup.visible = mode === 'hills'
       // under the ellipses the marks are evidence, not the subject
       markGroup.traverse((o) => { if (o.material && o.userData.baseOp == null) o.userData.baseOp = o.material.opacity ?? 1 })
-      markGroup.traverse((o) => { if (o.material) o.material.opacity = mode === 'command' ? o.userData.baseOp * 0.45 : o.userData.baseOp })
+      markGroup.traverse((o) => { if (o.material) o.material.opacity = mode === 'command' || mode === 'hills' ? o.userData.baseOp * 0.45 : o.userData.baseOp })
     }
     show()
 
@@ -946,15 +973,16 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
   // Flight and tunnel are drawn from tracked pitches. With none, they are not
   // a view with nothing in it — they are a view that cannot exist yet, and a
   // disabled button that says so beats an empty box that looks broken.
-  const needsPitches = { flight: true, tunnel: true, command: true, matchup: false }
+  const needsPitches = { flight: true, tunnel: true, command: true, hills: true, matchup: false }
+  const hillsOff = (pitches || []).filter((p) => p && Number.isFinite(p.x) && Number.isFinite(p.z)).length < 8   // the same eight the scene asks for
   const btn = (m, txt) => {
-    const off = needsPitches[m] && !hasPitches
+    const off = (needsPitches[m] && !hasPitches) || (m === 'hills' && hillsOff)
     return (
       <button
         key={m}
         onClick={() => { if (!off) setMode(m) }}
         disabled={off}
-        title={off ? 'No tracked pitches yet — this view needs a live or completed at-bat.' : ''}
+        title={off ? (m === 'hills' && hasPitches ? 'Hills need eight tracked pitches.' : 'No tracked pitches yet — this view needs a live or completed at-bat.') : ''}
         style={{
           minHeight: 44, padding: '0 14px', fontSize: 12, fontWeight: 800, borderRadius: 999,
           cursor: off ? 'not-allowed' : 'pointer',
@@ -969,7 +997,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
   }
 
   // The view modes are StadiumShell's chip row now (under the canvas, 44px).
-  const chipsRow = <>{btn('flight', 'Flight')}{btn('tunnel', 'Release + tunnel')}{btn('command', 'Command')}{btn('matchup', 'Matchup')}</>
+  const chipsRow = <>{btn('flight', 'Flight')}{btn('tunnel', 'Release + tunnel')}{btn('command', 'Command')}{btn('hills', 'Hills')}{btn('matchup', 'Matchup')}</>
   const PRESETS = [
     { key: 'mound', label: 'MOUND', title: "From the pitcher's side, looking in" },
     { key: 'catcher', label: 'CATCHER', title: 'Behind the plate, the matchup frame' },
@@ -1038,6 +1066,8 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
           ? <>Command: one cross per pitch type at the centre of tonight&apos;s crossings, and the
             1σ oval around it — small and near an edge means he is commanding it, wide across
             the middle means he is losing it. Three crossings of a type before an oval is drawn.{' '}</>
+          : hasPitches && mode === 'hills'
+          ? <>Hills: where tonight&apos;s pitches crossed. Orange: more swings and misses than his rate.{' '}</>
           : hasPitches
           ? <>Plate crossings are measured; the path between release and the plate is
             drawn from movement, not tracked — geometry, not telemetry.{' '}</>
