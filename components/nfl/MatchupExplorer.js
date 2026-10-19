@@ -5,6 +5,7 @@ import { alpha } from '../../lib/scales'
 import { ChipGroup } from '../charts'
 import NflTable from './NflTable'
 import RunLineField from './RunLineField'
+import PassAreaField, { AREA_KEYS, areaName, areaShort } from './PassAreaField'
 import CoverageShellField from './CoverageShellField'
 import { LANES, LANE_WORD } from '../../lib/nfl/fieldModel'
 import { SHELL_SHAPE } from './CoverageShellField'
@@ -40,10 +41,13 @@ const MIN_TGT = 10
 const MIN_CAR = 5
 const MIN_DEF_CAR = 8
 const MIN_SHELL = 50
+const MIN_AREA_TGT = 5     // a receiver's targets in one area before he is listed there
+const MIN_DEF_ATT = 8      // a defense's throws faced in one area before it is called
 
 export default function MatchupExplorer({ matchup, data, onPlayerClick, view = 'coverage' }) {
   const byId = useMemo(() => new Map((data?.players || []).map((p) => [String(p.player_id), p])), [data])
   const season = matchup?.chart_season || matchup?.season
+  if (view === 'areas') return <Areas matchup={matchup} byId={byId} onPlayerClick={onPlayerClick} season={season} />
   return view === 'coverage'
     ? <Coverage matchup={matchup} byId={byId} onPlayerClick={onPlayerClick} season={season} />
     : <Holes matchup={matchup} byId={byId} onPlayerClick={onPlayerClick} season={season} />
@@ -281,6 +285,123 @@ function Holes({ matchup, byId, onPlayerClick, season }) {
         />
       </div>
       <div style={{ fontSize: TYPE.label, color: C.text3, marginTop: 8 }}>By hole only — the run type (inside zone, power, counter) is not in the data.</div>
+    </div>
+  )
+}
+
+// PASS AREAS (Donovan 10-19: the Throw map's ideas "on the old style of the matchup chart ... league and team views ...
+// the small one is good"). Run holes, for the passing game: the twelve areas league-wide as the table that leads; the
+// small field beside it (components/nfl/PassAreaField.js) draws the same numbers, the league's or, once a defense is
+// tapped, that defense's; then who wins there and who can't stop it.
+function Areas({ matchup, byId, onPlayerClick, season }) {
+  const [area, setArea] = useState('middle|mid')
+  const [defTeam, setDefTeam] = useState(null)
+  const f = matchup?.field || {}
+  const lg = f.league_pass || {}
+  const dl = defTeam ? f.def_pass?.[defTeam] || {} : null
+  const minAtt = dl ? MIN_DEF_ATT : 30
+  const cells = Object.fromEntries(AREA_KEYS.map((z) => {
+    const m = (dl || lg)[z] || {}, l = lg[z] || {}
+    const thin = !(m.att >= minAtt)
+    const vs = dl && !thin && l.ypa ? Math.round(100 * (m.ypa / l.ypa - 1)) : null
+    return [z, { big: m.ypa != null ? m.ypa.toFixed(1) : '—', sub: `${m.att || 0} tgt`, value: m.ypa, thin, weak: vs != null && vs >= 10,
+      title: `${areaName(z)} · ${defTeam ? `${defTeam} allow` : 'league'} ${m.ypa ?? '—'} yds a target on ${m.att || 0}${vs != null ? ` (${vs > 0 ? '+' : ''}${vs}% vs the league)` : ''}${thin ? ' (too few to call it)' : ''}` }]
+  }))
+  const league = lg[area] || {}
+
+  const areaRows = AREA_KEYS.map((z) => {
+    const m = lg[z] || {}
+    return { _key: z, z, area: areaShort(z), att: m.att || 0, ypa: m.ypa, cmp: m.cmp_pct, td: m.td || 0,
+      dYpa: dl?.[z]?.att >= MIN_DEF_ATT ? dl[z].ypa : null }
+  })
+
+  const catchers = useMemo(() => Object.entries(f.player_pass || {}).map(([pid, areas]) => {
+    const m = areas?.[area]
+    const p = byId.get(pid)
+    if (!p || !m || (m.att || 0) < MIN_AREA_TGT) return null
+    const all = Object.values(areas).reduce((a, x) => a + (x?.att || 0), 0)
+    return { _key: pid, _raw: p, player_id: pid, name: p.name, team: p.team, att: m.att, ypa: m.ypa, cmp: m.cmp_pct, td: m.td, share: all ? (100 * m.att) / all : null, vsLg: league.ypa != null ? m.ypa - league.ypa : null }
+  }).filter(Boolean), [f, area, byId, league.ypa])
+
+  const defs = Object.entries(f.def_pass || {}).map(([team, areas]) => {
+    const m = areas?.[area]
+    if (!m || (m.att || 0) < MIN_DEF_ATT) return null
+    return { _key: team, team, att: m.att, ypa: m.ypa, cmp: m.cmp_pct, td: m.td, vsLg: league.ypa != null ? m.ypa - league.ypa : null }
+  }).filter(Boolean)
+
+  return (
+    <div>
+      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', alignItems: 'start', marginBottom: 12 }}>
+        <div>
+          <NflTable
+            rows={areaRows}
+            columns={[
+              { key: 'area', group: 'Area', label: 'Area', w: 76, heat: false, sticky: true, bold: true, fmt: (v, r) => <span style={{ color: r.z === area ? C.green : undefined }}>{v}</span> },
+              { key: 'att', group: 'League', label: 'Tgt', w: 48, dp: 0 },
+              { key: 'ypa', group: 'League', label: 'Yds/tgt', w: 56, dp: 1, primary: true },
+              { key: 'cmp', group: 'League', label: 'Catch%', w: 54, dp: 0 },
+              { key: 'td', group: 'League', label: 'TD', w: 36, dp: 0 },
+              ...(dl ? [{ key: 'dYpa', group: defTeam, label: 'Yds/tgt', w: 56, dp: 1, title: `${defTeam} allow, in this area` }] : []),
+            ]}
+            onRowClick={(r) => setArea(r.z)}
+            rowEdge={(r) => (r.z === area ? C.green : null)}
+            initialSort={null}
+            maxHeight={9999}
+            maxRows={12}
+            caption={`The twelve pass areas, league-wide, ${season}. Tap one: who wins there, and who can't stop it.`}
+          />
+        </div>
+        <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12, padding: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6, fontFamily: NUM_FONT, fontSize: TYPE.label, color: C.text2 }}>
+            <b style={{ color: C.text }}>{defTeam ? `${defTeam} defense allow` : 'League, yards a target'}</b>
+            {defTeam && <button type="button" className="tap-box" onClick={() => setDefTeam(null)} style={{ minHeight: 0, padding: '5px 12px', borderRadius: 999, border: `1px solid ${C.border2}`, background: 'transparent', color: C.text2, cursor: 'pointer', fontFamily: NUM_FONT, fontWeight: 800 }}>Show the league ✕</button>}
+          </div>
+          <PassAreaField cells={cells} pickedKey={area} onPick={setArea} hue={C.green} label={`${defTeam || 'League'} yards a target in each pass area`} />
+          <div style={{ fontSize: TYPE.label, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
+            Yds a target per area{defTeam ? ` · dashed = ${defTeam} 10%+ worse than the league` : ''} · — = under {minAtt} · {season}
+          </div>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))', alignItems: 'start' }}>
+        <NflTable
+          key={`c-${area}`}
+          rows={catchers}
+          columns={[
+            { key: 'name', group: 'Receiver', label: 'Receiver', w: 150, heat: false, bold: true, sticky: true },
+            { key: 'team', group: 'Receiver', label: 'Tm', w: 44, heat: false, teamMark: 'nfl' },
+            { key: 'att', group: 'Thrown here', label: 'Tgt', w: 42, dp: 0 },
+            { key: 'ypa', group: 'Thrown here', label: 'Yds/tgt', w: 56, dp: 1, primary: true },
+            { key: 'vsLg', group: 'Thrown here', label: 'Vs lg', w: 50, dp: 1, title: 'His yards a target here minus the league’s' },
+            { key: 'cmp', group: 'Thrown here', label: 'Catch%', w: 54, dp: 0 },
+            { key: 'td', group: 'Thrown here', label: 'TD', w: 36, dp: 0 },
+            { key: 'share', group: 'Thrown here', label: 'His %', w: 50, dp: 0, title: 'Share of his targets that come in this area' },
+          ]}
+          onRowClick={(p) => onPlayerClick?.(p, 'REC_YDS')}
+          nameCell="player" faceOf={(r) => ({ sport: 'nfl', espnId: r._raw?.espn_id, name: r.name })}
+          initialSort={{ key: 'ypa', dir: 'desc' }}
+          maxHeight={420}
+          maxRows={12}
+          caption={`Who wins there: every receiver with ${MIN_AREA_TGT}+ targets in ${areaName(area).toLowerCase()}.`}
+        />
+        <NflTable
+          key={`d-${area}`}
+          rows={defs}
+          columns={[
+            { key: 'team', group: 'Defense', label: 'Defense', w: 70, heat: false, sticky: true, teamMark: 'nfl' },
+            { key: 'att', group: 'Faced here', label: 'Tgt', w: 42, dp: 0 },
+            { key: 'ypa', group: 'Faced here', label: 'Yds/tgt', w: 56, dp: 1, primary: true },
+            { key: 'vsLg', group: 'Faced here', label: 'Vs lg', w: 50, dp: 1 },
+            { key: 'cmp', group: 'Faced here', label: 'Catch%', w: 54, dp: 0 },
+            { key: 'td', group: 'Faced here', label: 'TD', w: 36, dp: 0 },
+          ]}
+          onRowClick={(r) => setDefTeam(r.team)}
+          rowEdge={(r) => (r.team === defTeam ? C.green : null)}
+          initialSort={{ key: 'ypa', dir: 'desc' }}
+          maxHeight={420}
+          maxRows={12}
+          caption={`Who can't stop it: every defense that faced ${MIN_DEF_ATT}+ targets in ${areaName(area).toLowerCase()}, leakiest first. Tap one to put its areas on the field.`}
+        />
+      </div>
     </div>
   )
 }

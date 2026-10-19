@@ -22,7 +22,7 @@ import { ViewRow } from '../../results/ResultsParts'
 import { SportTheme } from '../../SportTheme'
 import { softRole, softLine, passRushThreat, PASS_RUSH_AVOID, STARTER_ROLES } from '../../../lib/nfl/dvpSignal'
 import TheField from '../TheField'
-import GameOffDef from '../GameOffDef'
+import GameFieldSmall from '../GameFieldSmall'
 import { ordinal } from '../../../lib/format'
 import { gameVenue } from '../../../lib/nfl/venueOf'
 import { roleLabel } from '../../../lib/nfl/roles'
@@ -454,13 +454,14 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
       />
       <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
         <ViewRow value={view} onChange={setView}
-          views={[['week', '🛡 This week'], ['coverage', '🎯 Coverage explorer'], ['holes', '🏃 Run holes']]} />
+          views={[['week', '🛡 This week'], ['coverage', '🎯 Coverage explorer'], ['areas', '🏈 Pass areas'], ['holes', '🏃 Run holes']]} />
       </SportTheme>
       {view !== 'week' && <MatchupExplorer matchup={matchup} data={data} onPlayerClick={onPlayerClick} view={view} />}
       {view === 'week' && <>
-      {/* THE FIELD FIRST (Wave 6, Donovan: visuals first, depth one tap away): the defence on screen, drawn, above the table that picks it */}
+      {/* THE FIELD FIRST (Wave 6, Donovan: visuals first, depth one tap away): the defence on screen, drawn, above the table that picks it.
+          10-19: the small field (GameFieldSmall, the run holes' look), not the big one: "way too big" */}
       <div id="tuddy-def-field" style={{ scrollMarginTop: 80 }}>
-        {fieldGame && matchup?.field ? <GameOffDef key={`${active}-${fieldGame.game_id || ''}`} matchup={matchup} players={data?.players} game={fieldGame} defending={active} onDefend={(t) => setTeam(t)} onPlayerClick={onPlayerClick} /> : null}
+        {fieldGame && matchup?.field ? <GameFieldSmall key={`${active}-${fieldGame.game_id || ''}`} matchup={matchup} players={data?.players} game={fieldGame} initialOff={opp} onDefend={(t) => setTeam(t)} onPlayerClick={onPlayerClick} /> : null}
       </div>
       <DefensesTable matchup={matchup} data={data} win={win} active={active} onPlayerClick={onPlayerClick} onPick={(t) => { setTeam(t); if (typeof document !== 'undefined') requestAnimationFrame(() => document.getElementById('tuddy-def-field')?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }} />
 

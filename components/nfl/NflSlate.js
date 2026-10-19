@@ -8,9 +8,9 @@ import Tap from '../Tap'
 import GameSwitcher from '../GameSwitcher'
 import { panelPairs, panelSubs, gameSections } from '../../lib/game/sections'
 import { GameFilterRail, SlateStrip, GamePanelPills, PanelAnchor, GameFrame, PrevNextGame } from '../slate/SlateParts'
-import GameOffDef, { Kicker } from './GameOffDef'
+import { Kicker } from './GameOffDef'
 import { GameHeader, KeyPlayers, MatchupScoreboard, ImportantStats } from './GameSections'
-import ThrowMap from './ThrowMap'
+import GameFieldSmall from './GameFieldSmall'
 import { GameDvp } from './tabs/Matchups'
 import ShareCardButton from '../card/ShareCardButton'
 import { shareUrl, slug, stamp, gameDay } from '../../lib/cards/saveCard'
@@ -107,17 +107,10 @@ const USAGE_COLS = [
   { key: 'u_xtd', label: 'xTD', w: 54, dp: 0, group: GROUP_USAGE, explain: 'Expected touchdowns, as a percentile among this week\'s scored players.' },
 ]
 
-// THE FIELD PANEL (10-19): the passing game is the ThrowMap (Donovan's pick after the Chart Lab rounds); the run game
-// keeps the old field (GameOffDef, opened on running), one tap away, and back.
+// THE FIELD PANEL (10-19): the small field (GameFieldSmall: pass areas + run holes, the Matchups run-holes look). The
+// Throw map was "way too big" (Donovan 10-19).
 function FieldPanel({ matchup, players, game, onPlayerClick }) {
-  const [run, setRun] = useState(false)
-  if (!run) return <ThrowMap matchup={matchup} players={players} game={game} onPlayerClick={onPlayerClick} onRun={() => setRun(true)} />
-  return (
-    <>
-      <button type="button" className="tap-box" onClick={() => setRun(false)} style={{ minHeight: 0, padding: '6px 11px', borderRadius: 999, border: `1px solid ${C.border2}`, background: 'transparent', color: C.text2, cursor: 'pointer', font: `800 12px/1 ${NUM_FONT}`, marginBottom: 8 }}>‹ Pass game</button>
-      <GameOffDef matchup={matchup} players={players} game={game} onPlayerClick={onPlayerClick} initialPass={false} />
-    </>
-  )
+  return <GameFieldSmall matchup={matchup} players={players} game={game} onPlayerClick={onPlayerClick} title="WHERE THEY GO" />
 }
 
 export default function NflSlate({ data, picks, matchup, logs = null, odds = null, results = null, initialGame = null, games: shownGames, tableColumns, tableRowsFor, storyForGame, onPlayerClick, onOpenTeam = null }) {
