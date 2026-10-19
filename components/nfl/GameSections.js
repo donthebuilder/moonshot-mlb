@@ -9,8 +9,7 @@ import { Dial } from '../VerdictHero'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { scoreboardRows, receiverEdge } from '../../lib/nfl/gameMatchup'
 import { offenseTiles, defenseTiles, factsNote } from './tabs/Matchups'
-import { softRole, softLine, softCells, STARTER_ROLES } from '../../lib/nfl/dvpSignal'
-import { Chip } from '../writeups/ChipLines'
+import { softRole, softLine } from '../../lib/nfl/dvpSignal'
 import { mostWord } from '../../lib/format'
 import { Kicker } from './GameOffDef'
 import { TD_WORD } from '../../lib/nfl/teamTdModel'
@@ -115,79 +114,55 @@ export function KeyPlayers({ matchup, data, game, onPlayerClick, onOpenTeam }) {
       const r = rowOf(t.player_id)
       const c = cb[i] || null
       list.push({ _key: `${off}-${t.player_id}`, _raw: r || { player_id: t.player_id, name: t.name, team: off }, name: r?.name || t.name, team: off,
-        role: (r ? roleLabel(r) : t.position) || '—', side: (() => { const q = sideFor({ matchup, id: t.player_id, position: t.position }); return q.basis === 'role' ? `${q.word} · role` : q.word })(), share: Number(t.share), corner: c?.name || '—', slot: c ? (SLOT_WORD[c.slot] || c.slot) : '—', def: c ? def : '—',
+        role: (r ? roleLabel(r) : t.position) || '—', side: (() => { const q = sideFor({ matchup, id: t.player_id, position: t.position }); return q.basis === 'role' ? `${q.word} · role` : q.word })(), share: Number(t.share), corner: c?.name || '—', spot: c?.slot || '', slot: c ? (SLOT_WORD[c.slot] || c.slot) : '—', def: c ? def : '—',
         edge: i === 0 && edge ? edge.word : '', espn: r?.espn_id })
     })
     notes.push(edge ? `${def} allow ${edge.yds} yards a game to a top receiver, ${mostWord(edge.rank)}.` : `${off}'s three most-targeted players.`)
   }
   if (!list.length) return null
   const old = pg?.season && slate && pg.season < slate ? pg.season : null
+  // WHO GETS THE BALL, TRIMMED (Donovan 10-18: "who gets the ball ... seems pretty generic"). Five columns that each say
+  // something: his share of the targets, where on the field, the corner the depth chart lines up against him (his spot as
+  // LCB / RCB / NB), and the pass defense's edge once per club. The team and opponent columns went: his logo is in the name
+  // cell and the opponent is the other club in this game. One short line under it, not three sentences.
   const cols = [
     { key: 'name', label: 'Receiver', sticky: true, bold: true, heat: false, w: 150, group: 'WHO GETS THE BALL' },
-    { key: 'team', label: 'Team', heat: false, w: 44, group: 'WHO GETS THE BALL' },
     { key: 'role', label: 'Role', heat: false, w: 46, group: 'WHO GETS THE BALL' },
-    { key: 'side', label: 'Side', heat: false, w: 92, group: 'WHO GETS THE BALL', title: "Where he is targeted most (left / middle / right, the offence's own view); 'role' = only his depth-chart spot is known; Spread = his targets go everywhere. Slot is not published." },
-    { key: 'share', label: 'Targets', w: 62, dp: 1, primary: true, group: 'WHO GETS THE BALL', fmt: (v) => `${v}%`, title: "His share of his team's targets" },
-    { key: 'corner', label: 'Corner', heat: false, w: 120, group: 'THE CORNER HE FACES' },
-    { key: 'slot', label: 'Spot', heat: false, w: 84, group: 'THE CORNER HE FACES' },
-    { key: 'def', label: 'Vs', heat: false, w: 44, group: 'THE CORNER HE FACES', teamMark: 'nfl' },
-    { key: 'edge', label: 'Edge', heat: false, w: 76, group: 'THE EDGE', title: "The pass defense's edge: how many yards it allows a top receiver, against the league" },
+    { key: 'share', label: 'Tgt %', w: 56, dp: 1, primary: true, group: 'WHO GETS THE BALL', fmt: (v) => `${v}%`, title: "His share of his team's targets" },
+    { key: 'side', label: 'Side', heat: false, w: 80, group: 'WHO GETS THE BALL', title: "Where he is targeted most (left / middle / right, the offence's own view); 'role' = only his depth-chart spot is known; Spread = his targets go everywhere." },
+    { key: 'corner', label: 'Corner', heat: false, w: 120, group: 'HIS CORNER', fmt: (v, r) => (v === '—' ? '—' : <span>{v} <span style={{ fontSize: 10, color: C.text3 }}>{r.spot}</span></span>) },
+    { key: 'edge', label: 'Edge', heat: false, w: 76, group: 'HIS CORNER', title: "The pass defense's edge: how many yards it allows a top receiver, against the league" },
   ]
   return (
     <section aria-label="Key players" style={{ marginBottom: 16 }}>
       <Kicker>WHO GETS THE BALL · HIS CORNER</Kicker>
-      <NflTable rows={list} columns={cols} onRowClick={(r) => onPlayerClick?.(r?._raw ?? r)} bare maxRows={3} maxHeight={9999}
+      <NflTable rows={list} columns={cols} onRowClick={(r) => onPlayerClick?.(r?._raw ?? r)} bare maxRows={6} maxHeight={9999}
         nameCell="player" faceOf={(r) => ({ sport: 'nfl', espnId: r.espn, team: r.team, name: r.name })}
-        caption={`${notes.join(' ')}${old ? ` (${old} season)` : ''} Rows pair the depth chart in order. No source says who really covers whom. Side is from his own targets (left and right as the offence faces the defense), or 'role' when only his depth spot is known.`} />
+        caption={`${notes.join(' ')}${old ? ` (${old} season)` : ''} Corners pair the depth chart in order.`} />
     </section>
   )
 }
 
 const USED = new Set(['PRESSURE', 'BLITZ', 'ZONE', 'MAN', '20+ PASSES'])
 
-// ── 3. THE MATCHUP (2026-10-17, path item 6; was a set of bars against the league middle, a club logo on every line) ─────────────────────────
-// Donovan: "Seattle gives to the quarterback, so what does that even mean ... I don't care which side is leaning which way; I do like knowing
-// what their ranking is giving up defense wise, the position they're giving it up to." So, per defence, ONCE (its logo in the header, not on every line):
-//   GIVES UP: the starter positions it is softest against, each a chip: the number, the stat, the position, and its rank ("2nd most" = it gives
-//             up the 2nd most in the league). Same cells and the same bar (z >= 1) as the soft-spot sentences below (lib/nfl/dvpSignal softCells).
-//   HOW IT DEFENDS: pass rush, blitz, zone / man and long passes as plain chips with their rank. Neutral colour: whether a lot of pressure is good
-//             for the offence depends on the player, and nothing here says it.
-// The model is not changed by this block: the backtests found "allowed to his position" adds nothing to the touchdown score (lib/nfl/scoreLabels.js).
-const unitOf = (d) => (d.stat === 'td' || d.stat === 'rz_tgts' || d.stat === 'rz_car' ? '' : ' a game')
-const num1 = (n) => (Math.abs(n) >= 10 ? Math.round(n) : Math.round(n * 10) / 10)
-const CHIP_THEME = { C, NUM_FONT, TYPE, get accent() { return C.green } }   // read at draw time: C is mutated after mount (applyTheme)
-
-function DefenceColumn({ def, rows, matchup }) {
-  const soft = softCells(matchup, def, 'season', STARTER_ROLES).slice(0, 4)
-  const how = rows.map((r) => r.cells.find((c) => c?.team === def)).filter((c) => c?.chip)
-  if (!soft.length && !how.length) return null
+// HOW THEY DEFEND (Donovan 10-18: "the matchup page needs a full redo"; "I like symmetrical ... pristine"). The two defenses
+// side by side in one even table: a row per measure (pass rush, blitz, zone or man, long passes allowed), each cell the
+// number, its rank of 32 and a thin bar for where it sits in the league. Neutral ink, no accent: a lot of pressure is not
+// good or bad on its own (the old block's rule); the top eight are brighter. What each defense GIVES UP by role moved to the
+// DvP grid at the top of the game (GameDvp), so the "gives up" chips are not drawn twice.
+function DefendCell({ c }) {
+  if (!c) return <span style={{ color: C.text3 }}>—</span>
+  const value = c.chip?.label && /coverage/.test(c.chip.label) ? `${c.chip.value} ${c.chip.label.replace(' coverage', '')}` : c.chip?.value
   return (
-    <div style={{ minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <TeamMark sport="nfl" abbr={def} variant="logo" px={26} />
-        <span style={{ font: `900 ${TYPE.name}px/1.2 ${NUM_FONT}`, color: C.text }}>{nflNickname(def)} defense</span>
-      </div>
-      {soft.length > 0 && (
-        <>
-          <div style={{ font: `800 ${TYPE.label}px/1 ${NUM_FONT}`, letterSpacing: '.1em', color: C.text3, margin: '4px 0 4px' }}>GIVES UP</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {soft.map((d) => (
-              <Chip key={`${d.role}${d.stat}`} theme={CHIP_THEME} value={num1(d.value)} label={`${d.label}${unitOf(d)} to ${d.plain}`}
-                tag={Number.isFinite(d.rank) ? mostWord(d.rank, 32) : null} heat={d.rank <= 3 ? 2 : d.rank <= 8 ? 1 : 0}
-                title={`${def}: ${softLine(d)}`} />
-            ))}
-          </div>
-        </>
-      )}
-      {how.length > 0 && (
-        <>
-          <div style={{ font: `800 ${TYPE.label}px/1 ${NUM_FONT}`, letterSpacing: '.1em', color: C.text3, margin: '10px 0 4px' }}>HOW IT DEFENDS</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {how.map((c) => <Chip key={c.chip.label} theme={CHIP_THEME} value={c.chip.value} label={c.chip.label} tag={c.word} title={c.text} />)}
-          </div>
-        </>
-      )}
-    </div>
+    <span title={`${c.text} · ${c.word}`} style={{ display: 'block' }}>
+      <span style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: 6 }}>
+        <b style={{ font: `900 14px/1.1 ${NUM_FONT}`, color: C.text }}>{value}</b>
+        <span style={{ font: `800 11px/1 ${NUM_FONT}`, color: c.rank <= 8 ? C.text : C.text3 }}>#{c.rank}</span>
+      </span>
+      <span aria-hidden="true" style={{ display: 'block', height: 3, marginTop: 4, borderRadius: 2, background: C.border, position: 'relative' }}>
+        <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.round(Math.max(0.04, Math.min(1, c.pos)) * 100)}%`, borderRadius: 2, background: c.rank <= 8 ? C.text2 : C.text3 }} />
+      </span>
+    </span>
   )
 }
 
@@ -196,13 +171,25 @@ export function MatchupScoreboard({ matchup, data, game }) {
   const slate = Number(data?.season) || null
   const chart = Number(matchup?.chart_season)
   const oldSeason = slate && chart && chart < slate ? chart : null
-  const cols = [game.away, game.home].map((def) => <DefenceColumn key={def} def={def} rows={rows} matchup={matchup} />)
-  if (!rows.length && !softCells(matchup, game.away, 'season', STARTER_ROLES).length && !softCells(matchup, game.home, 'season', STARTER_ROLES).length) return null
+  if (!rows.length) return null
+  const grid = { display: 'grid', gridTemplateColumns: 'minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr)', gap: 12, alignItems: 'center' }
   return (
-    <section aria-label="Matchup" style={{ marginBottom: 16 }}>
-      <Kicker>THE MATCHUP</Kicker>
-      <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))' }}>{cols}</div>
-      {/* 10-18 (less text): the "2nd most = ..." gloss is gone; only a different season is worth a line */}
+    <section aria-label="How they defend" style={{ marginBottom: 16 }}>
+      <Kicker>HOW THEY DEFEND</Kicker>
+      <div style={{ ...grid, paddingBottom: 6 }}>
+        <span style={{ font: `800 11px/1 ${NUM_FONT}`, color: C.text3, letterSpacing: '.08em' }}>RANK OF 32</span>
+        {[game.away, game.home].map((t) => (
+          <span key={t} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, font: `900 12px/1 ${NUM_FONT}`, color: C.text }}>
+            <TeamMark sport="nfl" abbr={t} variant="logo" px={20} />{t} D
+          </span>
+        ))}
+      </div>
+      {rows.map((r) => (
+        <div key={r.key} style={{ ...grid, minHeight: 44, borderTop: `1px solid ${C.border}` }}>
+          <span style={{ fontSize: 13, color: C.text2 }}>{r.label}</span>
+          {r.cells.map((c, i) => <DefendCell key={i} c={c} />)}
+        </div>
+      ))}
       {oldSeason ? <p style={{ margin: '8px 0 0', fontSize: 12, color: C.text3 }}>Pass rush, coverage and long passes: {oldSeason}.</p> : null}
     </section>
   )

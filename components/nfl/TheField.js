@@ -10,7 +10,6 @@ import {
   fieldModel, fieldView, mapAttempts, phrase, fmtPct, heatOf, coolOf, LANES, LANE_WORD, LANE_SHORT,
   SIDES, DEPTHS, MIN_DEF_ATT, SPOT_MIN_DEF_ATT, SPOT_MIN_SHARE, SPOT_MIN_MINE, FALLBACK_MIN_ATT,
 } from '../../lib/nfl/fieldModel'
-import { RedZoneStrip } from './RedZoneField'
 import dynamic from 'next/dynamic'
 import { webglOk } from '../../lib/webglOk'
 import { routeShape, ROUTE_WORD, ROUTES } from '../../lib/nfl/routeShape'
@@ -773,7 +772,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   const howTo = isRun ? (
     <div style={{ fontSize: 11, lineHeight: 1.5, color: C.text3, marginTop: 6 }}>
       {runDef ? <>Ink: where {TL(defTeam)} get beaten on the ground, gap by gap, vs a normal defense. Thin = too few carries to say. </> : null}
-      Carries by gap are from the season grid; the dots in the strip are {pid ? 'his' : 'their'} touches inside the 20.
+      Carries by gap are from the season grid.
     </div>
   ) : (
       <HowToRead theme={C} numFont={NUM_FONT} size={12}>
@@ -872,7 +871,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     </div>
   ) : null
 
-  // ── the red zone strip (kept: his pick) ──────────────────────────────────
+  // ── the red zone touches (the strip itself was dropped 10-18; the 3D arena still draws them) ──
   const rzWeeks = winWeeks(win)
   const rzBody = file.body   // the red zone is always this season's (the routes file carries none)
   const rz = (rzBody?.redzone || []).map((r, i) => Object.fromEntries((rzBody.rz_cols || []).map((c, j) => [c, r[j]]).concat([['seed', i]])))
@@ -882,17 +881,6 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   let stripIds = asPlayer ? [pid] : [...rzBy.keys()].sort((a, b) => rzBy.get(b).length - rzBy.get(a).length).slice(0, phone ? 3 : 5)
   if (!asPlayer && pid && !stripIds.includes(pid) && rzBy.has(pid)) stripIds = [...stripIds.slice(0, (phone ? 3 : 5) - 1), pid]
   const stripRows = stripIds.map((id) => ({ key: id, name: nameOf(id), href: playerHref('nfl', id), player: byPid.get(String(id)) || { name: nameOf(id), team }, clickable: byPid.has(String(id)), touches: rzBy.get(id) || [] }))
-  const stripKicker = (
-    <div style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, letterSpacing: '.06em', color: C.text3, margin: '10px 0 4px' }}>
-      <span style={{ color: C.green }}>RED ZONE</span> · every touch inside the 20{phone ? '' : ', by distance to the goal line'}
-    </div>
-  )
-  const strip = file.state !== 'ready'
-    ? <>{stripKicker}<ChartEmpty theme={C} style={{ padding: '2px 0' }}>{file.state === 'loading' ? 'Loading the red-zone touches…' : `No plays file for ${team} yet, so no red-zone touches to draw.`}</ChartEmpty></>
-    : stripRows.some((r) => r.touches.length)
-    ? <RedZoneStrip rows={stripRows} kicker={phone ? null : stripKicker} phone={phone} onPlayerClick={onPlayerClick}
-        rulerLabel={phone ? <span style={{ color: C.green }}>RED ZONE</span> : null} />
-    : <>{stripKicker}<ChartEmpty theme={C} style={{ padding: '2px 0' }}>No red-zone touches{asPlayer ? ' for him' : ''} in this window.</ChartEmpty></>
 
   // ── the tapped target ─────────────────────────────────────────────────────
   const picked = pick != null ? all[pick] : null
@@ -986,7 +974,8 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
         </div>
       </ChartCard>
       {facts}
-      {strip}
+      {/* the red-zone yards-out strip is not drawn (Donovan 10-18: "a chart for red zone attempts and I just don't know what
+          it is and I don't like it"); the red-zone page keeps its own. The touches still ride the 3D arena (stripRows). */}
       {table}
     </section>
   )
