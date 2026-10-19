@@ -20,7 +20,7 @@ import HisNumbers from '../HisNumbers'
 import InTheLedger from '../ledger/InTheLedger'
 import { etToday } from '../../lib/freshness'
 import BornLine from '../player/BirthdayChip'
-import { VerdictStamp, PutOnCard } from './CardActions'
+import { VerdictStamp } from './CardActions'
 import NflCardMatchup from './NflCardMatchup'
 import PlayerField from './PlayerField'
 import NflSplitsTable, { splitRows } from './NflSplitsTable'
@@ -37,7 +37,9 @@ import MultiLine from '../ledger/MultiLine'
 import { injuryTag, injuryTitle, injuryColor } from '../../lib/nfl/injury'
 import NflPlayerRead from './NflPlayerRead'
 import LineMoveChip from '../LineMoveChip'
-import NflGameCombo from './NflGameCombo'
+import NflGameCombo, { AllSplits } from './NflGameCombo'
+import { roleLabel } from '../../lib/nfl/roles'
+import { alpha } from '../../lib/scales'
 import NflGameLog from './NflGameLog'
 import SeasonToggle from './SeasonToggle'
 import { seasonOptions, defaultSeason, applySeason, seasonNote } from '../../lib/nfl/seasonWindow'
@@ -557,10 +559,11 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
 
       {/* SPLITS: the pairs, then the combine filters and this stadium */}
       {tab === 'splits' && <>
+        {/* EVERY SPLIT FIRST (10-18): the even pairs from his logs (home / away, primetime, result, the defense at his role, roof,
+            surface, rest), then the bot's game-state splits, then the combine filters. The sentence that explained the season
+            buttons is gone: the buttons say it. */}
+        <AllSplits log={slog} market={market} dvp={matchup?.dvp?.season || null} role={roleLabel(player) || null} />
         <SplitsForMarket player={player} market={market} data={splitMeta} />
-        {player?.splits && Object.keys(player.splits).length > 0 && SPLIT_STAT[market] && seasonOpts.length > 0 && (
-          <div style={{ fontSize: 12, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>The table above is his season splits. The season buttons set the filters below.</div>
-        )}
         <NflGameCombo log={slog} venue={gameVenue(slate?.games, player.team, player.opp)} />
         {!(player?.splits && Object.keys(player.splits).length) && !hasContext(slog) && <div style={{ fontSize: 13, color: C.text3, lineHeight: 1.5 }}>{splitsWhy(player, fullLog, slate?.season)}</div>}
         {player?.splits && Object.keys(player.splits).length > 0 && SPLIT_STAT[market] && splitRows(player, SPLIT_STAT[market][0], splitMeta).length === 0 && <div style={{ fontSize: 13, color: C.text3, lineHeight: 1.5 }}>{splitsWhy(player, fullLog, slate?.season)} Only one side of each pair is published for him.</div>}
@@ -580,19 +583,49 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         {Object.keys(player.stats || {}).length > 0 && (
           <>
             <Head>SEASON PER GAME</Head>
-            <div className="nfl-card-stats" style={{ display: 'grid', gap: 5, gridTemplateColumns: 'repeat(auto-fill, minmax(78px, 1fr))' }}>
-              {Object.entries(player.stats).slice(0, allStats ? 99 : 6).map(([k, v]) => (
-                <div key={k} style={{ background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`, borderRadius: 8, padding: '5px 8px' }}>
-                  <div style={{ fontSize: 11, color: C.text3, fontWeight: 800 }}>
-                    <NflExplain label={statLabel(k)} term={k} />
-                  </div>
-                  <div style={{ fontFamily: NUM_FONT, fontSize: 14, fontWeight: 800, color: C.text }}>{typeof v === 'number' ? statFmt(k, v) : v}</div>
+            {/* EACH NUMBER WITH WHERE IT STANDS (Donovan 10-18: "I gotta know what's good, what's not ... target share, I need a
+                little arrow going up, or where they rank"). Every tile: the number, his rank among this week's slate players at his
+                position (the same pool the stat row above ranks in), and an arrow when his last 3 games run 15% above (▲) or below
+                (▼) his season in the same stat, where the game log carries it (g_<stat>). Nothing estimated. */}
+            {(() => {
+              const pool = (slate?.players || []).filter((x) => x.position === player.position && x.stats)
+              const rankOf = (k, v) => {
+                const vals = pool.map((x) => Number(x.stats?.[k])).filter(Number.isFinite)
+                return Number.isFinite(Number(v)) && vals.length > 1 ? { r: 1 + vals.filter((x) => x > Number(v)).length, n: vals.length } : null
+              }
+              const logField = (k) => { const f = `g_${String(k).toLowerCase()}`; return (slog || []).some((g) => g?.[f] != null) ? f : null }
+              const arrowOf = (k) => {
+                const f = logField(k); if (!f || (slog || []).length < 5) return null
+                const vals = slog.map((g) => Number(g[f]) || 0); const szn = vals.reduce((a, b) => a + b, 0) / vals.length
+                const l3 = vals.slice(-3).reduce((a, b) => a + b, 0) / 3
+                if (!(szn > 0)) return null
+                return l3 >= szn * 1.15 ? 'up' : l3 <= szn * 0.85 ? 'down' : null
+              }
+              const entries = Object.entries(player.stats)
+              return (
+                <div className="nfl-card-stats" style={{ display: 'grid', gap: 6, gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))' }}>
+                  {entries.slice(0, allStats ? 99 : 6).map(([k, v]) => {
+                    const rk = rankOf(k, v), ar = arrowOf(k)
+                    const top = rk && rk.r <= Math.max(3, Math.ceil(rk.n / 10))
+                    return (
+                      <div key={k} style={{ background: top ? alpha(C.green, 0.07) : 'rgba(255,255,255,.03)', border: `1px solid ${top ? alpha(C.green, 0.4) : C.border}`, borderRadius: 9, padding: '6px 9px', minWidth: 0 }}>
+                        <div style={{ fontSize: 11, color: C.text3, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <NflExplain label={statLabel(k)} term={k} />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+                          <span style={{ fontFamily: NUM_FONT, fontSize: 16, fontWeight: 900, color: C.text }}>{typeof v === 'number' ? statFmt(k, v) : v}</span>
+                          {ar && <span title={ar === 'up' ? 'His last 3 games run 15%+ above his season' : 'His last 3 games run 15%+ below his season'} style={{ fontSize: 11, color: ar === 'up' ? C.green : C.text3, fontWeight: 900 }}>{ar === 'up' ? '▲' : '▼'}</span>}
+                          {rk && <span title={`${rk.r} of ${rk.n} ${player.position}s on this week's slate`} style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11, color: top ? C.green : C.text3, fontWeight: 800 }}>#{rk.r} {player.position}</span>}
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
-              ))}
-            </div>
+              )
+            })()}
             {Object.keys(player.stats).length > 6 && (
               <button type="button" onClick={() => setAllStats((v) => !v)} style={{ display: 'block', width: '100%', marginTop: 6, minHeight: 44, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 10, color: C.text2, cursor: 'pointer', fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800 }}>
-                {allStats ? 'Show fewer' : `+${Object.keys(player.stats).length - 6} more`}
+                {allStats ? 'Fewer' : `All ${Object.keys(player.stats).length}`}
               </button>
             )}
           </>
@@ -609,7 +642,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
               background: moreOpen ? 'transparent' : C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text,
             }}>
             <span style={{ fontSize: 12, fontWeight: 900, letterSpacing: '.03em' }}>More</span>
-            <span style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>props grid, your card, multi-TD</span>
+            <span style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>props grid, multi-TD</span>
             <span style={{ marginLeft: 'auto', fontSize: 11, color: C.green, fontFamily: NUM_FONT, fontWeight: 800, flexShrink: 0 }}>{moreOpen ? '▴' : '▾'}</span>
           </button>
         </h2>
@@ -628,7 +661,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
               if (!Number.isFinite(leadBar) || !slog.length) return null
               return <PropsGrid key={`${player.player_id}-${lead}-${seasonKey}`} log={slog} market={lead} defaultBar={leadBar} scores={player.scores} />
             })()}
-            <PutOnCard player={player} market={market} picks={picks} slate={slate} />
+            {/* YOUR CARD is gone from here (Donovan 10-18: "I don't know what that is for. Just remove it.") */}
           </div>
         )}
       </section>
