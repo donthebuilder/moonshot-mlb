@@ -26,16 +26,18 @@ const KEY = 'dash_card_open_v1'
 const readOpen = () => { try { return window.localStorage.getItem(KEY) === '1' } catch { return false } }
 const writeOpen = (v) => { try { window.localStorage.setItem(KEY, v ? '1' : '0') } catch { /* a convenience only */ } }
 
+// ONE LINE PER LEG (Donovan 10-18, the Card on a phone: "that shit gotta be better"; the leg was name, then "[logo] vs [logo]
+// game", then the market, three lines in a 190px cell). Now: his club's logo, his name, and the opponent as quiet text that
+// opens the game (CLAUDE.md: his team is the logo, the opponent is quiet text). The market rides the same line, small.
 function Leg({ sport: page, leg }) {
   const sport = leg.sport || page      // a Double's legs carry their own sport
   const m = leg.market && leg.market !== 'anytime' && MARKETS[sport]?.[leg.market] ? marketWords(sport, leg.market, leg.line) : null
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-      <a className="tap-link" href={playerHref(sport, leg.player_id)} style={{ color: 'inherit', textDecoration: 'none', fontWeight: 800 }}>{leg.name}</a>
-      <span style={{ fontSize: 11, opacity: 0.75, whiteSpace: 'nowrap' }}>
-        <TeamTap abbr={leg.team} sport={sport} /> vs <TeamTap abbr={leg.opp} sport={sport} /> <GameTap pk={leg.game_id} style={{ fontSize: 11 }}>game</GameTap>
-      </span>
-      {m && <span style={{ fontSize: 10, opacity: 0.75, flexBasis: '100%' }}>{m}</span>}
+    <span className="card-leg" style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0, whiteSpace: 'nowrap' }}>
+      <TeamTap abbr={leg.team} sport={sport} px={14} />
+      <a className="tap-link" title={leg.name} href={playerHref(sport, leg.player_id)} style={{ color: 'inherit', textDecoration: 'none', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{leg.name}</a>
+      {leg.opp ? <span className="card-leg-more" style={{ flex: 'none' }}><GameTap pk={leg.game_id} style={{ fontSize: 11, opacity: 0.7 }}>v {leg.opp}</GameTap></span> : null}
+      {m && <span className="card-leg-more" style={{ fontSize: 10, opacity: 0.75, flex: 'none' }}>{m}</span>}
     </span>
   )
 }
@@ -111,6 +113,9 @@ export default function CardSection({ sport, mode = 'slate', Table = DenseTable,
 
   return (
     <section aria-label="The card" data-card={sport} style={{ border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2, margin: '0 0 8px' }}>
+      {/* a phone's pinned name cell is 122px: a leg is his logo and his name, no more (the opponent and market would cut the name);
+          the logo's button keeps a 14px layout box (the site's 32px touch floor made it 32 wide), its tap box is invisible padding */}
+      <style>{'@media (max-width: 640px) { .card-leg-more { display: none; } } .card-leg > .tap-link:first-child { min-width: 0 !important; min-height: 0 !important; padding: 9px 6px !important; margin: -9px -6px !important; flex: none; }'}</style>
       <button type="button" aria-expanded={open} onClick={toggle}
         style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', minHeight: 44, padding: '0 12px', border: 0, background: 'none', color: 'inherit', cursor: 'pointer', textAlign: 'left' }}>
         <b style={{ color: accent, fontFamily: NUM_FONT, fontSize: 11, letterSpacing: '.1em', whiteSpace: 'nowrap' }}>THE CARD</b>
