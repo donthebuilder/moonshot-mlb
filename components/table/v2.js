@@ -28,6 +28,7 @@
 // Plain functions, no hooks: DenseTable owns the state and calls renderV2.
 import TeamMark from '../TeamMark'
 import Tap from '../Tap'
+import { teamHref } from '../../lib/routes'
 import { STATUS_WORD } from '../../lib/callStatus'
 import PlayerFace from '../PlayerFace'
 import CallStatusBadge from '../CallStatusBadge'
@@ -287,9 +288,12 @@ export function v2Css(C, ac, NUM_FONT) {
 // club's link. A sticky column is the row's own identity (h2h's Opponent rows), so it keeps its logo.
 const OPP_RE = /^(opp|lastopp|vs\b|vs$|opponent)/i
 const isOppCol = (c) => !c.sticky && OPP_RE.test(String(c.key))
-const quietCode = (code, away, open) => {
+const quietCode = (code, away, open, sport = null) => {
   const t = <span data-opp="" style={{ fontSize: 11, fontWeight: 600, opacity: 0.62, letterSpacing: '.02em' }}>{away ? '@' : ''}{code}</span>
-  return open ? <Tap onClick={open}>{t}</Tap> : t
+  if (open) return <Tap onClick={open}>{t}</Tap>
+  // no team handler on this table: the club's own page, so the code is still a link (check-clickable caught 'ARI' on the card)
+  const href = sport ? teamHref(sport, code) : null
+  return href ? <a href={href} className="tap-box" style={{ color: 'inherit', textDecoration: 'none' }}>{t}</a> : t
 }
 const teamCodeOf = (key, v) => {
   if (!/^(opp|team)/i.test(String(key))) return null
@@ -573,7 +577,7 @@ export function renderV2(ctx) {
                 if (logoOf(c) && isOppCol(c) && v && v !== '—') {
                   const code = String(v).replace(/^@\s*/, '')
                   const open = go || (onOpenTeam && /^[A-Z]{2,4}$/.test(code) ? () => onOpenTeam(code) : null)
-                  return <td key={c.key} className={cls(c, 'txt')} title={code} style={{ ...pin, ...(bgTint || {}) }}>{quietCode(code, /^@/.test(String(v)), open)}</td>
+                  return <td key={c.key} className={cls(c, 'txt')} title={code} style={{ ...pin, ...(bgTint || {}) }}>{quietCode(code, /^@/.test(String(v)), open, logoOf(c))}</td>
                 }
                 if (logoOf(c) && v && v !== '—' && !/^tie$/i.test(String(v))) {   // a tied meeting (h2h Winner) has no club to draw
                   const mark = <TeamMark sport={logoOf(c)} abbr={v} variant="logo" px={18} />   // 14 -> 18 (10-03: "logos need to be bigger")
@@ -589,7 +593,7 @@ export function renderV2(ctx) {
                 // title / alt, LAMP's "@BUF" keeps a quiet "@", and the cell stays the club's link (the column's own, else the team door).
                 const clubCode = !isName && c.key !== 'role' && typeof content !== 'object' && sport ? teamCodeOf(c.key, content) : null
                 if (clubCode && isOppCol(c)) {
-                  return <td key={c.key} className={cls(c, 'txt')} title={clubCode} style={{ ...pin, ...(bgTint || {}) }}>{quietCode(clubCode, /^@/.test(String(content).trim()), go)}</td>
+                  return <td key={c.key} className={cls(c, 'txt')} title={clubCode} style={{ ...pin, ...(bgTint || {}) }}>{quietCode(clubCode, /^@/.test(String(content).trim()), go, sport)}</td>
                 }
                 if (clubCode) {
                   const away = /^@/.test(String(content).trim())
