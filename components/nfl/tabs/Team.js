@@ -19,6 +19,8 @@ import { useTeamNav } from '../../../lib/teamNav'
 import { buildNflTeam } from '../../../lib/team/nfl'
 import { TeamDefenders } from '../DefenseSections'
 import InjuryOut from '../../injuries/InjuryOut'
+import UsageTreemap from '../../charts/UsageTreemap'
+import { USAGE_METRICS, USAGE_GROUPS } from '../../../lib/nfl/teamUsage'
 
 // 🏈 TUDDY'S TEAM PAGE, on the shared team page (2026-10-10, Donovan: "build out the team pages, showing all their data").
 // The header (record, standing, home / road / division, streak, next game, last five), a one-row chips bar and seven
@@ -68,6 +70,8 @@ export default function Team({ data, picks = null, matchup = null, logs = null, 
     teamCards: (p) => <TeamCards {...p} />,
     h2h: ({ sport, team }) => <HeadToHead sport={sport} a={team} heading={false} ui={{ Table: NflTable, EmptyState: Empty, Kicker: Kick }} theme={{ C, NUM_FONT, accent: C.green }} nav={{ onOpenTeam: (a) => live.current.openTeam?.(a), onOpenGame: (id, d) => live.current.openGame?.(id, d) }} />,
     defense: TeamDefenders,
+    usage: ({ usage }) => <UsageTreemap usage={usage} metrics={USAGE_METRICS} groups={USAGE_GROUPS} theme={{ C, NUM_FONT, accent: C.green }}
+      onOpen={(p) => (live.current.openPlayer && live.current.has(p.id) ? live.current.openPlayer(p.id) : null)} />,
     injuries: ({ clubs }) => <InjuryOut sport="nfl" clubs={clubs} theme={{ C, NUM_FONT, accent: C.green }} title="Out this week" onOpenTeam={(a) => live.current.openTeam?.(a)}
       openPlayer={(e) => (live.current.openPlayer && live.current.has(e.player_id) ? () => live.current.openPlayer(e.player_id) : null)} />,
   }), [])
