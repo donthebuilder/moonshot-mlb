@@ -2,7 +2,8 @@
 // of every recent game (first homer / first TD / first goal) with the board's
 // status, plus the season line (how many first scorers the board had) and the
 // season's most frequent first scorers. lib/ledger/firstScorers.js; read from
-// the event tables, nothing stored, no prediction. Cached five minutes.
+// the event tables, nothing stored, no prediction. Cached a minute (10-18: five minutes + 15 of stale
+// kept a first touchdown off the list for up to 20 minutes on a Sunday; the read is a handful of rows).
 import { adminClient } from '../../../../lib/supabase/admin'
 import { SPORT_KEYS, ALL_SPORT_KEYS } from '../../../../lib/routes'
 import { bucketsGuard, bucketsPublic } from '../../../../lib/nba/gate'
@@ -30,7 +31,7 @@ export async function GET(request) {
   if (!db) return Response.json({ error: 'no database' }, { status: 503 })
   try {
     const body = await readFirstScorers(db, sport, { day, since: shift(day, -WINDOW_DAYS[sport]), seasonSince: seasonSince(day, SEASON_START[sport]) })
-    return Response.json(body, { headers: { 'Cache-Control': nba && !bucketsPublic() ? 'private, max-age=60' : 'public, s-maxage=300, stale-while-revalidate=900' } })
+    return Response.json(body, { headers: { 'Cache-Control': nba && !bucketsPublic() ? 'private, max-age=60' : 'public, s-maxage=60, stale-while-revalidate=120' } })
   } catch (e) {
     console.error(`[ledger first] ${sport} ${day}: ${e?.message}`)
     return Response.json({ error: 'first scorers delayed' }, { status: 502 })

@@ -20,12 +20,21 @@ const WORD = {
 export default function FirstScorers({ sport, C, numFont, accent, day = null, emptyWhy, onOpenPlayer, onOpenGame = null }) {
   const [data, setData] = useState(null)
   const [err, setErr] = useState(false)
+  // FRESH WHEN YOU COME BACK (10-18: the list still showed Thursday's game hours into Sunday, though nfl_td_feed had the
+  // London game's first TD at 13:59 UTC, ~10 minutes after the play). It was read once, at mount; an app tab opened before
+  // kickoff kept it all day. Now it is read again when the tab comes back into view. No timer, no polling.
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    const back = () => { if (document.visibilityState === 'visible') setTick((n) => n + 1) }
+    document.addEventListener('visibilitychange', back)
+    return () => document.removeEventListener('visibilitychange', back)
+  }, [])
   useEffect(() => {
     let alive = true
     fetch(`/api/ledger/first?sport=${sport}${day ? `&day=${day}` : ''}`).then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-      .then((j) => { if (alive) setData(j) }).catch(() => { if (alive) setErr(true) })
+      .then((j) => { if (alive) { setData(j); setErr(false) } }).catch(() => { if (alive && !data) setErr(true) })
     return () => { alive = false }
-  }, [sport, day])
+  }, [sport, day, tick]) // eslint-disable-line react-hooks/exhaustive-deps
   const w = WORD[sport]
   const s = data?.season
   return (
@@ -37,7 +46,12 @@ export default function FirstScorers({ sport, C, numFont, accent, day = null, em
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 40, fontSize: 12, flexWrap: 'wrap' }}>
           {/* 2026-10-03: the matchup as the two clubs' logos (was "VGK v ANA"), the
               name a step up, the status the shared stamp (CallStatusBadge) */}
-          <span style={{ color: C.text3, fontFamily: numFont, fontSize: 11, minWidth: 74 }}><Tap onClick={onOpenGame && (() => onOpenGame(g.gameId, g))}>{(() => { const [a, h] = String(g.game || '').split(/\s+(?:v|@|vs)\s+/); return a && h ? <MatchLogos sport={sport} away={a} home={h} px={18} gap={5} /> : g.game })()}</Tap></span>
+          <span style={{ color: C.text3, fontFamily: numFont, fontSize: 11, minWidth: 74 }}><Tap onClick={onOpenGame && (() => onOpenGame(g.gameId, g))}>{(() => {
+            // 10-18: "DEN v SEA" is the SCORER's club first (NFL / NHL / NBA feeds carry no home flag), so it draws as "DEN v SEA",
+            // never "DEN @ SEA" (Thursday's SEA @ DEN read backwards). Only MLB's "away @ home" keeps the @.
+            const m = /^(.+?)\s+(v|vs|@)\s+(.+)$/.exec(String(g.game || ''))
+            return m ? <MatchLogos sport={sport} away={m[1]} home={m[3]} sep={m[2] === '@' ? '@' : 'v'} px={18} gap={5} /> : g.game
+          })()}</Tap></span>
           <button type="button" onClick={() => g.playerId && onOpenPlayer?.(g.playerId, g)} style={{ background: 'transparent', border: 'none', padding: 0, cursor: g.playerId ? 'pointer' : 'default', color: C.text, fontWeight: 800, font: 'inherit', fontSize: 13.5 }}>{g.name}</button>
           <span style={{ color: C.text3, fontFamily: numFont, fontSize: 11 }}>{g.when}</span>
           <span style={{ marginLeft: 'auto' }}><CallStatusBadge status={g.status} accent={accent} theme={C} numFont={numFont} /></span>
