@@ -180,6 +180,14 @@ button {
 @media (pointer: coarse) { .tap-link { position: relative; min-width: 32px; text-align: left; } .tap-link::after { content: ''; position: absolute; left: 50%; top: 50%; width: max(44px, calc(100% + 16px)); height: 44px; transform: translate(-50%, -50%); } }   /* 2026-10-12: 8px each side (was 4) so even a two-letter club code (32px min) has a 48 x 44 hit area; it is invisible and adds no layout */
 /* 2026-10-13 (phone tap-target pass): a three-letter club code is 14px wide, so +16 gave a 30px hit box. The box is centred and never narrower than 44px now. */
 
+/* PILL BUTTONS, 44px HIT AREA (2026-10-18; PHONE sweep: the 32px filter pills -- ui.js btnStyle and every pill-shaped button -- were the biggest repeat of "tap target under 44px", 290 on the full sweep).
+   On a touch screen a button drawn as a pill (border-radius 999px inline, both spacings) gets the same invisible 44px-tall ::after as .tap-box: the pill keeps its look and size, the thumb gets the
+   target. Inline `position` (absolute / fixed buttons) wins over this rule, since it carries no !important. Not for a pill inside a clipping scroller: its ::after is clipped to the scroller, which is no worse than before. */
+@media (pointer: coarse) {
+  button[style*="border-radius: 999px"], button[style*="border-radius:999px"] { position: relative; }
+  button[style*="border-radius: 999px"]::after, button[style*="border-radius:999px"]::after { content: ''; position: absolute; left: 50%; top: 50%; width: max(44px, 100%); height: 44px; transform: translate(-50%, -50%); }
+}
+
 /* TAP-BOX (2026-10-13, phone tap-target pass): a control whose visible box must stay small (a ticker pill, a table-toolbar chip) gets a 44px
    tall invisible hit area, centred, never narrower than the control. The control keeps its own size and layout. Only where the box
    is not inside a clipping scroller (a clipped ::after is not a tap area). scripts/check-mobile.mjs measures it like .tap-link. */
