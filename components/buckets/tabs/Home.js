@@ -14,6 +14,9 @@ import BucketWatch from '../BucketWatch'
 import { EmptyState, DelayedBanner, Loading, Kicker, NavBtn, LastSeasonNote, fmtDay, fmtTip } from '../ui'
 import NbaTonight from '../../tonight/NbaTonight'
 import ChampionshipFold from '../../ChampionshipFold'
+import TopTenList from '../../home/TopTenList'
+import HotNumbers from '../../numerology/HotNumbers'
+import { useLockOf } from '../../MemberGate'
 
 // 🌙 TONIGHT -- the NBA night in one page, rebuilt 2026-10-03 on the shared
 // opener (Donovan: "the nba home seems to be missing a lot of components"):
@@ -40,6 +43,17 @@ export default function Home({ today, date, setTab, onOpenPlayer, onOpenGame, on
   const heroGames = games.map((g) => ({ away: g.away?.abbrev, home: g.home?.abbrev, start: Date.parse(g.start || ''), state: g.state === 'live' ? 'live' : g.state === 'final' ? 'final' : 'pre' }))
   const hero = dayLine(heroGames, { sport: 'nba', date: day?.date || date || undefined })
   const link = { background: 'none', border: 0, padding: '6px 0', minHeight: 44, cursor: 'pointer', color: C.purple, font: `800 12px/1 ${NUM_FONT}`, letterSpacing: '.04em' }
+  // TOP 10 (2026-10-20 style audit: LAMP's Home lists, components/home/TopTenList): tonight's ten best scores on the points and rebounds boards. A CALLED,
+  // not-started pick a free viewer may not read is held back and counted, as LAMP's (components/MemberGate useLockOf).
+  const lockOf = useLockOf()
+  const topOf = (data) => {
+    const startOf = new Map((data?.games || []).map((g) => [String(g.id), g.start]))
+    const ranked = (data?.rows || []).filter((r) => Number.isFinite(Number(r.score))).sort((x, y) => y.score - x.score).slice(0, 10)
+    const open = ranked.filter((r) => !lockOf({ status: r.status, key: `${r.gameId}|${r.playerId}`, time: startOf.get(String(r.gameId)), graded: r.hit === true || r.hit === false }).locked)
+    return { held: ranked.length - open.length, rows: open.map((r) => ({ key: `${r.gameId}|${r.playerId}`, id: r.playerId, name: r.name, team: r.team, pos: r.pos, score: r.score })) }
+  }
+  const topPts = topOf(pts.data)
+  const topReb = topOf(reb.data)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -73,6 +87,10 @@ export default function Home({ today, date, setTab, onOpenPlayer, onOpenGame, on
 
       {(pts.data?.rows || []).length > 0 && <BucketWatch rows={pts.data.rows} date={pts.data.date} onOpenPlayer={onOpenPlayer} />}
       <StorylinesStrip sport="nba" theme={C} numFont={NUM_FONT} accent={C.purple} max={3} onOpenTeam={onOpenTeam} onSeeAll={() => setTab?.('storylines')} onOpenPlayer={(id) => onOpenPlayer?.(String(id))} />
+      <TopTenList title="Top 10 · Points" rows={topPts.rows} held={topPts.held} sport="nba" theme={C} numFont={NUM_FONT} accent={C.purple} onOpen={(r) => onOpenPlayer?.(r.id)} onAll={() => setTab?.('fullboard')} />
+      <TopTenList title="Top 10 · Rebounds" rows={topReb.rows} held={topReb.held} sport="nba" theme={C} numFont={NUM_FONT} accent={C.purple} onOpen={(r) => onOpenPlayer?.(r.id)} onAll={() => setTab?.('fullboard')} />
+      {/* TONIGHT'S NUMBERS: one line, taps to Numerology (LAMP's, components/numerology/HotNumbers) */}
+      <HotNumbers compact sport="nba" date={day?.date || date} theme={C} numFont={NUM_FONT} accent={C.purple} onOpen={() => setTab?.('numerology')} />
       {/* WAVE 2 (2026-10-11): the Players / Teams / Leaders door row sat above the games (first row y 1,211); it now follows them. */}
       <nav aria-label="Players, standings and leaders" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: -6 }}>
         {['players', 'standings', 'leaders'].map((k) => (
