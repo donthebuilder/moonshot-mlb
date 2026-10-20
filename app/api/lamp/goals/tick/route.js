@@ -35,6 +35,7 @@ import { kindOn } from '../../../../../lib/dash/longshotsPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 import { momentAfterTick } from '../../../../../lib/posts/momentTick'
 import { recapAfterTick } from '../../../../../lib/posts/recapTick'
+import { pregameQuotes, quoteKinds, receiptLineOf } from '../../../../../lib/dash/quoteFor'
 
 // The host printed in the goal card's footer.
 const SITE_HOST = (process.env.NEXT_PUBLIC_SITE_URL || 'dashnetwork.vercel.app').replace(/^https?:\/\//, '').replace(/\/$/, '')
@@ -105,6 +106,15 @@ async function goalsTick(request) {
     // the row is marked 'skipped' -- the sentinel xBudget already ignores -- so it
     // is never posted twice and never counted as an X post.
     const discordHooks = feedHooks('nhl')
+    // THE RECEIPT (2026-10-20, lib/dash/quoteFor.js pregameQuotes): a CALLED goal quotes the most specific public post that NAMED him
+    // before puck drop -- his game's write-up, THE CARD, LAMP's slate, the board post, then THE SLATE -- and its line says when.
+    // One read of the days' posts, only on a tick that has a live game (this point is past the quiet return above).
+    let quoteOf = () => null
+    if (hasX()) {
+      const { data: quotePosts, error: qErr } = await db.from('homer_feed_posts').select('day,kind,x_post_id,payload,seen_at').in('day', dates).or(`kind.like.writeup_nhl_%,kind.in.(${quoteKinds('nhl').join(',')})`)
+      if (qErr) console.error(`[lamp goals] receipt read: ${qErr.message}`)   // a failed read costs the quote, never the post
+      quoteOf = pregameQuotes('nhl', quotePosts || [])
+    }
     if (hasX() || discordHooks) poster = {
       post: async (text, row, extra = {}) => {
         let mediaId = null
@@ -128,7 +138,10 @@ async function goalsTick(request) {
         // say so and let the tick retry (a few times) instead of closing the goal as sent.
         if (!hasX()) return discordSent ? { ok: true, id: 'skipped', discordSent: true } : { ok: false, status: 0, error: 'X is off and the channel post failed', discordSent: false }
         // discordSent rides back so the tick never re-sends the channel post when X refuses (10-09 bug)
-        return { ...(await postToX(text, { kind: 'nhlgoal', ...(mediaId ? { mediaId } : {}) })), discordSent }
+        // the receipt: quote the post that named him; "Called before puck drop." becomes "WE HAD HIM 🔥 Called at 6:05 PM ET."
+        const q = row ? quoteOf({ day: row.day, playerId: row.player_id, gameId: row.game_id }) : null
+        const xText = q ? (text.includes('Called before puck drop.') ? text.replace('Called before puck drop.', receiptLineOf(q)) : `${text}\n\n${receiptLineOf(q)}`) : text
+        return { ...(await postToX(xText, { kind: 'nhlgoal', ...(mediaId ? { mediaId } : {}), ...(q ? { quoteId: q.id } : {}) })), discordSent }
       },
       // THE CORRECTION: a goal posted earlier came off the board. Channel card (same routing as the original alert, never members or
       // other channels), then ONE reply under the original tweet. No card, no link. X is not called while X_POSTS_PAUSE is on; the

@@ -102,7 +102,7 @@ import { feedHooks, feedHooksFor } from '../../../../../lib/dash/discordChannels
 import { postMembers, membersWebhook, MEMBERS_KINDS, nflMembersBoard, nflMembersGrade } from '../../../../../lib/dash/membersPost'
 import { readNflEvents } from '../../../../../lib/record/nfl'
 import { runNflWriteups } from '../../../../../lib/writeups/post'
-import { nflWriteupQuotes, slateQuoteFor } from '../../../../../lib/dash/quoteFor'
+import { pregameQuotes, quoteKinds, receiptLineOf } from '../../../../../lib/dash/quoteFor'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -368,23 +368,18 @@ async function runTouchdownTick(db, day) {
       .limit(12)
 
     const xOn = hasX()
-    // THE RECEIPT (BATCH-GAME-WRITEUP): a CALLED touchdown by a man named in a
-    // featured game write-up quotes it. Read only when something is waiting.
-    const { data: writeupPosts } = (pending || []).length
-      ? await db.from('homer_feed_posts').select('kind,x_post_id,payload').in('day', [...new Set((pending || []).map((r) => r.day))]).like('kind', 'writeup_nfl_%')
+    // THE RECEIPT (BATCH-GAME-WRITEUP; every sport 2026-10-20, lib/dash/quoteFor.js pregameQuotes): a CALLED touchdown quotes the most
+    // specific public post that NAMED him before kickoff -- his game's featured write-up, THE CARD, the board post, then THE SLATE --
+    // and ends "WE HAD HIM 🔥 Called at 1:05 PM ET." ONE read of the days' posts, only when something is waiting (it was two).
+    const days = [...new Set((pending || []).map((r) => r.day))]
+    const { data: quotePosts } = (pending || []).length
+      ? await db.from('homer_feed_posts').select('day,kind,x_post_id,payload,seen_at').in('day', days).or(`kind.like.writeup_nfl_%,kind.in.(${quoteKinds('nfl').join(',')})`)
       : { data: [] }
-    const writeupReceipt = nflWriteupQuotes(writeupPosts)
-    // THE SLATE (2026-10-09, X overhaul piece 3): a CALLED touchdown by a man the day's Slate NAMES quotes the Slate
-    // (named_by_sport.nfl, stored at post time); a featured write-up still comes first.
-    const { data: slateRows } = (pending || []).length
-      ? await db.from('homer_feed_posts').select('day,x_post_id,payload').in('day', [...new Set((pending || []).map((r) => r.day))]).eq('kind', 'slate')
-      : { data: [] }
-    const slateQuotes = new Map((slateRows || []).map((r) => [r.day, slateQuoteFor('nfl', r)]))
+    const quoteOf = pregameQuotes('nfl', quotePosts || [])
     const receiptFor = (row, called) => {
-      const w = writeupReceipt(row, called)
-      if (w) return w
-      const id = called ? slateQuotes.get(row.day)?.(row.gsis_id) : null
-      return id ? { id, line: 'Called pregame. He scored.' } : null
+      if (!called) return null
+      const q = quoteOf({ day: row.day, playerId: row.gsis_id, gameId: row.game_id })
+      return q ? { id: q.id, line: receiptLineOf(q) } : null
     }
     for (const row of pending || []) {
       const ev = eventFromRow(row)
@@ -442,7 +437,8 @@ async function runTouchdownTick(db, day) {
           const mediaId = png ? await uploadImageToX(png) : null
           const receipt = receiptFor(row, tdCalled)
           // kind: 'td' for the Threads mirror only — see the MLB tick's note.
-          const r = await postToX(receipt ? `${receipt.line}\n\n${text}` : text, { mediaId, quoteId: receipt?.id || null, kind: 'td', link: { playerId: row.gsis_id } })
+          // the receipt line goes last, under the touchdown (the quoted post shows below it), like MLB's
+          const r = await postToX(receipt ? `${text}\n\n${receipt.line}` : text, { mediaId, quoteId: receipt?.id || null, kind: 'td', link: { playerId: row.gsis_id } })
           if (r.ok && r.id) {
             patch.x_post_id = r.id
             totals.x += 1

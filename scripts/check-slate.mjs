@@ -459,7 +459,9 @@ await ok('quote: a CALLED homer quotes the Slate only when the Slate names HIM; 
   assert.equal(Q.slateQuoteFor('nhl', pre)('h1'), '5001')
   assert.equal(Q.slateQuoteFor('nhl', pre)('h2'), null)
   assert.equal(Q.slateQuoteFor('nfl', { x_post_id: 'dry', payload: a.payload })('n1'), null)
-  assert.match(fs.readFileSync('app/api/dash/nfl/tick/route.js', 'utf8'), /slateQuoteFor\('nfl'/)
+  // (2026-10-20) the NFL tick reads every sport's shared receipt, THE SLATE last (lib/dash/quoteFor.js pregameQuotes; scripts/writeups/test-quotes.mjs)
+  assert.match(fs.readFileSync('app/api/dash/nfl/tick/route.js', 'utf8'), /pregameQuotes\('nfl'/)
+  assert.equal(Q.pregameQuotes('nfl', [{ ...pre, kind: 'slate', day: 'D' }])({ day: 'D', playerId: 'n1', gameId: 'g' })?.id, '5001')
   assert.match(fs.readFileSync('app/api/dash/homers/tick/route.js', 'utf8'), /morningPost\(db, day, 'x_post_id,payload'\)/)
 })
 

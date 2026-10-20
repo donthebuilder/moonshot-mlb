@@ -22,6 +22,7 @@ import { hasX, postToDiscord, postToX } from '../../../../lib/dash/xPost'
 import { feedHooksFor } from '../../../../lib/dash/discordChannels'
 import { kindOn } from '../../../../lib/dash/longshotsPost'
 import { isMaintenanceMode } from '../../../../lib/edgeConfig'
+import { pregameQuotes, quoteKinds, receiptLineOf } from '../../../../lib/dash/quoteFor'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -67,6 +68,11 @@ export async function GET(request) {
     out.new = fresh.filter((r) => written.has(`${r.game_id}|${r.player_id}`)).map((r) => `${r.name} ${r.points} (${r.status || 'not locked'})`)
     // POST: regular season / playoffs only, the kind switched on, not in maintenance
     const canPost = kindOn('nba30') && !(await isMaintenanceMode())
+    // THE RECEIPT (2026-10-20, lib/dash/quoteFor.js pregameQuotes): a CALLED 30-point night quotes the post that named him before tip
+    // (his game's write-up, THE CARD, then THE SLATE). Read once, only when a CALLED one is about to post.
+    const anyCalled = canPost && hasX() && fresh.some((x) => written.has(`${x.game_id}|${x.player_id}`) && x.status === 'called' && x.season_type !== 1)
+    const { data: quotePosts } = anyCalled ? await db.from('homer_feed_posts').select('day,kind,x_post_id,payload,seen_at').in('day', dates).or(`kind.like.writeup_nba_%,kind.in.(${quoteKinds('nba').join(',')})`) : { data: [] }
+    const quoteOf = pregameQuotes('nba', quotePosts || [])
     for (const r of fresh.filter((x) => written.has(`${x.game_id}|${x.player_id}`))) {
       if (!canPost || r.season_type === 1) continue
       const claim = await db.from('buckets_feed').update({ x_post_id: 'posting' }).match(KEY(r)).is('x_post_id', null).select('game_id')
@@ -78,7 +84,8 @@ export async function GET(request) {
       if (hooks) discord = await postToDiscord(text, { sport: 'nba', link: r.player_id ? playerHref('nba', r.player_id) : null }, hooks).then((r) => Boolean(r?.ok)).catch((e) => { console.error(`[buckets moments] discord: ${e?.message || e}`); return false })
       let id = 'skipped'
       if (r.status === 'called' && hasX()) {
-        const x = await postToX(text, { kind: 'nba30' }).catch((e) => ({ ok: false, error: e?.message }))
+        const q = quoteOf({ day: r.game_date || r.day, playerId: r.player_id, gameId: r.game_id })
+        const x = await postToX(q ? `${text}\n\n${receiptLineOf(q)}` : text, { kind: 'nba30', ...(q ? { quoteId: q.id } : {}) }).catch((e) => ({ ok: false, error: e?.message }))
         id = x?.ok && x.id ? String(x.id) : 'skipped'
       }
       await db.from('buckets_feed').update({ x_post_id: id, discord_sent: discord }).match(KEY(r))
