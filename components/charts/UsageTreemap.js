@@ -26,7 +26,7 @@ export default function UsageTreemap({ usage, metrics, groups, theme, onOpen = n
   const gs = groups.map((g) => ({ g, ps: rows.filter((p) => p.group === g) })).map((x) => ({ ...x, v: x.ps.reduce((a, p) => a + p.v, 0) })).filter((x) => x.v > 0)
   const soft = alpha(accent, 0.16)
   const chip = (on) => ({ minHeight: 0, padding: '6px 11px', borderRadius: 999, cursor: 'pointer', font: `800 12px/1 ${NUM_FONT}`, background: on ? alpha(accent, 0.12) : 'transparent', border: `1px solid ${on ? accent : C.border2}`, color: on ? accent : C.text2 })
-  const wk = usage.weeks.length ? `weeks ${usage.weeks[0]}-${usage.weeks[usage.weeks.length - 1]}` : ''
+  const wk = usage.weeks.length ? `weeks ${usage.weeks[0]}-${usage.weeks[usage.weeks.length - 1]}` : 'season'
   return (
     <section aria-label={title} style={{ margin: '0 0 16px' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', margin: '0 0 8px' }}>
@@ -36,7 +36,7 @@ export default function UsageTreemap({ usage, metrics, groups, theme, onOpen = n
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}: each player's share of the club's ${metric.unit}`} style={{ width: '100%', maxWidth: 520, display: 'block' }}>
         {squarify(gs, 0, 0, W, H).map((g) => (
           <g key={g.g}>
-            <text x={g.x + 4} y={g.y + 11} fontSize="10" fontWeight="800" fontFamily={NUM_FONT} fill={C.text3} letterSpacing="1">{g.w > 60 ? `${g.g} ${pct(g.v / total)}` : g.g}</text>
+            <text x={g.x + 4} y={g.y + 11} fontSize="10" fontWeight="800" fontFamily={NUM_FONT} fill={C.text3} letterSpacing="1">{g.w > 60 ? `${g.g} ${pct(g.v / total)}` : g.w > 18 ? g.g : ''}</text>
             {squarify(g.ps, g.x, g.y + LAB, g.w, Math.max(1, g.h - LAB)).map((p) => {
               const x = p.x + G / 2, y = p.y + G / 2, w = Math.max(0, p.w - G), h = Math.max(0, p.h - G), on = pick?.id === p.id
               const fs = Math.min(15, Math.max(11, Math.sqrt(w * h) / 7))
@@ -64,8 +64,10 @@ export default function UsageTreemap({ usage, metrics, groups, theme, onOpen = n
         </div>
       ) : null}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', marginTop: 6, font: `700 11px/1.3 ${NUM_FONT}`, color: C.text3 }}>
-        <span><i aria-hidden="true" style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, border: `1px solid ${accent}`, background: soft, marginRight: 5, verticalAlign: -1 }} />more of it, last 3</span>
-        <span><i aria-hidden="true" style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, border: `1px solid ${C.border2}`, background: C.bg3, opacity: 0.5, marginRight: 5, verticalAlign: -1 }} />less</span>
+        {usage.late?.length ? <>   {/* the trend key only where there are game-by-game counts (BUCKETS' page has season lines only) */}
+          <span><i aria-hidden="true" style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, border: `1px solid ${accent}`, background: soft, marginRight: 5, verticalAlign: -1 }} />more of it, last 3</span>
+          <span><i aria-hidden="true" style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, border: `1px solid ${C.border2}`, background: C.bg3, opacity: 0.5, marginRight: 5, verticalAlign: -1 }} />less</span>
+        </> : null}
         <span>{usage.season} {wk}</span>
       </div>
     </section>

@@ -1284,7 +1284,7 @@ export default function SprayField({
             title: k === 'ALL' ? 'Every batted ball in the window' : `Only balls he hit off a ${k === 'L' ? 'left' : 'right'}-handed pitcher. Balls with no pitcher hand recorded are kept rather than hidden.`,
           }))} />
         <ChipGroup label="Side" value={sidePick} onChange={setSidePick} color="#fb9d3a"
-          options={[['ALL', 'All'], ['pull', 'Pull'], ['center', 'Centre'], ['oppo', 'Oppo']].map(([k, label]) => ({
+          options={[['ALL', 'All'], ['pull', 'Pull'], ['center', 'Center'], ['oppo', 'Oppo']].map(([k, label]) => ({
             k, label, n: k === 'ALL' ? inRange.length : inRange.filter((h) => h.side === k).length,
             title: k === 'ALL' ? 'Every direction' : `Only balls he hit to the ${k === 'oppo' ? 'opposite field' : k} side. Direction only — where it went, not how hard.`,
           }))} />
@@ -1534,7 +1534,7 @@ export default function SprayField({
               that cannot be ambiguous: clear it. */}
           {(() => {
             const RES = { all: null, hr: 'HR only', '3b': 'Triples', '2b': 'Doubles', '1b': 'Singles', out: 'Outs' }
-            const SIDE = { ALL: null, pull: 'Pull', center: 'Centre', oppo: 'Oppo' }
+            const SIDE = { ALL: null, pull: 'Pull', center: 'Center', oppo: 'Oppo' }
             const ARM = { ALL: null, L: 'vs LHP', R: 'vs RHP' }
             const DEEP = { ALL: null, 375: '375+ ft', 400: '400+ ft', pullair: 'Pull-air' }
             // The dock reports whichever set of filters is actually driving

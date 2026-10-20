@@ -1122,7 +1122,7 @@ export default function Home({
                       <span key={g.venue}>
                         {i === 1 && ', also carrying '}
                         {i === 2 && ' and '}
-                        <button
+                        <button className="tap-box"
                           onClick={() => onNavigate?.('longest')}
                           title={`${g.matchup}${airTitle(g) ? `\n${airTitle(g)}` : ''}\nPark factor plus the published weather effect, as a percentage swing on home-run rate — tap for the full park ladder.`}
                           style={{
@@ -1178,7 +1178,7 @@ export default function Home({
             const nameList = (arr) => arr.slice(0, 3).map((p, i) => (
               <span key={i}>
                 {i > 0 && ', '}
-                <button onClick={() => onPlayerClick?.(p)} style={{
+                <button className="tap-box" onClick={() => onPlayerClick?.(p)} style={{
                   background: 'none', border: 'none', padding: '3px 1px', cursor: 'pointer',
                   fontSize: TYPE.body, fontWeight: 800, color: C.red, textDecoration: 'underline', textDecorationColor: 'rgba(248,113,113,.35)',
                 }}>{nameOf(p)}</button>
@@ -1224,7 +1224,7 @@ export default function Home({
               <span style={{ flexShrink: 0 }}>🧱</span>
               <span style={{ minWidth: 0 }}>
                 <b style={{ color: C.text }}>Tonight&apos;s fence rider</b> —{' '}
-                <button onClick={() => onPlayerClick?.(fenceRider.p)} style={{
+                <button className="tap-box" onClick={() => onPlayerClick?.(fenceRider.p)} style={{
                   background: 'none', border: 'none', padding: '3px 1px', cursor: 'pointer',
                   fontSize: TYPE.body, fontWeight: 800, color: C.orange, textDecoration: 'underline', textDecorationColor: 'rgba(249,115,22,.35)',
                 }}>{fenceRider.r.name}</button>
@@ -1244,7 +1244,7 @@ export default function Home({
               <span style={{ flexShrink: 0 }}>🧱</span>
               <span style={{ minWidth: 0 }}>
                 <b style={{ color: C.text }}>Near-miss watch</b> —{' '}
-                <button onClick={() => onPlayerClick?.(nearMiss.p)} style={{
+                <button className="tap-box" onClick={() => onPlayerClick?.(nearMiss.p)} style={{
                   background: 'none', border: 'none', padding: '3px 1px', cursor: 'pointer',
                   fontSize: TYPE.body, fontWeight: 800, color: C.amber, textDecoration: 'underline', textDecorationColor: 'rgba(252,211,77,.35)',
                 }}>{nameOf(nearMiss.p)}</button>
@@ -1323,7 +1323,7 @@ export default function Home({
               }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7 }}>
                   <span style={{ fontSize: TYPE.name, fontWeight: 900 }}>{title}</span>
-                  <button type="button" onClick={() => onNavigate?.(door)} style={{ ...BARE_BUTTON, marginLeft: 'auto', padding: '5px 3px', fontSize: TYPE.micro, color: C.text3, cursor: 'pointer', fontFamily: NUM_FONT }}>full board →</button>
+                  <button className="tap-box" type="button" onClick={() => onNavigate?.(door)} style={{ ...BARE_BUTTON, marginLeft: 'auto', padding: '5px 3px', fontSize: TYPE.micro, color: C.text3, cursor: 'pointer', fontFamily: NUM_FONT }}>full board →</button>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {shownRows.map((p, i) => {

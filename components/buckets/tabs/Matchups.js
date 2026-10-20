@@ -34,8 +34,8 @@ export default function Matchups({ date, setDate, onOpenTeam, onOpenGame }) {
     ...statCols('What that defense allows a game (rank of 30)'),
   ]
   const allCols = [
-    { key: 'abbrev', label: 'Club', group: 'Defence', w: 64, heat: false, sticky: true, mono: true, teamMark: 'nba', link: (r) => (onOpenTeam ? () => onOpenTeam(r.abbrev) : null) },
-    { key: 'name', label: 'Name', group: 'Defence', w: 150, heat: false, link: (r) => (onOpenTeam ? () => onOpenTeam(r.abbrev) : null) },
+    { key: 'abbrev', label: 'Club', group: 'Defense', w: 64, heat: false, sticky: true, mono: true, teamMark: 'nba', link: (r) => (onOpenTeam ? () => onOpenTeam(r.abbrev) : null) },
+    { key: 'name', label: 'Name', group: 'Defense', w: 150, heat: false, link: (r) => (onOpenTeam ? () => onOpenTeam(r.abbrev) : null) },
     ...STATS.map(([k, label], i) => ({ key: k, label, group: 'Allows a game', w: 60, mono: true, primary: i === 0, fmt: (v) => fmt(k, v) })),
   ]
   return (

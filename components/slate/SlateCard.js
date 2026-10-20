@@ -120,15 +120,16 @@ export default function SlateCard({ card: c, on = false, accent = C.orange, onSe
         )
       })()}
 
-      {/* THE WEAK SPOT, then BEST ANGLES: two rows chosen by matchup and by form (lib/slate/angles.js), no call stamp, no model number */}
+      {/* THE WEAK SPOT, then BEST ANGLES: two rows chosen by matchup and by form (lib/slate/angles.js), no call stamp, no model number.
+          SHORTER (Donovan 10-19, "too elongated"): the weak spot holds two lines, each angle tag + name on one line, the why in up to two (its number never cut;
+          the whole of both on hover / long-press), no BEST ANGLES heading (the tags say it; the legend under the strip names it) */}
       {c.weak ? (
-        <div style={{ fontSize: 12, lineHeight: 1.4, color: C.text2, fontFamily: NUM_FONT, fontWeight: 600, minWidth: 0 }}>{c.weak}</div>
+        <div title={c.weak} style={{ fontSize: 12, lineHeight: 1.35, color: C.text2, fontFamily: NUM_FONT, fontWeight: 600, minWidth: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{c.weak}</div>
       ) : null}
       {c.angles?.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.1em', color: C.text3, fontFamily: NUM_FONT }}>BEST ANGLES</div>
           {c.angles.map((a) => (
-            <a key={`${a.kind}-${a.key}`} href={a.href} title={a.title}
+            <a key={`${a.kind}-${a.key}`} href={a.href} title={a.title || `${a.name}: ${a.why}`}
               onClick={(e) => { e.stopPropagation(); if (a.onClick) { e.preventDefault(); a.onClick(e) } }}
               style={{
                 display: 'flex', gap: 8, alignItems: 'center', minWidth: 0, minHeight: 44, boxSizing: 'border-box',
@@ -137,9 +138,11 @@ export default function SlateCard({ card: c, on = false, accent = C.orange, onSe
               }}>
               {a.team ? <TeamMark sport={sport} abbr={a.team} variant="logo" px={20} /> : null}
               <span style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <b style={{ fontSize: 11, letterSpacing: '.08em', color: accent }}>{ANGLE_TAG[a.kind]}</b>
-                <span style={{ fontSize: 13, fontWeight: 800, color: C.text, overflowWrap: 'anywhere' }}>{a.leg ? '🔗 ' : ''}{a.name}</span>
-                <span style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.3, color: C.text2 }}>{a.why}</span>
+                <span style={{ display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0 }}>
+                  <b style={{ fontSize: 10.5, letterSpacing: '.08em', color: accent, flexShrink: 0 }}>{ANGLE_TAG[a.kind]}</b>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: C.text, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{a.leg ? '🔗 ' : ''}{a.name}</span>
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.3, color: C.text2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{a.why}</span>
               </span>
             </a>
           ))}

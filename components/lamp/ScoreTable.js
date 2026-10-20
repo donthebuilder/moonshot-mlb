@@ -72,7 +72,7 @@ export default function ScoreTable({ games = [], onOpen, compact = false }) {
           { key: 'homeTm', label: 'Home', heat: false, w: compact ? 60 : 150, fmt: (_, g) => <TeamMark abbrev={g.home.abbrev} name={compact ? null : g.home.name} bold={(g.state === 'live' || g.state === 'final') && g.home.score > g.away.score} /> },
           ...(compact ? [] : [{ key: 'sog', label: 'SOG', heat: false, numeric: false, w: 60, title: 'Shots on goal, away-home', fmt: (_, g) => <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10.5 }}>{(g.state === 'live' || g.state === 'final') && g.away.sog != null ? `${g.away.sog}–${g.home.sog ?? '–'}` : '—'}</span> }]),
           { key: 'goalsN', label: 'Goals', heat: false, numeric: false, w: 64, fmt: (n, g) => (n
-            ? <button type="button" aria-expanded={open.has(g.id)} onClick={(e) => { e.stopPropagation(); toggle(g.id) }}
+            ? <button type="button" className="tap-box" aria-expanded={open.has(g.id)} onClick={(e) => { e.stopPropagation(); toggle(g.id) }}
                 style={{ background: 'transparent', border: `1px solid ${C.border2}`, borderRadius: 6, color: C.text2, cursor: 'pointer', font: `800 9px/1 ${NUM_FONT}`, padding: '5px 7px', minHeight: 30 }}>
                 {n} {open.has(g.id) ? '▴' : '▾'}
               </button>

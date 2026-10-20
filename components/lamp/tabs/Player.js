@@ -209,7 +209,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
   const awardsPrev = usePreview(p.awards.map((a) => ({ ...a, _key: a.trophy, times: a.seasons.length })), 5)
   const team = nhlTeam(p.team)
   const bornOn = board?.date || etToday()   // the slate's own date when there is one
-  const posWord = goalie ? 'Goalie' : { C: 'Centre', L: 'Left wing', R: 'Right wing', D: 'Defence' }[p.pos] || p.pos
+  const posWord = goalie ? 'Goalie' : { C: 'Center', L: 'Left wing', R: 'Right wing', D: 'Defense' }[p.pos] || p.pos
   // the bio line without his birthday (BornLine draws that, right under the hero, as MOONSHOT's card does)
   const bio = [
     p.birthCity && `Born in ${p.birthCity}${p.birthCountry ? `, ${p.birthCountry}` : ''}`,

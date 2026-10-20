@@ -768,7 +768,7 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
           { key: 'k',       label: 'K',       flag: true, mark: '✕', w: 28,
             title: 'Strikeout — the pitch that ended the at-bat, not a batted ball. EV/Angle/Dist/Side/Lane are blank because none exists; Pitch/Arm/Velo are still his last pitch faced.' },
           { key: 'side',    label: 'Side',    heat: false, w: 64, dim: true,
-            title: 'Pull, centre or opposite field. Direction only — it says where the ball went, not how hard.' },
+            title: 'Pull, center or opposite field. Direction only — it says where the ball went, not how hard.' },
           { key: 'lane',    label: 'Lane',    heat: false, w: 54, mono: true, dim: true,
             title: 'Which slice of the outfield it landed in: LF, LCF, CF, RCF, RF. Straight off the hit coordinates, not modelled.' },
           { key: 'result',  label: 'Result',  heat: false, w: 116, dim: true },
