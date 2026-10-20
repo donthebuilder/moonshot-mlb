@@ -165,7 +165,7 @@ export async function GET(request) {
   }
   // STORYLINES (2026-10-03, LAMP's pattern): freeze at tip, grade after the
   // OUR LINE (lib/nba/gameLinesStore.js, info only): locked once within 30 min of tip, the final margin after. Its own
-  // failure, logged; never the tick's (no nba_line_calls table = an error line here and nothing else).
+  // failure, logged; never the tick's (no game_line_calls table = an error line here and nothing else).
   out.ourLine = await lockOurLines(db, { date }).catch((e) => ({ error: String(e?.message || e).slice(0, 160) }))
   out.ourLineGrade = await gradeOurLines(db).catch((e) => ({ error: String(e?.message || e).slice(0, 160) }))
   // final, the night's base rate -- lib/stories/record.js. Never throws.
