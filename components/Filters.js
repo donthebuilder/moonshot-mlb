@@ -69,14 +69,15 @@ export function FilterPill({ active, onClick, children, count, title, disabled, 
   const themed = !!useSportTheme()?.themed
   return (
     <button
-      className={themed ? 'fp-themed' : undefined}
+      className={themed ? 'fp-themed' : 'tap-box'}
       onClick={disabled ? undefined : onClick}
       title={title}
       style={{
         // 2026-09-13: 4px vertical was tight for the pill used on every filter
         // row site-wide — this is the shared recipe, so the bump benefits
         // every board, not just this one.
-        padding: '6px 12px', fontSize: 10, borderRadius: 999, cursor: disabled ? 'default' : 'pointer',
+        // FLAT AND SQUARE (2026-10-20, Donovan: "all our chips ... the very tiny square ones"): radius 3, as lib/chips.js
+        padding: '6px 10px', fontSize: 10, borderRadius: 3, cursor: disabled ? 'default' : 'pointer', letterSpacing: '.04em',
         // tall (opt-in, 2026-10-08): the phone Rankings rail -- a 44px target and a count a thumb can read
         ...(tall ? { minHeight: 44, fontSize: 11.5, padding: '6px 14px', fontFamily: NUM_FONT } : null),
         border: `1px solid ${s.borderColor}`,
