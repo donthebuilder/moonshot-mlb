@@ -42,13 +42,13 @@ function Races({ sport, data, onOpenPlayer, onOpenTeam, canOpenPlayer }) {
             rows={shown.map((r, i) => ({ ...r, _key: r.id, rank: i + 1, playerId: r.id }))}
             columns={[
               { key: 'rank', label: '#', group: 'Player', heat: false, w: 26 },
-              { key: 'name', label: 'Player', group: 'Player', heat: false, bold: true, sticky: true, w: 150, ...(canOpenPlayer ? { link: (r) => (canOpenPlayer(String(r.playerId)) ? () => onOpenPlayer?.(String(r.playerId)) : null) } : null) },
+              { key: 'name', label: 'Player', group: 'Player', heat: false, bold: true, sticky: true, w: 150, ...(canOpenPlayer ? { link: (r) => (canOpenPlayer(String(r.playerId)) ? () => onOpenPlayer?.(String(r.playerId), r) : null) } : null) },
               // the share leads, beside the name, so a phone sees it without scrolling the table
               { key: 'share', label: 'Share', group: 'Player', w: 64, primary: true, bar: 'primary', domain: [0, top], title: `His share of the ${race.title} race`, fmt: (v) => sharePct(v) },
               { key: 'team', label: 'Tm', group: 'Player', heat: false, mono: true, w: 52, teamMark: cfg.teamMark, link: (r) => (onOpenTeam ? () => onOpenTeam(r.team) : null) },
               ...(cfg.raceCols?.[race.key] || [...cfg.cols, ...(cfg.extraCols?.[race.key] || [])]).map((c) => ({ key: c.key, label: c.label, title: c.title, group: 'Line', w: 46, dp: c.dp, mono: true, ...(c.heat === false ? { heat: false } : null), ...(c.subOnly ? { subOnly: true } : null) })),
             ]}
-            onRowClick={canOpenPlayer ? undefined : (r) => onOpenPlayer?.(String((r?._raw ?? r).playerId))} nameCell="player" faceOf={(r) => ({ sport: cfg.teamMark, id: r.playerId, espnId: r.espnId, name: r.name })}
+            onRowClick={canOpenPlayer ? undefined : (r) => onOpenPlayer?.(String((r?._raw ?? r).playerId), r?._raw ?? r)} nameCell="player" faceOf={(r) => ({ sport: cfg.teamMark, id: r.playerId, espnId: r.espnId, name: r.name })}
             initialSort={{ key: 'share', dir: 'desc' }} heatMode="sorted" maxHeight={9999} maxRows={rows.length}
             caption={`${race.title}: the top ${rows.length} of ${race.pool} players, each with his share of the race. ${canOpenPlayer ? 'A linked name' : 'Each row'} opens that player.`} />
           <ShowMoreButton open={allOpen} restN={rows.length - shown.length} toggle={() => setAllOpen((v) => !v)} itemWord="players" />
