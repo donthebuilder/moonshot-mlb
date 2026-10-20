@@ -23,6 +23,7 @@ import { withNflFullSet } from '../../lib/nfl/boardColumns'
 import GameTotalLine, { GameTotalMark, totalRowFor, useGameTotals } from '../GameTotalLine'
 import NflTable from './NflTable'
 import NflH2H from '../h2h/NflH2H'
+import OurLine from '../game/OurLine'
 import { useGameCalls } from './GameCalls'
 import WriteupBlock from './WriteupBlock'
 import GameLedgerLine from '../ledger/GameLedgerLine'
@@ -281,6 +282,10 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
                   })()}
                 </PanelAnchor>
           ),
+          // OUR LINE (2026-10-20, components/game/OurLine.js): our point margin beside the book's spread and moneyline; info only, nothing drawn without a row
+          ourline: () => (g.kickoff ? (
+                <OurLine sport="nfl" date={easternDate(Date.parse(g.kickoff))} away={g.away} home={g.home} start={g.kickoff} theme={{ C, NUM_FONT }} onOpenTeam={onOpenTeam} style={{ marginTop: 14 }} />
+          ) : null),
           // 7. THE CLUBS' HEAD TO HEAD (2026-10-13, lib/h2h): record, margin, total and meetings of the two clubs over three seasons
           clubs: () => (
                 <PanelAnchor id="clubs" gamePk={g.game_id} style={{ marginTop: 14 }}>
