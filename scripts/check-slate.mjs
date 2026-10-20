@@ -147,19 +147,23 @@ await ok('shape: a 3-sport day -- header, Call of the Night, one line per sport,
   assert.equal(a.state, 'go')
   const lines = a.text.split('\n')
   assert.equal(lines[0], '🎯 THE SLATE · FRI OCT 9')
+  // the voice (2026-10-20): a fan's line under the title, a question to the network last
   assert.equal(lines[1], '')
-  assert.equal(lines[2], 'CALL OF THE NIGHT')
+  assert.equal(lines[2], S.slateHook(DAY)); assert.ok(S.SLATE_HOOKS.includes(lines[2]))
+  assert.equal(lines[3], 'CALL OF THE NIGHT')
   // the NFL back is #1 of 500 on his board: the smallest share of any board, so he leads
-  assert.equal(lines[3], 'Test Back One (Kansas City Chiefs)')
-  assert.equal(lines[4], 'anytime touchdown')
-  assert.equal(lines[5], 'CALLED · 3.2 red-zone touches a game')
-  assert.equal(lines[6], '')
-  assert.deepEqual(lines.slice(7, 10), ['MLB  Test Hitter One · home run', 'NFL  Test Receiver Two · anytime touchdown', 'NHL  Test Skater One · goal scorer'])
-  assert.equal(lines[10], '')
-  assert.equal(lines[11], 'Full rankings → DASH · MOONSHOT · TUDDY · LAMP')
-  // Donovan's shape: header + 4 call lines + one per sport + the pointer = 9 content lines on a three-sport day (the "4-8" of the
-  // style guide is the one-or-two-sport day); fewer sports -> fewer lines, never more
-  assert.equal(lines.filter((l) => l !== '').length, 9)
+  assert.equal(lines[4], 'Test Back One (Kansas City Chiefs)')
+  assert.equal(lines[5], 'anytime touchdown')
+  assert.equal(lines[6], 'CALLED · 3.2 red-zone touches a game')
+  assert.equal(lines[7], '')
+  // one space after the league (the double space was fixed at the source on 2026-10-16, 721e3c0; this check had not caught up)
+  assert.deepEqual(lines.slice(8, 11), ['MLB Test Hitter One · home run', 'NFL Test Receiver Two · anytime touchdown', 'NHL Test Skater One · goal scorer'])
+  assert.equal(lines[11], '')
+  assert.equal(lines[12], 'Full rankings → DASH · MOONSHOT · TUDDY · LAMP')
+  assert.equal(lines[13], S.slateAsk(DAY)); assert.ok(lines[13].endsWith('?'))
+  // Donovan's shape: header + 4 call lines + one per sport + the pointer = 9 content lines on a three-sport day, plus the hook
+  // and the ask (2026-10-20) = 11; fewer sports -> fewer lines, never more
+  assert.equal(lines.filter((l) => l !== '').length, 11)
   assert.ok(emoji(a.text) <= 2, 'at most two emoji')
   for (const l of lines) assert.ok(l.length <= 48, `short lines: ${l.length} "${l}"`)
   // a full three-sport day is ~290 weighted characters: it needs the long-post allowance prod has (X_TEXT_LIMIT 900, NOW.md); at 280 it sheds sport lines
@@ -177,10 +181,10 @@ await ok('shape: only sports with games appear -- an MLB-only day has no NFL or 
   const a = S.assembleSlate({ day: DAY, sports: sportsOf({ nfl: { games: [], players: [] }, nhl: [] }), now: NOW })
   assert.equal(a.state, 'go')
   assert.ok(!/NFL|NHL|TUDDY|LAMP|touchdown|goal scorer/.test(a.text), a.text)
-  assert.match(a.text, /Full rankings → DASH · MOONSHOT$/)
+  assert.match(a.text, /Full rankings → DASH · MOONSHOT\n/)
   // the Call of the Night is MLB's #1; MLB's own line shows his NEXT called player, never the same name twice
   assert.match(a.text, /^CALL OF THE NIGHT\nTest Hitter One \(Los Angeles Dodgers\)\nhome run\nCALLED · 3 HR in his last 10 games$/m)
-  assert.match(a.text, /\nMLB  Test Hitter Two · home run\n/)
+  assert.match(a.text, /\nMLB Test Hitter Two · home run\n/)
   assert.equal(a.text.split('Test Hitter One').length, 2)
   sample('MLB only, Fri Oct 9', a)
 })
@@ -188,7 +192,7 @@ await ok('shape: a lone called player -- the Call of the Night and the pointer, 
   const a = S.assembleSlate({ day: DAY, sports: sportsOf({ mlb: [mlbRow({})], nfl: { games: [], players: [] }, nhl: [] }), now: NOW })
   assert.equal(a.state, 'go')
   assert.ok(!/^MLB /m.test(a.text))
-  assert.equal(a.text.split('\n').length, 8)
+  assert.equal(a.text.split('\n').length, 10)   // + the hook and the ask (2026-10-20)
 })
 await ok('shape: the words come from the registry, with no sport branches in the slate code', () => {
   assert.equal(R.POST_WORDS.mlb.market, 'home run'); assert.equal(R.POST_WORDS.nfl.market, 'anytime touchdown'); assert.equal(R.POST_WORDS.nhl.market, 'goal scorer'); assert.equal(R.POST_WORDS.nba.market, '25 points')
@@ -203,7 +207,7 @@ await ok('shape: at the plain 280 limit a one-sport day fits whole and a three-s
   const three = S.assembleSlate({ day: DAY, sports: sportsOf(), now: NOW, limit: 280 })
   assert.ok(S.xLen(three.text) <= 280)
   assert.match(three.text, /CALL OF THE NIGHT\nTest Back One/)
-  assert.ok(three.text.split('\n').length < 12)
+  assert.ok(three.text.split('\n').length < 14)
 })
 await ok('shape: the date is the slate\'s own day (UTC noon of the key), whatever the clock says', () => {
   assert.equal(S.dayLabel('2026-10-09'), 'FRI OCT 9')
@@ -308,7 +312,7 @@ await ok('naming: an NHL game with no goalie source is a definite no -- the post
   const a = S.assembleSlate({ day: DAY, sports: sportsOf({ nhl: games }), now: NOW })
   assert.equal(a.state, 'go')
   assert.ok(!/NHL|goal scorer/.test(a.text.replace(/LAMP/, '')), 'no NHL line')
-  assert.match(a.text, /· LAMP$/)                              // the pointer still lists the product that played
+  assert.match(a.text, /· LAMP\n/)                              // the pointer still lists the product that played
 })
 await ok('naming: the real pregame source (goalieSource via startersFor, TEST feed) -- confirmed both sides GOES, an ESPN-expected side HOLDS, an unlisted game is a definite no', async () => {
   const GSRC = await import('../lib/nhl/goalies.js'); const GSX = await import('../lib/nhl/goalieSource.js')
@@ -374,8 +378,8 @@ await ok('buckets: the line is absent until BUCKETS is public, and it never reac
   process.env.BUCKETS_PUBLIC = 'on'
   a = S.assembleSlate({ day: DAY, sports: sportsOf({ nba: nbaBoard() }), now: NOW })
   // #1 of 150 is a smaller share than MLB's #1 of 80 and LAMP's #1 of 300? no: 1/300 is smallest, TUDDY's 1/500 is smaller still
-  assert.match(a.text, /NBA  Test Guard One · 25 points/)
-  assert.match(a.text, /· BUCKETS$/)
+  assert.match(a.text, /NBA Test Guard One · 25 points/)
+  assert.match(a.text, /· BUCKETS\n/)
   delete process.env.BUCKETS_PUBLIC
 })
 await ok('buckets: a preseason or playoff-less night has no BUCKETS line even when public', () => {
@@ -512,9 +516,9 @@ await ok('post: the repeat guard -- a player a Slate named within 3 days (footba
   // named 2 days ago (any sport) -> out; named 5 days ago: a hitter may come back (3 days), a football player may not (7)
   for (const out of ['Test Hitter One', 'Test Back One', 'Test Skater One', 'Test Receiver Two']) assert.ok(!text.includes(out), `${out} was named too recently\n${text}`)
   assert.match(text, /CALL OF THE NIGHT\nTest Skater Two \(Montr[^)]*\)\ngoal scorer/)   // #2 of 300 is the smallest share left
-  assert.match(text, /MLB  Test Hitter Two · home run/)
+  assert.match(text, /MLB Test Hitter Two · home run/)
   assert.ok(!/^NFL /m.test(text))
-  assert.match(text, /DASH · MOONSHOT · TUDDY · LAMP$/)                  // football still played: the pointer still lists TUDDY
+  assert.match(text, /DASH · MOONSHOT · TUDDY · LAMP\n/)                  // football still played: the pointer still lists TUDDY
 })
 const mkDay = (day) => {
   const week = nflWeek(); week.games[0].kickoff = `${day}T23:15:00Z`
