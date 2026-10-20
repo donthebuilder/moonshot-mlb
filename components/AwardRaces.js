@@ -46,9 +46,9 @@ function Races({ sport, data, onOpenPlayer, onOpenTeam }) {
               // the share leads, beside the name, so a phone sees it without scrolling the table
               { key: 'share', label: 'Share', group: 'Player', w: 64, primary: true, bar: 'primary', domain: [0, top], title: `His share of the ${race.title} race`, fmt: (v) => sharePct(v) },
               { key: 'team', label: 'Tm', group: 'Player', heat: false, mono: true, w: 52, teamMark: cfg.teamMark, link: (r) => (onOpenTeam ? () => onOpenTeam(r.team) : null) },
-              ...[...cfg.cols, ...(cfg.extraCols?.[race.key] || [])].map((c) => ({ key: c.key, label: c.label, title: c.title, group: 'Line', w: 46, dp: c.dp, mono: true })),
+              ...(cfg.colsFor ? cfg.colsFor(race.key) : [...cfg.cols, ...(cfg.extraCols?.[race.key] || [])]).map((c) => ({ key: c.key, label: c.label, title: c.title, group: 'Line', w: 46, dp: c.dp, mono: true })),
             ]}
-            onRowClick={(r) => onOpenPlayer?.(String((r?._raw ?? r).playerId))} nameCell="player" faceOf={(r) => ({ sport: cfg.teamMark, id: r.playerId, name: r.name })}
+            onRowClick={(r) => onOpenPlayer?.(String((r?._raw ?? r).playerId), r?._raw ?? r)} nameCell="player" faceOf={(r) => ({ sport: cfg.teamMark, id: r.playerId, name: r.name })}
             initialSort={{ key: 'share', dir: 'desc' }} heatMode="sorted" maxHeight={9999} maxRows={rows.length}
             caption={`${race.title}: the top ${rows.length} of ${race.pool} players, each with his share of the race. Each row opens that player.`} />
           <ShowMoreButton open={allOpen} restN={rows.length - shown.length} toggle={() => setAllOpen((v) => !v)} itemWord="players" />
