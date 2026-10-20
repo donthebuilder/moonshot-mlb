@@ -1,6 +1,6 @@
 // callsFromLock (lib/phone/todayCalls.js): pick_lock.json -> one card per man, first-pitch order. TEST data below, labelled.
 import assert from 'node:assert/strict'
-import { nflDeckItems, nhlDeckItems, nhlCalledFromLog, callsFromLock } from '../lib/phone/todayCalls.js'
+import { nflDeckItems, nhlDeckItems, nhlCalledFromLog, callsFromLock, nbaDeckItems } from '../lib/phone/todayCalls.js'
 
 const TEST_LOCK = { date: '2099-01-01', games: {
   g2: { first_pitch: '2099-01-01T23:00:00+00:00', cats: { TOP: { pid: 2, name: 'Test Bravo' }, HIT: { pid: 2, name: 'Test Bravo' }, HR: { pid: 3, name: 'Test Charlie' } } },
@@ -26,3 +26,12 @@ assert.deepEqual(called.items.map((i) => i.gameId), ['777'], 'NHL: the called ro
 const nhl = nhlDeckItems(called, [{ id: 777, startUtc: '2099-01-01T00:00:00Z' }])
 assert.deepEqual(nhl.items.map((i) => [i.gameId, i.firstPitch, i.roles[0], i.status]), [['777', '2099-01-01T00:00:00Z', 'GOAL', 'called']])
 console.log('ok   nflDeckItems / nhlDeckItems: each man carries game id, start time and the word called (TEST data)')
+// BUCKETS deck (2026-10-20). TEST data, labelled: one man called in two markets is ONE card with both roles; a board row is not a card; best score first.
+const NBA_TEST = [
+  { market: 'pts', games: [{ id: 'g1', start: '2099-01-01T23:00Z' }], rows: [{ playerId: 'P1', name: 'Test One', team: 'AAA', gameId: 'g1', status: 'called', score: 80 }, { playerId: 'P2', name: 'Test Two', team: 'BBB', gameId: 'g1', status: 'called', score: 90 }, { playerId: 'P3', name: 'Test Three', team: 'AAA', gameId: 'g1', status: 'board', score: 99 }] },
+  { market: 'reb', games: [], rows: [{ playerId: 'P1', name: 'Test One', team: 'AAA', gameId: 'g1', status: 'called', score: 95 }] },
+]
+const nba = nbaDeckItems(NBA_TEST)
+assert.deepEqual(nba.items.map((i) => [i.id, i.roles.join('+'), i.gameId, i.firstPitch, i.status]), [['P1', 'PTS+REB', 'g1', '2099-01-01T23:00Z', 'called'], ['P2', 'PTS', 'g1', '2099-01-01T23:00Z', 'called']], 'NBA: one card a man, roles merged, best score first')
+assert.equal(nbaDeckItems([{ market: 'pts', games: [], rows: [] }]), null)
+console.log('ok   nbaDeckItems: one card a man, his markets as roles, game id and tip (TEST data)')

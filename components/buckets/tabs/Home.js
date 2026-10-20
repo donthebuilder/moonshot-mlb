@@ -15,6 +15,8 @@ import { EmptyState, DelayedBanner, Loading, Kicker, NavBtn, LastSeasonNote, fmt
 import NbaTonight from '../../tonight/NbaTonight'
 import ChampionshipFold from '../../ChampionshipFold'
 import TopTenList from '../../home/TopTenList'
+import Fold from '../../Fold'
+import TonightsCalls from '../../phone/TonightsCalls'
 import HotNumbers from '../../numerology/HotNumbers'
 import { useLockOf } from '../../MemberGate'
 
@@ -74,6 +76,8 @@ export default function Home({ today, date, setTab, onOpenPlayer, onOpenGame, on
       </DayHero>
       {/* TONIGHT (2026-10-04): who cleared, who's still to go (components/tonight/NbaTonight.js; no NBA numerology yet) */}
       <NbaTonight board={pts.data} date={date} onOpenPlayer={onOpenPlayer} setTab={setTab} />
+      {/* THE SWIPE DECK (2026-10-20, LAMP's): tonight's called players as their real cards, folded; /api/phone/calls?sport=nba holds the members gate */}
+      {!date && <Fold id="buckets-calls" title="🃏 Tonight's calls" meta="swipe the real cards"><TonightsCalls sport="nba" /></Fold>}
       <DelayedBanner error={today?.error} what="the league’s scores" />
       {!day && today?.loading ? <Loading what="tonight" /> : null}
 
