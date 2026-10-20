@@ -1,6 +1,5 @@
 'use client'
-import { Fragment, useMemo, useState } from 'react'
-import dynamic from 'next/dynamic'
+import { Fragment, useMemo } from 'react'
 import PageHeader from '../../PageHeader'
 import TeamMark from '../../TeamMark'
 import Tap from '../../Tap'
@@ -24,8 +23,6 @@ import NbaWriteupBlock from '../NbaWriteupBlock'
 import InjuryOut from '../../injuries/InjuryOut'
 import { EmptyState, DelayedBanner, Loading, Kicker, BackBtn, NavBtn, RimDot, fmtTip, gameDay, fmtDay } from '../ui'
 
-// the 3D court loads only when opened (next/dynamic, as the other 3D views)
-const CourtArena = dynamic(() => import('../CourtArena'), { ssr: false })
 
 // 🏀 ONE GAME -- the line score, both box scores, every field-goal attempt on
 // the floor (the shot chart, and the 3D court on tap), and who scored first.
@@ -35,7 +32,6 @@ const pct = (m, a) => (a ? `${Math.round((100 * m) / a)}%` : '—')
 export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onOpenTeam }) {
   const ok = GAME_ID_RE.test(String(id || ''))
   const { data, error, loading } = useBucketsGame(ok ? id : null)
-  const [three, setThree] = useState(false)
   const gameTotals = useGameTotals('nba')   // this game's own Top Totals row (components/GameTotalLine.js)
   const names = useMemo(() => Object.fromEntries((data?.box || []).map((p) => [p.id, p.name])), [data])
   const teams = useMemo(() => (data ? { [data.away.id]: data.away.abbrev, [data.home.id]: data.home.abbrev } : {}), [data])
@@ -86,9 +82,7 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
     shots: () => ((data.shots || []).length > 0 ? (
       <section>
         <Kicker>EVERY SHOT · {data.shots.length} FIELD-GOAL ATTEMPTS</Kicker>
-        <ShotChart urlKey="shots" shots={data.shots} names={names} teams={teams} title={`Shot chart, ${away.abbrev} at ${home.abbrev}`} />
-        <div style={{ marginTop: 10 }}><NavBtn onClick={() => setThree((v) => !v)} strong={three}>{three ? 'Close the 3D court' : '🏀 3D court'}</NavBtn></div>
-        {three ? <div style={{ marginTop: 8 }}><CourtArena shots={data.shots} names={names} /></div> : null}
+        <ShotChart urlKey="shots" shots={data.shots} names={names} teams={teams} threeD title={`Shot chart, ${away.abbrev} at ${home.abbrev}`} />
       </section>
     ) : <EmptyState title={done || live ? 'NO SHOT LOCATIONS' : 'NO SHOTS YET'} note={done || live ? 'The play-by-play for this game carries no shot spots.' : 'The shot chart fills from the play-by-play once the game tips.'} />),
   }

@@ -18,13 +18,14 @@ export const dynamic = 'force-dynamic'
 async function shotsOf(db, id) {
   const data = []
   for (let from = 0; from < 8000; from += 1000) {
-    const r = await db.from('buckets_shots').select('x, y, made, three, game_id, game_date').eq('player_id', id).order('game_date', { ascending: false }).order('event_id').range(from, from + 999)
+    const r = await db.from('buckets_shots').select('x, y, made, three, game_id, game_date, period').eq('player_id', id).order('game_date', { ascending: false }).order('event_id').range(from, from + 999)
     if (r.error) return { data, error: r.error }
     data.push(...r.data)
     if (r.data.length < 1000) break
   }
   return { data, error: null }
 }
+import { packShots } from '../../../../lib/nba/shots'
 import { readNbaFloor, trackingOf } from '../../../../lib/record/nbaFloorRead'
 export const GET = bucketsRoute('player', async (q) => {
   const id = q.get('id') || ''
@@ -60,7 +61,8 @@ export const GET = bucketsRoute('player', async (q) => {
     logs: [...tag(logCur, sn.cur), ...tag(logPrev, sn.prev)], clubGames, nowSeason: sn.cur, seasonYears: { cur: seasonLabel(sn.cur), prev: seasonLabel(sn.prev) },
     xpts: proj?.ok ? { xpts: Math.round(proj.xpts * 10) / 10, minRecent: Math.round(proj.minRecent * 10) / 10, rate: Math.round(proj.rate * 1000) / 1000, oppFactor: Math.round(proj.oppFactor * 1000) / 1000, oppKnown: proj.oppKnown, n: proj.n, line: proj.line, opp: nextGame.opp, start: nextGame.start } : (proj ? { xpts: null, reason: proj.reason } : null),
     log: logCur.length ? logCur : logPrev, logSeason: logCur.length ? seasonLabel(sn.cur) : seasonLabel(sn.prev),
-    shots: (shots.error ? [] : shots.data || []).map((s) => [s.x, s.y, s.made ? 1 : 0, s.three ? 1 : 0, s.game_id]),
+    // packed as the shots route packs them (lib/nba/shots.js): [x, y, made, three, game index, period] + shotGames [[id, date]]
+    ...(() => { const p = packShots(shots.error ? [] : shots.data || []); return { shots: p.shots, shotGames: p.games } })(),
     shotsFrom: shots.data?.length ? shots.data[shots.data.length - 1].game_date : null,
     // THE PUBLIC-NUMBER FLOOR ON HIS PAGE (10-19, before BUCKETS opens): his record lines, last week and the on-him table are
     // results, so they carry only what the record may count -- no preseason row, and no market still under its 30 graded

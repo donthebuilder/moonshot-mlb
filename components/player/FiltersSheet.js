@@ -1,4 +1,5 @@
 'use client'
+import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 import { useState } from 'react'
 import { useSportTheme } from '../SportTheme'
 import { alpha } from '../../lib/scales'
@@ -20,17 +21,14 @@ export default function FiltersSheet({ groups, note = null, onReset = null, summ
   })
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', ...style }}>
-      <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open}
-        style={{ ...pill(active.length > 0), display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <button type="button" className={FLAT_CHIP_CLASS} onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open}
+        style={flatChip(active.length > 0, accent, C, NUM_FONT)}>
         ▤ Filters{active.length ? ` · ${active.length}` : ''}
       </button>
       {active.map((a) => (
-        <button key={a.key} type="button" onClick={a.clear} aria-label={`Remove filter ${a.label}`} title="Remove this filter"
-          style={{ minHeight: 44, padding: '0 6px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: NUM_FONT }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 999, fontSize: 11, fontWeight: 700,
-            border: `1px solid ${alpha(accent, 0.6)}`, background: alpha(accent, 0.14), color: accent }}>
-            {a.label} <span style={{ opacity: 0.7 }}>✕</span>
-          </span>
+        <button key={a.key} type="button" className={FLAT_CHIP_CLASS} onClick={a.clear} aria-label={`Remove filter ${a.label}`} title="Remove this filter"
+          style={flatChip(true, accent, C, NUM_FONT)}>
+          {a.label} <span style={{ opacity: 0.7 }}>✕</span>
         </button>
       ))}
       {summary}
