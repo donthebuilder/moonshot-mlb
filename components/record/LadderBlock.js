@@ -22,7 +22,7 @@ import { straightLine } from '../../lib/record/callsLanded'
 import { appHref } from '../../lib/routes'
 import { ladderKind, LADDER_SPORTS } from '../../lib/record/ladderSports'
 import { marketLadderFrom, marketSentence, marketOneLine, marketScope, marketCells } from '../../lib/record/ladder'
-import { scoreBandsFrom, bandCells, bandsScope, bandsNote } from '../../lib/record/scoreBands'
+import { scoreBandsFrom, bandCells, bandsScope, bandsNote, bandSetOf } from '../../lib/record/scoreBands'
 import { ladderFrom, ladderRows, ladderCells, ladderSentence, ladderOneLine, ladderScope, ladderScopeShort, versionRows, POOLED_LABEL, BASE_LABEL, priceNote } from '../../lib/record/ladder'
 
 const THEMES = {
@@ -353,6 +353,7 @@ export function LadderFromApi({ sport = 'nhl', versions = false, odds = false, c
 // and a plain small-sample note ride with every rate. Below the fold of the record page, not above it.
 function BandsInner({ bands }) {
   const { C, NUM_FONT, accent } = useSportTheme()
+  const w = bandSetOf(bands.sport), T = bands.top ?? 90
   const th = { padding: '0 0 4px', font: `800 11px/1.2 ${NUM_FONT}`, letterSpacing: '.06em', color: C.text3, textAlign: 'right', fontWeight: 800 }
   const td = { padding: '6px 0', borderTop: `1px solid ${C.border2}`, textAlign: 'right', verticalAlign: 'middle', fontFamily: NUM_FONT }
   const line = (r, lead) => {
@@ -370,24 +371,24 @@ function BandsInner({ bands }) {
   }
   const group = (text) => <tr key={text}><th scope="colgroup" colSpan={4} style={{ ...th, textAlign: 'left', padding: '8px 0 3px', letterSpacing: '.1em' }}>{text}</th></tr>
   return (
-    <section aria-label="Scored rate by LAMP score band" style={{ margin: '4px 0 14px' }}>
-      <div style={kicker(C, NUM_FONT, accent)}>LAMP SCORE BANDS</div>
+    <section aria-label={`Rate by ${w.product} score band`} style={{ margin: '4px 0 14px' }}>
+      <div style={kicker(C, NUM_FONT, accent)}>{w.product} SCORE BANDS</div>
       <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' }}>
         <caption style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
-          Goal scorers by LAMP score band, and the 90+ skaters split by whether they were CALLED. Each row gives the skaters who scored of the skaters counted, the rate and its 95% range.
+          {w.what} by {w.product} score band, and the {T}+ {w.noun}s split by whether they were CALLED. Each row gives the {w.noun}s who {w.did} of the {w.noun}s counted, the rate and its 95% range.
         </caption>
         <thead>
           <tr>
             <th scope="col" style={{ ...th, textAlign: 'left' }}>Group</th>
-            <th scope="col" style={th}>Scored</th>
+            <th scope="col" style={th}>{w.did === 'homered' ? 'Homered' : 'Scored'}</th>
             <th scope="col" style={th}>Rate</th>
             <th scope="col" style={th}>95% range</th>
           </tr>
         </thead>
         <tbody>
           {group('BY SCORE')}
-          {bands.bands.filter((r) => r.n > 0).map((r) => line(r, r.key === '90+'))}
-          {group('THE 90+, BY THE CALL')}
+          {bands.bands.filter((r) => r.n > 0).map((r) => line(r, r.key === (bands.topKey || '90+')))}
+          {group(`THE ${T}+, BY THE CALL`)}
           {bands.split.filter((r) => r.n > 0).map((r) => line(r, r.key === 'called90'))}
         </tbody>
       </table>

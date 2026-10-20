@@ -641,7 +641,8 @@ key={lens}
           // the rates, the splits by the pitcher's hand
           columns={LEADER_COLUMNS}
           onRowClick={onPlayerClick}
-          faceOf={(r) => (r._raw?.player_id ? { sport: 'mlb', id: String(r._raw.player_id), name: r.name } : null)}
+          // the shared player-name cell (10-20, MOONSHOT parity: the other three products' Leaders wear it; the 10-18 table standard)
+          nameCell="player" faceOf={(r) => (r._raw?.player_id ? { sport: 'mlb', id: String(r._raw.player_id), name: r.name } : null)}
           initialSort={lens}
           maxHeight={620}
           caption={`Season stats, straight from the box score. Minimum ${minPA} PA, because rates on a small sample are noise. K% and PA/HR are flipped so bright is always good for the hitter. TB is worked out as SLG × (PA × (1 − BB%)), so it runs slightly light: rank by it, don't quote it.`}

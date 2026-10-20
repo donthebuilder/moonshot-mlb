@@ -38,7 +38,7 @@ import { reduceScoreDay } from '../../../../../lib/nhl/reduce'
 import { hasVapid, vapidDetails, vapidProblem } from '../../../../../lib/dash/vapid'
 import { claimBoardWindow, fetchBoard } from '../../../../../lib/dash/board'
 import { byeStarterEventsFrom, franchiseEventsFrom, lineupGapEventsFrom, starterScoreEventsFrom } from '../../../../../lib/dash/franchise'
-import { cardEarnedEventsFrom, audienceFrom, boardInfoFrom, deviceWantsSport, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, followNameKey, nflFollowMisses, nhlEventsFrom, nbaEventsFrom, pregameEventsFrom, nhlPregameEventsFrom, nhlInjuryOutEventsFrom, mlbInjuryOutEventsFrom, nflPregameEventsFrom, nbaPregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
+import { cardEarnedEventsFrom, audienceFrom, boardInfoFrom, deviceWantsSport, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, followNameKey, nflFollowMisses, nhlEventsFrom, nbaEventsFrom, pregameEventsFrom, nhlPregameEventsFrom, nhlInjuryOutEventsFrom, mlbInjuryOutEventsFrom, mlbInjuryStatusEventsFrom, nflPregameEventsFrom, nbaPregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
 import { nflInjuryStatusEventsFrom, nhlInjuryStatusEventsFrom, nbaInjuryStatusEventsFrom } from '../../../../../lib/dash/pushRules'
 import { mlbRecapEventsFrom } from '../../../../../lib/dash/pushNightly'
 import { callsGradedEvents, weeklyEvents } from '../../../../../lib/dash/pushNightlyIO'
@@ -226,7 +226,7 @@ async function pregameEvents(db, audience) {
   if (!rows) return []
   // the injury layer: a followed hitter listed OUT before his lineup is posted ('scratched', no new category)
   const inj = await readInjuries('mlb').catch(() => null)
-  return [...pregameEventsFrom(rows, snap, today(), audience), ...mlbInjuryOutEventsFrom(rows, snap, inj, today(), audience)]
+  return [...pregameEventsFrom(rows, snap, today(), audience), ...mlbInjuryOutEventsFrom(rows, snap, inj, today(), audience), ...mlbInjuryStatusEventsFrom(rows, snap, inj, today(), audience)]   // mlbinj (10-20)
 }
 
 // ── PREGAME NEWS: NHL, NFL, NBA (2026-10-09) ───────────────────────────────

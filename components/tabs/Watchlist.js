@@ -827,6 +827,8 @@ rows={[...filteredOnSlate].sort(byGameThenTeam).map((p, i) => {
                   title: 'A composite run-production read: season run rate, lineup spot, season OBP, and recent run form. Not a MOONSHOT score, not calibrated — a transparent blend, same caveat as K risk.' },
               ], { onWatch: null, dhOn: false })}
               onRowClick={(r) => r && onPlayerClick?.(r)}
+              // the shared player-name cell (10-20, MOONSHOT parity: TUDDY / LAMP / BUCKETS' watchlists wear it; the 10-18 table standard)
+              nameCell="player" faceOf={(r) => (r._raw?.player_id ? { sport: 'mlb', id: String(r._raw.player_id), name: r.name } : null)}
               initialSort={null}
               maxHeight={380}
               caption="Your saved hitters, side by side — every column heats against THE FILTERED LIST only, so bright means best of what's currently shown, not best of the slate. Narrow the filter and the colours re-scale to the survivors. ★ un-saves without leaving the table. Two record columns sit next to each other on purpose: Track record is every night MOONSHOT picked him, Your nights is every night HE WAS ON YOUR LIST and this page was open — the second is a small sample by construction and stays a raw count for that reason."

@@ -646,6 +646,8 @@ export default function GameLineup({ players, onPlayerClick }) {
 rows={rows}
           columns={cols}
           onRowClick={onPlayerClick}
+          // the shared player-name cell (10-20, MOONSHOT parity: TUDDY / LAMP / BUCKETS' game pages wear it; the 10-18 table standard)
+          nameCell="player" faceOf={(r) => (r._raw?.player_id ? { sport: 'mlb', id: String(r._raw.player_id), name: r.name } : null)}
           maxHeight={420}
           caption="Batting order by default — click a header to re-sort, a row to open the hitter. ★ weak spot · ◆ aligned signals · ▲ bats into the pitcher's weak side. Spot dmg / Spot PA / Spot SLG / Zone dmg are what tonight's starter has allowed to that batting-order slot and to that third of the order — the same numbers the spot read says in words."
         />

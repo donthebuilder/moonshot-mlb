@@ -1,4 +1,5 @@
 'use client'
+import LineMoveChip from './LineMoveChip'
 import { mlbFaceStrict } from './PlayerFace'
 import { teamKey, teamName } from '../lib/mlbTeams'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -607,7 +608,9 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
     return all.filter((c) => { const k = String(c.t).toUpperCase().replace(/[^A-Z0-9]/g, ''); if (!k || seen.has(k)) return false; seen.add(k); return true })
   })()
   const heroPriceText = heroQuote ? fmtOdds(heroQuote.over) : '—'
-  const heroPrice = heroPriceText === '—' || cardLocked ? null : heroPriceText
+  // the line-moved chip beside his price (10-20, MOONSHOT parity: TUDDY / LAMP / BUCKETS wear it); no opening price on the quote, no chip
+  const heroPrice = heroPriceText === '—' || cardLocked ? null
+    : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{heroPriceText}<LineMoveChip quote={heroQuote} compact /></span>
 
   // Width follows the widest table on the tab. Pitch and Pitcher carry ten-plus
   // stat columns; Spray is a fixed-size chart and gets cramped, not helped, by

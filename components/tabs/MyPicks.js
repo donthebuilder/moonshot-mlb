@@ -623,7 +623,7 @@ function SwapBoard({ cat, s, mine, odds, full, onToggleFull, onChoose, onClose }
               <span style={{
                 fontFamily: NUM_FONT, fontSize: 10.5, color: cat.color, fontWeight: 800,
               }}>{Math.round(cat.score(p) || 0)}</span>
-              <OddsLine quote={quoteFor(odds, p, cat.role)} compact />
+              <OddsLine quote={quoteFor(odds, p, cat.role)} compact move />
               <span style={{ marginLeft: 'auto', fontSize: 10, color: C.text3 }}>
                 {isBot ? 'its pick — tap to give the slot back'
                   : isMine ? 'yours' : ''}

@@ -134,7 +134,7 @@ on the pages you changed. It must be green.
   `node --import ./scripts/_esm-resolve.mjs scripts/check-bar-split.mjs` (a new bar starts a new record; old weeks stay apart),
   `node --import ./scripts/_esm-resolve.mjs scripts/check-ledger-backhalf.mjs` (the shared round-number rules match the old per-sport code),
   `node --import ./scripts/_esm-resolve.mjs scripts/check-format.mjs` (ordinal / plural helpers).
-  `node scripts/check-parity.mjs --complete nba` and `--complete nhl` (Donovan, 2026-10-20: BUCKETS and LAMP have every feature another product has, or say why not).
+  `node scripts/check-parity.mjs --complete nba`, `--complete nhl` and `--complete mlb` (Donovan, 2026-10-20: each has every feature another product has, or says why not; TUDDY joins once its score-band table is built).
   A push that adds or lengthens on-screen words also runs `node --import ./scripts/_esm-resolve.mjs scripts/check-copy.mjs --base <server>`
   and writes the prose-word total in the commit (it counts, it does not fail: the number must not creep up without a reason).
 - No temporary or debug routes left in `app/api/`. They deploy publicly.
