@@ -17,7 +17,7 @@ import { WhatThis } from '../../ui'
 import NflSignalAudit from '../NflSignalAudit'
 import BandTable, { bandClaim } from '../../bands/BandTable'
 import RecordPage from '../../record/RecordPage'
-import { LadderFromApi } from '../../record/LadderBlock'
+import { LadderFromApi, LadderScoreBands } from '../../record/LadderBlock'   // + the score bands (10-20, the parity row)
 import { nflRecordModel } from '../../../lib/record/page'
 import { localStamp } from '../../../lib/localTime'
 
@@ -607,7 +607,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
   return (
     <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
     <div>
-      <RecordPage record={record} Table={NflTable} top={<><CalledWeekStrip sport="nfl" /><LadderFromApi sport="nfl" compact fold /></>} calls={<><CalledByTeam sport="nfl" Table={NflTable} title="Called TD picks by club" /><CalibrationTable sport="nfl" Table={NflTable} /><CallHistory sport="nfl" Table={NflTable} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) onPlayerClick?.(p) }} title="Every TD call, its price, its result" /></>} receiptsLabel="every week, every rung, the season's audits" receipts={(<>
+      <RecordPage record={record} Table={NflTable} top={<><CalledWeekStrip sport="nfl" /><LadderFromApi sport="nfl" compact fold /></>} calls={<><LadderScoreBands sport="nfl" /><CalledByTeam sport="nfl" Table={NflTable} title="Called TD picks by club" /><CalibrationTable sport="nfl" Table={NflTable} /><CallHistory sport="nfl" Table={NflTable} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) onPlayerClick?.(p) }} title="Every TD call, its price, its result" /></>} receiptsLabel="every week, every rung, the season's audits" receipts={(<>
       <ModeBar mode={mode} setMode={pickMode} />
 
       {/* ONE ROW OF VIEWS, scoped to the question above it — the same row the
