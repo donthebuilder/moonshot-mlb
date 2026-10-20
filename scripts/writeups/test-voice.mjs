@@ -3,6 +3,7 @@
 //   node --import ./scripts/_esm-resolve.mjs scripts/writeups/test-voice.mjs
 import { CALL_HOOKS, CALL_ASKS, VOICE_WORDS, callVoice, withVoice } from '../../lib/writeups/voice.js'
 import { SWEARS, OVERCLAIM } from '../../lib/facts/check.js'
+import { renderWriteup } from '../../lib/writeups/text.js'
 
 let bad = 0, n = 0
 const ok = (cond, m) => { n += 1; if (!cond) { bad += 1; console.log('FAIL ' + m) } }
@@ -38,6 +39,21 @@ const body = 'HEAD\n\n' + 'x'.repeat(100)
 ok(withVoice(body, v, body.length + 12).endsWith('TEST ask?') && !withVoice(body, v, body.length + 12).includes('hook'), 'room for the ask only: hook shed')
 ok(withVoice(body, v, body.length) === body, 'no room: the body alone')
 ok(withVoice(body, v, 10) === body, 'even over budget the body is never cut (the caller decides)')
+
+// 5. the footer (2026-10-20: "that line doesn't always have to be there .. keep spreading good and helpful information"):
+// Discord and the record keep it; X goes without, and the 280 version spends the room on the headliner's case
+const lines = (...t) => t.map((x) => ({ t: x, v: [] }))
+const player = (i) => ({ name: `TEST Player ${i}`, team: 'TST', opp: 'OPP', role: 'TOP', status_word: 'CALLED', bar: 'home run', position: 'RB', scoreName: 'MOONSHOT score', spot: 3, band: null, tdScore: 80, grade: 'A', rank: 1, of: 20, posRank: 1, posOf: 10, score: 80, markets: [{ word: 'double-double', score: 80, rank: 1, of: 20 }], why: lines('TEST why one', 'TEST why two'), watch: lines('TEST watch one'), price: null })
+const FOOT = 'TEST footer line that is long, the way the real ones are.'
+for (const sport of ['nfl', 'nhl', 'nba', 'mlb']) {
+  const W = { sport, away: 'AAA', home: 'BBB', when: '7:05 PM ET', header: { t: 'TEST header line.' }, game: lines('TEST game one'), players: [player(1), player(2)], noCall: [], bottom: lines('TEST bottom line.'), footer: FOOT }
+  const r = renderWriteup(W, { xLimit: 280 })
+  ok(r.ok, `${sport}: renders (${r.why.join('; ')})`)
+  ok(r.full.endsWith(FOOT), `${sport}: Discord keeps the footer`)
+  ok(!r.x.includes(FOOT), `${sport}: X has no footer`)
+  ok([...r.x].length <= 280, `${sport}: X fits 280`)
+  if (sport !== 'mlb') ok(r.x.includes('The case for TEST Player 1: TEST why one.'), `${sport}: X spends the room on the headliner's case`)
+}
 
 console.log(bad ? `${bad}/${n} FAILED` : `${n} voice checks passed (TEST data)`)
 process.exit(bad ? 1 : 0)

@@ -189,7 +189,9 @@ await ok('checker fallback: a long text the checker rejects posts the short text
   const plain = T.renderWriteup(w, { xLimit: 900 })
   assert.equal(plain.ok, false)
   const safe = T.renderWriteupSafe(w, { xLimit: 900 })
-  assert.equal(safe.ok, true); assert.equal(safe.fellBack, true); assert.equal(safe.x, plain.short); assert.equal(safe.full, plain.short); assert.ok(safe.longWhy.length)
+  assert.equal(safe.ok, true); assert.equal(safe.fellBack, true); assert.ok(safe.longWhy.length)
+  // Discord gets the short with its footer, X the short without (2026-10-20); neither carries the rejected number
+  assert.ok(safe.full.endsWith(w.footer)); assert.ok(!safe.x.includes(w.footer)); assert.ok(!/12\.34/.test(safe.full + safe.x))
   const clean = T.renderWriteupSafe(NHL.buildNhlWriteup(bgame(1, 'AAA', 'BBB')), { xLimit: 900 })
   assert.equal(clean.fellBack, false)
 })
