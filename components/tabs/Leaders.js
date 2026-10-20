@@ -17,6 +17,7 @@ import { hr9Color } from '../../lib/hr9'
 import { useTeamNav } from '../../lib/teamNav'
 import Fold from '../Fold'
 import PennantRace from '../PennantRace'
+import AwardRaces from '../AwardRaces'
 import ComebackBoard from '../ComebackBoard'
 import { isKnownTeam } from '../../lib/mlbTeams'
 
@@ -656,6 +657,8 @@ key={lens}
         <Fold id="comebacks" title="🔄 Comeback board" meta="who wins after falling behind — and who gives it away">
           <ComebackBoard />
         </Fold>
+        {/* AWARD RACES (2026-10-20, lib/awards.js): draws nothing until MOONSHOT's award model ships (BUCKETS has the first). */}
+        <AwardRaces sport="mlb" />
       </div>
     </div>
   )
