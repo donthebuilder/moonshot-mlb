@@ -1,7 +1,15 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
-import { MatchLogos } from '../../TeamMark'
+import Tap from '../../Tap'
+import TeamMark, { MatchLogos } from '../../TeamMark'
+import GameSwitcher from '../../GameSwitcher'
+import BoardTopBar from '../../BoardTopBar'
+import { useIsPhone } from '../../MobileFold'
+import { useHashFilter } from '../../../lib/filterHash'
+import { panelPairs, panelSubs, gameSections } from '../../../lib/game/sections'
+import { ViewPills, GameFilterRail, SlateStrip, GamePanelPills, PanelAnchor, GameFrame, PrevNextGame } from '../../slate/SlateParts'
+import { FactTiles } from '../../matchup/MatchupParts'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsBoard, useBucketsExpected, useBucketsTeamModel, useBucketsHot } from '../../../lib/nba/useBuckets'
 import { MARKET_OPTIONS, NBA_MARKETS } from '../../../lib/nba/legs'
@@ -10,7 +18,11 @@ import { boardRows, boardColumns, faceOf } from '../boardTable'
 import { sortGames } from '../GameList'
 import BucketsProjected from '../BucketsProjected'
 import BucketsWeakSpots from '../BucketsWeakSpots'
-import SlateCard from '../../slate/SlateCard'
+import NbaWriteupBlock from '../NbaWriteupBlock'
+import NbaH2H from '../../h2h/NbaH2H'
+import InjuryOut from '../../injuries/InjuryOut'
+import { useOutCounts } from '../../injuries/InjuryLayer'
+import { BucketsAttack } from '../../game/SportAttack'
 import { nbaGameAngles } from '../../../lib/nba/gameAngles'
 import { pickAngles } from '../../../lib/slate/angles'
 import { playerHref } from '../../../lib/routes'
@@ -18,20 +30,34 @@ import { useLockOf } from '../../MemberGate'
 import { heatTier } from '../../../lib/nhl/slateHeat'
 import { EXPECTED_POINTS_WORDS } from '../../../lib/nba/teamModel'
 import { basisLine } from '../BucketsTeamExpected'
-import Rail from '../../Rail'
 import { BucketsCards } from '../BucketsCard'
 import ShareCardButton from '../../card/ShareCardButton'
 import GameTotalLine, { GameTotalMark, totalRowFor, useGameTotals } from '../../GameTotalLine'
 import { shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
-import { EmptyState, DelayedBanner, Loading, Pills, NavBtn, DayPager, RimDot, fmtDay, fmtTip, readHashParam, writeHashParam } from '../ui'
+import { EmptyState, DelayedBanner, Loading, Pills, NavBtn, fmtDay, fmtTip, writeHashParam } from '../ui'
 
-// 📋 THE SLATE -- tonight one game at a time (LAMP's Slate): pick a game, see
-// its calls and its board for the market you pick. The open game rides the
-// address (game=), so a link opens the same game.
+// 📋 BUCKETS' SLATE ON THE SHARED FRAME (2026-10-20, Donovan: "the slate is not lining up with other pages on buckets ... buckets
+// doesnt feel shared"). LAMP's slate (components/lamp/LampSlate.js), piece for piece, from components/slate/SlateParts: the title,
+// the day nav, search / team / game, Table | Games, the All / Live / Upcoming / Final rail, the strip of games (SlateStrip, the shared
+// SlateCard), the sticky switcher, ONE open game in GameFrame with its section pills (lib/game/sections.js 'nba' slate), prev / next.
+// BUCKETS' own numbers fill it: the team model's expected points on the dial, the board of the market you pick, its calls as cards.
+// The open game rides the address (#…&game=<id>), as before.
+
+const PANELS = panelPairs('nba')
+const SUBS = panelSubs('nba')
+const stateOf = (x) => (x.state === 'live' ? 'live' : x.state === 'final' ? 'final' : 'upcoming')
+const shiftDay = (d, n) => { const t = new Date(`${d}T12:00:00Z`); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10) }
+
 export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onOpenTeam, onOpenGame }) {
   const [m, setM] = useState(market)
-  // MOONSHOT's / LAMP's two views: the whole night as a table, or one game at a time
   const [view, setView] = useState('games')
+  const [gfilter, setGfilter] = useState('all')
+  const [panel, setPanel] = useState('read')
+  const [hashGame, setHashGame] = useHashFilter('game')
+  const [query, setQuery] = useState('')
+  const [fteam, setFteam] = useHashFilter('fteam')
+  const [fgame, setFgame] = useHashFilter('fgame')
+  const isPhone = useIsPhone()
   const { data, error, loading } = useBucketsBoard(date, m)
   // the table view reads the points board whatever market the games view is on (its legs are points legs)
   const pts = useBucketsBoard(date, 'pts')
@@ -40,105 +66,187 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
   const tm = useBucketsTeamModel(date)
   const hot = useBucketsHot(date)   // BEST ANGLES' form row: points over the last 5 games (lib/nba/hot.js)
   const lockOf = useLockOf()   // the member gate for the angle rows: a CALLED, not-started pick a non-member may not read is skipped
-  const gameTotals = useGameTotals('nba')   // each game's own Top Totals row, said on its own game (components/GameTotalLine.js)
+  const gameTotals = useGameTotals('nba')
+  const outCounts = useOutCounts('nba')
   const tmBy = useMemo(() => new Map((tm.data?.games || []).map((x) => [String(x.id), x])), [tm.data])
   const xptsBy = useMemo(() => new Map((xp.data?.rows || []).map((r) => [String(r.playerId), r])), [xp.data])
-  const games = sortGames(data?.games || [])
-  const [pick, setPick] = useState(() => readHashParam('game'))
-  const g = games.find((x) => x.id === pick) || games[0] || null
-  // a back/forward or a pasted link changes the address under the page: follow it
-  useEffect(() => {
-    const sync = () => setPick(readHashParam('game'))
-    window.addEventListener('hashchange', sync); window.addEventListener('popstate', sync)
-    return () => { window.removeEventListener('hashchange', sync); window.removeEventListener('popstate', sync) }
-  }, [])
-  const choose = (id) => { setPick(id); writeHashParam('game', id) }
-  const rows = g ? boardRows(data, { gameId: g.id, xpts: xptsBy }) : []
-  const calls = rows.filter((r) => r.status === 'called')
   const shown = data?.date || date
+  const needle = query.trim().toLowerCase()
+
+  const allGames = sortGames(data?.games || [])
+  const all = allGames.filter((x) => (!fgame || String(x.id) === fgame) && (!fteam || x.away.abbrev === fteam || x.home.abbrev === fteam))
+  const counts = useMemo(() => {
+    const c = { all: all.length, live: 0, upcoming: 0, final: 0 }
+    for (const x of all) c[stateOf(x)] += 1
+    return c
+  }, [all])
+  const games = all.filter((x) => gfilter === 'all' || stateOf(x) === gfilter)
+  const lead = games.find((x) => stateOf(x) === 'live') || games.find((x) => stateOf(x) === 'upcoming') || games[0] || null
+  const activeId = games.some((x) => String(x.id) === hashGame) ? hashGame : (lead ? String(lead.id) : null)
+  const select = (id) => {
+    setHashGame(String(id))
+    if (typeof document !== 'undefined') requestAnimationFrame(() => document.getElementById('buckets-slate-game')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
+  // the table view, searched: the points board's rows by the search and the team filter
+  const ptsRows = (pts.data?.rows || []).filter((r) => (!fteam || r.team === fteam) && (!fgame || String(r.gameId) === fgame) && (!needle || `${r.name} ${r.team}`.toLowerCase().includes(needle)))
+
+  const cards = games.map((x) => {
+    const xs = (data?.rows || []).filter((r) => r.gameId === x.id && Number.isFinite(Number(r.score)))
+    const best = xs.length ? Math.max(...xs.map((r) => Number(r.score))) : null
+    const locked = xs.length > 0 && xs.every((r) => r.locked !== false)
+    const st = stateOf(x)
+    const m1 = tmBy.get(String(x.id)) || null
+    const heat = m1?.heat ?? 0.5
+    const tier = heatTier(heat)
+    const way = m1?.basis === 'this season' ? '' : ` (${m1?.basis})`
+    const ang = nbaGameAngles({ game: x, rows: data?.rows || [], hot: hot.data?.rows || null, hrefOf: (id) => playerHref('nba', id) })
+    const angles = pickAngles({ matchup: ang.matchup, form: ang.form, hiddenOf: (c) => lockOf({ status: c.row?.status, key: `${x.id}|${c.key}`, time: x.start, graded: st === 'final' }).locked })
+      .map((a) => ({ ...a, onClick: () => onOpenPlayer?.(a.pid) }))
+    return {
+      large: true, weak: ang.weak, angles,
+      id: String(x.id), title: <MatchLogos sport="nba" away={x.away.abbrev} home={x.home.abbrev} px={30} gap={5} />, past: st === 'final',
+      heat, tooltip: `${x.away.abbrev} @ ${x.home.abbrev}`,
+      dial: { value: m1 ? m1.total : null, dp: 0, pct: m1 ? 100 * heat : null, col: tier === 'hot' ? C.purple : tier === 'cold' ? C.text3 : C.text2,
+        title: m1 ? `${m1.total.toFixed(1)} ${EXPECTED_POINTS_WORDS} in this game${way}: ${x.away.abbrev} ${m1.away.pts.toFixed(1)}, ${x.home.abbrev} ${m1.home.pts.toFixed(1)}, from each club's points a game against the other's allowed. The ring fills against every pairing of the league's clubs.${best != null ? ` Best ${NBA_MARKETS[m].label} score here: ${Math.round(best)}.` : ''}` : `No ${EXPECTED_POINTS_WORDS} number for this game yet.` },
+      lead: <span title={locked ? 'The board locked before tip' : 'A preview until the board locks'}>{locked ? '🔒' : '◻'}</span>,
+      status: st === 'live' ? { kind: 'live', text: x.detail || 'LIVE' } : st === 'final' ? { kind: 'final', text: `${x.away.score}-${x.home.score} F` } : { kind: 'time', text: fmtTip(x.start) },
+      extra: (() => {
+        const oc = outCounts([x.away.abbrev, x.home.abbrev])
+        const base = <span>{EXPECTED_POINTS_WORDS}{m1 ? ` · ${x.away.abbrev} ${Math.round(m1.away.pts)}, ${x.home.abbrev} ${Math.round(m1.home.pts)}${way}` : ' · —'}{oc?.out ? ` · ${oc.out} out` : ''}</span>
+        const tr = totalRowFor(gameTotals, x.id)
+        return tr ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>{base}<GameTotalMark row={tr} /></span> : base
+      })(),
+    }
+  })
+
+  const g = games.find((x) => String(x.id) === activeId) || null
+  const teamLink = (t) => <Tap onClick={onOpenTeam && (() => onOpenTeam(t))} title={t}><span style={{ display: 'inline-flex', alignItems: 'center' }}><TeamMark sport="nba" abbr={t} variant="logo" px={40} /></span></Tap>
+  const switcherGames = games.map((x) => ({ game_pk: String(x.id), away: x.away.abbrev, home: x.home.abbrev, game_time: x.start }))
+  const switcherLive = Object.fromEntries(games.filter((x) => stateOf(x) !== 'upcoming').map((x) => [String(x.id), { away_score: x.away.score, home_score: x.home.score }]))
+
   return (
-    <div className="slate-tight phone-slate" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <PageHeader eyebrow="BUCKETS · SLATE" title={shown ? fmtDay(shown) : 'Tonight'} theme={C} numFont={NUM_FONT} accent={C.purple}
-        note="Every game that day, with its calls and board."
-        stats={data ? [{ value: games.length, label: 'GAMES', tone: C.text2 }] : null} />
-      {/* desktop: day pager + Games|Table on ONE row (app/globals.css .slate-tight); phone: display:contents, so every child is still the page's own flex item and nothing moves */}
-      <div className="slate-bar" style={{ display: 'contents' }}>
-        <DayPager shown={shown} date={date} setDate={setDate} />
-        <div className="slate-note" style={{ display: 'contents' }}>
-          <DelayedBanner error={error} what="the board" />
-          {loading && !data ? <Loading what="the slate" /> : null}
-          {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Try another day." />}
+    <div className="slate-tight phone-slate">
+      <PageHeader eyebrow="BUCKETS · SLATE" title="Slate" theme={C} numFont={NUM_FONT} accent={C.purple}
+        note="Tonight’s games, tip-off first." />
+      {/* desktop: day nav + search + team + game + Table|Games on ONE row (app/globals.css .slate-tight); phone: a plain block */}
+      <div className="slate-bar">
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+          <NavBtn onClick={() => setDate(shiftDay(shown, -1))} disabled={loading || !shown} ariaLabel="Previous day">{isPhone ? '‹' : '‹ Previous day'}</NavBtn>
+          <NavBtn onClick={() => setDate(null)} disabled={loading || !date} strong>Tonight</NavBtn>
+          <NavBtn onClick={() => setDate(shiftDay(shown, 1))} disabled={loading || !shown} ariaLabel="Next day">{isPhone ? '›' : 'Next day ›'}</NavBtn>
+          {shown ? <span className="slate-date" style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 11 }}>{fmtDay(shown)}</span> : null}
         </div>
-        {games.length > 0 && <Pills ariaLabel="View" value={view} onChange={setView} options={[{ key: 'games', text: '🏟 Games' }, { key: 'table', text: '📊 Table' }]} />}
+        {allGames.length > 0 && (
+          <>
+            <BoardTopBar query={query} setQuery={setQuery} placeholder="Search player or team…"
+              team={fteam} setTeam={setFteam} teams={[...new Set([...allGames.flatMap((x) => [x.away.abbrev, x.home.abbrev]), ...(fteam && data ? [fteam] : [])])].sort()} teamLabel="🏀 All teams"
+              game={fgame} setGame={setFgame} games={[...(fgame && data && !allGames.some((x) => String(x.id) === fgame) ? [{ key: fgame, label: 'Game not on this slate' }] : []), ...allGames.map((x) => ({ key: String(x.id), label: `${x.away.abbrev} @ ${x.home.abbrev}` }))]} gameLabel="All games" />
+            <div style={{ height: 10 }} />
+            <ViewPills views={[['table', '📊 Table'], ['games', '🏟 Games']]} view={view} setView={setView} accent={C.purple} />
+          </>
+        )}
       </div>
-      {view === 'table' && games.length > 0 && (
-        <div>
-          <BucketsProjected rows={pts.data?.rows || []} games={games} onOpenTeam={onOpenTeam} onOpenGame={(id) => { choose(id); setView('games') }} />
-          <BucketsWeakSpots rows={pts.data?.rows || []} games={games} onOpenPlayer={onOpenPlayer} />
-        </div>
+      {view === 'table' && all.length > 0 && (
+        <>
+          <BucketsProjected rows={ptsRows} games={all} onOpenTeam={onOpenTeam} onOpenGame={(id) => { setHashGame(String(id)); setView('games') }} />
+          <BucketsWeakSpots rows={ptsRows} games={all} onOpenPlayer={onOpenPlayer} />
+        </>
       )}
-      {/* THE STRIP ON THE SHARED GAME CARD (2026-10-03, Donovan: "the cards for
-          the games pages ... used wherever we use those type of games pages"):
-          components/slate/SlateCard, as MOONSHOT, TUDDY and LAMP's slates --
-          the dial is the game's best BUCKETS score on this market, 🔒 locked
-          before tip / ◻ still a preview, tip time / live / final. */}
-      {view === 'games' && games.length > 0 && (
-        <div>
-          <Rail itemMin={296} gap={8} wheelScroll={false}>
-            {games.map((x) => {
-              const xs = (data?.rows || []).filter((r) => r.gameId === x.id && Number.isFinite(Number(r.score)))
-              const best = xs.length ? Math.max(...xs.map((r) => Number(r.score))) : null
-              const locked = xs.length > 0 && xs.every((r) => r.locked !== false)
-              const st = x.state
-              const m1 = tmBy.get(String(x.id)) || null
-              const heat = m1?.heat ?? 0
-              const tier = heatTier(heat)
-              const way = m1?.basis === 'this season' ? '' : ` (${m1?.basis})`
-              const ang = nbaGameAngles({ game: x, rows: data?.rows || [], hot: hot.data?.rows || null, hrefOf: (id) => playerHref('nba', id) })
-              const angles = pickAngles({ matchup: ang.matchup, form: ang.form, hiddenOf: (c) => lockOf({ status: c.row?.status, key: `${x.id}|${c.key}`, time: x.start, graded: st === 'final' }).locked })
-                .map((a) => ({ ...a, onClick: () => onOpenPlayer?.(a.pid) }))
-              return <SlateCard key={x.id} sport="nba" accent={C.purple} on={g?.id === x.id} onSelect={choose} card={{
-                large: true, weak: ang.weak, angles,
-                id: x.id, title: <MatchLogos sport="nba" away={x.away.abbrev} home={x.home.abbrev} px={30} gap={5} />, past: st === 'final',
-                heat, tooltip: `${x.away.abbrev} @ ${x.home.abbrev}`,
-                dial: { value: m1 ? m1.total : null, dp: 0, pct: m1 ? 100 * heat : null, col: tier === 'hot' ? C.purple : tier === 'cold' ? C.text3 : C.text2,
-                  title: m1 ? `${m1.total.toFixed(1)} ${EXPECTED_POINTS_WORDS} in this game${way}: ${x.away.abbrev} ${m1.away.pts.toFixed(1)}, ${x.home.abbrev} ${m1.home.pts.toFixed(1)}, from each club's points a game against the other's allowed. The ring fills against every pairing of the league's clubs.${best != null ? ` Best ${NBA_MARKETS[m].label} score here: ${Math.round(best)}.` : ''}` : `No ${EXPECTED_POINTS_WORDS} number for this game yet.` },
-                lead: <span title={locked ? 'The board locked before tip' : 'A preview until the board locks'}>{locked ? '🔒' : '◻'}</span>,
-                status: st === 'live' ? { kind: 'live', text: x.detail || 'LIVE' } : st === 'final' ? { kind: 'final', text: `${x.away.score}-${x.home.score} F` } : { kind: 'time', text: fmtTip(x.start) },
-                extra: (() => {
-                  const base = <span>{EXPECTED_POINTS_WORDS}{m1 ? ` · ${x.away.abbrev} ${Math.round(m1.away.pts)}, ${x.home.abbrev} ${Math.round(m1.home.pts)}${way}` : ' · —'}</span>
-                  const tr = totalRowFor(gameTotals, x.id)
-                  return tr ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>{base}<GameTotalMark row={tr} /></span> : base
-                })(),
-              }} />
-            })}
-          </Rail>
-          <div style={{ marginTop: 7, fontSize: 12, lineHeight: 1.4, color: C.text3 }}>Tip-off order. Dial = {EXPECTED_POINTS_WORDS} (team model). 🔒 locked, ◻ preview.{(() => { const b = basisLine(games.map((x) => tmBy.get(String(x.id))), games.some((x) => x.seasonType === 1)); return b ? ` ${b}` : tm.error ? ` No ${EXPECTED_POINTS_WORDS} number yet: the league feed is slow.` : '' })()}</div>
-        </div>
+      <DelayedBanner error={error} what="the slate" />
+      {loading && !data ? <Loading what="the slate" /> : null}
+      {data && !allGames.length && <EmptyState title="NO GAMES" note={`No NBA games on ${fmtDay(shown)}. Try the next day.`} />}
+      {allGames.length > 0 && !all.length && <EmptyState title="NO GAMES CLEAR THIS FILTER" note="Clear the team or game above." />}
+
+      {view === 'games' && all.length > 0 && (
+        <>
+          <GameFilterRail value={gfilter} onChange={setGfilter} counts={counts} />
+          <SlateStrip sport="nba" isPhone={isPhone} rememberKey="buckets_games_fold_v1" accent={C.purple} theme={C}
+            open={g ? { away: g.away.abbrev, home: g.home.abbrev } : null} cards={cards} activeId={activeId} onSelect={select}
+            legend={<>Ring = {EXPECTED_POINTS_WORDS} (team model). Best angles: the best matchup and the hottest hand. 🔒 locked, ◻ preview.{(() => { const b = basisLine(games.map((x) => tmBy.get(String(x.id))), games.some((x) => x.seasonType === 1)); return b ? ` ${b}` : '' })()}</>} />
+          <GameSwitcher sport="nba" games={switcherGames} activeGame={activeId} onSelect={select} live={switcherLive} accent={C.purple} stickyTop="0px" />
+        </>
       )}
-      {view === 'games' && g && (<>
-        <Pills ariaLabel="Market" value={m} onChange={(k) => { setM(k); writeHashParam('m', k === 'pts' ? null : k) }} options={MARKET_OPTIONS} />
-        {/* the title and venue stack in one block so Open game and the 📸 (fix15: this game as a PNG -- the two clubs, the team
-            model's expected points, its players on the board) stay on the same line on a phone */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, color: C.text2 }}>
-          <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-            <b style={{ color: C.text }}>{g.away.name} at {g.home.name}</b>
-            <div>{g.venue}</div>
+
+      {view === 'games' && g && (() => {
+        const st = stateOf(g)
+        const away = g.away.abbrev; const home = g.home.abbrev
+        const rows = boardRows(data, { gameId: g.id, xpts: xptsBy })
+        const calls = rows.filter((r) => r.status === 'called').sort((a, b) => b.score - a.score)
+        const m1 = tmBy.get(String(g.id)) || null
+        const SECTIONS = {
+          read: () => (
+            <PanelAnchor id="read" gamePk={g.id}>
+              <NbaWriteupBlock gameId={g.id} date={shown} onOpenPlayer={onOpenPlayer} />
+              <FactTiles theme={C} numFont={NUM_FONT} big min={130} tiles={[
+                { k: `${away} expected`, v: m1 ? m1.away.pts.toFixed(1) : null, sub: m1 ? 'points' : null },
+                { k: `${home} expected`, v: m1 ? m1.home.pts.toFixed(1) : null, sub: m1 ? 'points' : null },
+                { k: 'Board', v: rows.length && rows.every((r) => r.locked !== false) ? 'Locked' : 'Not locked', sub: rows.length && rows.every((r) => r.locked !== false) ? null : 'can still change' },
+              ]} />
+              <div style={{ marginTop: 12 }}><BucketsAttack date={shown} away={away} home={home} onOpenPlayer={onOpenPlayer} /></div>
+            </PanelAnchor>
+          ),
+          board: () => (
+            <PanelAnchor id="board" gamePk={g.id} style={{ marginTop: 14 }}>
+              <div style={{ marginBottom: 8 }}><Pills ariaLabel="Market" value={m} onChange={(k) => { setM(k); writeHashParam('m', k === 'pts' ? null : k) }} options={MARKET_OPTIONS} /></div>
+              {rows.length > 0
+                ? <BucketsTable rows={rows} columns={boardColumns(m, { onOpenTeam, onOpenGame, withGame: false, withXpts: true })} statusOf={(r) => r.status}
+                    onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} nameCell="player" faceOf={faceOf} dimRow={(r) => r.status === 'off'}
+                    initialSort={{ key: 'nightRank', dir: 'asc' }} heatMode="sorted" maxHeight={560} maxRows={Math.max(rows.length, 1)}
+                    caption={`This game’s board for ${NBA_MARKETS[m].label}. Each row opens that player.`} />
+                : <EmptyState title={NBA_MARKETS[m].startersOnly ? 'NO STARTERS LISTED YET' : 'NOBODY RATED IN THIS GAME'} note={NBA_MARKETS[m].startersOnly ? 'First basket waits for the pre-tip box score.' : 'No player in this game has ten NBA games on file.'} />}
+            </PanelAnchor>
+          ),
+          calls: () => (
+            <PanelAnchor id="calls" gamePk={g.id} style={{ marginTop: 14 }}>
+              {calls.length > 0
+                ? <BucketsCards market={m} day={shown || ''} onOpen={onOpenPlayer} rows={calls} />
+                : <p style={{ margin: 0, fontSize: 13, color: C.text3 }}>No {NBA_MARKETS[m].label} call in this game.</p>}
+            </PanelAnchor>
+          ),
+          out: () => (
+            <PanelAnchor id="out" gamePk={g.id}>
+              <InjuryOut sport="nba" clubs={[away, home]} theme={{ C, NUM_FONT, accent: C.purple }} title="Out tonight" openSignal={panel === 'out'}
+                openPlayer={(e) => (e.espnId && onOpenPlayer ? () => onOpenPlayer(e.espnId) : null)} onOpenTeam={onOpenTeam} />
+            </PanelAnchor>
+          ),
+          clubs: () => (
+            <PanelAnchor id="clubs" gamePk={g.id} style={{ marginTop: 14 }}>
+              <NbaH2H a={away} b={home} onOpenTeam={onOpenTeam} />
+            </PanelAnchor>
+          ),
+        }
+        return (
+          <div id="buckets-slate-game" style={{ scrollMarginTop: 'calc(var(--hdr-h, 0px) + var(--gsw-h, 0px) + 8px)', marginBottom: 20 }}>
+            <GameFrame accent={C.purple} past={st === 'final'}>
+              <div style={{ padding: '14px 14px 6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  {teamLink(away)}
+                  {st === 'upcoming'
+                    ? <span style={{ fontSize: 20, color: C.text3, fontWeight: 600 }}>@</span>
+                    : <span style={{ fontFamily: NUM_FONT, fontSize: 30, fontWeight: 900, color: st === 'live' ? C.purple : C.text }}>{g.away.score ?? 0}–{g.home.score ?? 0}</span>}
+                  {teamLink(home)}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 44 }}>
+                  <span style={{ fontSize: 14, fontFamily: NUM_FONT, color: st === 'live' ? C.purple : C.text2, fontWeight: 800 }}>
+                    {st === 'live' ? (g.detail || 'LIVE') : st === 'final' ? 'FINAL' : fmtTip(g.start)}
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    {onOpenGame && <Tap onClick={() => onOpenGame(g.id)}><span style={{ fontSize: 14, fontFamily: NUM_FONT, color: C.purple, fontWeight: 800 }}>{st === 'upcoming' ? 'Game ›' : 'Box score ›'}</span></Tap>}
+                    <ShareCardButton sport="nba" what="this game" url={shareUrl({ kind: 'game', sport: 'nba', game: g.id, market: m, date: shown || null })} filename={`game-${slug(away)}-${slug(home)}_${stamp(shown)}.png`} />
+                  </span>
+                </div>
+                <GameTotalLine sport="nba" row={gameTotals?.[String(g.id)]} style={{ marginTop: 2, paddingBottom: 6 }} />
+              </div>
+              <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px 14px', background: 'rgba(0,0,0,.15)' }}>
+                <GamePanelPills panels={PANELS} subs={SUBS} panel={panel} setPanel={setPanel} gamePk={g.id} isPhone={isPhone} accent={C.purple} stickyTop="var(--gsw-h, 0px)"
+                  badges={{ calls: calls.length ? String(calls.length) : '', out: (() => { const oc = outCounts([away, home]); return oc?.out ? String(oc.out) : '' })() }} />
+                {gameSections('nba', 'slate').map((sec) => <Fragment key={sec.id}>{SECTIONS[sec.id]?.()}</Fragment>)}
+              </div>
+            </GameFrame>
           </div>
-          <NavBtn onClick={() => onOpenGame?.(g.id)}>Open game →</NavBtn>
-          <ShareCardButton sport="nba" what="this game" url={shareUrl({ kind: 'game', sport: 'nba', game: g.id, market: m, date: shown || null })} filename={`game-${slug(g.away.abbrev)}-${slug(g.home.abbrev)}_${stamp(shown)}.png`} />
-        </div>
-        {/* THIS GAME'S TOTAL (2026-10-10): the Top Totals row the lock stored for it */}
-        <GameTotalLine sport="nba" row={gameTotals?.[String(g.id)]} />
-        {/* the game's calls as the prop cards (components/buckets/BucketsCard) */}
-        {calls.length > 0 && <BucketsCards market={m} day={data?.date || date || ''} onOpen={onOpenPlayer} rows={[...calls].sort((a, b) => b.score - a.score)} />}
-        {rows.length > 0
-          ? <BucketsTable rows={rows} columns={boardColumns(m, { onOpenTeam, onOpenGame, withGame: false, withXpts: true })} statusOf={(r) => r.status}
-              onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} nameCell="player" faceOf={faceOf} dimRow={(r) => r.status === 'off'}
-              initialSort={{ key: 'nightRank', dir: 'asc' }} heatMode="sorted" maxHeight={560} maxRows={Math.max(rows.length, 1)}
-              caption={`This game’s board for ${NBA_MARKETS[m].label}. Each row opens that player.`} />
-          : <EmptyState title={NBA_MARKETS[m].startersOnly ? 'NO STARTERS LISTED YET' : 'NOBODY RATED IN THIS GAME'} note={NBA_MARKETS[m].startersOnly ? 'First basket waits for the pre-tip box score.' : 'No player in this game has ten NBA games on file.'} />}
-      </>)}
+        )
+      })()}
+      {view === 'games' && <PrevNextGame sport="nba" games={games.map((x) => ({ id: String(x.id), away: x.away.abbrev, home: x.home.abbrev }))} activeId={activeId} idOf={(x) => x.id} onGo={select} accent={C.purple} />}
     </div>
   )
 }

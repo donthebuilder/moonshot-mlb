@@ -7,7 +7,6 @@ export const NBA_TEXTS = {
   board: { what: 'The night’s calls, one market at a time. CALLED is one per team in a game; ON THE BOARD is the top third. A PREVIEW is not a call until its game locks.' },
   fullboard: { what: 'Every player tonight, #1 down. Tap Why on a row for the reason, or a name for his file.' },
   scores: { what: 'Every game on one day: score, quarter and clock. Tap a game for its box score and every shot.' },
-  games: { what: 'Tonight one game at a time: the matchup, its calls and its board for the market you pick.' },
   game: { what: 'One game top to bottom: line score, box scores, every shot where it was taken, and who scored first.' },
   schedule: { what: 'The league week, day by day. Tap a game for its page.' },
   odds: { what: 'The books’ lines on tonight’s players, beside the board and never inside its score.' },
