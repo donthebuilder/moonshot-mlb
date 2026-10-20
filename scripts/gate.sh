@@ -27,6 +27,8 @@ if [ -z "$BASE" ]; then
   echo "--- championship odds"; node scripts/check-championship.mjs || { echo "GATE FAIL: check-championship"; exit 1; }
   echo "--- odds/numerology aliases"; node scripts/check-odds-alias.mjs || { echo "GATE FAIL: check-odds-alias"; exit 1; }
   echo "--- parity"; node scripts/check-parity.mjs > "$OUT/parity.log" 2>&1 || { grep -E "^FAIL|^parity" "$OUT/parity.log"; echo "GATE FAIL: check-parity"; exit 1; }
+  # BUCKETS has everything (Donovan 10-20): any feature another product has that BUCKETS still marks todo fails
+  echo "--- parity (BUCKETS complete)"; node scripts/check-parity.mjs --complete nba > "$OUT/parity-nba.log" 2>&1 || { grep -E "^FAIL|^parity" "$OUT/parity-nba.log"; echo "GATE FAIL: check-parity --complete nba"; exit 1; }
   echo "--- scales"; node scripts/check-scales.mjs > "$OUT/scales.log" 2>&1 || { tail -20 "$OUT/scales.log"; echo "GATE FAIL: check-scales"; exit 1; }
   echo "--- shell routes + slate words"; node scripts/check-shell-route.mjs > "$OUT/shell.log" 2>&1 || { grep FAIL "$OUT/shell.log"; echo "GATE FAIL: check-shell-route"; exit 1; }
   echo "--- no printed probability"; node scripts/check-no-printed-probability.mjs || { echo "GATE FAIL: check-no-printed-probability"; exit 1; }

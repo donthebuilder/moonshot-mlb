@@ -5,6 +5,10 @@
 //     registered, the component isn't mounted, the file doesn't say it);
 //   · the code has a feature the list still calls n/a or todo (stale -- update the list).
 // A 'todo: <reason>' (should have it, doesn't yet) does NOT fail; every one is printed as TODO.
+// EXCEPT for a sport named with --complete (2026-10-20, Donovan: "a shared parity check for BUCKETS to make sure it has everything"):
+//   node scripts/check-parity.mjs --complete nba
+// fails on every feature another product has ('yes') that this sport still marks 'todo'. 'n/a: <reason>' (the sport will never
+// have it, said why) passes. Any sport can be named; BUCKETS runs it in the push gate.
 // Runs in scripts/gate.sh. Prints the grid.
 //   node scripts/check-parity.mjs
 await import('./_esm-resolve.mjs')
@@ -37,6 +41,9 @@ function backed(check, sport) {
   return false
 }
 
+const ci = process.argv.indexOf('--complete')
+const COMPLETE = ci > 0 ? String(process.argv[ci + 1] || '') : null
+if (COMPLETE && !SPORTS.includes(COMPLETE)) { console.log(`FAIL --complete ${COMPLETE}: not one of ${SPORTS.join(', ')}`); process.exit(1) }
 let fails = 0
 const fail = (msg) => { fails++; console.log(`FAIL ${msg}`) }
 const rows = []
@@ -50,6 +57,10 @@ for (const row of PARITY) {
     else if (isYes(v) && !have) fail(`${row.label} · ${SPORT_NAMES[s]}: marked yes, but the code doesn't have it`)
     else if (!isYes(v) && have) fail(`${row.label} · ${SPORT_NAMES[s]}: the code has it now -- lib/parity.js still says ${todoReason(v) ? 'todo' : 'n/a'}`)
     if (todoReason(v)) todos.push(`TODO ${row.label} · ${SPORT_NAMES[s]}: ${todoReason(v)}`)
+    if (s === COMPLETE && todoReason(v)) {
+      const has = SPORTS.filter((o) => o !== s && isYes(row.sports?.[o])).map((o) => SPORT_NAMES[o])
+      if (has.length) fail(`${row.label} · ${SPORT_NAMES[s]} is missing it (${has.join(', ')} ${has.length === 1 ? 'has' : 'have'} it): ${todoReason(v)}`)
+    }
     cells.push(isYes(v) ? '  ✓  ' : todoReason(v) ? ' todo' : ' n/a ')
   }
   rows.push(`${row.label.slice(0, 44).padEnd(44)} ${cells.join(' ')}`)
@@ -57,5 +68,5 @@ for (const row of PARITY) {
 console.log(`${''.padEnd(44)} ${SPORTS.map((s) => SPORT_NAMES[s].slice(0, 5).padStart(5)).join(' ')}`)
 for (const r of rows) console.log(r)
 if (todos.length) { console.log(`\n${todos.length} TODO (visible gaps, not failures):`); for (const t of todos) console.log(t) }
-console.log(fails ? `\nparity: ${fails} problem(s)` : `\nparity: every sport accounted for (${PARITY.length} features x ${SPORTS.length} sports)`)
+console.log(fails ? `\nparity: ${fails} problem(s)` : `\nparity: every sport accounted for (${PARITY.length} features x ${SPORTS.length} sports)${COMPLETE ? `; ${SPORT_NAMES[COMPLETE]} has every feature another product has (or says why not)` : ''}`)
 process.exit(fails ? 1 : 0)
