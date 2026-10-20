@@ -31,6 +31,7 @@ import TopTenList from '../../home/TopTenList'
 import RankList from '../../home/RankList'
 import CallStatusBadge from '../../CallStatusBadge'
 import ChampionshipFold from '../../ChampionshipFold'
+import AwardRaces from '../../AwardRaces'
 
 // 🏒 TONIGHT — LAMP's front page. Three things and no more (spec §6: the
 // home page is not a data wall): tonight's games, where the league stands,
@@ -324,6 +325,8 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
       </>
       {/* STANLEY CUP ODDS (2026-10-13): MOONSHOT's October fold for the NHL (components/PennantRace.js). Not drawn until the bot has published the file. */}
       <ChampionshipFold sport="nhl" />
+      {/* AWARD RACES (2026-10-20, lib/awards.js): draws nothing until LAMP's award model ships (BUCKETS has the first). */}
+      <AwardRaces sport="nhl" onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />
       </>}
     </div>
   )

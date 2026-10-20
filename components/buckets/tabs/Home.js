@@ -14,6 +14,7 @@ import BucketWatch from '../BucketWatch'
 import { EmptyState, DelayedBanner, Loading, Kicker, NavBtn, LastSeasonNote, fmtDay, fmtTip } from '../ui'
 import NbaTonight from '../../tonight/NbaTonight'
 import ChampionshipFold from '../../ChampionshipFold'
+import AwardRaces from '../../AwardRaces'
 import TopTenList from '../../home/TopTenList'
 import Fold from '../../Fold'
 import TonightsCalls from '../../phone/TonightsCalls'
@@ -119,6 +120,8 @@ export default function Home({ today, date, setTab, onOpenPlayer, onOpenGame, on
 
       {/* TITLE ODDS (2026-10-13): MOONSHOT's October fold for BUCKETS (components/PennantRace.js). Not drawn until the bot has published the file; BUCKETS itself stays hidden until BUCKETS_PUBLIC=on. */}
       <ChampionshipFold sport="nba" />
+      {/* AWARD RACES (2026-10-20): MVP, DPOY, ROY, MIP and Finals MVP from a model of past votes (lib/nba/awards.js), under Title odds. */}
+      <AwardRaces sport="nba" onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />
     </div>
   )
 }
