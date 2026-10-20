@@ -39,7 +39,7 @@ import { hasVapid, vapidDetails, vapidProblem } from '../../../../../lib/dash/va
 import { claimBoardWindow, fetchBoard } from '../../../../../lib/dash/board'
 import { byeStarterEventsFrom, franchiseEventsFrom, lineupGapEventsFrom, starterScoreEventsFrom } from '../../../../../lib/dash/franchise'
 import { cardEarnedEventsFrom, audienceFrom, boardInfoFrom, deviceWantsSport, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, followNameKey, nflFollowMisses, nhlEventsFrom, nbaEventsFrom, pregameEventsFrom, nhlPregameEventsFrom, nhlInjuryOutEventsFrom, mlbInjuryOutEventsFrom, nflPregameEventsFrom, nbaPregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
-import { nflInjuryStatusEventsFrom, nhlInjuryStatusEventsFrom } from '../../../../../lib/dash/pushRules'
+import { nflInjuryStatusEventsFrom, nhlInjuryStatusEventsFrom, nbaInjuryStatusEventsFrom } from '../../../../../lib/dash/pushRules'
 import { mlbRecapEventsFrom } from '../../../../../lib/dash/pushNightly'
 import { callsGradedEvents, weeklyEvents } from '../../../../../lib/dash/pushNightlyIO'
 import { applyDailyCaps, brakeConfig, pushDayStart, tallyLog } from '../../../../../lib/dash/pushBrake'
@@ -273,7 +273,10 @@ async function nflPregameEvents(audience) {
 async function nbaPregameEvents(audience) {
   if (!bucketsPublic() || !audience?.nba?.size) return []
   const snap = await nbaPregameSnap(today(), audience)
-  return snap ? nbaPregameEventsFrom(snap, today(), audience, Date.now(), { public: true }) : []
+  if (!snap) return []
+  // nbainj (2026-10-20): a followed player listed questionable / doubtful / day-to-day, the BUCKETS twin of nhlinj (the same shared injury layer)
+  const inj = await readInjuries('nba').catch(() => null)
+  return [...nbaPregameEventsFrom(snap, today(), audience, Date.now(), { public: true }), ...nbaInjuryStatusEventsFrom(snap, inj, today(), audience)]
 }
 
 // A followed player with no box-score line in the 4th quarter of his team's

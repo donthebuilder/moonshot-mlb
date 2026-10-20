@@ -85,8 +85,8 @@ await t('NFL slots: anytime TD | receiving yards over | rushing yards over; MLB:
   assert.equal(fall.picks[1].market, 'hrr', 'a HIT candidate with no stored line is not usable: the slot falls to hits + runs + RBI')
   assert.equal(fall.picks[2].market, 'anytime', 'slot 3 is a second home run')
   assert.equal(marketKeys('mlb'), 'anytime,hit,hrr'); assert.equal(marketKeys('nhl'), 'anytime,sog'); assert.equal(marketKeys('nfl'), 'anytime,rec_yds,rush_yds')
-  // BUCKETS (PREVIEW ONLY, 2026-10-12): its five over markets are in the map so the preview can pick, but it is not a Card sport (nothing is locked or posted)
-  assert.equal(Object.keys(MARKETS.nba).join(), 'pts,reb,ast,3pm,pra'); assert.ok(!CARD_SPORTS.includes('nba'))
+  // BUCKETS: its five over markets, and (since 2026-10-20, Donovan "turn it on") a Card sport that locks and posts
+  assert.equal(Object.keys(MARKETS.nba).join(), 'pts,reb,ast,3pm,pra'); assert.ok(CARD_SPORTS.includes('nba'))
 })
 function marketKeys(s) { return Object.keys(MARKETS[s]).join(',') }
 

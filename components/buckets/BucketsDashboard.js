@@ -10,6 +10,7 @@
 // /api/buckets/access lets in, and every /api/buckets route enforces the same.
 import LedgerShell from '../pages/LedgerShell'
 import BucketsTable from './BucketsTable'
+import CardSection from '../card/CardSection'
 import { useMemo } from 'react'
 import { TeamNav } from '../../lib/teamNav'
 import HighlightBar from '../HighlightBar'
@@ -135,6 +136,8 @@ export default function BucketsDashboard() {
             {tab === 'scores' && <Scores date={date} setDate={setDate} onOpenGame={openGame} />}
             {/* TOP TOTALS now ride each game (components/GameTotalLine.js); the record stays in the Ledger */}
             {tab === 'games' && <Slate date={date} setDate={setDate} market={market} {...nav} />}
+            {/* THE CARD (2026-10-20, Donovan "turn it on"): one line under the slate, as LAMP's; its record is in the Ledger (LedgerShell's Record) */}
+            {tab === 'games' && <CardSection sport="nba" Table={BucketsTable} compact />}
             {tab === 'game' && <Game id={gameId} {...nav} backLabel={backLabel('scores')} onBack={() => goBack('scores')} />}
             {tab === 'schedule' && <Schedule date={date} setDate={setDate} onOpenGame={openGame} onOpenTeam={openTeam} />}
             {tab === 'odds' && <BucketsOdds date={date} onOpenPlayer={peekPlayer} />}
