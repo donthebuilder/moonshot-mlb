@@ -2,7 +2,6 @@
 import { Fragment } from 'react'
 import { gameSections } from '../../../lib/game/sections'
 import GameLedgerLine from '../../ledger/GameLedgerLine'
-import { useTeamNav } from '../../../lib/teamNav'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampGame } from '../../../lib/nhl/useLamp'
 import { nhlLogo, nhlTeam } from '../../../lib/nhl/teams'
@@ -13,6 +12,7 @@ import NhlH2H from '../../h2h/NhlH2H'
 import OurLine from '../../game/OurLine'
 import GoalieQuality from '../GoalieQuality'
 import GoalieWeakSpots from '../GoalieWeakSpots'
+import GameHead from '../../game/GameHead'
 import { LampAttack } from '../../game/SportAttack'
 import GameRink from '../GameRink'
 import Tap from '../../Tap'
@@ -55,7 +55,6 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
 
   const live = g.state === 'live'; const done = g.state === 'final'; const scored = live || done
   const status = g.statusLine || `${fmtDay(g.date)} · ${fmtPuckDrop(g.startUtc)} ${zoneAbbrev()}`
-  const lead = (side) => scored && g[side].score != null && g[side].score > g[side === 'away' ? 'home' : 'away'].score
   const ts = g.teamStats || {}
   const stat = (k) => ts[k] || { away: null, home: null }
   const pct = (v) => (v == null || v === '' ? '—' : `${Math.round(Number(v) * 100)}%`)
@@ -65,34 +64,21 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
   const SECTIONS = {
     header: () => (
       <>
-      <header style={{ borderBottom: `1px solid ${C.border2}`, paddingBottom: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-          <span style={{ color: C.ice, font: `900 8px/1 ${NUM_FONT}`, letterSpacing: '.14em' }}>LAMP · GAME</span>
-          <GameTypeChip label={g.gameTypeLabel} />
-          <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.08em' }}>{g.seasonLabel} · {fmtDay(g.date)}</span>
-          {/* 📸 this game as a baseball card: the right end of the title row (the same card the slate's Save button draws) */}
-          <ShareCardButton sport="nhl" what="this game" style={{ marginLeft: 'auto' }} url={shareUrl({ kind: 'game', sport: 'nhl', game: g.id, date: g.date })} filename={`game-${slug(g.away.abbrev)}-${slug(g.home.abbrev)}_${stamp(g.date)}.png`} />
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 10 }}>
-          <Side team={g.away} lead={lead('away')} align="left" />
-          <div style={{ textAlign: 'center', minWidth: 96 }}>
-            <div style={{ font: `900 34px/1 ${NUM_FONT}`, color: C.text, letterSpacing: '-.02em' }}>
-              {scored ? <><span style={{ color: lead('away') ? C.text : C.text2 }}>{g.away.score ?? '–'}</span><span style={{ color: C.text3, margin: '0 8px', fontWeight: 400 }}>–</span><span style={{ color: lead('home') ? C.text : C.text2 }}>{g.home.score ?? '–'}</span></> : <span style={{ color: C.text3, fontSize: 18 }}>@</span>}
-            </div>
-            <div style={{ marginTop: 6, color: live ? C.lamp : done ? C.text2 : C.text3, font: `900 10px/1.3 ${NUM_FONT}`, letterSpacing: '.06em' }}>
-              {live && <LampDot />}{status}
-            </div>
-            {scored && g.away.sog != null && <div style={{ marginTop: 4, color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>SOG {g.away.sog}–{g.home.sog ?? '–'}</div>}
-          </div>
-          <Side team={g.home} lead={lead('home')} align="right" />
-        </div>
-        {/* the venue and, on the right, the goalie weak-spots chip (2026-10-10): one row, so the block costs the page almost no height; it opens below the row */}
-        <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', alignItems: 'center', columnGap: 10 }}>
-          <span style={{ color: C.text3, fontSize: 11 }}>{g.venue}{g.venueLocation ? `, ${g.venueLocation}` : ''}{g.neutralSite ? ' · neutral site' : ''}</span>
-          <GoalieWeakSpots game={{ id: g.id, date: g.date, away: g.away.abbrev, home: g.home.abbrev, season: g.season, state: g.state }} onOpenPlayer={onOpenPlayer} />
-        </div>
-        <GameTotalLine sport="nhl" row={gameTotals?.[String(g.id)]} style={{ marginTop: 8 }} />
-      </header>
+      {(() => {
+        // the header is components/game/GameHead (2026-10-20: lifted out of here, unchanged, so BUCKETS draws the same one)
+        // the league's placeName for the NY clubs is 'NY Islanders' -> 'NY Islanders Islanders' (audit 05 #15)
+        const side = (t) => ({ abbrev: t.abbrev, record: t.record, score: t.score, logo: t.logo || nhlLogo(t.abbrev),
+          name: nhlTeam(t.abbrev)?.name || (t.place && !String(t.place).endsWith(t.name) ? `${t.place} ${t.name}` : t.place || t.name) })
+        return (
+          <GameHead C={C} NUM_FONT={NUM_FONT} accent={C.ice} eyebrow="LAMP · GAME" chip={<GameTypeChip label={g.gameTypeLabel} />} meta={`${g.seasonLabel} · ${fmtDay(g.date)}`}
+            share={<ShareCardButton sport="nhl" what="this game" style={{ marginLeft: 'auto' }} url={shareUrl({ kind: 'game', sport: 'nhl', game: g.id, date: g.date })} filename={`game-${slug(g.away.abbrev)}-${slug(g.home.abbrev)}_${stamp(g.date)}.png`} />}
+            away={side(g.away)} home={side(g.home)} state={g.state} status={status} liveInk={C.lamp} liveDot={<LampDot />}
+            under={scored && g.away.sog != null ? <div style={{ marginTop: 4, color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>SOG {g.away.sog}–{g.home.sog ?? '–'}</div> : null}
+            venue={`${g.venue}${g.venueLocation ? `, ${g.venueLocation}` : ''}${g.neutralSite ? ' · neutral site' : ''}`}
+            beside={<GoalieWeakSpots game={{ id: g.id, date: g.date, away: g.away.abbrev, home: g.home.abbrev, season: g.season, state: g.state }} onOpenPlayer={onOpenPlayer} />}
+            foot={<GameTotalLine sport="nhl" row={gameTotals?.[String(g.id)]} style={{ marginTop: 8 }} />} />
+        )
+      })()}
       </>
     ),
     ledger: () => (
@@ -314,21 +300,6 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
 
       {gameSections('nhl', 'page', g.state).map((sec) => <Fragment key={sec.id}>{SECTIONS[sec.id]?.()}</Fragment>)}
 
-    </div>
-  )
-}
-
-function Side({ team, lead, align }) {
-  // the club opens its page (0g A5)
-  const teamNav = useTeamNav()
-  return (
-    <div style={{ display: 'flex', flexDirection: align === 'right' ? 'row-reverse' : 'row', alignItems: 'center', gap: 10, minWidth: 0, justifyContent: 'flex-start' }}>
-      <img src={team.logo || nhlLogo(team.abbrev)} alt="" width={44} height={44} style={{ width: 44, height: 44, flex: 'none', objectFit: 'contain' }} />
-      <div style={{ textAlign: align, minWidth: 0 }}>
-        <div style={{ font: `900 15px/1 ${NUM_FONT}`, color: lead ? C.text : C.text2, letterSpacing: '.04em' }}>{teamNav ? <Tap onClick={() => teamNav(team.abbrev)}>{team.abbrev}</Tap> : team.abbrev}</div>
-        <div style={{ marginTop: 4, color: C.text3, fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{/* the league's placeName for the NY clubs is 'NY Islanders' -> 'NY Islanders Islanders' (audit 05 #15) */}{nhlTeam(team.abbrev)?.name || (team.place && !String(team.place).endsWith(team.name) ? `${team.place} ${team.name}` : team.place || team.name)}</div>
-        {team.record && <div style={{ marginTop: 3, color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>{team.record}</div>}
-      </div>
     </div>
   )
 }
