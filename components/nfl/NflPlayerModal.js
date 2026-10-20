@@ -33,6 +33,7 @@ import { shareUrl, slug, stamp } from '../../lib/cards/saveCard'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
 import StarMemory from '../watch/StarMemory'
 import MultiLine from '../ledger/MultiLine'
+import ScoredFirst from '../player/ScoredFirst'
 import { injuryTag, injuryTitle, injuryColor } from '../../lib/nfl/injury'
 import NflPlayerRead from './NflPlayerRead'
 import LineMoveChip from '../LineMoveChip'
@@ -639,6 +640,8 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         <StarMemory sport="nfl" id={player?.player_id} />
         {/* MOONSHOT's multi-HR line, TUDDY's words */}
         <MultiLine sport="nfl" playerId={player?.player_id} words={{ TD: 'multi-TD', PASS_TD: '2+ passing-TD' }} color={C.green} textColor={C.text2} />
+        {/* the first-pitch split's twin: the games he scored the first touchdown */}
+        <ScoredFirst sport="nfl" playerId={player?.player_id} word="Scored the first TD" color={C.green} textColor={C.text2} />
       </div>
       </>}
 

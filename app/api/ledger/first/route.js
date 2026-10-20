@@ -1,4 +1,4 @@
-// GET /api/ledger/first?sport=mlb|nfl|nhl[&day=YYYY-MM-DD] -- the FIRST scorer
+// GET /api/ledger/first?sport=mlb|nfl|nhl|nba[&day=YYYY-MM-DD][&player=<id>] -- the FIRST scorer
 // of every recent game (first homer / first TD / first goal) with the board's
 // status, plus the season line (how many first scorers the board had) and the
 // season's most frequent first scorers. lib/ledger/firstScorers.js; read from
@@ -30,7 +30,8 @@ export async function GET(request) {
   const db = adminClient()
   if (!db) return Response.json({ error: 'no database' }, { status: 503 })
   try {
-    const body = await readFirstScorers(db, sport, { day, since: shift(day, -WINDOW_DAYS[sport]), seasonSince: seasonSince(day, SEASON_START[sport]) })
+    const player = /^[\w-]{1,20}$/.test(q.get('player') || '') ? q.get('player') : null   // ?player= : his first-scorer games only (the player cards)
+    const body = await readFirstScorers(db, sport, { day, since: shift(day, -WINDOW_DAYS[sport]), seasonSince: seasonSince(day, SEASON_START[sport]), player })
     return Response.json(body, { headers: { 'Cache-Control': nba && !bucketsPublic() ? 'private, max-age=60' : 'public, s-maxage=60, stale-while-revalidate=120' } })
   } catch (e) {
     console.error(`[ledger first] ${sport} ${day}: ${e?.message}`)

@@ -56,6 +56,7 @@ import ShotChart from '../ShotChart'
 import PlayerBars from '../PlayerBars'
 import BucketsPropsMatrix from '../PropsMatrix'
 import PlayerDdTd from '../PlayerDdTd'
+import ScoredFirst from '../../player/ScoredFirst'
 import { EmptyState, DelayedBanner, Loading, Kicker, BackBtn, PlayerFace, SeasonTypeChip, fmtDay, fmtTip, RimDot } from '../ui'
 import PlayerInjuryChip from '../../injuries/PlayerInjuryChip'
 
@@ -379,6 +380,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
           <StarMemory sport="nba" id={pid} />
           <BucketsPropsMatrix log={data.log || []} logSeason={data.logSeason} />
           <PlayerDdTd playerId={pid} />
+          <ScoredFirst sport="nba" playerId={pid} word="Scored the first basket" color={C.purple} textColor={C.text2} />
         </div>
 
         {/* CARDS EARNED, at the END of the card (the first useful row never moves): his 30-point / 40-point / double-double / triple-double / 10-threes cards from his GRADED regular-season rows; no section until he has one */}
