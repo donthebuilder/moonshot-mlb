@@ -549,23 +549,36 @@ const weekRows = () => [
   nightRow('2026-10-07', { cashed: 0, missed: 3, void: 1 }, { mlb: { cashed: 0, missed: 2, void: 1 }, nhl: { cashed: 0, missed: 1, void: 0 } }),      // a no-cash night still counts
   nightRow('2026-10-11', { cashed: 3, missed: 1, void: 0 }, { nfl: { cashed: 2, missed: 1, void: 0 }, nhl: { cashed: 1, missed: 0, void: 0 } }),
 ]
-await ok('weekly: the same honest receipt over the stored nights -- the no-cash nights\' misses are in the total, a sport line each', () => {
-  const totals = RC.periodTotals(weekRows())
+await ok('THE RECORD (weekly): every call we posted, hits and misses -- the no-cash nights\' misses are in the total, a sport line each, who landed by name', () => {
+  const rows = weekRows()
+  rows[0].payload.results = [{ sport: 'mlb', player_id: 'a', name: 'Test Hitter A', outcome: 'cashed' }, { sport: 'mlb', player_id: 'b', name: 'Test Hitter B', outcome: 'cashed' }, { sport: 'mlb', player_id: 'c', name: 'Test Hitter C', outcome: 'missed' }]
+  rows[2].payload.results = [{ sport: 'nfl', player_id: 'd', name: 'Test Back D', outcome: 'cashed' }, { sport: 'nba', player_id: 'e', name: 'Test Guard E', outcome: 'cashed', tracking: true }, { sport: 'mlb', player_id: 'a', name: 'Test Hitter A', outcome: 'cashed' }]
+  const totals = RC.periodTotals(rows)
   assert.deepEqual(totals.total, { cashed: 5, missed: 5, void: 1 }); assert.equal(totals.nights, 3)
-  const t = RC.renderPeriod({ kind: 'weekly', from: '2026-10-05', to: '2026-10-11', totals })
-  assert.equal(lines(t)[0], '\u{1F9FE} THE RECEIPT · WEEK OF OCT 5')
-  assert.match(t, /CALLED · 11 calls made · 5 landed · 5 missed · 1 did not play · 3 nights/)   // made = landed + missed + did not play, summed from the stored nights
-  assert.ok(!/ of 10 cashed/.test(lines(t)[2]), 'the weekly record line is the made / landed / missed line')
-  assert.match(t, /MLB  2 of 5 cashed · home run/); assert.match(t, /NFL  2 of 3 cashed · anytime touchdown/); assert.match(t, /NHL  1 of 2 cashed · goal scorer/)
-  assert.ok(!/can't be modeled/.test(t)); assert.match(t, /\nEvery call, graded → DASH · The Ledger$/)
-  assert.ok(lines(t).length <= 8 && S.xLen(t) <= 280); assert.ok(!BANNED.test(t), t)
-  const m = RC.renderPeriod({ kind: 'monthly', from: '2026-09-01', to: '2026-09-30', totals })
-  assert.equal(lines(m)[0], '\u{1F9FE} THE RECEIPT · SEPTEMBER')
-  assert.match(m, /CALLED · 5 of 10 cashed · 1 did not play · 3 nights/)   // the monthly keeps the night receipt's wording
+  const t = RC.renderPeriod({ kind: 'weekly', from: '2026-10-05', to: '2026-10-11', totals, limit: 890 })   // production's long post
+  assert.equal(lines(t)[0], '\u{1F9FE} THE RECORD · WEEK OF OCT 5')
+  assert.equal(lines(t)[1], 'Every call we posted last week, hits and misses \u{1F447}')
+  assert.match(t, /\n11 calls · 5 landed · 5 missed · 1 did not play\n/)   // made = landed + missed + did not play, summed from the stored nights
+  assert.match(t, /MLB  2 of 5 · home run/); assert.match(t, /NFL  2 of 3 · anytime touchdown/); assert.match(t, /NHL  1 of 2 · goal scorer/)
+  assert.match(t, /WE HAD: Test Hitter A, Test Hitter B, Test Back D\n/, 'who landed, each once, tracking-only left out')
+  assert.match(t, /Every call, graded → DASH · The Ledger\n\nWhat did we miss, network\?$/)
+  assert.ok(!BANNED.test(t), t)
+  // at the bare 280: the names go before a sport line does, the record line always stays
+  const t280 = RC.renderPeriod({ kind: 'weekly', from: '2026-10-05', to: '2026-10-11', totals })
+  assert.ok(S.xLen(t280) <= 280 && /11 calls · 5 landed/.test(t280) && /NHL  1 of 2/.test(t280), t280)
+  const m = RC.renderPeriod({ kind: 'monthly', from: '2026-09-01', to: '2026-09-30', totals, limit: 890 })
+  assert.equal(lines(m)[0], '\u{1F9FE} THE RECORD · SEPTEMBER')
+  assert.match(m, /Every call we posted in September, hits and misses/); assert.match(m, /What should we call more of, network\?$/)
+  // more names than fit the bare 280: the names shrink to "+N more" before a sport line goes
+  const many = RC.periodTotals([{ ...rows[0], payload: { ...rows[0].payload, results: Array.from({ length: 14 }, (_, i) => ({ sport: 'mlb', player_id: `x${i}`, name: `Test Long Name Hitter ${i}`, outcome: 'cashed' })) } }])
+  const mt = RC.renderPeriod({ kind: 'weekly', from: '2026-10-05', to: '2026-10-11', totals: many, limit: 600 })
+  assert.ok(S.xLen(mt) <= 600 && /\+\d+ more/.test(mt) && /MLB  2 of 3/.test(mt), mt)
 })
-await ok('weekly: nothing cashed all week -> no post; monthly the same', () => {
+await ok('THE RECORD: a week with calls and nothing landed still posts and says so (misses out loud); a week with no call made does not', () => {
   const none = RC.periodTotals([nightRow('2026-10-05', { cashed: 0, missed: 2, void: 0 }, { mlb: { cashed: 0, missed: 2, void: 0 } })])
-  assert.equal(RC.renderPeriod({ kind: 'weekly', from: '2026-10-05', to: '2026-10-11', totals: none }), '')
+  const t = RC.renderPeriod({ kind: 'weekly', from: '2026-10-05', to: '2026-10-11', totals: none })
+  assert.match(t, /2 calls · 0 landed · 2 missed/); assert.ok(!/WE HAD/.test(t)); assert.match(t, /Rough one\. Who do we get back on, network\?$/)
+  assert.equal(RC.renderPeriod({ kind: 'weekly', from: '2026-10-05', to: '2026-10-11', totals: RC.periodTotals([]) }), '')
 })
 await ok('weekly / monthly post on their own claim: Monday, once, quote-free, INFO receipts tier, Discord mirrored; the nightly rows are read, no other post is touched', async () => {
   reset()
@@ -579,13 +592,13 @@ await ok('weekly / monthly post on their own claim: Monday, once, quote-free, IN
   assert.equal(row.day, '2026-10-12'); assert.match(row.x_post_id, /^\d+$/)
   assert.equal(await RC.postPeriodOnce(db, { period, hooks: '', now: Date.parse('2026-10-12T16:00:00Z') }), 'already-posted')
   assert.equal(tweets.length, 1)
-  // a monthly with no cash all month: DROPPED, nothing claimed
+  // a monthly with no call made all month: DROPPED, nothing claimed
   reset()
   const empty = fakeDb({ homer_feed_posts: [] })
   const mp = { kind: 'monthly', key: '2026-11-01', from: '2026-10-01', to: '2026-10-31' }
-  assert.equal(await RC.postPeriodOnce(empty, { period: mp, hooks: '', now: Date.parse('2026-11-01T16:00:00Z') }), 'none: no cash')
+  assert.equal(await RC.postPeriodOnce(empty, { period: mp, hooks: '', now: Date.parse('2026-11-01T16:00:00Z') }), 'none: no calls made')
   assert.equal(empty.tables.homer_feed_posts.length, 0)
-  assert.ok(L.recentLog().some((e) => e.kind === 'monthly' && e.state === 'DROPPED' && e.reason === 'no cash'))
+  assert.ok(L.recentLog().some((e) => e.kind === 'monthly' && e.state === 'DROPPED' && e.reason === 'no calls made'))
 })
 await ok('weekly / monthly are claimed OUTSIDE any retired post: no claim of them in the recap path, and the route never answers off-in-post-list for them', () => {
   const route = fs.readFileSync('app/api/dash/homers/tick/route.js', 'utf8')
