@@ -29,7 +29,8 @@ check(gradeStory(s2, null)?.outcome === 'void', 'NHL game 1,000: no line = void,
 // NFL: a rung the line does not carry grades PRODUCTIVE; yards grade on the line; 'this week'
 const nfl = nearestMilestones('nfl', [{ p: { player_id: 'n1', name: 'Test QB', team: 'AAA' }, season: { pass_yds: 900, pass_td: 5 }, career: { pass_td: 199, pass_yds: 20000, total_td: 3, rec: 0, rec_yds: 0, rush_yds: 300 } }])
 const sq = milestoneStory({ sport: 'nfl', day: '2026-10-20', game_id: 'g', player_id: 'n1', name: 'Test QB', team: 'AAA' }, nfl[0], 'test', 'this week')
-check(nfl[0].m.key === 'pass_td' && gradeStory(sq, { PASS_YDS: 250, TD: 0, RUSH_YDS: 5 })?.bar === 'productive', 'NFL passing TDs: not on the line -> productive')
+check(nfl[0].m.key === 'pass_td' && gradeStory(sq, { PASS_YDS: 250, TD: 0, RUSH_YDS: 5 })?.bar === 'productive', 'NFL passing TDs, a week graded before PASS_TD: productive, never a miss')
+check(gradeStory(sq, { PASS_YDS: 250, PASS_TD: 1, TD: 0 })?.bar === 'milestone:PASS_TD' && gradeStory(sq, { PASS_YDS: 250, PASS_TD: 1 })?.outcome === 'hit' && gradeStory(sq, { PASS_YDS: 250, PASS_TD: 0 })?.outcome === 'miss', 'NFL passing TDs on the line (bot PR #25): reached it / did not')
 check(/could land this week$/.test(sq.text), `NFL words: "${sq.text}"`)
 const ny = nearestMilestones('nfl', [{ p: { player_id: 'n2', name: 'Test RB', team: 'AAA' }, season: { rush_yds: 300 }, career: { rush_yds: 4950 } }])
 const sy = milestoneStory({ sport: 'nfl', day: 'd', game_id: 'g', player_id: 'n2', name: 'Test RB', team: 'AAA' }, ny[0], 'test', 'this week')
