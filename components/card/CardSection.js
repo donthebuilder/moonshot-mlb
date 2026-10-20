@@ -33,7 +33,7 @@ function Leg({ sport: page, leg }) {
   const sport = leg.sport || page      // a Double's legs carry their own sport
   const m = leg.market && leg.market !== 'anytime' && MARKETS[sport]?.[leg.market] ? marketWords(sport, leg.market, leg.line) : null
   return (
-    <span className="card-leg" style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0, whiteSpace: 'nowrap' }}>
+    <span className="card-leg nw-wrap" style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0, whiteSpace: 'nowrap' }}>
       <TeamTap abbr={leg.team} sport={sport} px={14} />
       <a className="tap-link" title={leg.name} href={playerHref(sport, leg.player_id)} style={{ color: 'inherit', textDecoration: 'none', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{leg.name}</a>
       {leg.opp ? <span className="card-leg-more" style={{ flex: 'none' }}><GameTap pk={leg.game_id} style={{ fontSize: 11, opacity: 0.7 }}>v {leg.opp}</GameTap></span> : null}
@@ -69,8 +69,12 @@ export default function CardSection({ sport, mode = 'slate', Table = DenseTable,
   }, [data])
 
   const columns = useMemo(() => [
-    { key: 'tag', label: '#', w: 34, heat: false, group: 'CALL', fmt: (v, r) => <b title={r.product === 'double' ? (r.lane === 'donovan' ? `${ADMIN_DOUBLE}: its own lane and record` : 'The Double: two sports, both must land') : r.product === 'long_shot' ? 'The Long Shot of the day: a plus-money pick, most of these miss' : r.product === 'n_man' ? `${adminNMan(r.legs.length)}: a hand-picked ticket, every leg must land; its own lane and record` : r.lane === 'donovan' && r.product === 'straight' ? `${ADMIN_STRAIGHT}: its own lane and record` : r.lane === 'donovan' ? `${ADMIN_TWO_MAN}: its own lane and record` : r.same ? 'The same-game Two-Man: both legs from one game, so they are correlated' : r.product === 'two_man' ? 'The Two-Man: both must land' : `Straight ${v}`}>{v}</b> },
-    { key: 'legs', label: 'Player', w: 190, heat: false, sticky: true, group: 'CALL', fmt: (v, r) => (
+    // ONE SHOT ON A PHONE (Donovan 10-20: "make sure the table with the card ... everything fits in a good shot"): the stake rides
+    // under the tag (it was its own column, cut off at 390); score, price and result share one group head (three heads wider
+    // than their columns had pushed the table to 468px); the name cell is the
+    // wide one (v2 wideName, 156px on a phone) so a full name fits beside his logo.
+    { key: 'tag', label: '#', w: 36, heat: false, group: 'CALL', fmt: (v, r) => <span style={{ display: 'grid', lineHeight: 1.1 }}><b title={r.product === 'double' ? (r.lane === 'donovan' ? `${ADMIN_DOUBLE}: its own lane and record` : 'The Double: two sports, both must land') : r.product === 'long_shot' ? 'The Long Shot of the day: a plus-money pick, most of these miss' : r.product === 'n_man' ? `${adminNMan(r.legs.length)}: a hand-picked ticket, every leg must land; its own lane and record` : r.lane === 'donovan' && r.product === 'straight' ? `${ADMIN_STRAIGHT}: its own lane and record` : r.lane === 'donovan' ? `${ADMIN_TWO_MAN}: its own lane and record` : r.same ? 'The same-game Two-Man: both legs from one game, so they are correlated' : r.product === 'two_man' ? 'The Two-Man: both must land' : `Straight ${v}`}>{v}</b><span style={{ fontSize: 10, color: C.text3 }} title="Flat stake in units">{r.stake}u</span></span> },
+    { key: 'legs', label: 'Player', w: 156, heat: false, sticky: true, wideName: true, group: 'CALL', fmt: (v, r) => (
       <span style={{ display: 'grid', gap: 3, whiteSpace: 'normal', lineHeight: 1.2 }}>
         {r.lane === 'donovan' && <span style={{ fontSize: 10, color: accent, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>{r.product === 'double' ? ADMIN_DOUBLE.toUpperCase() : (r.legs?.[0]?.card_name || (r.product === 'n_man' ? adminNMan(r.legs.length) : r.product === 'straight' ? ADMIN_STRAIGHT : ADMIN_TWO_MAN)).toUpperCase()}</span>}
         {r.product === 'long_shot' && <span style={{ fontSize: 10, color: accent, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>LONG SHOT OF THE DAY</span>}
@@ -80,12 +84,11 @@ export default function CardSection({ sport, mode = 'slate', Table = DenseTable,
         {r.note && <span style={{ fontSize: 11, color: C.text2, whiteSpace: 'pre-wrap' }}>{r.note}</span>}
         {r.legs[0]?.pair_note && <span style={{ fontSize: 10, color: C.text3 }}>{r.legs[0].pair_note}</span>}
       </span>) },
-    { key: 'score', label: 'Score', w: 52, dp: 0, primary: true, group: 'MODEL', blankWhen: (n) => !Number.isFinite(n), title: 'The model score at the lock (a rank, not a chance). A Two-Man shows its weaker leg: both must land' },
-    { key: 'price', label: 'Price', w: 84, heat: false, group: 'PRICE', fmt: (v, r) => (v
-      ? <span style={{ display: 'grid', lineHeight: 1.15 }}><b>{fmtAmerican(r.legs.every((l) => l.price) ? v.median : v.best)}</b><span style={{ fontSize: 10, color: C.text3 }}>{r.product === 'two_man' || r.product === 'double' || r.product === 'n_man' ? 'multiplied' : r.legs[0]?.price ? 'median at lock' : 'best on file'}</span></span>
+    { key: 'score', label: 'Score', w: 40, dp: 0, primary: true, group: 'LOCKED · GRADED', blankWhen: (n) => !Number.isFinite(n), title: 'The model score at the lock (a rank, not a chance). A Two-Man shows its weaker leg: both must land' },
+    { key: 'price', label: 'Price', w: 56, heat: false, group: 'LOCKED · GRADED', fmt: (v, r) => (v
+      ? <span style={{ display: 'grid', lineHeight: 1.15 }}><b>{fmtAmerican(r.legs.every((l) => l.price) ? v.median : v.best)}</b><span style={{ fontSize: 10, color: C.text3 }}>{r.product === 'two_man' || r.product === 'double' || r.product === 'n_man' ? 'parlay' : r.legs[0]?.price ? 'median' : 'best'}</span></span>
       : <span style={{ color: C.text3, fontSize: 11 }}>none yet</span>), title: 'Best price on file. A Two-Man is the two legs\' prices multiplied (your book\'s parlay price will differ); blank when a leg has no price on file' },
-    { key: 'stake', label: 'Stake', w: 48, heat: false, group: 'PRICE', fmt: (v) => `${v}u`, title: 'Flat stake in units' },
-    { key: 'result', label: 'Result', w: 60, heat: false, group: 'RESULT', fmt: (v) => (v ? <b style={{ color: v === 'hit' ? accent : C.text2 }}>{RES[v] || v}</b> : <span style={{ color: C.text3 }}>{'—'}</span>), title: 'Graded from the box score. A Two-Man needs both legs; a player who did not play voids it' },
+    { key: 'result', label: 'Result', w: 44, heat: false, group: 'LOCKED · GRADED', fmt: (v) => (v ? <b style={{ color: v === 'hit' ? accent : C.text2 }}>{RES[v] || v}</b> : <span style={{ color: C.text3 }}>{'—'}</span>), title: 'Graded from the box score. A Two-Man needs both legs; a player who did not play voids it' },
   ], [sport, accent, C, NUM_FONT])
 
   if (!w) return null                       // a product the Card does not run in (BUCKETS) renders nothing and asks nothing
@@ -117,16 +120,16 @@ export default function CardSection({ sport, mode = 'slate', Table = DenseTable,
           the logo's button keeps a 14px layout box (the site's 32px touch floor made it 32 wide), its tap box is invisible padding */}
       <style>{'@media (max-width: 640px) { .card-leg-more { display: none; } } .card-leg > .tap-link:first-child { min-width: 0 !important; min-height: 0 !important; padding: 9px 6px !important; margin: -9px -6px !important; flex: none; }'}</style>
       <button type="button" aria-expanded={open} onClick={toggle}
-        style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', minHeight: 44, padding: '0 12px', border: 0, background: 'none', color: 'inherit', cursor: 'pointer', textAlign: 'left' }}>
+        style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', minHeight: 44, padding: '0 clamp(6px, 2.6vw, 12px)', border: 0, background: 'none', color: 'inherit', cursor: 'pointer', textAlign: 'left' }}>
         <b style={{ color: accent, fontFamily: NUM_FONT, fontSize: 11, letterSpacing: '.1em', whiteSpace: 'nowrap' }}>THE CARD</b>
         <span style={{ color: C.text3, fontSize: 11, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{data?.date ? `${prettyDay(data.date)} · ` : ''}{loading ? 'reading…' : summary}</span>
         <span aria-hidden="true" style={{ color: C.text3, fontSize: 12 }}>{open ? '▲' : '▼'}</span>
       </button>
       {open && (
-        <div style={{ padding: '0 12px 10px' }}>
+        <div style={{ padding: '0 clamp(6px, 2.6vw, 12px) 10px' }}>
           <div style={{ color: C.text3, fontSize: 11, lineHeight: 1.45, marginBottom: 6, ...(compact ? { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } : null) }}
             title={compact ? 'One to three straights by the size of the slate, one unit each, a shots, yards or hits pick as an over at its stored line, and a Two-Man of the two best, half a unit. Fixed before the first game and never edited. Graded from the box score; a Two-Man needs both.' : undefined}>
-            {compact ? `Straights by the size of the slate and a Two-Man, fixed ${data?.lockLeadMin || 60} min before the first game, never edited.` : <>One to three straights by the size of the slate, one unit each, a shots, yards or hits pick as an over at its stored line, and a Two-Man of the two best, half a unit. Fixed {data?.lockLeadMin || 60} minutes before the first game and never edited. Graded from the box score; a Two-Man needs both.</>}
+            {compact ? `Locked ${data?.lockLeadMin || 60} min before the first game. Never edited.` : <>One to three straights by the size of the slate, one unit each, a shots, yards or hits pick as an over at its stored line, and a Two-Man of the two best, half a unit. Fixed {data?.lockLeadMin || 60} minutes before the first game and never edited. Graded from the box score; a Two-Man needs both.</>}
           </div>
           {error && !loading && <div style={{ fontSize: 12, color: C.text3 }}>The card is not loading right now. Pull to refresh in a minute.</div>}
           {nothing && <div style={{ fontSize: 12, lineHeight: 1.5, color: C.text3 }}>No card is locked yet. It locks {data?.lockLeadMin || 60} minutes before the first game of the {w.window}.</div>}

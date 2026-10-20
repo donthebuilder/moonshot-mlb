@@ -273,10 +273,20 @@ export function v2Css(C, ac, NUM_FONT) {
       .dtv2.dtv2-pc52 td { height: 40px; }   /* compactPhoneRow: 52px on a phone too (LAMP watchlist) */
       .dtv2.dtv2-pc td.name, .dtv2.dtv2-pc th.name { width: 156px !important; min-width: 156px !important; max-width: 156px !important; }
       .dtv2.dtv2-pc td.pcell { padding: 0 6px !important; }
+      /* wideName (a column flag, 2026-10-20, the Card on a phone): a name cell that holds a logo and a full name at 156px, the
+         shared player cell's phone width, instead of the 122px default */
+      .dtv2.dtv2-nw td.name, .dtv2.dtv2-nw th.name { width: 156px !important; min-width: 156px !important; max-width: 156px !important; }
+
       /* 40px rows (10-18): one line of name (the cell picks the surname when the full name does not fit), chips under it */
       .dtv2 .pc-nm { -webkit-line-clamp: 1; white-space: nowrap; text-overflow: ellipsis; display: block; }
       .dtv2 .pc-body { gap: 1px; }
       .dtv2 .pc { gap: 7px; }
+    }
+    @media (max-width: 370px) {
+      /* the smallest phones (360): 136px, and the name may wrap to a second line rather than lose letters */
+      .dtv2.dtv2-nw td.name, .dtv2.dtv2-nw th.name { width: 136px !important; min-width: 136px !important; max-width: 136px !important; }
+      .dtv2.dtv2-nw td.name .nw-wrap { white-space: normal !important; }
+      .dtv2.dtv2-nw td.name .nw-wrap .tap-link { white-space: normal !important; overflow: visible !important; }
     }
   `
 }
@@ -340,6 +350,7 @@ export function renderV2(ctx) {
   const nameC = columns.find((c) => c.sticky && c.heat === false) || columns.find((c) => c.key === firstTextKey)
   // THE PLAYER NAME CELL (2026-10-13): `nameCell: 'player'` on the table (or on its name column) draws components/table/PlayerNameCell.js
   const pcell = nameCell === 'player' || nameC?.nameCell === 'player'
+  const wideName = !pcell && Boolean(nameC?.wideName)
   // the 'call' group's other text columns fold into the phone sub-line
   const callKey = nameC?._g?.key ?? null
   // (or a column tagged `fold`, for tables without groups)
@@ -449,7 +460,7 @@ export function renderV2(ctx) {
             // the pinned name. Now a group is one cell spanning its columns and the label is sticky: it
             // stays at the pinned edge while any part of its group is on screen. A column a phone folds
             // away is not counted there (`phone`, DenseTable's own matchMedia at 640px).
-            const pinW = (rankC ? (phone ? 26 : (rankC.w || 40)) : 0) + (nameC ? (pcell ? (phone ? PC_GEOM.phone.cell : PC_GEOM.desk.cell) : phone ? 122 : (nameC.w || 150)) : 0)
+            const pinW = (rankC ? (phone ? 26 : (rankC.w || 40)) : 0) + (nameC ? (pcell ? (phone ? PC_GEOM.phone.cell : PC_GEOM.desk.cell) : phone ? (wideName ? 156 : 122) : (nameC.w || 150)) : 0)
             const runs = []
             vis.forEach((c) => {
               const key = c._g?.key ?? null
@@ -808,7 +819,7 @@ export function renderV2(ctx) {
   const isInitial = JSON.stringify(sort) === JSON.stringify(initialStack())
 
   return (
-    <div className={`dtv2${tight ? ' dtv2-tight' : ''}${pcell ? ' dtv2-pc' : ''}${pcell && compactPhoneRow ? ' dtv2-pc52' : ''}`}>
+    <div className={`dtv2${tight ? ' dtv2-tight' : ''}${pcell ? ' dtv2-pc' : ''}${pcell && compactPhoneRow ? ' dtv2-pc52' : ''}${wideName ? ' dtv2-nw' : ''}`}>
       <style>{v2Css(C, ac, NUM_FONT)}</style>
       <ExplainBanner label={explain?.label} text={explain?.text} onClose={() => setExplain(null)}
         scoreTerms={scoreTerms} caveat={caveat} accent={accent || ac} art={explain?.art} answers={explain?.answers} />
