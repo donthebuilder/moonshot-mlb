@@ -15,6 +15,7 @@ import { renderSlate } from '../lib/posts/slate.js'
 import { renderLampSlate } from '../lib/posts/lampSlate.js'
 import { renderReceipt, renderPeriod } from '../lib/posts/receipt.js'
 import { templateDrafts } from '../lib/facts/write.js'
+import { listFacts } from '../lib/facts/players.js'
 import { decorate } from '../lib/facts/label.js'
 import { listText } from '../lib/lists/shape.js'
 import { digestTexts } from '../lib/cards/digestRank.js'
@@ -126,6 +127,13 @@ for (const f of FACTS) {
     })
   })
 }
+
+// ── THE LIST (2026-10-20, lib/facts/players.js listFacts, a fact post): a ranked list, rows together
+safe('the list', () => {
+  const players = [1, 2, 3, 4, 5].map((i) => ({ id: `T${i}`, name: `TEST Player ${i}`, team: 'TST', startMs: 0, rank: i, gameDay: '2026-10-21' }))
+  const f = listFacts({ sport: 'nhl', players, streaks: players.map((p, i) => ({ id: p.id, what: 'a goal', whatKey: 'goal', n: 9 - i, min: 3 })), today: '2026-10-21' })[0]
+  templateDrafts(f).slice(0, 2).forEach((t, i) => check(`the list #${i}`, t, { list: true, limit: 890 }))
+})
 
 // ── Lists (lib/lists/shape.js listText)
 safe('lists', () => {
