@@ -18,8 +18,6 @@ import { fieldSpots, FM, RUN_GAP_X } from '../../lib/nfl/fieldMen'
 import { LANES } from '../../lib/nfl/fieldModel'
 import { makeComposer, isCoarse } from '../../lib/stadiumLook'
 import { webglOk } from '../../lib/webglOk'
-import { densityGrid } from '../../lib/charts/terrain'
-import { buildHills, rgb01 } from '../../lib/three/hills'
 import { labelSprite, declutterLabels } from '../../lib/three/sprites'
 import StadiumShell from '../charts/StadiumShell'
 import { ChartEmpty } from '../charts'
@@ -60,16 +58,18 @@ function faceTexture(m, ring, alive) {
   return tex
 }
 
-// `hills` (10-19, the shared 3D look, the Throw map's 3D): { zones: { 'left|short': { share, weak } } } -> the throw
-// share lifted into hills over the field, green over areas the defense is weak in; no columns or men are drawn with it.
-export default function GameArena({ cells = {}, men = [], defMen = [], hue = C.green, title = '', onPlayer = null, pass = true, hills = null }) {
+// `areas` (2026-10-20, Donovan: "make the 3D chart kinda like the 2D chart", the hills retired): the 2D pass-area field's own
+// cells (components/nfl/PassAreaField.js: { 'left|short': { big, name, n, value, weak, atk, thin } }) painted flat on the turf --
+// the same twelve areas, lit by the same tiers (the best two brightest, the worst two receding), the share and the top receiver
+// on each, the defense's weak areas boxed green (dashed weak, solid attack), as on the flat field. No columns or men with it.
+export default function GameArena({ cells = {}, men = [], defMen = [], hue = C.green, title = '', onPlayer = null, pass = true, areas = null }) {
   const mountRef = useRef(null)
   const [ok, setOk] = useState(true)
-  const [preset, setPreset] = useState('endzone')
+  const [preset, setPreset] = useState(areas ? 'all22' : 'endzone')
   const [full, setFull] = useState(false)
   const apiRef = useRef({})
   const playerRef = useRef(onPlayer); playerRef.current = onPlayer
-  const sig = `${pass ? 'pass' : 'run'}|${Object.entries(cells).map(([k, c]) => `${k}:${c.heat}:${c.big}`).join(',')}|${men.map((m) => m.id + m.side + m.slot).join(',')}|${defMen.map((m) => m.id).join(',')}|${hue}|${hills ? Object.entries(hills.zones).map(([k, z]) => `${k}${z.share}${z.weak ? 'w' : ''}`).join(',') : ''}`
+  const sig = `${pass ? 'pass' : 'run'}|${Object.entries(cells).map(([k, c]) => `${k}:${c.heat}:${c.big}`).join(',')}|${men.map((m) => m.id + m.side + m.slot).join(',')}|${defMen.map((m) => m.id).join(',')}|${hue}|${areas ? Object.entries(areas).map(([k, z]) => `${k}${z.value}${z.weak ? 'w' : ''}${z.atk ? 'a' : ''}${z.name || ''}`).join(',') : ''}`
 
   useEffect(() => {
     const mount = mountRef.current
@@ -108,10 +108,12 @@ export default function GameArena({ cells = {}, men = [], defMen = [], hue = C.g
     const SHOTS = {
       endzone: () => [narrow ? V(-58 * YD, 150, 0.01) : V(-30 * YD, 84, 0.01), V((narrow ? 16 : 12) * YD, 0, 0)],
       sideline: () => [V(15 * YD, 70, FIELD_W / 2 + 120), V(15 * YD, 0, 0)],
-      all22: () => [V(-8 * YD, 230, 0.01), V(16 * YD, 0, 0)],
+      all22: () => [V(-8 * YD, narrow ? 280 : 230, 0.01), V(14 * YD, 0, 0)],
+      // RAFTERS (10-20): high in the corner of the upper deck, the whole picture below at an angle
+      rafters: () => [V(-16 * YD, narrow ? 230 : 190, FIELD_W / 2 + (narrow ? 150 : 120)), V(14 * YD, 0, 0)],
       top: () => [V(15 * YD - 6, narrow ? 300 : 210, 0), V(15 * YD, 0, 0)],
     }
-    { const [p, t] = SHOTS.endzone(); camera.position.copy(p); controls.target.copy(t) }
+    { const [p, t] = SHOTS[areas ? 'all22' : 'endzone'](); camera.position.copy(p); controls.target.copy(t) }
 
     const group = new THREE.Group(); scene.add(group)
     const col = new THREE.Color(hue)
@@ -133,17 +135,42 @@ export default function GameArena({ cells = {}, men = [], defMen = [], hue = C.g
         }
       }
     }
-    // THE HILLS: each area's share of the throws as a weighted bump at its centre (yards: -5 to 35 down, 53.3 across)
-    if (hills) {
-      const pts = []
-      SIDES.forEach((side, i) => Object.entries(BAND_YD).forEach(([d, [y0, y1]]) => { const z = hills.zones[`${side}|${d}`]; if (z?.share) pts.push({ x: (y0 + y1) / 2 + 5, y: ((i + 0.5) / 3) * 53.3, w: z.share }) }))
-      const g = densityGrid(pts, { w: 41, h: 53.3, cell: 0.5, sigma: 4.2 })
-      const green = rgb01(hue), pale = [0.95, 0.96, 0.95]
-      const zoneAt = (gx, gy) => { const air = gx - 5, side = SIDES[Math.min(2, Math.floor((gy / 53.3) * 3))]; const d = air < 0 ? 'behind' : air < 10 ? 'short' : air < 20 ? 'mid' : 'deep'; return hills.zones[`${side}|${d}`] }
-      if (g.vmax) group.add(buildHills(g, { toWorld: (gx, gy, h) => new THREE.Vector3((gx - 5) * YD, h, across(gy / 53.3)), colorAt: (gx, gy) => (zoneAt(gx, gy)?.weak ? green : pale), height: 34, floor: 0.07 }))
+    // THE AREAS, FLAT (10-20): the 2D field's twelve areas on the turf, the same tiers and boxes (PassAreaField's rules)
+    if (areas) {
+      const keys = SIDES.flatMap((sd) => Object.keys(BAND_YD).map((d) => `${sd}|${d}`))
+      const measured = keys.filter((k) => areas[k] && !areas[k].thin && Number.isFinite(Number(areas[k].value))).sort((a, b) => areas[b].value - areas[a].value)
+      const tier = (k) => { const i = measured.indexOf(k); if (i < 0) return 0.03; if (i < 2) return 0.4; if (i >= measured.length - 2 && measured.length > 5) return 0.07; return 0.18 }
+      const strip = (x0, z0, x1, z1, w, mat) => {
+        const len = Math.hypot(x1 - x0, z1 - z0); const m = new THREE.Mesh(new THREE.PlaneGeometry(len + w, w), mat)
+        m.rotation.x = -Math.PI / 2; m.rotation.z = -Math.atan2(z1 - z0, x1 - x0); m.position.set((x0 + x1) / 2, 0.32, (z0 + z1) / 2); group.add(m)
+      }
+      SIDES.forEach((sd, i) => {
+        for (const [d, [y0, y1]] of Object.entries(BAND_YD)) {
+          const k = `${sd}|${d}`, c = areas[k] || {}
+          const xa = y0 * YD + 0.8, xb = y1 * YD - 0.8, za = across(i / 3) + 0.8, zb = across((i + 1) / 3) - 0.8
+          const tile = new THREE.Mesh(new THREE.PlaneGeometry(xb - xa, zb - za), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: tier(k), depthWrite: false }))
+          tile.rotation.x = -Math.PI / 2; tile.position.set((xa + xb) / 2, 0.25, (za + zb) / 2); group.add(tile)
+          if (c.weak) {
+            // the weak box: solid when the offense also goes there (attack), else dashed, as on the flat field
+            const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(c.atk ? C.text : hue), transparent: true, opacity: 0.95, depthWrite: false })
+            const pad = 2.2, X0 = xa + pad, X1 = xb - pad, Z0 = za + pad, Z1 = zb - pad
+            const edges = [[X0, Z0, X1, Z0], [X1, Z0, X1, Z1], [X1, Z1, X0, Z1], [X0, Z1, X0, Z0]]
+            for (const [ax, az, bx, bz] of edges) {
+              if (c.atk) { strip(ax, az, bx, bz, 1.1, mat); continue }
+              const L = Math.hypot(bx - ax, bz - az), n = Math.max(2, Math.floor(L / 7))
+              for (let q = 0; q < n; q += 2) { const t0 = q / n, t1 = Math.min(1, (q + 1) / n); strip(ax + (bx - ax) * t0, az + (bz - az) * t0, ax + (bx - ax) * t1, az + (bz - az) * t1, 1.0, mat) }
+            }
+          }
+          if (!c.thin && c.big != null) {
+            const lab = labelSprite(String(c.big), C.text); lab.position.set((xa + xb) / 2, 7, (za + zb) / 2); lab.scale.multiplyScalar(1.05); lab.userData.declutter = true
+            group.add(lab)
+            if (c.name) { const nm = labelSprite(String(c.name).toUpperCase(), C.text); nm.position.set((xa + xb) / 2 - 3.5 * YD, 3, (za + zb) / 2); nm.scale.multiplyScalar(0.62); nm.userData.declutter = true; group.add(nm) }
+          }
+        }
+      })
     }
     // ZONES: a column per lit zone, height = its heat, the number on top
-    if (pass && !hills) SIDES.forEach((s, i) => {
+    if (pass && !areas) SIDES.forEach((s, i) => {
       for (const [d, [y0, y1]] of Object.entries(BAND_YD)) {
         const c = cells[`${s}|${d}`]
         if (!c || c.heat == null) continue
@@ -250,7 +277,11 @@ export default function GameArena({ cells = {}, men = [], defMen = [], hue = C.g
 
   if (!ok) return <ChartEmpty theme={C}>This device can&apos;t draw WebGL, so the 3D field isn&apos;t available here — the flat field shows the same zones and players.</ChartEmpty>
 
-  const PRESETS = [
+  // the pass areas get the two cameras Donovan keeps (10-20: "rafters ... all-22, those are honestly the only two views I like")
+  const PRESETS = areas ? [
+    { key: 'all22', label: 'ALL-22', title: 'High behind the offense, every area in frame' },
+    { key: 'rafters', label: 'RAFTERS', title: 'High in the corner of the upper deck' },
+  ] : [
     { key: 'sideline', label: 'SIDELINE', title: 'From the sideline seats' },
     { key: 'endzone', label: 'END ZONE', title: 'Behind the offense, looking downfield' },
     { key: 'all22', label: 'ALL-22', title: 'High behind the offense, every lane in frame' },
@@ -259,7 +290,7 @@ export default function GameArena({ cells = {}, men = [], defMen = [], hue = C.g
   return (
     <StadiumShell theme={C} accent={C.green} presets={PRESETS} active={preset}
       onPreset={(k) => { setPreset(k); apiRef.current.preset?.(k) }} onFullChange={setFull}
-      caption={<div style={{ marginTop: 6, fontSize: 11, color: C.text3, lineHeight: 1.5, fontFamily: NUM_FONT }}>{hills ? <>Higher hill = more of their throws. <b style={{ color: hue }}>Green</b> = the defense is weak there. Drag to turn.</> : <>Columns = {pass ? 'zones' : 'run gaps'}, taller = more. Faces stand where the flat field puts them; corners by chart slot, nobody says who covers whom. Dashed ring = by role. Tap a face for his card.</>}{title ? ` ${title}` : ''}</div>}>
+      caption={<div style={{ marginTop: 6, fontSize: 11, color: C.text3, lineHeight: 1.5, fontFamily: NUM_FONT }}>{areas ? <>The flat field&apos;s areas on the turf: brighter = more of their throws; % = share of the targets; <b style={{ color: hue }}>dashed green</b> = the defense is weak there, <b style={{ color: C.text }}>solid</b> = attack. Drag to turn.</> : <>Columns = {pass ? 'zones' : 'run gaps'}, taller = more. Faces stand where the flat field puts them; corners by chart slot, nobody says who covers whom. Dashed ring = by role. Tap a face for his card.</>}{title ? ` ${title}` : ''}</div>}>
       <div style={{ position: 'relative', ...(full ? { height: '100%' } : {}) }}>
         <div ref={mountRef} style={{ width: '100%', ...(full ? { height: '100%' } : { minHeight: 340, aspectRatio: '1 / 0.75' }), borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }} />
       </div>
