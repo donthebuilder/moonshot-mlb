@@ -31,7 +31,7 @@ const BAD = /https?:|www\.|\.com|#\w|@\w|\bbot\b|%|\bodds\b|probab/i
 
 // ── 1. each player family: honest numbers in, a clean 4-8 line post out ─────────────────────────────
 const built = {
-  p_streak: () => PL.streakFacts({ sport: 'mlb', players, streaks: [{ id: 'T1', what: 'a home run', whatKey: 'hr', n: 3 }, { id: 'T1', what: 'a hit', whatKey: 'hit', n: 7 }, { id: 'T9', what: 'a hit', whatKey: 'hit', n: 9 }], today: TODAY }),
+  p_streak: () => PL.streakFacts({ sport: 'mlb', players, streaks: [{ id: 'T1', what: 'a home run', whatKey: 'hr', n: 3 }, { id: 'T1', what: 'a hit', whatKey: 'hit', n: 11 }, { id: 'T9', what: 'a hit', whatKey: 'hit', n: 12 }], today: TODAY }),
   p_form: () => PL.formFacts({ sport: 'nhl', players, bars: [{ id: 'T2', label: '3+ shots', threshold: 3, cleared: 8, of: 10 }, { id: 'T3', label: '3+ shots', threshold: 3, cleared: 5, of: 10 }, { id: 'T4', label: '3+ shots', threshold: 3, cleared: 7, of: 7 }], today: TODAY }),
   p_birthday: () => PL.nflBirthdayFacts({ data: { players: [{ player_id: 'T1', birth_date: '1999-10-09' }, { player_id: 'T2', birth_date: '1999-10-10' }, { player_id: 'T9', birth_date: '1990-10-09' }] }, players, today: TODAY }),
   p_vs_team: () => PL.nflVsTeamFacts({ logs: { logs: { T1: { log: [{ s: 2024, opp: 'BBB', g_td: 1 }, { s: 2025, opp: 'BBB', g_td: 2 }, { s: 2025, opp: 'CCC', g_td: 1 }] }, T2: { log: [{ s: 2025, opp: 'BBB', g_td: 1 }] } } }, players, today: TODAY }),
@@ -49,31 +49,61 @@ for (const [fam, make] of Object.entries(built)) {
     assert.ok(w.text, `${fam} was rejected: ${JSON.stringify(w.rejected)}`)
     const lines = w.text.split('\n')
     assert.ok(lines.length >= 4 && lines.length <= 8, `${lines.length} lines`)
-    assert.equal(lines[0], `${R.BRAND[f.sport].icon} ${R.BRAND[f.sport].name} · ${LB.LABELS[fam]}`)
+    // the voice (2026-10-20): a hook first (sport icon from the registry), an ask last; neither carries a digit
+    assert.equal(lines[0], LB.hookOf(f)); assert.ok(lines[0].startsWith(`${R.BRAND[f.sport].icon} `))
+    assert.equal(lines[lines.length - 1], LB.askOf(f)); assert.ok(lines[lines.length - 1].endsWith('?'))
+    assert.ok(!/\d/.test(lines[0]) && !/\d/.test(lines[lines.length - 1]), 'a digit in the hook or the ask')
     assert.ok(!BAD.test(w.text), 'link / hashtag / bot / percent / odds'); assert.equal((w.text.match(new RegExp(f.player, 'g')) || []).length, 1, 'full name once')
     assert.ok(CK.checkShape(w.text, f).ok); assert.ok(CK.checkDraft(w.text, f).ok)
   })
 }
 await ok('the streak takes the LONGEST run per man and never names a man who is not on the slate', () => {
   const f = built.p_streak()[0]
-  assert.equal(f.n, 7); assert.equal(f.whatKey, 'hit')
+  assert.equal(f.n, 11); assert.equal(f.whatKey, 'hit')
 })
 await ok('sport words come from the registry (POST_WORDS), not typed', () => {
   for (const sport of ['mlb', 'nfl', 'nhl', 'nba']) {
-    const f = PL.streakFacts({ sport, players, streaks: [{ id: 'T1', what: 'a goal', whatKey: 'goal', n: 3 }], today: TODAY })[0]
+    const f = PL.streakFacts({ sport, players, streaks: [{ id: 'T1', what: 'a goal', whatKey: 'goal', n: 4 }], today: TODAY })[0]
     assert.equal(f.market, R.POST_WORDS[sport].market); assert.ok(WR.templateDrafts(f)[0].includes(`Market: ${R.POST_WORDS[sport].market}.`))
   }
 })
-await ok('the checker still refuses what it must: a number or a name not in the fact, a missing label line, a link, 3 lines', () => {
+await ok('the checker still refuses what it must: a number or a name not in the fact, a missing hook, a link, 3 lines, an unlisted hashtag', () => {
   const f = built.p_streak()[0]
   const good = WR.templateDrafts(f)[0]
   assert.ok(CK.checkDraft(good, f).ok)
-  assert.ok(!CK.checkDraft(good.replace('7 straight', '8 straight'), f).ok)
+  assert.ok(!CK.checkDraft(good.replace('11 straight', '13 straight'), f).ok)
   assert.ok(!CK.checkDraft(good.replace('Test Player A', 'Test Player Q'), f).ok)
   assert.ok(!CK.checkShape(good.split('\n').slice(1).join('\n'), f).ok)
   assert.ok(!CK.checkShape(`${good}\nhttps://x.example`, f).ok)
   assert.ok(!CK.checkShape(good.split('\n').slice(0, 3).join('\n'), f).ok)
   assert.ok(!CK.checkShape(`${good}\n#MLB`, f).ok)
+})
+
+await ok('the voice (2026-10-20): short streaks are not facts; swearing, "due" and "chasing" are refused; one LISTED hashtag at most; two emoji at most', () => {
+  // floors: a 2-game goal run, a 3-game goal run and a 7-game hit run are not facts; a 4-game goal run is
+  const sf = (whatKey, n) => PL.streakFacts({ sport: 'nhl', players, streaks: [{ id: 'T1', what: 'a goal', whatKey, n }], today: TODAY })
+  assert.equal(sf('goal', 2).length, 0); assert.equal(sf('goal', 3).length, 0); assert.equal(sf('goal', 4).length, 1)
+  assert.equal(PL.streakFacts({ sport: 'mlb', players, streaks: [{ id: 'T1', what: 'a hit', whatKey: 'hit', n: 7 }], today: TODAY }).length, 0)
+  assert.equal(PL.streakFloor('unknown_key'), PL.STREAK_FLOOR.default)
+  const f = built.p_streak()[0]
+  const good = WR.templateDrafts(f)[0]
+  assert.ok(CK.checkShape(good, f).ok && CK.checkDraft(good, f).ok)
+  assert.ok(!CK.checkDraft(good.replace('straight games.', 'straight games. Damn.'), f).ok, 'swearing')
+  assert.ok(!CK.checkShape(good.replace('straight games.', 'straight games. He is due.'), f).ok, 'due')
+  assert.ok(!CK.checkShape(good.replace('straight games.', 'straight games, chasing more.'), f).ok, 'chasing')
+  assert.ok(!CK.OVERCLAIM.test('Out due to injury.'), '"due to injury" is a fine sentence')
+  // hashtags: none listed for the day -> any hashtag is refused; the listed one passes; two never do
+  const ask = LB.askOf(f)
+  assert.ok(!CK.checkShape(good.replace(ask, `${ask} #TestTag`), f).ok)
+  const tagged = { ...f, tag: '#TestTag' }
+  const withTag = WR.templateDrafts(tagged)[0]
+  assert.ok(withTag.split('\n')[0].endsWith(' #TestTag'), 'the listed tag rides on the hook line')
+  assert.ok(CK.checkShape(withTag, tagged).ok, JSON.stringify(CK.checkShape(withTag, tagged).why))
+  assert.ok(!CK.checkShape(withTag.replace(ask, `${ask} #OtherTag`), tagged).ok)
+  // emoji: the sport icon + one feeling emoji is the most a post carries
+  assert.ok(!CK.checkShape(good.replace(ask, `${ask} 🔥`), f).ok)
+  // the last line must be an ask
+  assert.ok(!CK.checkShape(good.split('\n').slice(0, -2).join('\n'), f).ok)
 })
 
 // ── 2. the birthday / vs-team / form guards ────────────────────────────────────────────────────────
