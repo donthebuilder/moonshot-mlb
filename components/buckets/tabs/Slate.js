@@ -84,7 +84,7 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
           before tip / ◻ still a preview, tip time / live / final. */}
       {view === 'games' && games.length > 0 && (
         <div>
-          <Rail itemMin={264} gap={8} wheelScroll={false}>
+          <Rail itemMin={296} gap={8} wheelScroll={false}>
             {games.map((x) => {
               const xs = (data?.rows || []).filter((r) => r.gameId === x.id && Number.isFinite(Number(r.score)))
               const best = xs.length ? Math.max(...xs.map((r) => Number(r.score))) : null

@@ -54,7 +54,7 @@ function Row({ label, items, onOpen, C, NUM_FONT, kind, accent, gateOf = null })
           const locked = kind === 'still' && isLocked(gateOf, x)
           return (
             <Fragment key={x.id}>
-              <button type="button" onClick={onOpen ? () => onOpen(x.id, x) : undefined}
+              <button type="button" className="tap-box" onClick={onOpen ? () => onOpen(x.id, x) : undefined}
                 aria-label={[x.name, kind === 'still' ? (x.when === 'now' ? 'live' : 'still to start') : null, kind === 'still' && x.status && !locked ? STATUS_WORD[x.status] : null, locked ? null : x.note].filter(Boolean).join(', ')}
                 style={{ minHeight: 44, margin: '-10px 0', display: 'inline-flex', alignItems: 'center', gap: 5, padding: 0, border: 0, background: 'transparent', color: C.text, cursor: onOpen ? 'pointer' : 'default', font: 'inherit', textAlign: 'left' }}>
                 {/* surnames keep three on one line at 390; the full name is on the button for

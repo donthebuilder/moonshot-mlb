@@ -75,7 +75,7 @@ export function SlateStrip({ sport, isPhone, rememberKey, accent, theme, open = 
       summary={open ? <>reading <MatchLogos sport={sport} away={open.away} home={open.home} px={14} gap={3} /></> : 'tap to pick one'}>
       <div style={{ marginBottom: 16 }}>
         <style>{'@keyframes gsLivePulse{0%,100%{opacity:1}50%{opacity:.3}}'}</style>
-        <Rail itemMin={264} gap={8} wheelScroll={false}>
+        <Rail itemMin={296} gap={8} wheelScroll={false}>   {/* 296 (was 264): a wider card is a shorter one (10-19) */}
           {cards.map((c) => <SlateCard key={c.id} card={c} on={c.id === activeId} accent={accent} onSelect={onSelect} sport={sport} />)}
         </Rail>
         <div style={{ marginTop: 7, fontSize: 9.5, color: theme.text3 }}>{legend}</div>

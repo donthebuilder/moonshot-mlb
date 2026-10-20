@@ -1118,7 +1118,7 @@ export default function ZoneMap({
           {liveTypes.length > 0 && (
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
               <button onClick={() => setLiveCmd((v) => !v)}
-                title="Command: one cross per pitch type at the centre of tonight's crossings, and the 1σ oval around it — small and near an edge means he is commanding it, wide across the middle means he is losing it. Three of a type before an oval is drawn."
+                title="Command: one cross per pitch type at the center of tonight's crossings, and the 1σ oval around it — small and near an edge means he is commanding it, wide across the middle means he is losing it. Three of a type before an oval is drawn."
                 style={{
                   fontSize: 9, fontFamily: NUM_FONT, fontWeight: 700, cursor: 'pointer',
                   borderRadius: 999, padding: '2px 9px',

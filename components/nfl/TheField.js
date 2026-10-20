@@ -659,7 +659,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     return <polyline key={`r${p.i}`} points={pts.map(([uu, a]) => `${(cx0 + uu * (cx1 - cx0)).toFixed(1)},${Y(a).toFixed(1)}`).join(' ')} fill="none"
       stroke={td ? C.green : inkOf(p)} strokeOpacity={pick === p.i ? 1 : td ? Math.min(0.85, routeAlpha * 1.6) : routeAlpha} strokeWidth={pick === p.i ? 2.6 : 1.7} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" pointerEvents="none" />
   }) : null
-  const subjName = asPlayer ? player.name : `${team} offence`
+  const subjName = asPlayer ? player.name : `${team} offense`
   // the 3D stadium's targets: the same plays, size and ink as the dots
   const dots3 = drawn.map((p) => ({ i: p.i, wk: p.wk, lane: p.lane, air: p.air, res: p.res, yac: p.yac, ink: inkOf(p), pid: p.pid, path: routesOn ? routeShape(p) : null,
     rPx: dotRadiusPx(p.yac, dotScale), label: `${p.res === 'td' ? 'Touchdown' : p.res === 'catch' ? 'Catch' : p.res === 'int' ? 'Intercepted' : 'Incomplete'} · ${p.air} air yd · ${LANE_WORD3[p.lane]} · week ${p.wk}${asPlayer ? '' : ` · ${nameOf(p.pid)}`}` }))

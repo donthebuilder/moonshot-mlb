@@ -99,7 +99,7 @@ export default function Players({ onOpenTeam, onOpenGame }) {
     { key: 'tonight', label: '🏒 Playing tonight', test: (p) => Boolean(tonight[p.team]), why: 'His club has a game tonight' },
     ...(goaliesOnly ? [] : [
       { key: 'F', label: 'Forwards', test: (p) => ['C', 'L', 'R'].includes(p.pos), why: 'Centres and wingers' },
-      { key: 'D', label: 'Defence', test: (p) => p.pos === 'D', why: 'Defencemen' },
+      { key: 'D', label: 'Defense', test: (p) => p.pos === 'D', why: 'Defensemen' },
     ]),
   ]
 

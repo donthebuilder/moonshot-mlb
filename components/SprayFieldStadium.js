@@ -9,6 +9,7 @@ import { labelSprite } from '../lib/three/sprites'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { C, NUM_FONT } from '../lib/theme'
 import { densityGrid } from '../lib/charts/terrain'
+import { leagueHrRate } from '../lib/mlb/leagueSpray'
 import { buildHills, rgb01 } from '../lib/three/hills'
 import StadiumShell from './charts/StadiumShell'
 import { catColor } from '../lib/scales'
@@ -117,7 +118,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
   const [full, setFull] = useState(false)
   const [preset, setPreset] = useState('press')
   // THE HILLS (10-19, the shared 3D look): where his batted balls land, lifted; MOONSHOT orange where his home-run
-  // rate there beats his own overall rate. Balls = the flights as before.
+  // rate there beats the league's for balls landing there (lib/mlb/leagueSpray.js). Balls = the flights as before.
   const [layer, setLayer] = useState('balls')
   const layerRef = useRef(layer); layerRef.current = layer
   const apiRef = useRef({})
@@ -483,7 +484,15 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         if (g.vmax) {
           hills = buildHills(g, {
             toWorld: (gx, gy, h) => new THREE.Vector3(gx - 350, h, gy),
-            colorAt: (gx, gy) => { const k = Math.round(gy / 5) * g.gw + Math.round(gx / 5); const v = g.grid[k], hv = gh.grid[k]; return rate > 0 && v > 0.15 * g.vmax && hv / v > rate * 1.25 ? acc : pale },
+            // THE BAR (10-19, Donovan "handle"): the LEAGUE's home-run rate for balls landing in that direction and distance
+            // (lib/mlb/leagueSpray.js, measured from every 2025 batted ball) where it has 100+ balls; else his own overall rate
+            colorAt: (gx, gy) => {
+              const k = Math.round(gy / 5) * g.gw + Math.round(gx / 5); const v = g.grid[k], hv = gh.grid[k]
+              const lg = leagueHrRate(Math.hypot(gx - 350, gy), Math.atan2(-(gx - 350), gy) / DEG)
+              if (lg != null && lg < 0.02) return pale   // inside the fences the league almost never homers: no bar to beat (smoothing would paint it)
+              const bar = lg ?? rate
+              return bar > 0 && v > 0.15 * g.vmax && hv / v > bar * 1.25 ? acc : pale
+            },
             height: 46, floor: 0.06,
           })
           scene.add(hills)
@@ -1367,6 +1376,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
   const fill = full ? { height: '100%' } : null
   const caption = (
       <div style={{ fontSize: 9, color: C.text3, marginTop: 5, lineHeight: 1.5, fontFamily: NUM_FONT }}>
+        {layer === 'hills' ? <div style={{ fontSize: 11, color: C.text2, marginBottom: 3 }}>Higher = more of his balls land there · <b style={{ color: C.orange }}>orange</b> = he homers there more than the league does</div> : null}
         drag to orbit · scroll to zoom · swipe sideways on a phone, or ⛶ full screen · presets jump the camera · hover a ball for its readout{venue ? ` · ${venue}` : ''} · wall numbers are the park&apos;s five
         published distances ·{' '}
         {windMph > 0 && windLabel && (

@@ -406,8 +406,8 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
   )
   const PRESETS = [
     { key: 'sideline', label: 'SIDELINE', title: 'From the sideline seats' },
-    { key: 'endzone', label: 'END ZONE', title: 'Behind the offence, looking downfield' },
-    { key: 'all22', label: 'ALL-22', title: 'High behind the offence, every lane in frame' },
+    { key: 'endzone', label: 'END ZONE', title: 'Behind the offense, looking downfield' },
+    { key: 'all22', label: 'ALL-22', title: 'High behind the offense, every lane in frame' },
     { key: 'top', label: 'TOP', title: 'Straight down: the same picture as the field below' },
   ]
   const caption = (

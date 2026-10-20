@@ -876,7 +876,7 @@ export function renderV2(ctx) {
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><i aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 3, background: C.bg, border: `1px solid ${C.border}`, display: 'inline-block' }} />bottom 20%</span>
               <span>▲▼ vs the middle</span>
             </>}
-            <button type="button" onClick={() => setCapOpen((v) => !v)} aria-expanded={capOpen}
+            <button type="button" className="tap-box" onClick={() => setCapOpen((v) => !v)} aria-expanded={capOpen}
               style={{ background: 'none', border: 'none', padding: '14px 8px', margin: '-14px -8px', minHeight: 0, cursor: 'pointer', color: capOpen ? ac : C.text2, fontSize: 11, fontWeight: 700, textDecoration: 'underline dotted', textUnderlineOffset: 3, fontFamily: 'inherit' }}>{capOpen ? 'Columns ▴' : 'Columns ▸'}</button>
           </div>
           {capOpen && (

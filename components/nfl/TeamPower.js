@@ -100,7 +100,7 @@ export default function TeamPower({ players = [], statSeason, onPlayerClick, pre
         )
       })}
       {rows.length > preview && (
-        <button className="tp-more" onClick={() => setShowAll((v) => !v)}>{showAll ? 'Fewer' : `All ${rows.length} teams`}</button>
+        <button className="tp-more tap-box" onClick={() => setShowAll((v) => !v)}>{showAll ? 'Fewer' : `All ${rows.length} teams`}</button>
       )}
       <style>{`
         .tuddy-team-power{border:1px solid rgba(0,245,173,.22);border-radius:16px;padding:14px 14px 10px;background:linear-gradient(160deg,rgba(0,245,173,.06),transparent 60%)}
@@ -109,7 +109,7 @@ export default function TeamPower({ players = [], statSeason, onPlayerClick, pre
         .tp-head h2{margin:4px 0 0;font-size:17px}
         .tp-head>span{font:700 9.5px/1.3 var(--num-font,ui-monospace,monospace);opacity:.6}
         .tp-row{border-top:1px solid rgba(255,255,255,.06)}
-        .tp-row>button{display:flex;align-items:center;gap:9px;width:100%;padding:7px 2px;background:transparent;border:none;color:inherit;cursor:pointer;text-align:left;min-width:0}
+        .tp-row>button{display:flex;align-items:center;gap:9px;width:100%;min-height:44px;padding:7px 2px;background:transparent;border:none;color:inherit;cursor:pointer;text-align:left;min-width:0}
         .tp-rank{width:20px;text-align:right;font:900 11px/1 var(--num-font,ui-monospace,monospace);opacity:.55}
         .tp-bar{flex:1;height:8px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden;min-width:40px}
         .tp-bar>span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,${RAMP[0]},${RAMP[2]},${RAMP[5]})}

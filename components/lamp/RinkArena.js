@@ -72,7 +72,7 @@ function shotTip(sh, speed, hardest) {
 
 export default function RinkArena({ shots = [], map = null, league = null, slot = null, gridSpec = null, view = 'dots', onPick = null, onPickCell = null, title = '', subtitle = '', venue = null,
   speed = null, hardest = null, stats = null, dockChips = [], onClearAll = null, totalShots = null, slotPct = null, goalieRead = null, onPickZone = null, hillShots = null }) {
-  // THE HILLS (10-19, the shared 3D look): where he shoots from, lifted; ice-blue where he scores at a better rate than his own overall
+  // THE HILLS (10-19, the shared 3D look): where he shoots from, lifted; ice-blue where he scores at a better rate than the league from that zone (his own overall when the league grid is missing)
   const [layer, setLayer] = useState('hills')
   const layerRef = useRef(layer); layerRef.current = layer
   const tipRef = useRef(null)
@@ -166,11 +166,19 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
       const g = densityGrid(pts, { w: 75, h: RINK_W, cell: 1, sigma: hs.length > 300 ? 3 : 4 })
       const gg = densityGrid(pts.filter((_, i) => hs[i][2] === 'goal'), { w: 75, h: RINK_W, cell: 1, sigma: hs.length > 300 ? 3 : 4 })
       const goals = hs.filter((sh) => sh[2] === 'goal').length, rate = goals / hs.length
+      const lgGrid = league?.grid || null
       const ice = rgb01(C.ice), pale = [0.38, 0.43, 0.52]   // slate, not pale: the ice is white (a pale hill vanished on it)
       if (g.vmax) {
         hills = buildHills(g, {
           toWorld: (gx, gy, h) => rinkPoint(gx + 25, gy - RINK_W / 2, h),
-          colorAt: (gx, gy) => { const k = Math.round(gy) * g.gw + Math.round(gx); const v = g.grid[k], gv = gg.grid[k]; return v > 0.15 * g.vmax && rate > 0 && gv / v > rate * 1.25 ? ice : pale },
+          // THE BAR (10-19, Donovan "handle"): the LEAGUE's goals per attempt in that zone (lamp_league_shot_grid, the 2D VS LEAGUE grid:
+          // 5 x 5 over the attacking end) where the league has 50+ attempts there; else his own overall rate, as before
+          colorAt: (gx, gy) => {
+            const k = Math.round(gy) * g.gw + Math.round(gx); const v = g.grid[k], gv = gg.grid[k]
+            const cell = lgGrid?.[Math.max(0, Math.min(4, Math.floor((RINK_W / 2 - (gy - RINK_W / 2)) / (RINK_W / 5))))]?.[Math.min(4, Math.floor(gx / 15))]
+            const bar = cell && cell.att >= 50 ? cell.g / cell.att : rate
+            return v > 0.15 * g.vmax && bar > 0 && gv / v > bar * 1.25 ? ice : pale
+          },
           height: 16, opacity: 0.8,
         })
         scene.add(hills)
@@ -477,7 +485,7 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
     <div style={{ marginTop: 6 }}>
       {/* THE BUILDING (Donovan 10-02, "just show whatever building they are at"): its name, nothing modelled */}
       {venue ? <div style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, letterSpacing: '.06em', color: C.text2, marginBottom: 4 }}>🏟 {venue}</div> : null}
-      {layer === 'hills' ? <div style={{ fontSize: 11, color: C.text2, fontFamily: NUM_FONT }}>Higher hill = more of his shots from there · <b style={{ color: C.ice }}>ice-blue</b> = he scores there at a better rate than his overall, slate = the rest</div> : <ChartLegend theme={C} items={view === 'vs'
+      {layer === 'hills' ? <div style={{ fontSize: 11, color: C.text2, fontFamily: NUM_FONT }}>Higher hill = more of his shots from there · <b style={{ color: C.ice }}>ice-blue</b> = he scores there at a better rate than {league?.grid ? 'the league from there' : 'his overall'}, slate = the rest</div> : <ChartLegend theme={C} items={view === 'vs'
         ? [{ key: 'vs', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.lamp}aa` }} />, label: 'more than the league / blue fewer, as on the rink above' }]
         : view === 'heat'
         ? [{ key: 'heat', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.ice}88` }} />, label: 'shooting % per zone, as on the flat rink' }]
