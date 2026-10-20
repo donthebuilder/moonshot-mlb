@@ -1,10 +1,11 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { sharedJSON } from '../lib/sharedRead'
-import { appHref, playerHref } from '../lib/routes'
+import { appHref } from '../lib/routes'
 import { digitRoot } from '../lib/numerology/core'
 import HistoryWatch from './HistoryWatch'
 import StoryRow, { StoryParts } from './StoryRow'
+import MilestoneRate from './MilestoneRate'
 
 // 🏁 MILESTONES ON THE LEDGER AND NUMEROLOGY (2026-10-20, Donovan: "if you made so milestones can be researched just like
 // headlines then we are good"). The milestone countdowns are stories now on every product (lib/stories/milestones.js), so
@@ -22,6 +23,7 @@ export function milestonesHref(sport) {
 
 export default function MilestonesBlock({ sport, theme: C, numFont, accent, date = null, dateRoot = null }) {
   const [data, setData] = useState(null)
+  const [openKey, setOpenKey] = useState(null)
   useEffect(() => {
     let alive = true
     sharedJSON(`/api/stories?sport=${encodeURIComponent(sport)}${date ? `&date=${date}` : ''}`).then((j) => { if (alive) setData(j) }).catch(() => {})
@@ -43,13 +45,18 @@ export default function MilestonesBlock({ sport, theme: C, numFont, accent, date
           {rows.slice(0, SHOW).map((s) => {
             const t = Number(s.numbers?.target)
             const meets = dateRoot && Number.isFinite(t) && digitRoot(t) === Number(dateRoot)
+            const k = `${s.player_id}|${s.text}`
+            const open = openKey === k
+            // a tap opens his hit rate for this stat (components/MilestoneRate.js); his page is one more tap from there
             return (
-              <StoryRow key={`${s.player_id}|${s.text}`} icon={s.icon} theme={C} title={`Source: ${s.source}`}>
-                {/* his name opens his page (every name is a link); the rest is the engine's sentence */}
-                <a href={playerHref(sport, s.player_id)} style={{ color: C.text, fontWeight: 700, textDecoration: 'none' }}>{s.name}</a>
-                <StoryParts parts={s.parts[0]?.t === 'name' && s.parts[0].v === s.name ? s.parts.slice(1) : s.parts} theme={C} numFont={numFont} />
-                {meets ? <span title={`${t} reduces to ${dateRoot}, the day's number`} style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 3, border: `1px solid ${accent}`, color: accent, fontFamily: numFont, fontSize: 9.5, fontWeight: 900, letterSpacing: '.06em', whiteSpace: 'nowrap' }}>🔮 {t.toLocaleString('en-US')} → {dateRoot}</span> : null}
-              </StoryRow>
+              <div key={k}>
+                <StoryRow icon={s.icon} theme={C} title={`Source: ${s.source}`} expanded={open} onClick={() => setOpenKey(open ? null : k)}
+                  tag={s.numbers?.rate ? <span style={{ fontFamily: numFont, color: open ? accent : C.text3 }}>{s.numbers.rate.l5[0]}/{s.numbers.rate.l5[1]} {open ? '▴' : '▾'}</span> : null}>
+                  <StoryParts parts={s.parts} theme={C} numFont={numFont} />
+                  {meets ? <span title={`${t} reduces to ${dateRoot}, the day's number`} style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 3, border: `1px solid ${accent}`, color: accent, fontFamily: numFont, fontSize: 9.5, fontWeight: 900, letterSpacing: '.06em', whiteSpace: 'nowrap' }}>🔮 {t.toLocaleString('en-US')} → {dateRoot}</span> : null}
+                </StoryRow>
+                {open ? <MilestoneRate sport={sport} story={s} theme={C} numFont={numFont} accent={accent} /> : null}
+              </div>
             )
           })}
         </div>

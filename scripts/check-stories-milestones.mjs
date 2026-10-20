@@ -1,7 +1,7 @@
 // lib/stories/milestones.js + the milestone bars in lib/stories/grade.js (2026-10-20).
 //   node --import ./scripts/_esm-resolve.mjs scripts/check-stories-milestones.mjs
 // Pure, offline. TEST DATA ONLY: the totals below are made up to land on the rungs; nothing here is shown anywhere.
-import { nearestMilestones, milestoneStory, MILES } from '../lib/stories/milestones.js'
+import { nearestMilestones, milestoneStory, MILES, hitRate } from '../lib/stories/milestones.js'
 import { gradeStory } from '../lib/stories/grade.js'
 
 let failed = 0
@@ -39,6 +39,11 @@ check(gradeStory(sy, { RUSH_YDS: 50 })?.outcome === 'hit' && gradeStory(sy, { RU
 const nb = nearestMilestones('nba', [{ p: { playerId: 'b1', name: 'Test Guard', team: 'AAA' }, career: { gp: 600, pts: 9990, reb: 2000, ast: 1500, tpm: 450 } }])
 const sb = milestoneStory({ sport: 'nba', day: 'd', game_id: 'g', player_id: 'b1', name: 'Test Guard', team: 'AAA' }, nb[0], 'test')
 check(nb[0].m.key === 'pts' && gradeStory(sb, { pts: 10, reb: 0, ast: 0, tpm: 0, gp: 1 })?.outcome === 'hit', `NBA points: "${sb.text}"`)
+
+// Hit rate (TEST values): games that reached the need, newest first; a value the source lacks is dropped, never 0
+const hr = hitRate(2, [{ v: 3 }, { v: 0 }, { v: 2 }, { v: NaN }, { v: 1 }, { v: 5 }, { v: 2 }], [{ v: 3 }, { v: 0 }, { v: 2 }])
+check(hr.l5.join('/') === '3/5' && hr.last.map((g) => g.v).join(' ') === '3 0 2 1 5' && hr.l10.join('/') === '4/6' && hr.szn.join('/') === '2/3', `hit rate: L5 ${hr.l5.join('/')}, L10 ${hr.l10.join('/')}, season ${hr.szn.join('/')}`)
+check(hitRate(1, []) === null && hitRate(1, [{ v: NaN }]) === null, 'hit rate: no games -> no rate (never 0 of 0)')
 
 // Every rung list has a word, a window and either a line field or an explicit null
 for (const [sport, list] of Object.entries(MILES)) check(list.every((m) => m.word && m.within > 0 && m.targets.length && (m.bar === null || typeof m.bar === 'string')), `${sport}: every rung is complete`)

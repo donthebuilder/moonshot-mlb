@@ -3,11 +3,13 @@ import { useTeamNav } from '../lib/teamNav'
 import DenseTable from './DenseTable'
 import Tap from './Tap'
 import { MatchLogos } from './TeamMark'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import useHashFilters from '../lib/useHashFilters'
+import { flatChip, FLAT_CHIP_CLASS } from '../lib/chips'
 import PageHeader from './PageHeader'
 import HelpTip from './HelpTip'
 import StoryRow, { StoryParts, BoardBadge } from './StoryRow'
+import MilestoneRate from './MilestoneRate'
 import { localDayTime } from '../lib/localTime'
 import Fold from './Fold'
 import { ShowMoreButton } from './ListPreview'
@@ -69,6 +71,15 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
   const q = hf.q || ''
   const setQ = (v) => setHf('q', v)
   const [open, setOpen] = useState(() => new Set())
+  const [openStory, setOpenStory] = useState(null)   // a milestone row opened to its hit rate
+  // arriving on a filter (a MILESTONES link): slide the chip row so the first chip that's on is in view, once
+  const chipRow = useRef(null); const slid = useRef(false)
+  useEffect(() => {
+    if (slid.current || !data || !chipRow.current) return
+    slid.current = true
+    const on = chipRow.current.querySelector('[aria-pressed="true"]')
+    if (on) chipRow.current.scrollLeft = Math.max(0, on.offsetLeft - chipRow.current.offsetLeft - 8)
+  }, [data])
   const [allGames, setAllGames] = useState(false)
 
   useEffect(() => {
@@ -102,11 +113,8 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
   }, [games, shown, previewGames])
   const filtering = types.size || calledOnly || rareOnly || q.trim() || keepIds
 
-  const chip = (on) => ({
-    flex: '0 0 auto', minHeight: 44, padding: '0 12px', borderRadius: 22, border: `1px solid ${on ? accent : C.border}`,
-    background: on ? `color-mix(in srgb, ${accent} 14%, transparent)` : 'transparent', color: on ? C.text : C.text2,
-    font: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
-  })
+  // the small flat chip (lib/chips.js, 2026-10-20), a 44px hit area on touch
+  const chip = (on) => flatChip(on, accent, C, numFont)
   const Badge = ({ b, s }) => <BoardBadge b={b} theme={C} numFont={numFont} accent={accent} lockIn={s ? lockOf(s) : null} />
   const Parts = ({ parts }) => <StoryParts parts={parts} theme={C} numFont={numFont} />
 
@@ -137,11 +145,11 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
       <PageHeader eyebrow={eyebrow} title="Storylines" theme={C} numFont={numFont} accent={accent}
         note={<>What the numbers say about each game, rarest first.<HelpTip label="Storylines" color={C.text3} text="Every line has the player's board status beside it. Nothing here is a score." /></>} />
 
-      <div role="group" aria-label="Filter storylines" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
-        <button type="button" style={chip(calledOnly)} aria-pressed={calledOnly} onClick={() => setCalledOnly((v) => !v)}>Called only</button>
-        <button type="button" style={chip(rareOnly)} aria-pressed={rareOnly} onClick={() => setRareOnly((v) => !v)}>Rare only</button>
+      <div ref={chipRow} role="group" aria-label="Filter storylines" style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '11px 0', margin: '-11px 0', scrollbarWidth: 'none' }}>
+        <button type="button" className={FLAT_CHIP_CLASS} style={chip(calledOnly)} aria-pressed={calledOnly} onClick={() => setCalledOnly((v) => !v)}>Called only</button>
+        <button type="button" className={FLAT_CHIP_CLASS} style={chip(rareOnly)} aria-pressed={rareOnly} onClick={() => setRareOnly((v) => !v)}>Rare only</button>
         {allTypes.map((t) => (
-          <button key={t} type="button" style={chip(types.has(t))} aria-pressed={types.has(t)}
+          <button key={t} type="button" className={FLAT_CHIP_CLASS} style={chip(types.has(t))} aria-pressed={types.has(t)}
             onClick={() => setTypes((s) => { const n = new Set(s); if (n.has(t)) n.delete(t); else n.add(t); return n })}>{TYPE_LABEL[t] || t}</button>
         ))}
       </div>
@@ -170,9 +178,14 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
             {/* A started game shows only what was frozen before it (the record began 09-27). */}
             {!rows.length ? <div style={{ marginTop: 6, fontSize: 12, color: C.text3 }}>{g.state !== 'pre' && !g.frozenCount ? 'Nothing was frozen before this one started, so nothing is shown — a story written after the first pitch / kickoff / puck drop would be hindsight.' : 'No storylines for this one.'}</div> : null}
             <div style={{ marginTop: 4 }}>
-              {(all ? rows : rows.slice(0, SHOW)).map((s) => (
-                <StoryRow key={`${s.type}|${s.player_id}|${s.text}`} icon={s.icon} theme={C} title={`Source: ${s.source}`}
-                  onClick={onOpenPlayer && s.board ? () => onOpenPlayer(s.player_id, s)
+              {(all ? rows : rows.slice(0, SHOW)).map((s) => {
+                const sk = `${s.type}|${s.player_id}|${s.text}`
+                // a milestone row opens to his hit rate for that stat (components/MilestoneRate.js); his card is inside it
+                const mile = s.type === 'milestone' && s.player_id && s.player_id !== '_game'
+                return (<div key={sk}>
+                <StoryRow icon={s.icon} theme={C} title={`Source: ${s.source}`} expanded={mile ? openStory === sk : undefined}
+                  onClick={mile ? () => setOpenStory((o) => (o === sk ? null : sk))
+                    : onOpenPlayer && s.board ? () => onOpenPlayer(s.player_id, s)
                     : teamNav && String(s.player_id).startsWith('team:') ? () => teamNav(String(s.player_id).slice(5)) : null}
                   tag={<Badge b={s.board} s={s} />} style={{ fontSize: 12 }}>
                   <Parts parts={s.parts} />
@@ -182,7 +195,9 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
                     </span>
                   ) : s.frozen && g.state === 'final' ? <span style={{ display: 'block', fontSize: 11, color: C.text3 }}>grading…</span> : null}
                 </StoryRow>
-              ))}
+                {mile && openStory === sk ? <MilestoneRate sport={sport} story={s} theme={C} numFont={numFont} accent={accent} onOpenPlayer={onOpenPlayer && s.board ? onOpenPlayer : null} /> : null}
+                </div>)
+              })}
             </div>
             {rows.length > SHOW ? (
               <button type="button" onClick={() => setOpen((o) => { const n = new Set(o); if (n.has(g.game_id)) n.delete(g.game_id); else n.add(g.game_id); return n })}

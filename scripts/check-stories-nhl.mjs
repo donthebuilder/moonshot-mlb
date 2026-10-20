@@ -1,6 +1,6 @@
 // lib/stories/nhl.js.
 //   node --import ./scripts/_esm-resolve.mjs scripts/check-stories-nhl.mjs
-// 1. today (preseason): the loader runs; past-season numbers make no stories.
+// 1. today: the loader runs; in preseason, past-season numbers make no stories.
 // 2. TEST: real 2025-26 hot sticks / special teams (the readers' stale
 //    fallback, relabelled not-stale HERE ONLY) against a real 2026-04 slate,
 //    so every path is exercised before opening night. Not shown anywhere.
@@ -20,7 +20,11 @@ const today = easternToday()
 const live = await loadNhlStories(today)
 const types = [...new Set(live.stories.map((s) => s.type))]
 check(live.stories.every((s) => s.game_id && s.source && s.text), `today ${today}: ${live.games.length} games, ${live.stories.length} stories (${types.join(', ') || 'none'}), all tied to a game`)
-check(!live.stories.some((s) => ['hot', 'special', 'history'].includes(s.type)), 'preseason: no hot-stick / special-teams / history story from last season\'s numbers')
+// DATE-AWARE (2026-10-20): the "no last-season stories" rule is a preseason rule; once this season has games, hot
+// sticks / special teams / history are this season's and belong on the page.
+const { nhlSeasonStarted } = await import('../lib/lists/nhl.js')
+if (await nhlSeasonStarted(today).catch(() => false)) console.log(`skip preseason check: the ${today} season is under way`)
+else check(!live.stories.some((s) => ['hot', 'special', 'history'].includes(s.type)), 'preseason: no hot-stick / special-teams / history story from last season\'s numbers')
 
 const [hot, st] = await Promise.all([readHotSticks(), readSpecialTeams()])
 const date = '2026-04-09'
