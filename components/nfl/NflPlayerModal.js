@@ -365,8 +365,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
   const [season, setSeason] = useState('')
   const [allStats, setAllStats] = useState(false)
   const [compareOpen, setCompareOpen] = useState(false)
-  const [moreOpen, setMoreOpen] = useState(false)   // the folded More section (as MOONSHOT's 2026-10-17 trim), closed until tapped
-  useEffect(() => { setMoreOpen(false); setCompareOpen(false) }, [player?.player_id])
+  useEffect(() => { setCompareOpen(false) }, [player?.player_id])
   // TUDDY ON HIM: his graded calls from the list /called and the Record read (one fetch: the record line, last week and the role table)
   const bot = useNflBot(player?.player_id != null ? String(player.player_id) : null)
   // A new player opens on Overview unless the caller asked for a view --
@@ -513,7 +512,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
       {seasonNote(fullLog, slate?.season) && <div style={{ fontFamily: NUM_FONT, fontSize: 12, color: C.yellow, margin: '0 0 8px', lineHeight: 1.4 }}>{seasonNote(fullLog, slate?.season)}</div>}
       {tab !== 'overview' && showSeason && <SeasonToggle options={seasonOpts} value={seasonKey} onChange={setSeason} />}
 
-      {/* OVERVIEW, MOONSHOT's order: the price (its timeline), TUDDY ON HIM (the role table), my note, in the ledger, his numbers; the rest is in More */}
+      {/* OVERVIEW, MOONSHOT's order: TUDDY ON HIM (the role table), my note, in the ledger, his numbers, the price, then your star and his multi-TD line (no More fold, 10-20) */}
       {tab === 'overview' && <>
         {/* TUDDY ON HIM: each role TUDDY has called him in, on the graded record (components/nfl/NflOnHim.js, MOONSHOT's BotOnHim table) */}
         <NflOnHim bot={bot} />
@@ -634,31 +633,13 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         )}
       </>}
 
-      {/* MORE (MOONSHOT's 2026-10-17 fold): ONE fold, closed until tapped, holding the secondary blocks -- your eye for him (star + memory), his
-          multi-TD record, the props grid and your card. They mount only when it is open. The header is a 44px row. */}
-      <section aria-label="More about him" style={{ margin: '12px 0 8px' }}>
-        <h2 style={{ margin: 0, fontSize: 'inherit', fontWeight: 'inherit' }}>
-          <button type="button" className="tap-box" onClick={() => setMoreOpen((v) => !v)} aria-expanded={moreOpen}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 9, width: '100%', minHeight: 44, padding: '10.5px 12px', cursor: 'pointer', textAlign: 'left',
-              background: moreOpen ? 'transparent' : C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text,
-            }}>
-            <span style={{ fontSize: 12, fontWeight: 900, letterSpacing: '.03em' }}>More</span>
-            <span style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>your eye, multi-TD</span>
-            <span style={{ marginLeft: 'auto', fontSize: 11, color: C.green, fontFamily: NUM_FONT, fontWeight: 800, flexShrink: 0 }}>{moreOpen ? '▴' : '▾'}</span>
-          </button>
-        </h2>
-        {moreOpen && (
-          <div style={{ marginTop: 10 }}>
-            <div style={{ marginBottom: 8 }}><StarMemory sport="nfl" id={player?.player_id} /></div>
-            {/* MOONSHOT's multi-HR line, TUDDY's words */}
-            <MultiLine sport="nfl" playerId={player?.player_id} words={{ TD: 'multi-TD', PASS_TD: '2+ passing-TD' }} color={C.green} textColor={C.text2} />
-            <SeasonToggle options={seasonOpts} value={seasonKey} onChange={setSeason} />
-            {/* the props grid left More (10-19, Donovan): it lives on the Props page */}
-            {/* YOUR CARD is gone from here (Donovan 10-18: "I don't know what that is for. Just remove it.") */}
-          </div>
-        )}
-      </section>
+      {/* NO MORE FOLD (Donovan 10-20: "I don't want a More section in player modal"): its two blocks sit on the page, at the end of the
+          Overview -- your eye for him (star + memory) and his multi-TD record. The props grid lives on the Props page (10-19); your card is gone (10-18). */}
+      <div style={{ margin: '12px 0 8px', display: 'grid', gap: 8 }}>
+        <StarMemory sport="nfl" id={player?.player_id} />
+        {/* MOONSHOT's multi-HR line, TUDDY's words */}
+        <MultiLine sport="nfl" playerId={player?.player_id} words={{ TD: 'multi-TD', PASS_TD: '2+ passing-TD' }} color={C.green} textColor={C.text2} />
+      </div>
       </>}
 
       {/* the cards he has earned (his real multi-TD and 100-yard games, a long shot that cashed): at the END of the card, no section when he has none */}

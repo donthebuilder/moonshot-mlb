@@ -280,8 +280,6 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   const [detail, setDetail] = useState(null)
   const [detailState, setDetailState] = useState('idle')
   const [compareOpen, setCompareOpen] = useState(false)
-  const [moreOpen, setMoreOpen] = useState(false)   // the folded More section (2026-10-17 trim), closed by default
-  useEffect(() => { setMoreOpen(false) }, [player?.player_id, player?.id])   // a new player opens closed (declared before the address effect, which may open it)
   // THE PLAYER MODEL (2026-10-08): the verdict's record + last-week lines and the role table read ONE fetch
   const botData = useMlbBot(player?.player_id || player?.id)
 
@@ -437,9 +435,8 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
     }
     lastViewRef.current = initialTab
     const allowed = (player?.api_only ? ['overview', 'read', 'splits', 'log', 'ev', 'spray'] : TABS.map((t) => t.key))
-    // EV Log and Sim are in the folded More section now; their old links open the card with More open
-    if (initialTab === 'ev' || (initialTab === 'sim' && !player?.api_only)) { setTab('overview'); setMoreOpen(true) }
-    else if (allowed.includes(initialTab)) setTab(initialTab)
+    // EV Log and Sim are tabs again (10-20: no More fold), so their links open them directly
+    if (allowed.includes(initialTab)) setTab(initialTab)
     else onViewChange?.('')
   }, [player, initialTab])   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -555,7 +552,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   // detail file — see the caveat right below, no longer suppressed for
   // apiOnly either, now that a real fetch is actually attempted.
   const apiOnly = !!p?.api_only
-  const visibleTabs = apiOnly ? TABS.filter((t) => ['overview', 'read', 'splits', 'log', 'spray'].includes(t.key)) : TABS.filter((t) => t.key !== 'ev' && t.key !== 'sim')   // ev + sim live in More
+  const visibleTabs = apiOnly ? TABS.filter((t) => ['overview', 'read', 'splits', 'log', 'ev', 'spray'].includes(t.key)) : TABS   // ev + sim are tabs again (10-20: no More fold)
 
   const role = compactRole(p)
   const rc = roleColor(role, C)
@@ -1048,6 +1045,11 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               ahead-in-count, two-strike, home/away ISO. Those four aren't in
               any bot file, which is why this is the one place the site goes to
               an outside source. Context only — none of it moves a score. */}
+          {/* ⚡ EV LOG and 🎮 SIM, their own tabs again (10-20) -- `p` is the merged slate row + detail file */}
+          {tab === 'ev' && (detailState === 'loading'
+            ? <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Loading batted balls…</div>
+            : <EVLog player={p} />)}
+          {tab === 'sim' && !apiOnly && <BatterSim player={p} name={nameOf(p)} />}
           {tab === 'splits' && (
             <>
               {/* The head-to-head and the first-pitch split moved to the Overview, under his props (2026-10-07). */}
@@ -1056,49 +1058,20 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
             </>
           )}
 
-          {/* ── MORE (2026-10-17, Donovan: "we need to trim some of the MLB player page sections") ─────────────────────────
-              ONE fold, closed until tapped, holding the secondary blocks that used to stack above and inside Overview: his star
-              memory, his multi-HR record, his props grid, the head-to-head, the first-pitch split, the EV Log and the sim. Nothing
-              was deleted; they mount only when it is open (EV Log and the sim were tabs: #p=<id>&view=ev|sim still opens the card
-              with More already open). The header is a 44px row. */}
-          <section aria-label="More about him" style={{ margin: '12px 0 8px' }}>
-            <h2 style={{ margin: 0, fontSize: 'inherit', fontWeight: 'inherit' }}>
-              <button type="button" className="tap-box" onClick={() => setMoreOpen((v) => !v)} aria-expanded={moreOpen}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 9, width: '100%', minHeight: 44, padding: '10.5px 12px', cursor: 'pointer', textAlign: 'left',
-                  background: moreOpen ? 'transparent' : C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text,
-                }}>
-                <span style={{ fontSize: 12, fontWeight: 900, letterSpacing: '.03em' }}>More</span>
-                <span style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>props grid, head-to-head, EV log{apiOnly ? '' : ', sim'}</span>
-                <span style={{ marginLeft: 'auto', fontSize: 11, color: C.orange, fontFamily: NUM_FONT, fontWeight: 800, flexShrink: 0 }}>{moreOpen ? '▴' : '▾'}</span>
-              </button>
-            </h2>
-            {moreOpen && (
-              <div style={{ marginTop: 10 }}>
-                {/* YOUR EYE FOR HIM (2026-10-01, one star + memory): on every card, on the slate or not */}
-                <div style={{ marginBottom: 8 }}>
-                  <StarMemory sport="mlb" id={clean(p?.player_id, '')} pricesPath={oddsHistoryPaths()[0]} />
-                </div>
-                <MultiLine sport="mlb" playerId={clean(p?.player_id, '')} words={{ HR: 'multi-HR' }} color={C.orange} textColor={C.text2} />
-                {/* PROPS (2026-10-07), then the head-to-head and his first pitch against tonight's arm; each renders nothing when there is no data */}
-                <ThresholdGrid playerId={pid} odds={odds} />
-                {!apiOnly && <BvP batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} player={p} />}
-                {!apiOnly && <FirstPitchSplit batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} />}
-                {/* ev log — `p` is the merged slate row + detail file */}
-                <div style={{ fontSize: 11, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '12px 0 6px' }}>⚡ EV Log</div>
-                {detailState === 'loading'
-                  ? <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Loading batted balls…</div>
-                  : <EVLog player={p} />}
-                {/* simple, closed-form projected line: expected counts, no printed chances */}
-                {!apiOnly && (
-                  <>
-                    <div style={{ fontSize: 11, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '12px 0 6px' }}>🎮 Sim</div>
-                    <BatterSim player={p} name={nameOf(p)} />
-                  </>
-                )}
-              </div>
-            )}
-          </section>
+          {/* ── NO MORE FOLD (Donovan 10-20: "I don't want a More section in player modal ... they all don't need more section"). What it
+              held is on the page again: his star memory, his multi-HR record, the props grid, the head-to-head and the first-pitch split sit
+              here at the end of the card; the EV Log and the Sim are their own tabs again (#p=<id>&view=ev|sim opens them). */}
+          <div style={{ margin: '12px 0 8px' }}>
+            {/* YOUR EYE FOR HIM (2026-10-01, one star + memory): on every card, on the slate or not */}
+            <div style={{ marginBottom: 8 }}>
+              <StarMemory sport="mlb" id={clean(p?.player_id, '')} pricesPath={oddsHistoryPaths()[0]} />
+            </div>
+            <MultiLine sport="mlb" playerId={clean(p?.player_id, '')} words={{ HR: 'multi-HR' }} color={C.orange} textColor={C.text2} />
+            {/* PROPS (2026-10-07), then the head-to-head and his first pitch against tonight's arm; each renders nothing when there is no data */}
+            <ThresholdGrid playerId={pid} odds={odds} />
+            {!apiOnly && <BvP batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} player={p} />}
+            {!apiOnly && <FirstPitchSplit batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} />}
+          </div>
 
           {/* the cards he has earned (his real multi-homer games, a long shot that cashed): at the END of the card, no section when he has none */}
           {pid != null && <CardsEarned sport="mlb" id={String(pid)} name={nameOf(p)} />}
