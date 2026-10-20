@@ -46,7 +46,7 @@ function Races({ sport, data, onOpenPlayer, onOpenTeam, canOpenPlayer }) {
               // the share leads, beside the name, so a phone sees it without scrolling the table
               { key: 'share', label: 'Share', group: 'Player', w: 64, primary: true, bar: 'primary', domain: [0, top], title: `His share of the ${race.title} race`, fmt: (v) => sharePct(v) },
               { key: 'team', label: 'Tm', group: 'Player', heat: false, mono: true, w: 52, teamMark: cfg.teamMark, link: (r) => (onOpenTeam ? () => onOpenTeam(r.team) : null) },
-              ...[...cfg.cols, ...(cfg.extraCols?.[race.key] || [])].map((c) => ({ key: c.key, label: c.label, title: c.title, group: 'Line', w: 46, dp: c.dp, mono: true, ...(c.heat === false ? { heat: false } : null), ...(c.subOnly ? { subOnly: true } : null) })),
+              ...(cfg.raceCols?.[race.key] || [...cfg.cols, ...(cfg.extraCols?.[race.key] || [])]).map((c) => ({ key: c.key, label: c.label, title: c.title, group: 'Line', w: 46, dp: c.dp, mono: true, ...(c.heat === false ? { heat: false } : null), ...(c.subOnly ? { subOnly: true } : null) })),
             ]}
             onRowClick={canOpenPlayer ? undefined : (r) => onOpenPlayer?.(String((r?._raw ?? r).playerId))} nameCell="player" faceOf={(r) => ({ sport: cfg.teamMark, id: r.playerId, espnId: r.espnId, name: r.name })}
             initialSort={{ key: 'share', dir: 'desc' }} heatMode="sorted" maxHeight={9999} maxRows={rows.length}
