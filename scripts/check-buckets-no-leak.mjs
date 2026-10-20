@@ -224,9 +224,9 @@ await ok('PARITY: every card route that can reach a BUCKETS surface asks the BUC
   for (const r of ['day', 'dual', 'slab', 'nman', 'share']) assert.ok(!/hasPreviewCards|NBA_MOMENTS/.test(code(read(`app/api/card/${r}/route.js`))), `app/api/card/${r} must not reach the preview parts`)
   assert.match(code(read('app/api/buckets/card/route.js')), /bucketsRoute\(/)
 })
-await ok('PARITY: the PUBLIC card lists never carry NBA: CARD_SPORTS, the public registry, MOMENT_KEYS, the momentEvents rows, the post/push builders', async () => {
+await ok('PARITY: The Card carries NBA since BUCKETS opened (2026-10-20: CARD_SPORTS, the public registry); the special-card moments still never do (MOMENT_KEYS, the momentEvents rows, the post/push builders)', async () => {
   const CORE = await import('../lib/card/core.js'); const REG = await import('../lib/cards/registry.js'); const MOM = await import('../lib/cards/moments.js'); const EV = await import('../lib/cards/momentEvents.js')
-  assert.ok(!CORE.CARD_SPORTS.includes('nba')); assert.equal(REG.hasCards('nba'), false); assert.ok(!REG.cardSports().includes('nba'))
+  assert.ok(CORE.CARD_SPORTS.includes('nba')); assert.equal(REG.hasCards('nba'), true); assert.ok(REG.cardSports().includes('nba'))   // The Card turned on for BUCKETS (Donovan: "turn it on")
   assert.ok(!MOM.MOMENT_KEYS.some((k) => /^nba/.test(k)))
   assert.deepEqual(EV.momentsForEvent({ sport: 'nba', rows: [{ game_id: 1, player_id: 2, name: 'TEST', points: 41 }], minTier: 'base' }), [])
   // no module that posts or pushes imports the NBA moment table or the preview planner

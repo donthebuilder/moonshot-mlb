@@ -1,4 +1,4 @@
-// GET /api/card?sport=nhl|nfl|mlb[&date=YYYY-MM-DD] -- THE CARD, read side (lib/card).
+// GET /api/card?sport=nhl|nfl|mlb|nba[&date=YYYY-MM-DD] -- THE CARD, read side (lib/card).
 //   card     the newest locked card (or `date`): the bot's three straights and Two-Man, and Donovan's Two-Man once ITS lock has passed
 //            (never before: his open entry is not public), each leg with the newest stored price on file or "none"
 //   records  the three running records, never mixed: the bot's straights, the bot's Two-Man, Donovan's Two-Man -- K of N, the count the
@@ -47,7 +47,7 @@ const buildRecords = (sport, today) => unstable_cache(async () => {
 export async function GET(request) {
   const q = new URL(request.url).searchParams
   const sport = String(q.get('sport') || 'nhl')
-  if (!CARD_SPORTS.includes(sport)) return Response.json({ error: 'BAD REQUEST', detail: 'the Card runs in nhl, nfl and mlb' }, { status: 400, headers: { 'Cache-Control': 'no-store' } })
+  if (!CARD_SPORTS.includes(sport)) return Response.json({ error: 'BAD REQUEST', detail: `the Card runs in ${CARD_SPORTS.join(', ')}` }, { status: 400, headers: { 'Cache-Control': 'no-store' } })
   const w = CARD_WORDS[sport]
   const empty = { sport, market: w.market, window: w.window, lockLeadMin: CARD_LOCK_LEAD_MIN, stakes: STAKE, rule: CARD_RULE_TEXT, date: null, rows: [], prices: {}, held: null, revealed: false, records: null, words: null }
   const db = adminClient()
