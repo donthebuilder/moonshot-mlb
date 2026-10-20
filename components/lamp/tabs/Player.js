@@ -29,7 +29,6 @@ import BornLine from '../../player/BirthdayChip'
 import BotOnHim from '../../BotOnHim'
 import GoalCompare from '../GoalCompare'
 import LampNumbers from '../LampNumbers'
-import LampMore from '../LampMore'
 import LampResultStamp from '../LampResultStamp'
 // THE SHARED PLAYER MODEL (components/player/): the verdict first, then ONE row of his numbers; LAMP's words in nhlAdapter.js
 import VerdictBlock from '../../player/VerdictBlock'
@@ -339,7 +338,8 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
           {!goalie && <InTheLedger sport="nhl" id={p.id} name={p.name} jersey={p.number} birthDate={p.birthDate} next={nextG} date={etToday()} />}
           {!goalie && <HisNumbers name={p.name} jersey={p.number} birthDate={p.birthDate} next={nextG} career={Number.isFinite(p.career?.regular?.g) ? p.career.regular.g + 1 : null} nextWord="goal" date={etToday()} theme={C} accent={C.ice} numFont={NUM_FONT} />}
           {!goalie && !locked && <LampPriceHistory id={String(p.id)} />}
-          <LampMore resetKey={p.id} summary={goalie ? 'last five, star memory, bio' : 'props grid, last five, star memory, multi-goal, bio'}>
+          {/* NO MORE FOLD (Donovan 10-20): what it held sits on the page -- the props grid, last five, star memory, multi-goal and the bio */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, margin: '4px 0' }}>
             {!goalie && <LampPropsMatrix logThis={logThis} logLast={logLast} seasonThis={f.seasonLabel} seasonLast={p.logPrev?.seasonLabel} />}
             {p.last5.length > 0 && (
               <section aria-label="Last five">
@@ -356,7 +356,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
             <StarMemory sport="nhl" id={String(p.id)} />
             {!goalie && <MultiLine sport="nhl" playerId={p.id} words={{ G: 'multi-goal' }} color={C.ice} textColor={C.text2} />}
             <div style={{ color: C.text3, fontSize: 12, lineHeight: 1.5 }}>{bio}</div>
-          </LampMore>
+          </div>
         </>
       )}
 

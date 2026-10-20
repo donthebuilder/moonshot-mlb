@@ -157,7 +157,6 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
   const lineRows = [[lines.curLabel, lines.cur], [lines.prevLabel, lines.prev]].filter(([, l]) => l).map(([label, l]) => ({ _id: label, label, ...l, tp: l.tpaTot ? `${((100 * l.tpTot) / l.tpaTot).toFixed(1)}%` : '—' }))
   const next = !stale && Number.isFinite(lines.cur?.ptsTot) ? lines.cur.ptsTot + 1 : null
   const dateNow = board?.date || etToday()
-  const [moreOpen, setMoreOpen] = useState(false)   // the folded More section (as MOONSHOT's 10-17 trim), closed until tapped
   const [compareOpen, setCompareOpen] = useState(false)
   const { data: odds } = useLiveFetch('/api/odds/latest?sport=nba')
   // MEMBERS (2026-10-17, as LAMP's and TUDDY's cards): a free viewer sees tonight's NOT-STARTED called pick as plain ON THE BOARD, no score, no why. Same key as the
@@ -374,25 +373,13 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
           </section>
         )}
 
-        {/* ── MORE: ONE fold, closed until tapped (MOONSHOT's 10-17 trim), holding the secondary blocks: your star and its memory, his props grid and his
-            double-double / triple-double lines. Nothing was deleted; they mount only when it is open. The header is a 44px row. ── */}
-        <section aria-label="More about him" style={{ margin: '4px 0 0' }}>
-          <h2 style={{ margin: 0, fontSize: 'inherit', fontWeight: 'inherit' }}>
-            <button type="button" className="tap-box" onClick={() => setMoreOpen((v) => !v)} aria-expanded={moreOpen}
-              style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', minHeight: 44, padding: '10.5px 12px', cursor: 'pointer', textAlign: 'left', background: moreOpen ? 'transparent' : C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, color: C.text }}>
-              <span style={{ fontSize: 12, fontWeight: 900, letterSpacing: '.03em' }}>More</span>
-              <span style={{ fontSize: 12, color: C.text3, fontFamily: NUM_FONT, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>props grid, double-doubles, your star</span>
-              <span style={{ marginLeft: 'auto', fontSize: 12, color: C.purple, fontFamily: NUM_FONT, fontWeight: 800, flexShrink: 0 }}>{moreOpen ? '▴' : '▾'}</span>
-            </button>
-          </h2>
-          {moreOpen && (
-            <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12, minWidth: 0 }}>
-              <StarMemory sport="nba" id={pid} />
-              <BucketsPropsMatrix log={data.log || []} logSeason={data.logSeason} />
-              <PlayerDdTd playerId={pid} />
-            </div>
-          )}
-        </section>
+        {/* NO MORE FOLD (Donovan 10-20: "they all don't need more section"): its blocks sit on the page -- your star and its memory,
+            his props grid and his double-double / triple-double lines. */}
+        <div style={{ margin: '4px 0 0', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12, minWidth: 0 }}>
+          <StarMemory sport="nba" id={pid} />
+          <BucketsPropsMatrix log={data.log || []} logSeason={data.logSeason} />
+          <PlayerDdTd playerId={pid} />
+        </div>
 
         {/* CARDS EARNED, at the END of the card (the first useful row never moves): his 30-point / 40-point / double-double / triple-double / 10-threes cards from his GRADED regular-season rows; no section until he has one */}
         <CardsEarned sport="nba" id={pid} name={card.name} />
