@@ -3,6 +3,7 @@
 // Pure, offline. TEST DATA ONLY: the totals below are made up to land on the rungs; nothing here is shown anywhere.
 import { nearestMilestones, milestoneStory, MILES, hitRate } from '../lib/stories/milestones.js'
 import { gradeStory } from '../lib/stories/grade.js'
+import { mergeCaptured } from '../lib/history/nfl.js'
 
 let failed = 0
 const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (!ok) failed++ }
@@ -45,6 +46,20 @@ check(nb[0].m.key === 'pts' && gradeStory(sb, { pts: 10, reb: 0, ast: 0, tpm: 0,
 const hr = hitRate(2, [{ v: 3 }, { v: 0 }, { v: 2 }, { v: NaN }, { v: 1 }, { v: 5 }, { v: 2 }], [{ v: 3 }, { v: 0 }, { v: 2 }])
 check(hr.l5.join('/') === '3/5' && hr.last.map((g) => g.v).join(' ') === '3 0 2 1 5' && hr.l10.join('/') === '4/6' && hr.szn.join('/') === '2/3', `hit rate: L5 ${hr.l5.join('/')}, L10 ${hr.l10.join('/')}, season ${hr.szn.join('/')}`)
 check(hitRate(1, []) === null && hitRate(1, [{ v: NaN }]) === null, 'hit rate: no games -> no rate (never 0 of 0)')
+
+// NFL: our own captured ESPN week fills a final week both nflverse copies are missing, and only that (TEST values)
+{
+  const out = new Map([['t-qb', { team: 'AAA', total_td: 0, rec: 0, rec_yds: 0, rush_yds: 10, pass_yds: 500, pass_td: 3, lastWeek: 5, source: 'nfl_logs',
+    games: [{ w: 5, s: 2026, rush_yds: 4, pass_yds: 250, pass_td: 2, total_td: 0, rec: 0, rec_yds: 0 }, { w: 4, s: 2026, rush_yds: 6, pass_yds: 250, pass_td: 1, total_td: 0, rec: 0, rec_yds: 0 }],
+    recent: [{ w: 5, s: 2026 }, { w: 4, s: 2026 }, { w: 18, s: 2025, pass_td: 2 }] }]])
+  const line = (w) => ({ w, s: 2026, d: null, teams: ['AAA', 'BBB'], total_td: 1, rec: 0, rec_yds: 0, rush_yds: 12, pass_yds: 301, pass_td: 3 })
+  mergeCaptured(out, new Map([['t-qb', new Map([[5, line(5)], [6, line(6)]])], ['t-nobody', new Map([[6, line(6)]])]]), 2026)
+  const t = out.get('t-qb')
+  check(t.lastWeek === 6 && t.games.length === 3 && t.games[0].w === 6 && t.games[0].opp === 'BBB', 'NFL captured week: only week 6 added (week 5 was already counted), opponent read off the game')
+  check(t.pass_td === 6 && t.pass_yds === 801 && t.total_td === 1 && /our ESPN box \(week 6\)/.test(t.source), `NFL captured week: totals re-summed (${t.pass_td} pass TD, ${t.pass_yds} yds), source says so`)
+  check(t.recent[0].w === 6 && t.recent.some((g) => g.s === 2025), 'NFL captured week: leads his recent games, last season kept')
+  check(!out.has('t-nobody'), 'NFL captured week: a player no copy knows is not invented')
+}
 
 // Every rung list has a word, a window and either a line field or an explicit null
 for (const [sport, list] of Object.entries(MILES)) check(list.every((m) => m.word && m.within > 0 && m.targets.length && (m.bar === null || typeof m.bar === 'string')), `${sport}: every rung is complete`)
