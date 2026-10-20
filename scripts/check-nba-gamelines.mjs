@@ -6,6 +6,7 @@ import { gameLineRow, bookLinesFor, spreadOf, moneylineOf } from '../lib/odds/ga
 import { projectMargin, missingValue, rotationOf, gameScore, atsResult, solveRatings, LINE_PARAMS } from '../lib/nba/gameLines.js'
 import { SPORT_LINES } from '../lib/gameLines.js'
 import { bookTeamKey } from '../lib/odds/gameTotal.js'
+import { linesAnswer } from '../lib/gameLinesStore.js'
 
 let bad = 0
 const eq = (what, got, want) => { const ok = JSON.stringify(got) === JSON.stringify(want); if (!ok) bad++; console.log(`${ok ? 'OK  ' : 'FAIL'} ${what}${ok ? '' : `: got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`}`) }
@@ -81,6 +82,25 @@ eq('neutral site: no home edge', projectMargin(0, 0, {}, { ...SPORT_LINES.nfl.pa
 // ESPN's club codes meet SGO's (TEST pairs from the codes each feed uses)
 eq('nfl codes meet', [bookTeamKey('nfl', 'WSH'), bookTeamKey('nfl', 'LAR')], [bookTeamKey('nfl', 'WAS'), bookTeamKey('nfl', 'LA')])
 eq('mlb codes meet', [bookTeamKey('mlb', 'CHW'), bookTeamKey('mlb', 'ATH')], [bookTeamKey('mlb', 'CWS'), bookTeamKey('mlb', 'OAK')])
+
+// the page answer (TEST games): a started game shows only its lock; a lock with no book falls back to the newest pregame book
+{
+  const T0 = Date.parse('2999-01-02T00:30:00.000Z')
+  const live = { date: '2999-01-01', version: 'test', games: [
+    { id: 'G1', away: 'AAA', home: 'BBB', state: 'pre', start: '2999-01-02T00:30:00.000Z', margin: 2, winShare: 0.6, basis: 'this season' },
+    { id: 'G2', away: 'CCC', home: 'DDD', state: 'live', start: '2999-01-01T23:00:00.000Z', margin: 1, winShare: 0.55 },
+    { id: 'G3', away: 'EEE', home: 'FFF', state: 'final', start: '2999-01-01T20:00:00.000Z', margin: 1, winShare: 0.55 },
+  ] }
+  const locked = new Map([['G2', { our_margin_home: 1.5, book_spread_home: null, book_ml_home: null, inputs: {} }]])
+  const book = { spread_home: -1.5, ml_home: -150, ml_away: 130, taken_at: '2999-01-01T22:50:00.000Z' }
+  const ans = linesAnswer('nhl', live, locked, new Map([['G1', book], ['G2', book]]), T0 - 60e3)
+  const by = Object.fromEntries(ans.games.map((g) => [g.id, g]))
+  eq('answer: before the start = the live margin', by.G1.our.margin, 2)
+  eq('answer: started = the locked margin, not the live one', by.G2.our.margin, 1.5)
+  eq('answer: lock with no book -> the pregame book', by.G2.book?.spread_home, -1.5)
+  eq('answer: started with no lock -> no line', by.G3.our, null)
+  eq('answer: never a win share', JSON.stringify(ans).includes('inShare'), false)
+}
 
 console.log(bad ? `\n${bad} check(s) failed` : '\nOK: our line + book line checks pass')
 process.exit(bad ? 1 : 0)
