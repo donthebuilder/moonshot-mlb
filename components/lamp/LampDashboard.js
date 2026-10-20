@@ -109,7 +109,7 @@ export default function LampDashboard({ palettePass = 0 }) {
   // the shell's "today" follows it, not the ET wall clock.
   const today = useLampScores(null)
   const night = today.data?.date || null
-  const { tab, setTab, gameId, teamKey, playerId, missingTab, date, setDate, badDate, setBadDate, openGame, openTeam, openPlayer, backLabel, goBack, peekId, peekPlayer, closePeek, stepPlayer } = useShellRoute({ ...ROUTE, night })
+  const { routed, tab, setTab, gameId, teamKey, playerId, missingTab, date, setDate, badDate, setBadDate, openGame, openTeam, openPlayer, backLabel, goBack, peekId, peekPlayer, closePeek, stepPlayer } = useShellRoute({ ...ROUTE, night })
   usePageTitle(`${pageTitle('nhl', tab)} · DASH Network`)
 
   const live = today.data?.live || 0
@@ -133,7 +133,7 @@ export default function LampDashboard({ palettePass = 0 }) {
       <main id="board-main" className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '14px 14px 40px', background: C.bg, color: C.text }}>
         <h1 className="sr-only">{pageTitle('nhl', missingTab ? 'home' : tab)}</h1>
         {/* the page's one line and its (?), TUDDY's (NflDashboard): only on a page with no header of its own (2026-10-20, the chip is gone) */}
-        {!missingTab && LAMP_LINE_TABS.has(tab) && <div style={{ margin: '2px 0 12px', fontSize: 12, lineHeight: 1.45, color: C.text3 }}><NflNote tab={tab} subs={LAMP_SUBS} /></div>}
+        {routed && !missingTab && LAMP_LINE_TABS.has(tab) && <div style={{ margin: '2px 0 12px', fontSize: 12, lineHeight: 1.45, color: C.text3 }}><NflNote tab={tab} subs={LAMP_SUBS} /></div>}
         {badDate && !missingTab && (
           <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 10px', padding: '8px 12px', border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.amber}`, borderRadius: 10, background: C.bg2, fontSize: 12, color: C.text2 }}>
             <span style={{ flex: 1 }}><b style={{ color: C.text, fontFamily: NUM_FONT }}>{badDate}</b> isn&apos;t a real date, so that day is unavailable -- showing tonight instead.</span>
@@ -160,6 +160,8 @@ export default function LampDashboard({ palettePass = 0 }) {
           <TeamNav.Provider value={openTeam}>
           <GameNav.Provider value={openGame}>
           <ErrorBoundary resetKey={`${tab}:${gameId || ''}:${teamKey || ''}:${playerId || ''}`} label={`the ${tab} tab`}>
+            {/* nothing mounts until the address is read (lib/useShellRoute `routed`): a deep link never pays for Home first */}
+            {routed && (<>
             {tab === 'home' && <Home today={shown} date={date} onOpenGame={openGame} onOpenPlayer={peekPlayer} onOpenTeam={openTeam} setTab={setTab} />}
             {tab === 'scores' && <Scores onOpenGame={openGame} date={date} setDate={setDate} />}
             {tab === 'standings' && <Standings onOpenTeam={openTeam} />}
@@ -205,6 +207,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {/* TOP TOTALS now ride each game (components/GameTotalLine.js); the record stays in the Ledger. The Card is one line, under the slate. */}
             {tab === 'games' && <LampSlate onOpenPlayer={peekPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate} />}
             {tab === 'games' && <CardSection sport="nhl" Table={LampTable} compact />}
+                      </>)}
           </ErrorBoundary>
           <DashFooter sport="nhl" theme={C} onGuide={() => setTab('guide')} />
           {/* a tapped player opens his card over the page (Donovan 10-03); Full page = the player tab */}

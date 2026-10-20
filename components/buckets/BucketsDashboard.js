@@ -81,7 +81,7 @@ const ROUTE = {
 }
 
 export default function BucketsDashboard() {
-  const { tab, setTab, gameId, teamKey, playerId, missingTab, date, setDate, badDate, setBadDate, openGame, openTeam, openPlayer, backLabel, goBack, peekId, peekPlayer, closePeek, stepPlayer } = useShellRoute(ROUTE)
+  const { routed, tab, setTab, gameId, teamKey, playerId, missingTab, date, setDate, badDate, setBadDate, openGame, openTeam, openPlayer, backLabel, goBack, peekId, peekPlayer, closePeek, stepPlayer } = useShellRoute(ROUTE)
   usePageTitle(`${pageTitle('nba', tab)} · DASH Network`)
   // starred players, remembered night by night for "Your nights, graded"
   useBucketsSaves()
@@ -109,7 +109,7 @@ export default function BucketsDashboard() {
       <main id="board-main" className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '14px 14px 40px', background: C.bg, color: C.text }}>
         <h1 className="sr-only">{pageTitle('nba', missingTab ? 'home' : tab)}</h1>
         {/* the page's one line and its (?), TUDDY's (NflDashboard): only on a page with no header of its own (2026-10-20, the chip is gone) */}
-        {!missingTab && BUCKETS_LINE_TABS.has(tab) && <div style={{ margin: '2px 0 12px', fontSize: 12, lineHeight: 1.45, color: C.text3 }}><NflNote tab={tab} subs={BUCKETS_SUBS} /></div>}
+        {routed && !missingTab && BUCKETS_LINE_TABS.has(tab) && <div style={{ margin: '2px 0 12px', fontSize: 12, lineHeight: 1.45, color: C.text3 }}><NflNote tab={tab} subs={BUCKETS_SUBS} /></div>}
         {badDate && !missingTab && (
           <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 10px', padding: '8px 12px', border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.border2}`, borderRadius: 10, background: C.bg2, fontSize: 12, color: C.text2 }}>
             <span style={{ flex: 1 }}><b style={{ color: C.text, fontFamily: NUM_FONT }}>{badDate}</b> isn&apos;t a real date, so that day is unavailable. Showing tonight instead.</span>
@@ -127,6 +127,8 @@ export default function BucketsDashboard() {
           {isLiveTab('nba', tab) && <RefreshStamp live={live > 0} className={tab === 'games' ? 'slate-stamp' : undefined} style={{ marginBottom: 8 }} />}
           <TeamNav.Provider value={openTeam}>
           <ErrorBoundary resetKey={`${tab}:${gameId || ''}:${teamKey || ''}:${playerId || ''}`} label={`the ${tab} tab`}>
+            {/* nothing mounts until the address is read (lib/useShellRoute `routed`): a deep link never pays for Home first */}
+            {routed && (<>
             {tab === 'home' && <Home today={shown} date={date} setTab={setTab} {...nav} />}
             {/* Props is MOONSHOT's page now (2026-10-04): the cards, then the board under them */}
             {tab === 'board' && <BucketsProps date={date} onOpenPlayer={peekPlayer} />}
@@ -161,6 +163,7 @@ export default function BucketsDashboard() {
             {tab === 'shotmap' && <ShotMap {...nav} />}
             {tab === 'binder' && <Binder />}
             {tab === 'guide' && <Guide onNavigate={setTab} />}
+                      </>)}
           </ErrorBoundary>
           <DashFooter sport="nba" theme={C} onGuide={() => setTab('guide')} />
           <PlayerPeek id={peekId} Page={Player} theme={C} accent={C.purple} onClose={closePeek} onFullPage={openPlayer} onOpenTeam={openTeam} onOpenGame={openGame} onStep={stepPlayer} />

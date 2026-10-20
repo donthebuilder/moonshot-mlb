@@ -284,7 +284,7 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
             rowEdge={(m) => (m.id === g.id ? C.ice : null)}
             columns={[
               { key: 'date', label: 'Date', heat: false, sticky: true, w: 90, fmt: (v) => fmtDay(v) },
-              { key: 'game', label: 'Game', heat: false, numeric: false, w: 140, link: (m) => (onOpenGame && m.id !== g.id ? () => onOpenGame(m.id) : null), fmt: (_, m) => <b style={{ fontFamily: NUM_FONT }}>{m.away.abbrev} {m.state === 'pre' ? '@' : (m.away.score ?? '–')} {m.state === 'pre' ? '' : '–'} {m.state === 'pre' ? '' : (m.home.score ?? '–')} {m.home.abbrev}</b> },
+              { key: 'game', label: 'Game', heat: false, numeric: false, w: 140, link: (m) => (onOpenGame ? () => onOpenGame(m.id) : null) /* this game's own row links too (2026-10-20: every game name is tappable; it reopens this page) */, fmt: (_, m) => <b style={{ fontFamily: NUM_FONT }}>{m.away.abbrev} {m.state === 'pre' ? '@' : (m.away.score ?? '–')} {m.state === 'pre' ? '' : '–'} {m.state === 'pre' ? '' : (m.home.score ?? '–')} {m.home.abbrev}</b> },
               { key: 'state', label: 'State', heat: false, w: 80, fmt: (v, m) => <span style={{ color: m.state === 'live' ? C.lamp : C.text3, font: `800 9px/1 ${NUM_FONT}` }}>{m.id === g.id ? 'THIS GAME' : String(v).toUpperCase()}</span> },
             ]} />
         </section>
