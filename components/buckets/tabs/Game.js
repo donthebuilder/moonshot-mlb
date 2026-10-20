@@ -17,6 +17,7 @@ import BucketsTable from '../BucketsTable'
 import NbaH2H from '../../h2h/NbaH2H'
 import ShotChart from '../ShotChart'
 import BucketsTeamExpected from '../BucketsTeamExpected'
+import { DefPosGame } from '../DefPosSheet'
 import NbaWriteupBlock from '../NbaWriteupBlock'
 import InjuryOut from '../../injuries/InjuryOut'
 import { EmptyState, DelayedBanner, Loading, Kicker, BackBtn, NavBtn, RimDot, fmtTip, gameDay, fmtDay } from '../ui'
@@ -67,6 +68,7 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
       </div>
     ) : null),
     expected: () => <GameExpected id={id} date={gameDay(data.date)} onOpenTeam={onOpenTeam} />,
+    defpos: () => <DefPosGame date={gameDay(data.date)} away={away.abbrev} home={home.abbrev} onOpenTeam={onOpenTeam} />,
     clubs: () => <NbaH2H a={away.abbrev} b={home.abbrev} onOpenTeam={onOpenTeam} />,
     ledger: () => <GameLedgerLine sport="nba" gameId={id} day={gameDay(data.date)} />,
     writeup: () => <NbaWriteupBlock gameId={id} date={gameDay(data.date)} onOpenPlayer={onOpenPlayer} />,

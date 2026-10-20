@@ -15,6 +15,7 @@ import { writeFirstFeed, FIRST_KIND } from '../../../../lib/nba/firstFeed'
 import { readNbaBoard } from '../../../../lib/nba/boardRead'
 import { runNbaWriteups } from '../../../../lib/writeups/post'
 import { recordNbaLanes, gradeNbaLanes } from '../../../../lib/numerology/nbaTick'
+import { boxRows } from '../../../../lib/nba/defPos'
 
 
 export const dynamic = 'force-dynamic'
@@ -96,7 +97,7 @@ export async function GET(request) {
   // ── GRADE (today and yesterday: a late final grades the next morning) ──
   // The last WEEK, not two days (2026-10-04 ops audit): a tick that missed two
   // days left those games ungraded for good.
-  const pending = await db.from('buckets_games').select('game_id, game_date, season_type, away, home').is('graded_at', null).gte('game_date', shiftDay(date, -6)).lte('game_date', date)
+  const pending = await db.from('buckets_games').select('game_id, game_date, season, season_type, away, home').is('graded_at', null).gte('game_date', shiftDay(date, -6)).lte('game_date', date)
   for (const p of pending.data || []) {
     // Straight from the source: a cached summary could predate the final stats (LAMP's BUF@CHI, audit F1).
     const s = await nbaGet(`/summary?event=${p.game_id}`, 0).catch(() => null)
@@ -138,6 +139,17 @@ export async function GET(request) {
       const sw = await db.from('buckets_shots').upsert(shots.map(({ game_id, event_id, game_date, player_id, team_id, x, y, shot_type, made, points, three, distance, period, clock }) => ({ game_id, event_id, game_date, player_id, team_id, x, y, shot_type, made, points, three, distance, period, clock })), { onConflict: 'game_id,event_id' })
       // a failed shots write must not close the game: buckets_shots is written once, at grade time
       if (sw.error) { out.skipped.push({ game: p.game_id, why: `shots: ${sw.error.message}` }); continue }
+    }
+    // every player's line, once, for defense vs position (lib/nba/defPos.js; regular season and playoffs only)
+    if (p.season_type === 2 || p.season_type === 3) {
+      const cs = s?.header?.competitions?.[0]?.competitors || []
+      const score = (h) => { const x = Number(cs.find((c) => c.homeAway === h)?.score); return Number.isFinite(x) ? x : null }
+      const brows = boxRows({ gameId: p.game_id, gameDate: p.game_date, season: p.season, seasonType: p.season_type, home: p.home, away: p.away, homeScore: score('home'), awayScore: score('away') }, [...box.values()])
+      if (brows.length) {
+        const bw = await db.from('buckets_box').upsert(brows, { onConflict: 'game_id,player_id' })
+        // like the shots: a failed write leaves the game open for the next tick
+        if (bw.error) { out.skipped.push({ game: p.game_id, why: `box: ${bw.error.message}` }); continue }
+      }
     }
     // the first basket, on file for the Ledger's First scorers (lib/nba/firstFeed; never posts)
     const ff = await writeFirstFeed(db, { gameId: p.game_id, gameDate: p.game_date, seasonType: p.season_type, summary: s })
