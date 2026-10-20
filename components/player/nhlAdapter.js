@@ -8,7 +8,7 @@ import { SIGNALS } from '../../lib/nhl/goalSignals'
 const clean = (v) => (v == null || v === '' ? null : v)
 
 /** The props for <VerdictBlock sport="nhl" />. `w` is goalWhy(row, board); `whyLine` is the board row's own sentence. */
-export function nhlVerdict({ goalie, board, spot, row, w, whyLine, extraSignals = [], recordLine = null }) {
+export function nhlVerdict({ goalie, board, spot, row, w, whyLine, extraSignals = [], recordLine = null, lastLine = null }) {
   if (goalie) return { offSlate: 'Goalies are not on the goal board.' }
   if (!board) return { offSlate: 'Reading tonight’s board…' }
   if (!spot) {
@@ -32,6 +32,7 @@ export function nhlVerdict({ goalie, board, spot, row, w, whyLine, extraSignals 
     explain: w?.explain || null,
     signals: [...chips, ...extraSignals],
     recordLine,
+    lastLine,
     help: 'The word and the score are LAMP’s goal board for tonight. The score is a 0-100 rank among tonight’s skaters, not a probability.',
   }
 }
@@ -75,6 +76,15 @@ export function nhlRecordLine(rec) {
   if (!P || !P.games) return null
   const c = P.byStatus.called
   return `Record on him: ${g(P.games, 'game')}, ${c.g} called${c.g ? `, ${c.scored} scored` : ''}.`
+}
+
+/** 'Last week: 2 of 3 scored' -- his CALLED, graded games in the 7 days to `today` (YYYY-MM-DD), MOONSHOT's / BUCKETS' line; null when he had none. */
+export function nhlLastLine(rec, today) {
+  const t = Date.parse(`${today}T12:00:00Z`)
+  if (!Number.isFinite(t)) return null
+  const wk = (rec?.player?.called || []).filter((r) => { const d = Date.parse(`${r.d}T12:00:00Z`); return d > t - 7 * 864e5 && d <= t })
+  if (!wk.length) return null
+  return `Last week: ${wk.filter((r) => r.hit).length} of ${wk.length} scored`
 }
 
 /** The board's own facts as small chips (lib/nhl/goalSignals.js: Shooter / Finisher / Big minutes, top fifth of tonight), plus what the card already holds: a back-to-back, a goal drought, a hot last five. */

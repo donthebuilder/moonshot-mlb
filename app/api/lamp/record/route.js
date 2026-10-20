@@ -142,7 +142,9 @@ async function playerRecord(id) {
       for (const c of [byStatus[k], v[k]]) { c.g += 1; if (r.hit) { c.scored += 1; c.goals += Number(r.goals) || 0 } }
     }
     return ok({
-      player: { id, games: rows.length, byStatus, byVersion, since: rows.length ? rows[rows.length - 1].game_date : null, through: rows.length ? rows[0].game_date : null },
+      player: { id, games: rows.length, byStatus, byVersion, since: rows.length ? rows[rows.length - 1].game_date : null, through: rows.length ? rows[0].game_date : null,
+        // his latest CALLED games (2026-10-20, the parity sweep): the card's "Last week: k of n scored" line (components/player/nhlAdapter.js nhlLastLine)
+        called: rows.filter((r) => r.status === 'called').slice(0, 20).map((r) => ({ d: String(r.game_date).slice(0, 10), hit: Boolean(r.hit) })) },
       dbReady: true,
     }, 3600)
   } catch (e) {

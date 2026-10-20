@@ -36,7 +36,8 @@ import VerdictBlock from '../../player/VerdictBlock'
 import { useCardLock, useMemberState, useCallMask, CardLockLine } from '../../MemberGate'
 import StatRow from '../../player/StatRow'
 import ScrollHint from '../../player/ScrollHint'
-import { nhlVerdict, nhlStatRow, nhlRecordLine, nhlSignals } from '../../player/nhlAdapter'
+import { nhlVerdict, nhlStatRow, nhlRecordLine, nhlLastLine, nhlSignals } from '../../player/nhlAdapter'
+import LampPropsMatrix from '../PropsMatrix'
 import { nhlBotView } from '../../player/nhlRecordView'
 import { nhlTeam } from '../../../lib/nhl/teams'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
@@ -307,7 +308,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
       {/* MOONSHOT ON HIM first (the word, the score, why, the flags, his record), then ONE row of his key numbers (components/player/) */}
       <div>
         <VerdictBlock sport="nhl" lock={lockIn} style={{ marginBottom: 6 }}
-          {...nhlVerdict({ goalie, board, spot, row, w, whyLine, extraSignals: signals, recordLine: rec.data === undefined || rec.loading ? null : nhlRecordLine(rec.data) })} />
+          {...nhlVerdict({ goalie, board, spot, row, w, whyLine, extraSignals: signals, recordLine: rec.data === undefined || rec.loading ? null : nhlRecordLine(rec.data), lastLine: rec.data === undefined || rec.loading ? null : nhlLastLine(rec.data, etToday()) })} />
         {f && fr ? <StatRow noun="skaters" stats={nhlStatRow({ goalie, fr, board, row, l10: goalsIn(10)?.num ?? null, l10n: goalsIn(10)?.den ?? null, drought: droughtN, seasonLabel: f.seasonLabel, stale })} /> : null}
         {!fr && <EmptyState title="NO NHL LINE YET" note="No regular-season line for him yet. A camp invite or a prospect, most likely." />}
         {stale && <div style={{ marginTop: 8 }}><StaleSeasonNote label={f.seasonLabel} opens={p.opens} what="line" /></div>}
@@ -338,7 +339,8 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
           {!goalie && <InTheLedger sport="nhl" id={p.id} name={p.name} jersey={p.number} birthDate={p.birthDate} next={nextG} date={etToday()} />}
           {!goalie && <HisNumbers name={p.name} jersey={p.number} birthDate={p.birthDate} next={nextG} career={Number.isFinite(p.career?.regular?.g) ? p.career.regular.g + 1 : null} nextWord="goal" date={etToday()} theme={C} accent={C.ice} numFont={NUM_FONT} />}
           {!goalie && !locked && <LampPriceHistory id={String(p.id)} />}
-          <LampMore resetKey={p.id} summary={goalie ? 'last five, star memory, bio' : 'last five, star memory, multi-goal, bio'}>
+          <LampMore resetKey={p.id} summary={goalie ? 'last five, star memory, bio' : 'props grid, last five, star memory, multi-goal, bio'}>
+            {!goalie && <LampPropsMatrix logThis={logThis} logLast={logLast} seasonThis={f.seasonLabel} seasonLast={p.logPrev?.seasonLabel} />}
             {p.last5.length > 0 && (
               <section aria-label="Last five">
                 <Kicker>LAST FIVE</Kicker>

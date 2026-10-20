@@ -29,6 +29,7 @@ if [ -z "$BASE" ]; then
   echo "--- parity"; node scripts/check-parity.mjs > "$OUT/parity.log" 2>&1 || { grep -E "^FAIL|^parity" "$OUT/parity.log"; echo "GATE FAIL: check-parity"; exit 1; }
   # BUCKETS has everything (Donovan 10-20): any feature another product has that BUCKETS still marks todo fails
   echo "--- parity (BUCKETS complete)"; node scripts/check-parity.mjs --complete nba > "$OUT/parity-nba.log" 2>&1 || { grep -E "^FAIL|^parity" "$OUT/parity-nba.log"; echo "GATE FAIL: check-parity --complete nba"; exit 1; }
+  echo "--- parity (LAMP complete)"; node scripts/check-parity.mjs --complete nhl > "$OUT/parity-nhl.log" 2>&1 || { grep -E "^FAIL|^parity" "$OUT/parity-nhl.log"; echo "GATE FAIL: check-parity --complete nhl"; exit 1; }
   echo "--- scales"; node scripts/check-scales.mjs > "$OUT/scales.log" 2>&1 || { tail -20 "$OUT/scales.log"; echo "GATE FAIL: check-scales"; exit 1; }
   echo "--- shell routes + slate words"; node scripts/check-shell-route.mjs > "$OUT/shell.log" 2>&1 || { grep FAIL "$OUT/shell.log"; echo "GATE FAIL: check-shell-route"; exit 1; }
   echo "--- no printed probability"; node scripts/check-no-printed-probability.mjs || { echo "GATE FAIL: check-no-printed-probability"; exit 1; }
