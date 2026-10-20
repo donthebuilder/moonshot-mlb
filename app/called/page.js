@@ -32,7 +32,7 @@ import { BRAND, SPORT_KEYS, sportKey, appHref, playerHref, teamHref, isHiddenSpo
 import { ledgerAppHref, ledgerWord } from '../../lib/ledger/views'
 import PublicHeader from '../../components/header/PublicHeader'
 import HelpTip from '../../components/HelpTip'
-import { nhlCaptureFrom, readNhlRecords } from '../../lib/record/nhl'
+import { nhlCaptureFrom, readNhlRecords, isMissingTable } from '../../lib/record/nhl'
 import { nbaCaptureFrom, readNbaRecords, NBA_EVENT_BAR } from '../../lib/record/nba'
 import { readMlbEvents } from '../../lib/record/mlb'
 import { readNflEvents } from '../../lib/record/nfl'
@@ -326,6 +326,7 @@ async function loadNba(sport, db, today) {
     readNbaRecords(db, { since, until: today, includePre: true, graded: true, hitOnly: true }),
     readNbaRecords(db, { since: today, until: today, includePre: true, graded: false, status: 'called' }),
   ])
+  delayedIf(scorers.error, 'buckets_log')
   const all = scorers.rows.map((r) => ({ ...r, _n: normNba(r) }))
   const rows = all.filter((r) => r.game_date === today)
   const byDay = new Map()
@@ -352,6 +353,7 @@ async function loadNhl(sport, db, today) {
     readNhlRecords(db, { since, until: today, includePre: true, graded: true, hitOnly: true }),
     readNhlRecords(db, { since: today, until: today, includePre: true, graded: false, status: 'called' }),
   ])
+  delayedIf(scorers.error, 'lamp_goal_log')
   const all = scorers.rows.map((r) => ({ ...r, _n: normNhl(r) }))
   const rows = all.filter((r) => r.game_date === today)
   const byDay = new Map()
@@ -373,6 +375,16 @@ async function loadNhl(sport, db, today) {
   const calledIds = new Set(rows.filter((r) => r.status === 'called').map((r) => String(r.player_id)))
   const configured = !scorers.error
   return { sport, today, rows, picks, calledIds, history, byDay, configured }
+}
+
+// A FAILED READ IS NOT AN EMPTY NIGHT (2026-10-20, the Supabase 402 window 10-24..10-26). Every loader
+// read its record, ignored the error and drew "no home runs yet tonight" with ten blank nights -- cached
+// CALLED_TTL like a real answer. A failed read now throws (unstable_cache keeps nothing) and the page
+// says the record is delayed. A table that isn't there (the migration not run) stays "not configured".
+class Delayed extends Error {}
+const DELAYED_LINE = 'Tonight and the last nights are delayed: the record could not be read. Nothing here is a zero.'
+function delayedIf(error, table) {
+  if (error && !isMissingTable(error)) throw new Delayed(`delayed: ${table}: ${error.message || error}`)
 }
 
 // One loader per sport, picked off the table -- no sport branch in load().
@@ -403,8 +415,15 @@ const loadPlain = unstable_cache(async (key) => {
 const cardPlain = unstable_cache(async (key) => (SPORTS[key]?.cardRecord ? SPORTS[key].cardRecord() : null), ['called-card-v1'], { revalidate: CALLED_TTL })
 
 async function load(key) {
-  const p = await loadPlain(key, await slateNight(SPORTS[key]?.key || 'mlb'))
-  return { ...p, sport: SPORTS[p.key] || SPORTS.mlb, calledIds: new Set(p.calledIds), byDay: new Map(p.byDay) }
+  const night = await slateNight(SPORTS[key]?.key || 'mlb')
+  try {
+    const p = await loadPlain(key, night)
+    return { ...p, sport: SPORTS[p.key] || SPORTS.mlb, calledIds: new Set(p.calledIds), byDay: new Map(p.byDay) }
+  } catch (e) {
+    if (!(e instanceof Delayed) && !/delayed|fetch failed|402|503|timeout/i.test(String(e?.message))) throw e
+    console.error(`[called] ${key} record delayed: ${e?.message}`)
+    return { sport: SPORTS[key] || SPORTS.mlb, today: night, rows: [], picks: [], calledIds: new Set(), history: [], byDay: new Map(), configured: true, delayed: true }
+  }
 }
 
 // FOOTBALL IS NOT NIGHTLY. Baseball plays every day, so ten days and ten
@@ -414,11 +433,12 @@ async function load(key) {
 // actually had a touchdown — same ten bars, each one a real game day.
 async function loadNfl(sport, db, slateDay) {
   const since = shiftDay(slateDay, -(sport.window - 1))
-  const [{ events }, slate] = await Promise.all([
+  const [{ events, error }, slate] = await Promise.all([
     readNflEvents(db, { since, until: slateDay }),
     // This week's slate (~70 KB, Data Cache 10 min), only for the passer links.
     fetch(nflSlatePaths()[0], { next: { revalidate: 600 } }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
   ])
+  delayedIf(error, 'nfl_td_feed')
   const outside = sport.outsidePool || (() => false)
   const all = events.map((e) => ({ ...e, day: e.game_date, _n: normNfl(e, slate) }))
   // THE WEEK IN PROGRESS (2026-10-06, ledger audit P1-8): football is not nightly. On a Tuesday or
@@ -471,7 +491,8 @@ async function loadNfl(sport, db, slateDay) {
 
 async function loadMlb(sport, db, today) {
   const since = shiftDay(today, -(sport.window - 1))
-  const { events } = await readMlbEvents(db, { since, until: today })
+  const { events, error } = await readMlbEvents(db, { since, until: today })
+  delayedIf(error, 'homer_feed')
   const all = events.map((e) => ({ ...e, day: e.game_date, _n: normMlb(e) }))
   const rows = all.filter((r) => r.day === today)
   // The morning's call, so the page shows the names BEFORE any homer lands.
@@ -515,7 +536,7 @@ export default async function CalledPage({ searchParams }) {
   const members = membersUrl()
   const params = (await searchParams) || {}
   const key = calledKey(params.sport)
-  const { sport, today, rows, outRows = [], picks: allPicks, picksDay = null, calledIds, history: historyRaw, byDay, configured } = await load(key)
+  const { sport, today, rows, outRows = [], picks: allPicks, picksDay = null, calledIds, history: historyRaw, byDay, configured, delayed = false } = await load(key)
   // TONIGHT'S CALLS ARE THE MEMBERS' (2026-10-17, Donovan: fix every page the way the front door is fixed). Decided here, on the server, for THIS visitor: a non-member
   // gets the first FREE_CALLS_PER_SPORT calls that have no result yet, and every call that already scored or was graded (public proof). The rest are counted, never
   // named, so their names are not in the page. The page was already per-request (force-dynamic); only the data read is cached, and it holds no viewer.
@@ -630,6 +651,11 @@ export default async function CalledPage({ searchParams }) {
               </>
             )}
           </>
+        ) : delayed ? (
+          <>
+            {landed ? null : <h1 className={styles.headline}>Record delayed</h1>}
+            <p className={styles.sub}>{DELAYED_LINE}</p>
+          </>
         ) : landed ? (
           <p className={styles.sub}>{sport.empty}. {configured ? sport.fills : 'The feed is not configured on this deployment.'}</p>
         ) : (
@@ -694,7 +720,7 @@ export default async function CalledPage({ searchParams }) {
         </section>
       ) : null}
 
-      <section id="nights" className={styles.panel}>
+      {delayed ? null : (<section id="nights" className={styles.panel}>
         <h2 className={styles.h2}>{`Last ${history.length} ${unit}`} {spanPct != null ? <span className={styles.pill}>{byBoard ? `board coverage: ${span.onBoard} / ${span.total} on the board · ${spanBoardPct}% · ${span.called} called` : `capture: ${span.called} / ${span.total} ${sport.event} called · ${spanPct}% · ${span.onBoard} on the board`}{` · counts ${graded.length} of these ${history.length} ${unit[1]}${graded.length === history.length ? '' : ' (the rest: no event recorded, preseason or postseason)'}`}</span> : preOnly ? <span className={styles.pill}>preseason — not counted</span> : null}</h2>
         {postNights.length ? (
           <p className={styles.sub}>
@@ -733,7 +759,7 @@ export default async function CalledPage({ searchParams }) {
             {pastNights.map((h) => (h.total > 0 ? <NightDetails key={h.day} h={h} rows={byDay.get(h.day) || []} /> : null))}
           </div>
         ) : null}
-      </section>
+      </section>)}
 
       {card?.markets?.length ? (
         // THE CARD, GRADED (TUDDY depth step 1). The same files and the same

@@ -10,6 +10,7 @@ import { NFL_DATA_BASE } from '../../../../lib/nfl/dataSource'
 import { easternToday, shiftDay } from '../../../../lib/data'
 
 export const dynamic = 'force-dynamic'
+const delayed = (e) => { console.error(`[nfl dash] read failed: ${e?.message || e}`); return Response.json({ available: false, error: 'DASH LINES DELAYED' }, { status: 502, headers: { 'Cache-Control': 'no-store' } }) }
 const get = (name) => fetch(`${NFL_DATA_BASE}/${name}`, { next: { revalidate: 3600 } }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
 const pick = (r) => ({ game_date: r.game_date || null, player_id: r.player_id, market: r.market, dash_line: r.dash_line == null ? null : Number(r.dash_line), book_line: r.book_line == null ? null : Number(r.book_line), lean: r.lean, reason: r.reason, frozen_at: r.frozen_at })
 
@@ -17,16 +18,22 @@ export async function GET() {
   const db = adminClient()
   if (!db) return Response.json({ available: false, why: 'no database' }, { status: 503 })
   const head = await db.from('dash_lines').select('player_id').limit(1)
-  if (head.error) return Response.json({ available: false, why: 'sql not run' }, { headers: { 'Cache-Control': 'public, s-maxage=600' } })
+  // ONLY A MISSING TABLE IS "SQL NOT RUN" (2026-10-20): any other failure (a 402 while the project is
+  // restricted, a timeout) is a delay -- never cached, never told as a setup state.
+  if (head.error) return /does not exist|relation|schema cache/i.test(String(head.error.message || ''))
+    ? Response.json({ available: false, why: 'sql not run' }, { headers: { 'Cache-Control': 'public, s-maxage=600' } })
+    : delayed(head.error)
   const today = easternToday()
   const from = shiftDay(today, -4), to = shiftDay(today, 7)
   const frozen = await db.from('dash_lines').select('player_id, market, game_date, dash_line, book_line, lean, reason, frozen_at').eq('sport', 'nfl').eq('model_version', DASH_MODEL).gte('game_date', from).lte('game_date', to)
+  if (frozen.error) return delayed(frozen.error)   // a frozen line we could not read must not come back as an unfrozen preview
   const rows = (frozen.data || []).map((r) => ({ ...pick(r), provisional: false }))
   // keyed with the game's own date: last week's frozen row must not mask this week's line
   const have = new Set(rows.map((r) => `${r.player_id}|${r.market}|${r.game_date}`))
   // the preview: the newest book line per player/market not yet frozen
   const lines = await db.from('odds_lines').select('event_id, game_date, our_player_id, player_name, market, bet, line, odds, taken_at')
     .eq('sport', 'nfl').gte('game_date', today).lte('game_date', to).not('our_player_id', 'is', null).eq('bet', 'ou').not('market', 'in', '(td2,hr2,goal2)')
+  if (lines.error) return delayed(lines.error)
   const newest = new Map()
   for (const r of lines.data || []) { const k = `${r.our_player_id}|${r.market}|${r.game_date}`; if (!have.has(k) && (!newest.has(k) || r.taken_at > newest.get(k).taken_at)) newest.set(k, r) }
   if (newest.size) {
