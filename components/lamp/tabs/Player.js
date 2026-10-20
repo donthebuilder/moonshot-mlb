@@ -14,6 +14,7 @@ import { playerUrl, slug, stamp } from '../../../lib/cards/saveCard'
 import StarMemory from '../../watch/StarMemory'
 import PlayerNotes from '../../PlayerNotes'
 import MultiLine from '../../ledger/MultiLine'
+import ScoredFirst from '../../player/ScoredFirst'
 import LampTable from '../LampTable'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import HisNumbers from '../../HisNumbers'
@@ -355,6 +356,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
             )}
             <StarMemory sport="nhl" id={String(p.id)} />
             {!goalie && <MultiLine sport="nhl" playerId={p.id} words={{ G: 'multi-goal' }} color={C.ice} textColor={C.text2} />}
+            {!goalie && <ScoredFirst sport="nhl" playerId={p.id} word="Scored the first goal" color={C.ice} textColor={C.text2} />}
             <div style={{ color: C.text3, fontSize: 12, lineHeight: 1.5 }}>{bio}</div>
           </div>
         </>
