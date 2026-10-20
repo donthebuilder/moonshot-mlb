@@ -138,7 +138,7 @@ const fakeDb = () => {
   const r2 = await postOnce(richDb(), { day: '2026-03-02', kind: 'card_nhl', sport: 'nhl', envGate: false, build: async () => ({ text: 'test post two', png: png('straight-front'), payload: {} }) })
   globalThis.fetch = realFetch
   const tweet2 = calls.find((c) => c.url.endsWith('/2/tweets'))
-  check(/^posted/.test(r2) && tweet2 && !JSON.parse(tweet2.body).media && JSON.parse(tweet2.body).text === 'test post two', 'D: an upload X refuses does not block the text post (text unchanged)')
+  check(/^posted/.test(r2) && tweet2 && !JSON.parse(tweet2.body).media && /^test post two(\n\nCalled before puck drop\. Graded against exactly that\.)?$/.test(JSON.parse(tweet2.body).text), 'D: an upload X refuses does not block the text post (text unchanged but for the receipt line the sender adds, 2026-10-20)')
 }
 
 // ── E. the three alert routes: old card stays as the fallback, claim / retry code untouched ──

@@ -131,7 +131,8 @@ await ok('links: postToX sends no URL for any kind, linked or not (fake fetch)',
   for (const k of [...TL.linkedKinds(), 'td', 'writeup', 'facts', null]) await X.postToX('TEST post body', { kind: k, link: { playerId: 'T1' } })
   assert.ok(tweets.length >= 10)
   for (const t of tweets) assert.ok(!/https?:\/\/|test\.example|dashnetwork/i.test(t.text), t.text)
-  for (const t of tweets) assert.equal(t.text, 'TEST post body')
+  // the body untouched; a kind that names a call ends on its receipt line (2026-10-20, lib/posts/receiptLine.js), nothing else is added
+  for (const t of tweets) assert.ok(t.text === 'TEST post body' || /^TEST post body\n\nLocked before .+\. Graded against exactly that\.$/.test(t.text), t.text)
 })
 await ok('links: a URL a builder wrote into its own text is cut before it is sent', async () => {
   reset()
@@ -169,8 +170,10 @@ await ok('links: Moonshot text is character-identical but for the removed link b
   reset()
   await X.postToX(pre, { kind: 'pregame' })
   await X.postToX(ls, { kind: 'longshots' })
-  assert.equal(tweets[0].text, before.pregame.slice(0, before.pregame.indexOf("\n\nTonight's board is public")))
-  assert.equal(tweets[0].text, pre)
+  // (the pregame post names our calls, so the sender adds its receipt line last: 2026-10-20, lib/posts/receiptLine.js)
+  const noReceipt = (t) => t.replace(/\n\nLocked before .+\. Graded against exactly that\.$/, '')
+  assert.equal(noReceipt(tweets[0].text), before.pregame.slice(0, before.pregame.indexOf("\n\nTonight's board is public")))
+  assert.equal(noReceipt(tweets[0].text), pre)
   assert.equal(tweets[1].text, before.longshots.slice(0, before.longshots.indexOf('\n\nEvery long price')))
   assert.equal(tweets[1].text, ls)
 })
