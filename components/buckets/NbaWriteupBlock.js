@@ -10,7 +10,7 @@ import GameWriteupBlock from '../GameWriteupBlock'
 
 const THEME = { C, NUM_FONT, TYPE, accent: C.purple }
 const WORDS = {
-  status: (w) => `${w.when}${w.locked ? ' · the board is set' : ' · a preview until the lock'}`,
+  status: (w) => `${w.when}${w.locked ? ' · the board is set' : ' · locks at tip'}`,
   meta: (p) => `${p.team}${p.position ? ` ${p.position}` : ''} · ${p.markets.map((m) => m.word).join(' + ')}${p.role === 'TOP' ? ' · TOP' : ''}`,
   // the player's head row as chips on a phone (GameWriteupBlock chips): one score chip per market, the best glows
   chips: (p) => [

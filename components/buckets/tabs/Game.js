@@ -171,7 +171,7 @@ function GameCalls({ id, date, onOpenPlayer }) {
       // the market rides in the result cell, so every row says what was called
       result: `${NBA_MARKETS[m]?.label || m} · ${r.hit === true || r.hit === false
         ? (m === 'first' ? (r.hit ? '✅ scored first' : '❌ not first') : m === 'dd' || m === 'td' ? (r.hit ? `✅ ${NBA_MARKETS[m].barWord}` : '❌ not this time') : `${r.hit ? '✅' : '❌'} ${r.actual ?? '—'}`)
-        : r.voidReason ? `➖ void · ${r.voidReason}` : r.locked ? 'locked' : 'preview'}`,
+        : r.voidReason ? `➖ void · ${r.voidReason}` : r.locked ? 'locked' : 'locks at tip'}`,
     })))
   if (!date || !rows.length) return null
   const cols = [

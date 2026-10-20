@@ -34,7 +34,7 @@ import { useColumnSet } from '../../../lib/useColumnSet'
 // player on the night's rosters ranked by the market's score, one CALLED per
 // team in a game, the top third ON THE BOARD. Locked rows come from
 // buckets_log (written before tip, never rewritten); before the lock it is a
-// PREVIEW, the same arithmetic run now, and says so on every row.
+// the same arithmetic run now (it can move until the lock; a locked row wears 🔒).
 const HOW_NOTES = [
   { title: 'Rank on the night', text: 'BUCKETS ranks every player playing tonight for the market you pick, #1 first.' },
   { title: 'The call', text: 'CALLED is the top-scored player on each team in a game: the game’s higher one is TOP, the other BUCKET. ON THE BOARD is the top third of the night. Calls lock before tip.' },
@@ -297,11 +297,11 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
       {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Nothing to rank. Try another day, or open the Slate." />}
       {noStarters && games.length > 0 && <EmptyState title="NO STARTERS LISTED YET" note="First basket is the ten starters only, scored once the pre-tip box score lists them. Check back near tip." />}
       {D.highVariance && scored.length > 0 && <p style={{ margin: 0, fontSize: 12, color: C.text3 }}>A high-variance lane: the ten starters only, ranked mostly on shot share.</p>}
-      {previewN > 0 && rows.length > 0 && !noStarters && (
+      {/* 2026-10-20 (Donovan: not "Preview" on everything): before tip the board is simply the board; the lock is shown once, by the 🔒 on a locked row and
+          LOCKED in the header. The one honest exception stays: a night that ended without ever locking says its rows were never calls. */}
+      {previewN === rows.length && rows.length > 0 && !noStarters && games.length > 0 && games.every((g) => g.state === 'final') && (
         <div style={{ color: C.text2, font: `800 12px/1.5 ${NUM_FONT}`, letterSpacing: '.08em' }}>
-          {previewN === rows.length && games.length > 0 && games.every((g) => g.state === 'final') ? 'THIS NIGHT NEVER LOCKED. THESE ROWS ARE A PREVIEW, NOT CALLS'
-            : previewN === rows.length ? 'EVERY GAME IS STILL A PREVIEW, NOT A CALL YET' : `${previewN} OF ${rows.length} ROWS ARE A PREVIEW, NOT A CALL YET`}
-          {games.some((g) => g.seasonType === 1) ? ' · PRESEASON' : ''}
+          THIS NIGHT NEVER LOCKED. THESE ROWS WERE NOT CALLS{games.some((g) => g.seasonType === 1) ? ' · PRESEASON' : ''}
         </div>
       )}
       {pf.active && m !== ALL && rows.length > 0 && !noStarters && <PositionNote control={pf.control} shown={rows.length} total={pool.length} />}
