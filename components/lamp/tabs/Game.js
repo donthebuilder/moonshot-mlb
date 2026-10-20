@@ -13,6 +13,7 @@ import NhlH2H from '../../h2h/NhlH2H'
 import OurLine from '../../game/OurLine'
 import GoalieQuality from '../GoalieQuality'
 import GoalieWeakSpots from '../GoalieWeakSpots'
+import { LampAttack } from '../../game/SportAttack'
 import GameRink from '../GameRink'
 import Tap from '../../Tap'
 import ShareCardButton from '../../card/ShareCardButton'
@@ -173,6 +174,7 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
     ),
     // OUR LINE (2026-10-20, components/game/OurLine.js): our goal margin beside the book's puck line and moneyline; info only, nothing drawn without a row
     ourline: () => <OurLine sport="nhl" date={g.date} away={g.away.abbrev} home={g.home.abbrev} start={g.startUtc} theme={{ C, NUM_FONT }} onOpenTeam={onOpenTeam} />,
+    attack: () => <LampAttack date={g.date} away={g.away.abbrev} home={g.home.abbrev} onOpenPlayer={onOpenPlayer} />,
     compare: () => (
       <>
       {/* ── team comparison ── */}
