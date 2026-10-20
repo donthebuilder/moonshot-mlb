@@ -1,3 +1,5 @@
+> **STALE — do not work from this file.** Kept for history only. Current rules: `CLAUDE.md`. Current state: `.claude-notes/NOW.md` (Mac, gitignored). Plans, decisions, known issues and the job inventory: the DASH NETWORK Project docs (`claude/…`). (2026-10-20)
+
 # OPEN ITEMS
 
 Found while working, not fixed. Newest first.

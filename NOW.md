@@ -1,3 +1,5 @@
+> **STALE — do not work from this file.** Kept for history only. Current rules: `CLAUDE.md`. Current state: `.claude-notes/NOW.md` (Mac, gitignored). Plans, decisions, known issues and the job inventory: the DASH NETWORK Project docs (`claude/…`). (2026-10-20)
+
 
 ## BATCH-NFL-FIELD · 2026-09-30 · plan: given in chat (claude/PLAN-nfl-the-field-2026-09-30.md never reached disk)
 Goal: TUDDY "The Field" in the player modal — a player's targets by exact

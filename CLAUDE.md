@@ -2,10 +2,11 @@
 
 # DASH Network site — rules for Claude Code
 
-This repo is the DASH Network site (Next.js on Vercel, Supabase). Three
-products share one shell: MOONSHOT (MLB home runs), TUDDY (NFL touchdowns),
-LAMP (NHL goals). FRANCHISE (fantasy) also lives here; another workflow owns
-it, so stay out of it unless asked. The Python bot repo
+This repo is the DASH Network site (Next.js on Vercel, Supabase). Four
+sport products share one shell: MOONSHOT (MLB home runs), TUDDY (NFL
+touchdowns), LAMP (NHL goals), BUCKETS (NBA; public since 2026-10-19,
+switch: BUCKETS_PUBLIC via lib/openSwitch.js). FRANCHISE (fantasy) also lives
+here on the same DASH shell and tokens; stay out of its code unless asked. The Python bot repo
 (~/MLB-HR-DASHBOARD-STREAMLIT) is separate. It publishes the JSON this site
 reads, via its `data` branch.
 
