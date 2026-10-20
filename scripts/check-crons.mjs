@@ -55,12 +55,12 @@ ok('parked BUCKETS crons are not also live', () => {
   for (const c of restore.crons) assert.ok(!live.has(`${c.path} ${c.schedule}`), `${c.path} ${c.schedule} is in both files`)
 })
 ok(`cron invocations a day under the ceiling (now ${Math.round(total)})`, () => {
-  assert.ok(total <= 4800, `${Math.round(total)} a day`)
+  assert.ok(total <= 5200, `${Math.round(total)} a day`)   // 5200 (was 4800): BUCKETS opened 10-19 (Donovan: "open the nba side"), its moments cron every 2 minutes
 })
 // WHAT THE FLIP COSTS (2026-10-13): the parked BUCKETS entries added back. Information only; it does not fail the gate, because the ceiling is Donovan's
 // call to raise on the day BUCKETS opens. It exists so that day is not a surprise: restoring the parked crons while the ceiling stays at 4800 FAILS the check above.
 const parkedPerDay = restore.crons.reduce((a, c) => a + perDay(c.schedule), 0)
-console.log(`note  BUCKETS flip: parked crons add ${Math.round(parkedPerDay)}/day -> ${Math.round(total + parkedPerDay)}/day (ceiling 4800: ${total + parkedPerDay <= 4800 ? 'fits' : 'WOULD EXCEED, raise it or trim in the same commit'})`)
+console.log(`note  BUCKETS flip: parked crons add ${Math.round(parkedPerDay)}/day -> ${Math.round(total + parkedPerDay)}/day (ceiling 5200: ${total + parkedPerDay <= 5200 ? 'fits' : 'WOULD EXCEED, raise it or trim in the same commit'})`)
 
 // ── BUCKETS stays hidden ──
 const dc = await import('../lib/dash/discordChannels.js')
