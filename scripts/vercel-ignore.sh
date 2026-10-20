@@ -4,7 +4,7 @@
 # Build CPU minutes were $8.30 of a $28 overage: every worktree PR branch built
 # a preview, then main built again on merge, and doc-only pushes built too.
 #
-#   1. Only main builds. Preview branches skip (check a branch locally with
+#   1. Only the production branch builds (main until 2026-10-20, then `release`: see 5). Preview branches skip (check a branch locally with
 #      `npm run build` + `npx next start`, as every batch already does).
 #   2. On main, skip when the push touches nothing that ships: every changed
 #      path is docs/, scripts/, supabase/, .claude*/, ARCHIVE/ or a *.md.
@@ -15,11 +15,22 @@
 #   4. A preview can still be asked for: a branch commit whose message
 #      contains [preview] builds (2026-09-28, so a link to tap is one word away).
 
-if [ "$VERCEL_GIT_COMMIT_REF" != "main" ]; then
+#   5. RELEASE TRAIN (2026-10-20): Vercel's production branch becomes `release`, moved up to main 3x a day by
+#      .github/workflows/release-train.yml. So the test is "is this the PRODUCTION build" (VERCEL_ENV), not "is this
+#      main": until the production branch is switched, main is still production and builds exactly as before; after,
+#      main is a preview like any branch and only `release` builds.
+# FAIL-SAFE: if VERCEL_ENV is ever missing in this step, fall back to the branch names (main or release build), so a
+# missing variable can only cost a build, never skip production.
+ENV_KIND="$VERCEL_ENV"
+if [ -z "$ENV_KIND" ]; then
+  case "$VERCEL_GIT_COMMIT_REF" in main|release) ENV_KIND=production ;; *) ENV_KIND=preview ;; esac
+  echo "ignore: VERCEL_ENV not set -- treating '$VERCEL_GIT_COMMIT_REF' as $ENV_KIND"
+fi
+if [ "$ENV_KIND" != "production" ]; then
   case "$VERCEL_GIT_COMMIT_MESSAGE" in
     *"[preview]"*) echo "ignore: branch '$VERCEL_GIT_COMMIT_REF' asked for a preview -- building"; exit 1 ;;
   esac
-  echo "ignore: branch '$VERCEL_GIT_COMMIT_REF' is not main -- skipping the preview build (add [preview] to the commit message to build one)"
+  echo "ignore: branch '$VERCEL_GIT_COMMIT_REF' is not the production branch -- skipping (add [preview] to the commit message to build one)"
   exit 0
 fi
 
