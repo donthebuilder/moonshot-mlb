@@ -119,9 +119,9 @@ export { default as PlayerFace } from '../PlayerFace'
 export function DayPager({ shown, date, setDate, disabled = false, todayWord = 'Tonight', children = null }) {
   return (
     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-      <NavBtn onClick={() => setDate(shiftDayLocal(shown, -1))} disabled={disabled} ariaLabel="Previous day">‹ Prev</NavBtn>
+      <NavBtn onClick={() => setDate(shiftDayLocal(shown, -1))} disabled={disabled} ariaLabel="Previous day">‹ Previous day</NavBtn>
       <NavBtn onClick={() => setDate(null)} disabled={disabled || !date} strong={!date}>{todayWord}</NavBtn>
-      <NavBtn onClick={() => setDate(shiftDayLocal(shown, 1))} disabled={disabled} ariaLabel="Next day">Next ›</NavBtn>
+      <NavBtn onClick={() => setDate(shiftDayLocal(shown, 1))} disabled={disabled} ariaLabel="Next day">Next day ›</NavBtn>
       {children}
     </div>
   )

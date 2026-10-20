@@ -8,7 +8,6 @@ export const NBA_TEXTS = {
   fullboard: { what: 'Every player tonight, #1 down. Tap Why on a row for the reason, or a name for his file.' },
   scores: { what: 'Every game on one day: score, quarter and clock. Tap a game for its box score and every shot.' },
   game: { what: 'One game top to bottom: line score, box scores, every shot where it was taken, and who scored first.' },
-  schedule: { what: 'The league week, day by day. Tap a game for its page.' },
   ledger: { what: 'The Ledger: every player who cleared a bar tonight, live, and the record of every graded night.' },
   hot: { what: 'Every rotation player’s last 5 and last 10 games beside his season. ± is last 5 minus season.' },
   standings: { what: 'Both conferences, seeded. Before opening night this is last season’s final table, and it says so.' },
