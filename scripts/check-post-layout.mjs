@@ -99,12 +99,12 @@ safe('receipt period', () => {
 
 // ── Fact posts (every family), through the template + compose
 const FACTS = [
-  { family: 'p_streak', sport: 'mlb', player: 'TEST Hitter', team: 'TST', what: 'homered', n: 4, opp: 'at OPP', when: '7:05 PM ET', market: 'home run' },
-  { family: 'p_form', sport: 'nhl', player: 'TEST Skater', team: 'TST', bar: 'shots 3+', cleared: 8, of: 10, opp: 'vs OPP', when: '7:05 PM ET' },
+  { family: 'p_streak', sport: 'mlb', player: 'TEST Hitter', team: 'TST', what: 'a home run', n: 4, rank: 3, opp: 'OPP', when: '7:05 PM ET', market: 'home run' },
+  { family: 'p_form', sport: 'nhl', player: 'TEST Skater', team: 'TST', bar: 'shots 3+', cleared: 8, of: 10, rank: 5, opp: 'OPP', when: '7:05 PM ET' },
   { family: 'p_birthday', sport: 'nfl', player: 'TEST Receiver', team: 'TST', age: 27, born: 'Oct 16, 1999', opp: 'at OPP', when: 'Sun 1:00 PM ET' },
   { family: 'p_vs_team', sport: 'nfl', player: 'TEST Runner', team: 'TST', tds: 3, meetings: 4, opp: 'OPP', since: 2019, when: 'Sun 1:00 PM ET' },
-  { family: 'p_milestone', sport: 'nfl', player: 'TEST Back', team: 'TST', have: 990, games: 6, gap: 10, next: 1000, stat: 'rushing yards', opp: 'OPP', when: 'Sun 1:00 PM ET' },
-  { family: 'p_vs_starter', sport: 'mlb', player: 'TEST Hitter', team: 'TST', pitcher: 'TEST Starter', pitcherTeam: 'OPP', ab: 12, hits: 6, hr: 2, opp: 'vs OPP', when: '7:05 PM ET' },
+  { family: 'p_milestone', sport: 'nfl', player: 'TEST Back', team: 'TST', have: 990, games: 6, perGame: 165, gap: 10, next: 1000, stat: 'rushing yards', opp: 'OPP', when: 'Sun 1:00 PM ET' },
+  { family: 'p_vs_starter', sport: 'mlb', player: 'TEST Hitter', team: 'TST', pitcher: 'TEST Starter', pitcherTeam: 'OPP', ab: 12, hits: 6, hr: 2, avg: '.500', rank: 9, opp: 'OPP', when: '7:05 PM ET' },
   { family: 'both_unbeaten', sport: 'nfl', week: 5, teams: [{ name: 'TestA', record: '4-0' }, { name: 'TestB', record: '4-0' }], prior: 0, since: 1999, last: { winner: 'TestA', winnerPts: 20, loser: 'TestB', loserPts: 10, date: 'Jan 4', tie: false } },
   { family: 'both_winless', sport: 'nfl', week: 5, teams: [{ name: 'TestA', record: '0-4' }, { name: 'TestB', record: '0-4' }], prior: 0, since: 1999 },
   { family: 'team_start_unbeaten', sport: 'nfl', teams: [{ name: 'TestA', record: '4-0' }], running: 2, since: 1999, seasons: [2019, 2020, 2021] },

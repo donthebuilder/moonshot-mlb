@@ -27,7 +27,7 @@ const at = (hhmm) => Date.parse(`${TODAY}T${hhmm}:00Z`)
 const START = at('23:00')
 const P = (i, extra = {}) => ({ id: `T${i}`, name: `Test Player ${String.fromCharCode(64 + i)}`, team: 'AAA', opp: 'BBB', startMs: START, rank: i, score: 80 - i, gameDay: TODAY, ...extra })
 const players = [1, 2, 3, 4].map((i) => P(i))
-const BAD = /https?:|www\.|\.com|#\w|@\w|\bbot\b|%|\bodds\b|probab/i
+const BAD = /https?:|www\.|\.com|#[A-Za-z]|@\w|\bbot\b|%|\bodds\b|probab/i   // a hashtag starts with a letter: "#3 on tonight's board" is a rank (2026-10-20)
 
 // ── 1. each player family: honest numbers in, a clean 4-8 line post out ─────────────────────────────
 const built = {
@@ -48,7 +48,9 @@ for (const [fam, make] of Object.entries(built)) {
     const w = await EN.writeChecked(f)
     assert.ok(w.text, `${fam} was rejected: ${JSON.stringify(w.rejected)}`)
     const lines = w.text.split('\n')
-    assert.ok(lines.length >= 4 && lines.length <= 8, `${lines.length} lines`)
+    // 4-8 lines that say something (SHAPE), and at most three blank lines between the blocks (2026-10-20 player layout: hook / headline / game / ask)
+    const said = lines.filter((l) => l.trim()).length
+    assert.ok(said >= 4 && said <= 8 && lines.length - said <= 3, `${said} lines, ${lines.length - said} blank`)
     // the voice (2026-10-20): a hook first (sport icon from the registry), an ask last; neither carries a digit
     assert.equal(lines[0], LB.hookOf(f)); assert.ok(lines[0].startsWith(`${R.BRAND[f.sport].icon} `))
     assert.equal(lines[lines.length - 1], LB.askOf(f)); assert.ok(lines[lines.length - 1].endsWith('?'))
@@ -64,14 +66,14 @@ await ok('the streak takes the LONGEST run per man and never names a man who is 
 await ok('sport words come from the registry (POST_WORDS), not typed', () => {
   for (const sport of ['mlb', 'nfl', 'nhl', 'nba']) {
     const f = PL.streakFacts({ sport, players, streaks: [{ id: 'T1', what: 'a goal', whatKey: 'goal', n: 4 }], today: TODAY })[0]
-    assert.equal(f.market, R.POST_WORDS[sport].market); assert.ok(WR.templateDrafts(f)[0].includes(`Market: ${R.POST_WORDS[sport].market}.`))
+    assert.equal(f.market, R.POST_WORDS[sport].market); assert.ok(WR.templateDrafts(f)[0].includes(` ${R.BRAND[sport].name} board`), 'the board line names the sport\'s brand from the registry')   // (2026-10-20: the "Market: ..." line is gone; the board rank line carries the brand)
   }
 })
 await ok('the checker still refuses what it must: a number or a name not in the fact, a missing hook, a link, 3 lines, an unlisted hashtag', () => {
   const f = built.p_streak()[0]
   const good = WR.templateDrafts(f)[0]
   assert.ok(CK.checkDraft(good, f).ok)
-  assert.ok(!CK.checkDraft(good.replace('11 straight', '13 straight'), f).ok)
+  assert.ok(good.includes('11 STRAIGHT GAMES WITH A HIT'), 'the headline the edits below change'); assert.ok(!CK.checkDraft(good.replace('11 STRAIGHT', '13 STRAIGHT'), f).ok)
   assert.ok(!CK.checkDraft(good.replace('Test Player A', 'Test Player Q'), f).ok)
   assert.ok(!CK.checkShape(good.split('\n').slice(1).join('\n'), f).ok)
   assert.ok(!CK.checkShape(`${good}\nhttps://x.example`, f).ok)
@@ -88,9 +90,9 @@ await ok('the voice (2026-10-20): short streaks are not facts; swearing, "due" a
   const f = built.p_streak()[0]
   const good = WR.templateDrafts(f)[0]
   assert.ok(CK.checkShape(good, f).ok && CK.checkDraft(good, f).ok)
-  assert.ok(!CK.checkDraft(good.replace('straight games.', 'straight games. Damn.'), f).ok, 'swearing')
-  assert.ok(!CK.checkShape(good.replace('straight games.', 'straight games. He is due.'), f).ok, 'due')
-  assert.ok(!CK.checkShape(good.replace('straight games.', 'straight games, chasing more.'), f).ok, 'chasing')
+  assert.ok(!CK.checkDraft(good.replace('WITH A HIT', 'WITH A HIT. Damn.'), f).ok, 'swearing')
+  assert.ok(!CK.checkShape(good.replace('WITH A HIT', 'WITH A HIT. He is due.'), f).ok, 'due')
+  assert.ok(!CK.checkShape(good.replace('WITH A HIT', 'WITH A HIT, chasing more.'), f).ok, 'chasing')
   assert.ok(!CK.OVERCLAIM.test('Out due to injury.'), '"due to injury" is a fine sentence')
   // hashtags: none listed for the day -> any hashtag is refused; the listed one passes; two never do
   const ask = LB.askOf(f)
