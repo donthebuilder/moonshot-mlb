@@ -13,6 +13,9 @@ import { lockedKeys, lockSlate, openRows, gradeRows, slateRows } from '../../../
 import { postTotalsOnce } from '../../../../lib/totals/post'
 import { cardTick } from '../../../../lib/card/tick'
 import { momentAfterTick } from '../../../../lib/posts/momentTick'
+import { easternDate } from '../../../../lib/data'
+import { LINE_SPORTS, dayGames, ourGameLinesNow } from '../../../../lib/gameLinesRead'
+import { lockGameLines, gradeGameLines } from '../../../../lib/gameLinesStore'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -76,5 +79,18 @@ export async function GET(request) {
   // card tick too. Off unless MOMENT_POSTS_ON; no cron of its own; never changes the answer (lib/posts/momentTick.js).
   const moments = await momentAfterTick(null, { sources: ['daily'], db })
   if (moments) out.moments = moments.daily
+  // OUR LINE, MLB / NFL / NHL (2026-10-20, lib/gameLinesStore.js; info only): each game locked once within 30 min of its
+  // start, the final margin after. One cheap scoreboard read a sport when nothing is due. A sport that fails never costs
+  // another its turn; BUCKETS' rides /api/buckets/tick.
+  out.ourLine = {}
+  for (const sport of LINE_SPORTS) {
+    const finals = async (d) => new Map((await dayGames(sport, d)).filter((g) => g.state === 'final' && g.homeScore != null && g.awayScore != null).map((g) => [g.id, g.homeScore - g.awayScore]))
+    try {
+      out.ourLine[sport] = {
+        lock: await lockGameLines(db, sport, { date: easternDate(now), now, day: (d) => dayGames(sport, d), read: (d) => ourGameLinesNow(sport, d) }),
+        grade: await gradeGameLines(db, sport, { finals, now }),
+      }
+    } catch (e) { console.error(`[our line] ${sport} failed: ${e?.message || e}`); out.ourLine[sport] = { error: String(e?.message || e).slice(0, 160) } }
+  }
   return Response.json(out, { headers: { 'Cache-Control': 'no-store' } })
 }

@@ -4,6 +4,8 @@
 //   node --import ./scripts/_esm-resolve.mjs scripts/check-nba-gamelines.mjs
 import { gameLineRow, bookLinesFor, spreadOf, moneylineOf } from '../lib/odds/gameLine.js'
 import { projectMargin, missingValue, rotationOf, gameScore, atsResult, solveRatings, LINE_PARAMS } from '../lib/nba/gameLines.js'
+import { SPORT_LINES } from '../lib/gameLines.js'
+import { bookTeamKey } from '../lib/odds/gameTotal.js'
 
 let bad = 0
 const eq = (what, got, want) => { const ok = JSON.stringify(got) === JSON.stringify(want); if (!ok) bad++; console.log(`${ok ? 'OK  ' : 'FAIL'} ${what}${ok ? '' : `: got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`}`) }
@@ -29,7 +31,8 @@ eq('row: no fair price kept', Object.keys(row).some((k) => /fair/.test(k)), fals
 eq('spread with sides that do not match -> none', spreadOf({ odds: { ...TEST_EV.odds, 'points-away-game-sp-away': { bookSpread: '-2.5', byBookmaker: { b1: book('-110', { spread: '-2.5' }) } } } }).spread_home, null)
 eq('spread no live book on the number -> none', spreadOf({ odds: { ...TEST_EV.odds, 'points-home-game-sp-home': { bookSpread: '+1.5', byBookmaker: { b1: book('-110', { spread: '+1.5', available: false }) } } } }).spread_home, null)
 eq('moneyline with one side missing -> none', moneylineOf({ odds: { 'points-home-game-ml-home': TEST_EV.odds['points-home-game-ml-home'] } }).ml_home, null)
-eq('a league we do not keep -> no row', gameLineRow({ ...TEST_EV, leagueID: 'NHL' }, 'list', 'x'), null)
+eq('a league we do not keep -> no row', gameLineRow({ ...TEST_EV, leagueID: 'NCAAB' }, 'list', 'x'), null)
+for (const L of ['NFL', 'NHL', 'MLB']) eq(`${L} rows kept, keyed by its sport`, gameLineRow({ ...TEST_EV, leagueID: L }, 'list', '2999-01-01T12:00:00.000Z')?.sport, L.toLowerCase())
 eq('neither half -> no row', gameLineRow({ ...TEST_EV, odds: {} }, 'list', 'x'), null)
 
 // book lines for a game: the newest row taken before now and before tip, matching the pair
@@ -71,6 +74,13 @@ const games = [{ away: 'X', home: 'Y', as: 110, hs: 100, ago: 1 }, { away: 'Z', 
 const r = solveRatings(games, ['X', 'Y', 'Z'], {}, P)
 eq('ratings: X above Y and Z', r.X > r.Y && r.X > r.Z, true)
 eq('ratings: league centred at 0', Math.abs(r.X + r.Y + r.Z) < 1e-9, true)
+
+// every sport: a version of its own, a unit, and a home edge the backtest picked
+for (const [sp, S] of Object.entries(SPORT_LINES)) eq(`${sp}: own model version and unit`, [S.version.startsWith(`${sp}-lines-`), Boolean(S.unit), Number.isFinite(S.params.home)], [true, true, true])
+eq('neutral site: no home edge', projectMargin(0, 0, {}, { ...SPORT_LINES.nfl.params, home: 0 }), 0)
+// ESPN's club codes meet SGO's (TEST pairs from the codes each feed uses)
+eq('nfl codes meet', [bookTeamKey('nfl', 'WSH'), bookTeamKey('nfl', 'LAR')], [bookTeamKey('nfl', 'WAS'), bookTeamKey('nfl', 'LA')])
+eq('mlb codes meet', [bookTeamKey('mlb', 'CHW'), bookTeamKey('mlb', 'ATH')], [bookTeamKey('mlb', 'CWS'), bookTeamKey('mlb', 'OAK')])
 
 console.log(bad ? `\n${bad} check(s) failed` : '\nOK: our line + book line checks pass')
 process.exit(bad ? 1 : 0)
