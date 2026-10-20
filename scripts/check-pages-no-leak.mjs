@@ -90,13 +90,15 @@ const gated = {
   'app/api/card/image/route.js': ['viewerIsMember', 'isOpenCall', 'boardCardModel', 'freeFourIds'],
   'app/api/card/share/route.js': ['viewerIsMember', 'gateShareModel', 'freeFourIds'],
   'app/api/ask/route.js': ['viewerIsMember', 'isOpenCall', 'freeFourIds'],
+  // the phone swipe deck (2026-10-18): the same gate as /m, by place, started games public, per viewer (checked 2026-10-20: it was gated, only missing from this list)
+  'app/api/phone/calls/route.js': ['viewerIsMember', 'gateCalls', 'byPlace: true', 'isOpenCall', 'private, no-store'],
 }
 for (const [file, needs] of Object.entries(gated)) for (const n of needs) ok(read(file).includes(n), `${file} must use ${n}`)
 ok(/perViewer/.test(read('app/api/card/image/route.js')) && /perViewer/.test(read('app/api/card/share/route.js')), 'a per-viewer picture must not be put on the shared cache')
 ok(/private, no-store/.test(read('app/api/card/image/route.js')) && /private, no-store/.test(read('app/api/card/share/route.js')), 'the image routes say private for a per-viewer picture')
 // the server-side readers of tonight's called lists are known; anything new has to be added here on purpose, with its gate
 const walk = (dir, out = []) => { for (const f of readdirSync(join(root, dir))) { const p = join(dir, f); const s = statSync(join(root, p)); if (s.isDirectory()) { if (f !== 'node_modules') walk(p, out) } else if (/\.(js|jsx)$/.test(f)) out.push(p) } return out }
-const READERS = new Set(['app/(front)/page.js', 'app/m/page.js', 'components/home/QuickPicksLoader.js', 'lib/members/freeFour.js', 'lib/phone/todayCalls.js'])
+const READERS = new Set(['app/(front)/page.js', 'app/m/page.js', 'components/home/QuickPicksLoader.js', 'lib/members/freeFour.js', 'lib/phone/todayCalls.js', 'app/api/phone/calls/route.js'])
 for (const f of [...walk('app'), ...walk('components'), ...walk('lib')]) {
   if (f.startsWith('app/fantasy') || f.startsWith('components/fantasy') || f.startsWith('lib/fantasy')) continue
   if (/from '[./]+\/(lib\/)?phone\/todayCalls'/.test(read(f)) && !READERS.has(f)) fails.push(`${relative('.', f)} reads tonight's called lists (lib/phone/todayCalls) but is not on the gated list in this check`)
