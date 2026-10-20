@@ -8,7 +8,7 @@ import Tap from '../../Tap'
 import ShareCardButton from '../../card/ShareCardButton'
 import { shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
-import { useBucketsGame, useBucketsBoard, useBucketsTeamModel, useBucketsLines } from '../../../lib/nba/useBuckets'
+import { useBucketsGame, useBucketsBoard, useBucketsTeamModel, useBucketsLines, useBucketsStandings } from '../../../lib/nba/useBuckets'
 import { NBA_MARKETS } from '../../../lib/nba/model'
 import { gameSections } from '../../../lib/game/sections'
 import { GAME_ID_RE } from '../../../lib/nba/ids'
@@ -38,6 +38,9 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
   const { data, error, loading } = useBucketsGame(ok ? id : null)
   const [three, setThree] = useState(false)
   const gameTotals = useGameTotals('nba')   // this game's own Top Totals row (components/GameTotalLine.js)
+  // each club's record under its name in the header, as LAMP's (2026-10-20): this season's standings only -- a stale (last-season) table says nothing here
+  const standings = useBucketsStandings()
+  const recordOf = (abbrev) => { if (!standings.data || standings.data.stale) return null; const r = (standings.data.confs || []).flatMap((c) => c.rows || []).find((x) => x.abbrev === abbrev); return r && r.w != null && r.l != null ? `${r.w}-${r.l}` : null }
   const names = useMemo(() => Object.fromEntries((data?.box || []).map((p) => [p.id, p.name])), [data])
   const teams = useMemo(() => (data ? { [data.away.id]: data.away.abbrev, [data.home.id]: data.home.abbrev } : {}), [data])
   if (!id) return <EmptyState title="NO GAME PICKED" note="Open a game from Live or the Slate."><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
@@ -60,7 +63,7 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
             right end of the eyebrow row */}
         <GameHead C={C} NUM_FONT={NUM_FONT} accent={C.purple} eyebrow="BUCKETS · GAME" meta={fmtDay(gameDay(data.date))}
           share={<ShareCardButton sport="nba" what="this game" style={{ marginLeft: 'auto' }} url={shareUrl({ kind: 'game', sport: 'nba', game: id, market: 'pts', date: gameDay(data.date) })} filename={`game-${slug(away.abbrev)}-${slug(home.abbrev)}_${stamp(gameDay(data.date))}.png`} />}
-          away={{ abbrev: away.abbrev, name: away.name, score: away.score, logo: nbaLogo(away.abbrev) }} home={{ abbrev: home.abbrev, name: home.name, score: home.score, logo: nbaLogo(home.abbrev) }}
+          away={{ abbrev: away.abbrev, name: away.name, record: recordOf(away.abbrev), score: away.score, logo: nbaLogo(away.abbrev) }} home={{ abbrev: home.abbrev, name: home.name, record: recordOf(home.abbrev), score: home.score, logo: nbaLogo(home.abbrev) }}
           state={data.state} status={live ? data.detail : done ? 'FINAL' : `${fmtDay(gameDay(data.date))} · ${fmtTip(data.date)}`} liveInk={C.purple} liveDot={<RimDot />}
           venue={data.venue || ''} />
         <DelayedBanner error={error} what="game data" />

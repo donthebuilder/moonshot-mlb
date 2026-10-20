@@ -15,10 +15,16 @@ const real = (log) => log.filter((g) => g.seasonType === 2 || g.seasonType === 3
 
 export const dynamic = 'force-dynamic'
 // Supabase answers at most 1,000 rows a read: page through (Doncic 2025-26 has 1,460)
+// PRESEASON IS NOT A RECORD (2026-10-20, as /api/buckets/shots): his shots from preseason games (buckets_games season_type 1) are left out
 async function shotsOf(db, id) {
+  const pre = await db.from('buckets_games').select('game_id').eq('season_type', 1)
+  if (pre.error) return { data: [], error: pre.error }
+  const skip = [...new Set((pre.data || []).map((r) => String(r.game_id)))].filter((x) => /^\d+$/.test(x))
   const data = []
   for (let from = 0; from < 8000; from += 1000) {
-    const r = await db.from('buckets_shots').select('x, y, made, three, game_id, game_date').eq('player_id', id).order('game_date', { ascending: false }).order('event_id').range(from, from + 999)
+    let qy = db.from('buckets_shots').select('x, y, made, three, game_id, game_date').eq('player_id', id)
+    if (skip.length) qy = qy.not('game_id', 'in', `(${skip.join(',')})`)
+    const r = await qy.order('game_date', { ascending: false }).order('event_id').range(from, from + 999)
     if (r.error) return { data, error: r.error }
     data.push(...r.data)
     if (r.data.length < 1000) break
