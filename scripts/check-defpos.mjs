@@ -10,6 +10,9 @@ const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABA
 let bad = 0
 const ok = (cond, msg) => { console.log(`${cond ? 'ok  ' : 'FAIL'} ${msg}`); if (!cond) bad++ }
 
+// 10-20: an EMPTY season (opening night, no box rows yet) is 0 games, never Infinity, so the read falls back to last season
+ok(fewestGames({}) === 0 && fewestGames(null) === 0, `an empty season has 0 games (got ${fewestGames({})})`)
+
 const d = await db.rpc('buckets_defpos', { p_season: 2026 })
 ok(!d.error, `buckets_defpos(2026) answers${d.error ? `: ${d.error.message}` : ` (${d.data.length} rows)`}`)
 const R = rankDefPos(d.data || [])
