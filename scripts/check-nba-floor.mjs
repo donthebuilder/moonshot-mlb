@@ -101,13 +101,14 @@ await ok('/api/record/calls: a tracking market loses every call row (results are
   assert.deepEqual(f.tracking, [{ market: 'reb', label: 'REB', n: 10, nights: 5, minNights: 30 }])
 })
 
-await ok('the routes and pages use the floor (read the source): record, calls, ledger, /called, /start, calibration', () => {
+await ok('the routes and pages use the floor (read the source): record, calls, ledger, /called, the player page, calibration', () => {
   const src = (p) => fs.readFileSync(new URL(`../${p}`, import.meta.url), 'utf8')
   assert.match(src('app/api/buckets/record/route.js'), /foldBucketsNights\(rows\)/)
   assert.match(src('app/api/record/calls/route.js'), /floorCalls\(keep/)
   assert.match(src('app/api/buckets/ledger/route.js'), /trackingOf\(floor, k\)/)
   assert.match(src('app/called/page.js'), /trackNba/)
-  assert.match(src('app/start/page.js'), /trackingOf\(await readNbaFloor\(db\), 'pts'\)/)
+  // /start was retired 10-16 (a redirect now); the player page took its place on the list 10-19: his record lines read only open markets
+  assert.match(src('app/api/buckets/player/route.js'), /!trackingOf\(floor, r\.market\)/)
   assert.match(src('lib/record/page.js'), /!tracking\.pts &&/)
 })
 
