@@ -220,7 +220,7 @@ export default function PennantRace({ sport = 'mlb' }) {
           { key: 'abbr', label: 'Team', group: 'Team', heat: false, sticky: true, w: 120, fmt: (v, t) => (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <TeamMark sport={cfg.teamMark} abbr={v} variant="logo" px={16} /><b>{v || t.name || t.team_id}</b>
-              <span style={{ fontSize: cfg.tagPx, color: C.text3 }}>{t.division}</span>
+              <span style={{ fontSize: cfg.tagPx, color: C.text3 }}>{cfg.divisionWord?.[t.division] || t.division}</span>
             </span>) },
           { key: 'wlN', label: 'W-L', group: 'Team', w: cfg.recordW, fmt: (_, t) => [t.wins, t.losses, t.otl ?? (t.ties > 0 ? t.ties : null)].filter((x) => x != null).join('-') /* NHL's OT losses always; NFL's ties only when there are some */ },
           ...(showNow ? [{ key: 'nowN', label: 'Now', group: 'Now', heat: false, numeric: false, w: 86, fmt: (_, t) => (
