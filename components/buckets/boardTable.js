@@ -42,7 +42,7 @@ export function boardColumns(market, { onOpenTeam, onOpenGame, withGame = true, 
       <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center', whiteSpace: 'nowrap' }}>
         <CallStatusBadge status={v} accent={C.purple} />
         {r.role ? <b style={{ fontSize: 10, color: C.purple, fontFamily: NUM_FONT }}>{r.role}</b> : null}
-        {!r.locked && v !== 'off' ? <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, fontWeight: 800, letterSpacing: '.08em' }}>PREVIEW</span> : null}
+        {r.locked && v !== 'off' ? <span title="Locked before tip: this row is the record" style={{ fontSize: 10, color: C.text3 }}>🔒</span> : null}
       </span>) },
     { key: 'actual', label: 'Result', cset: 'lean', group: 'Call', w: 64, heat: false, mono: true, title: market === 'dd' || market === 'td' ? `Did he get ${D.barWord}, once his game is final` : `What he did, once his game is final (${ACTUAL_WORD[market] || ''})`, fmt: (v, r) => (
       r.voidReason ? <span style={{ fontSize: 10, color: C.text3 }}>VOID</span>

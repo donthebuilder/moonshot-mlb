@@ -18,7 +18,7 @@ export default function PlayerDdTd({ playerId }) {
   const rows = useMemo(() => [['dd', dd.data], ['td', td.data]].flatMap(([k, d]) => {
     const r = (d?.rows || []).find((x) => String(x.playerId) === String(playerId))
     if (!r) return []
-    return [{ ...r, _id: `${k}-${r.gameId}`, marketLabel: NBA_MARKETS[k].label, rate: r.legs?.[RATE[k]] ?? null, market: k, tonight: r.locked ? 'LOCKED' : 'PREVIEW' }]
+    return [{ ...r, _id: `${k}-${r.gameId}`, marketLabel: NBA_MARKETS[k].label, rate: r.legs?.[RATE[k]] ?? null, market: k, tonight: r.locked ? 'LOCKED' : 'BEFORE TIP' }]
   }), [dd.data, td.data, playerId])
   if (!rows.length) return null
   const cols = [

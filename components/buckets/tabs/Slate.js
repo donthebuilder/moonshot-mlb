@@ -103,7 +103,7 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
                 heat, tooltip: `${x.away.abbrev} @ ${x.home.abbrev}`,
                 dial: { value: m1 ? m1.total : null, dp: 0, pct: m1 ? 100 * heat : null, col: tier === 'hot' ? C.purple : tier === 'cold' ? C.text3 : C.text2,
                   title: m1 ? `${m1.total.toFixed(1)} ${EXPECTED_POINTS_WORDS} in this game${way}: ${x.away.abbrev} ${m1.away.pts.toFixed(1)}, ${x.home.abbrev} ${m1.home.pts.toFixed(1)}, from each club's points a game against the other's allowed. The ring fills against every pairing of the league's clubs.${best != null ? ` Best ${NBA_MARKETS[m].label} score here: ${Math.round(best)}.` : ''}` : `No ${EXPECTED_POINTS_WORDS} number for this game yet.` },
-                lead: <span title={locked ? 'The board locked before tip' : 'A preview until the board locks'}>{locked ? '🔒' : '◻'}</span>,
+                lead: <span title={locked ? 'The board locked before tip' : 'Locks at tip'}>{locked ? '🔒' : '◻'}</span>,
                 status: st === 'live' ? { kind: 'live', text: x.detail || 'LIVE' } : st === 'final' ? { kind: 'final', text: `${x.away.score}-${x.home.score} F` } : { kind: 'time', text: fmtTip(x.start) },
                 extra: (() => {
                   const base = <span>{EXPECTED_POINTS_WORDS}{m1 ? ` · ${x.away.abbrev} ${Math.round(m1.away.pts)}, ${x.home.abbrev} ${Math.round(m1.home.pts)}${way}` : ' · —'}</span>
@@ -113,7 +113,7 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
               }} />
             })}
           </Rail>
-          <div style={{ marginTop: 7, fontSize: 12, lineHeight: 1.4, color: C.text3 }}>Tip-off order. Dial = {EXPECTED_POINTS_WORDS} (team model). 🔒 locked, ◻ preview.{(() => { const b = basisLine(games.map((x) => tmBy.get(String(x.id))), games.some((x) => x.seasonType === 1)); return b ? ` ${b}` : tm.error ? ` No ${EXPECTED_POINTS_WORDS} number yet: the league feed is slow.` : '' })()}</div>
+          <div style={{ marginTop: 7, fontSize: 12, lineHeight: 1.4, color: C.text3 }}>Tip-off order. Dial = {EXPECTED_POINTS_WORDS} (team model). 🔒 locked, ◻ locks at tip.{(() => { const b = basisLine(games.map((x) => tmBy.get(String(x.id))), games.some((x) => x.seasonType === 1)); return b ? ` ${b}` : tm.error ? ` No ${EXPECTED_POINTS_WORDS} number yet: the league feed is slow.` : '' })()}</div>
         </div>
       )}
       {view === 'games' && g && (<>

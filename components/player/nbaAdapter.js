@@ -49,7 +49,7 @@ const SIGNAL_LEGS = [
 /** The flags the board asserts about him, real ones only: the row's lock state, his place tonight, a leg in the top fifth, starter, the injury report. */
 export function nbaSignals(row) {
   if (!row) return []
-  const chips = [{ t: row.locked ? 'LOCKED' : 'PREVIEW', explain: row.locked ? 'His game has tipped: this is the last write before tip, the locked record.' : 'His game has not tipped. The board can still change until it locks.' }]
+  const chips = [{ t: row.locked ? 'LOCKED' : 'LOCKS AT TIP', explain: row.locked ? 'His game has tipped: this is the last write before tip, the locked record.' : 'His game has not tipped. The board can still move until it locks before tip.' }]
   if (num(row.nightRank) != null && num(row.nightOf) != null) chips.push({ t: `#${row.nightRank} of ${row.nightOf} tonight` })
   if (row.starter === true) chips.push({ t: 'Starter' })
   for (const [leg, t, explain] of SIGNAL_LEGS) if (num(row.pct?.[leg]) != null && row.pct[leg] >= TOP_FIFTH) chips.push({ t, explain })

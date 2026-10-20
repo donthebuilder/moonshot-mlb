@@ -27,14 +27,13 @@ export default function BucketsHeadline({ theme: C, numFont, boards, onOpenPlaye
     key: l.key, label: l.label, icon: l.icon, color: C[l.colorKey] || C.purple, blurb: l.blurb,
     empty: 'Waiting for tonight’s board.',
     picks: topCalled(boards?.[l.key]).map((r, i) => {
-      const preview = r.locked === false
       const where = `${r.team} ${r.home ? 'vs' : '@'} ${r.opp}${f1(r.minPg) ? ` · ${f1(r.minPg)} MIN/g` : ''}`
       return {
         key: String(r.playerId), raw: r, name: r.name, score: Math.round(r.score),
-        flag: preview ? { icon: '⏳', title: 'PREVIEW — not a call until its game locks' } : null,
-        lines: i === 0 ? [l.stat(r) || '', `${where}${preview ? ' · PREVIEW' : ''}`] : [],
+        flag: r.locked ? { icon: '🔒', title: 'Locked before tip: the record' } : null,
+        lines: i === 0 ? [l.stat(r) || '', where] : [],
         team: i === 0 ? null : r.team,
-        micro: i === 0 ? null : `${l.stat(r) || ''}${preview ? ' · preview' : ''}`,
+        micro: i === 0 ? null : l.stat(r) || '',
       }
     }),
   })).filter((l) => l.picks.length)

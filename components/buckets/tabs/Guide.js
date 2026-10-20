@@ -28,7 +28,7 @@ export default function Guide({ onNavigate }) {
 
       <Section title="The three words" emoji="🔖" defaultOpen={true}>
         <P><b style={{ color: C.purple }}>CALLED</b> — the top-scored player on his team in his game, for that market (the game’s higher one is TOP, the other BUCKET). <b style={{ color: C.text }}>ON THE BOARD</b> — in the top third of the night, not called. <b style={{ color: C.text3 }}>NOT ON THE BOARD</b> — playing, but outside the top third or not scored, and the reason is printed. Same words, same meaning, on every DASH product.</P>
-        <P>A board is <b style={{ color: C.text }}>PREVIEW</b> until its game locks before tip; a locked row is never rewritten. After the final it is graded; a player who didn’t play is void, not a miss.</P>
+        <P>A board can move until its game locks before tip 🔒; a locked row is never rewritten. After the final it is graded; a player who didn’t play is void, not a miss.</P>
       </Section>
 
       <Section title="The eight markets" emoji="🎯">
