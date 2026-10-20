@@ -30,6 +30,7 @@ import { bucketsPublic } from '../../../../lib/nba/gate'
 import { linesRows } from '../../../../lib/odds/lines'
 import { twoPlusRows } from '../../../../lib/odds/twoPlus'
 import { gameTotalRow } from '../../../../lib/odds/gameTotal'
+import { gameLineRow } from '../../../../lib/odds/gameLine'
 import { freezeDashLines } from '../../../../lib/dashLock'
 import { gradeDashLines } from '../../../../lib/dashGrade'
 import { freezeTdBoard, gradeBoardLock } from '../../../../lib/boardLock'
@@ -71,6 +72,16 @@ async function saveGameTotal(db, ev, snap, takenAt) {
   if (!row) return 0
   const w = await db.from('odds_game_totals').upsert(row, { onConflict: 'event_id,snap', ignoreDuplicates: true })
   if (w.error) { console.error(`[odds tick] game total ${ev.eventID}: ${w.error.message}`); return 0 }
+  return 1
+}
+
+// THE BOOK'S GAME LINE (lib/odds/gameLine.js; BUCKETS' "our line / book"): spread + moneyline from the same event, no
+// extra object. Its own failure, logged; never the snapshot's (a missing odds_game_lines table only logs).
+async function saveGameLine(db, ev, snap, takenAt) {
+  const row = gameLineRow(ev, snap, takenAt)
+  if (!row) return 0
+  const w = await db.from('odds_game_lines').upsert(row, { onConflict: 'event_id,snap', ignoreDuplicates: true })
+  if (w.error) { console.error(`[odds tick] game line ${ev.eventID}: ${w.error.message}`); return 0 }
   return 1
 }
 
@@ -134,6 +145,7 @@ export async function GET(request) {
       // 2+ PRICES (lib/odds/twoPlus.js): the over-1.5 rung of the anytime stat, only where a book lists it; same event, no extra object
       twoRows.push(...twoPlusRows(ev, 'list', takenAt, match).rows)
       if (!dry) totals += await saveGameTotal(db, ev, 'list', takenAt)
+      if (!dry) await saveGameLine(db, ev, 'list', takenAt)
     }
     if (!dry) {
       const map = events.filter((ev) => startsAt(ev)).map((ev) => ({ event_id: ev.eventID, sport, game_date: gameDate(ev), starts_at: startsAt(ev), away: ev.teams?.away?.names?.short || null, home: ev.teams?.home?.names?.short || null, listed_at: takenAt }))
@@ -207,6 +219,7 @@ export async function GET(request) {
         let lines = null, dash = null, board = null, twoPlus = null
         if (snap === 'lock') {
           if (!dry) await saveGameTotal(db, ev, snap, takenAt)
+          if (!dry) await saveGameLine(db, ev, snap, takenAt)
           // THE TD BOARD (lib/boardLock.js): the whole pregame board for this game, beside these prices (value call, shadow)
           if (!dry) { try { board = await freezeTdBoard(db, ev, r.rows, takenAt, startsAt(ev)) } catch (e) { board = `error: ${e?.message}` } }
           const L = linesRows(ev, snap, takenAt, match)

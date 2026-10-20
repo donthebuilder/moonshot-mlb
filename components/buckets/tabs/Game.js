@@ -7,7 +7,7 @@ import Tap from '../../Tap'
 import ShareCardButton from '../../card/ShareCardButton'
 import { shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
-import { useBucketsGame, useBucketsBoard, useBucketsTeamModel } from '../../../lib/nba/useBuckets'
+import { useBucketsGame, useBucketsBoard, useBucketsTeamModel, useBucketsLines } from '../../../lib/nba/useBuckets'
 import { NBA_MARKETS } from '../../../lib/nba/model'
 import { gameSections } from '../../../lib/game/sections'
 import { GAME_ID_RE } from '../../../lib/nba/ids'
@@ -17,6 +17,7 @@ import BucketsTable from '../BucketsTable'
 import NbaH2H from '../../h2h/NbaH2H'
 import ShotChart from '../ShotChart'
 import BucketsTeamExpected from '../BucketsTeamExpected'
+import BucketsOurLine from '../BucketsOurLine'
 import NbaWriteupBlock from '../NbaWriteupBlock'
 import InjuryOut from '../../injuries/InjuryOut'
 import { EmptyState, DelayedBanner, Loading, Kicker, BackBtn, NavBtn, RimDot, fmtTip, gameDay, fmtDay } from '../ui'
@@ -67,6 +68,7 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
       </div>
     ) : null),
     expected: () => <GameExpected id={id} date={gameDay(data.date)} onOpenTeam={onOpenTeam} />,
+    ourline: () => <GameOurLine id={id} date={gameDay(data.date)} onOpenTeam={onOpenTeam} onOpenPlayer={onOpenPlayer} />,
     clubs: () => <NbaH2H a={away.abbrev} b={home.abbrev} onOpenTeam={onOpenTeam} />,
     ledger: () => <GameLedgerLine sport="nba" gameId={id} day={gameDay(data.date)} />,
     writeup: () => <NbaWriteupBlock gameId={id} date={gameDay(data.date)} onOpenPlayer={onOpenPlayer} />,
@@ -134,6 +136,14 @@ function GameExpected({ id, date, onOpenTeam }) {
   const { data } = useBucketsTeamModel(date || null)
   const m = (data?.games || []).find((x) => String(x.id) === String(id))
   return m ? <BucketsTeamExpected model={m} preseason={m.seasonType === 1} onOpenTeam={onOpenTeam} /> : null
+}
+
+// OUR LINE (2026-10-19): this game's row of /api/buckets/lines. No row (a club with no rating, a tipped game with no
+// lock) -> nothing shown, never a guess.
+function GameOurLine({ id, date, onOpenTeam, onOpenPlayer }) {
+  const { data } = useBucketsLines(date || null)
+  const l = (data?.games || []).find((x) => String(x.id) === String(id))
+  return l ? <BucketsOurLine line={l} onOpenTeam={onOpenTeam} onOpenPlayer={onOpenPlayer} /> : null
 }
 
 // THE CALLS IN THIS GAME (2026-10-04, audit: the game page never said who the
