@@ -7,6 +7,7 @@ import { useHashFilter } from '../../lib/filterHash'
 import { useIsPhone } from '../MobileFold'
 import PageHeader from '../PageHeader'
 import Tap from '../Tap'
+import { Dial } from '../VerdictHero'
 import GameSwitcher from '../GameSwitcher'
 import { panelPairs, panelSubs, gameSections } from '../../lib/game/sections'
 import { ViewPills, GameFilterRail, SlateStrip, GamePanelPills, PanelAnchor, GameFrame, PrevNextGame } from '../slate/SlateParts'
@@ -316,6 +317,11 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
                     ? <span style={{ fontSize: 20, color: C.text3, fontWeight: 600 }}>@</span>
                     : <span style={{ fontFamily: NUM_FONT, fontSize: 30, fontWeight: 900, color: st === 'live' ? C.ice : C.text }}>{g.game.away.score ?? 0}–{g.game.home.score ?? 0}</span>}
                   {teamLink(home)}
+                  {/* TUDDY's ring in the game header (2026-10-20, "match the nfl pages"): the team model's projected count (XG_WORDS), the strip's own dial */}
+                  <span style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, width: 84 }} title={dialTitle(g)}>
+                    <Dial value={bestOf(g) || null} dp={1} pct={100 * heatFor(g)} col={dialInk(heatFor(g), C)} size={64} title={dialTitle(g)} />
+                    <span style={{ fontSize: 12, lineHeight: 1.25, color: C.text2, textAlign: 'center' }}>{XG_WORDS}</span>
+                  </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 44 }}>
                   <span style={{ fontSize: 14, fontFamily: NUM_FONT, color: st === 'live' ? C.ice : C.text2, fontWeight: 800 }}>

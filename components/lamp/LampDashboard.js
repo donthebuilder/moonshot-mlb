@@ -14,12 +14,12 @@ import { useLampScores, useLampScoresOn } from '../../lib/nhl/useLamp'
 import ErrorBoundary from '../ErrorBoundary'
 import TabNotFound from '../TabNotFound'
 import MobileCSS from '../MobileCSS'
-import TabExplainer from '../TabExplainer'
 import LampHeader from './LampHeader'
 import Slip from '../Slip'
 import MobileTabBarLamp from './MobileTabBarLamp'
 import QuickSearch from '../QuickSearch'
-import { NHL_TEXTS } from './tabExplainerTexts'
+import { LAMP_SUBS, LAMP_LINE_TABS } from './tabExplainerTexts'
+import NflNote from '../nfl/NflNote'
 import { readHashParam } from './ui'
 
 import Home from './tabs/Home'
@@ -132,7 +132,8 @@ export default function LampDashboard({ palettePass = 0 }) {
       <TodayContext.Provider value={nhlToday}>
       <main id="board-main" className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '14px 14px 40px', background: C.bg, color: C.text }}>
         <h1 className="sr-only">{pageTitle('nhl', missingTab ? 'home' : tab)}</h1>
-        {!missingTab && <TabExplainer tab={tab} texts={NHL_TEXTS} storageKey="tab_explained_nhl" accent={C.ice} />}
+        {/* the page's one line and its (?), TUDDY's (NflDashboard): only on a page with no header of its own (2026-10-20, the chip is gone) */}
+        {!missingTab && LAMP_LINE_TABS.has(tab) && <div style={{ margin: '2px 0 12px', fontSize: 12, lineHeight: 1.45, color: C.text3 }}><NflNote tab={tab} subs={LAMP_SUBS} /></div>}
         {badDate && !missingTab && (
           <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 10px', padding: '8px 12px', border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.amber}`, borderRadius: 10, background: C.bg2, fontSize: 12, color: C.text2 }}>
             <span style={{ flex: 1 }}><b style={{ color: C.text, fontFamily: NUM_FONT }}>{badDate}</b> isn&apos;t a real date, so that day is unavailable -- showing tonight instead.</span>

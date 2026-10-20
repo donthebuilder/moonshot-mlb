@@ -2,6 +2,7 @@
 import { Fragment, useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import Tap from '../../Tap'
+import { Dial } from '../../VerdictHero'
 import TeamMark, { MatchLogos } from '../../TeamMark'
 import GameSwitcher from '../../GameSwitcher'
 import BoardTopBar from '../../BoardTopBar'
@@ -225,6 +226,12 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
                     ? <span style={{ fontSize: 20, color: C.text3, fontWeight: 600 }}>@</span>
                     : <span style={{ fontFamily: NUM_FONT, fontSize: 30, fontWeight: 900, color: st === 'live' ? C.purple : C.text }}>{g.away.score ?? 0}–{g.home.score ?? 0}</span>}
                   {teamLink(home)}
+                  {/* TUDDY's ring in the game header (2026-10-20, "match the nfl pages"): the team model's expected points, the strip's own dial */}
+                  <span style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, width: 84 }}>
+                    <Dial value={m1 ? m1.total : null} dp={0} pct={m1 ? 100 * (m1.heat ?? 0.5) : null} col={heatTier(m1?.heat ?? 0.5) === 'hot' ? C.purple : heatTier(m1?.heat ?? 0.5) === 'cold' ? C.text3 : C.text2} size={64}
+                      title={m1 ? `${m1.total.toFixed(1)} ${EXPECTED_POINTS_WORDS} in this game: ${away} ${m1.away.pts.toFixed(1)}, ${home} ${m1.home.pts.toFixed(1)}` : `No ${EXPECTED_POINTS_WORDS} number for this game yet.`} />
+                    <span style={{ fontSize: 12, lineHeight: 1.25, color: C.text2, textAlign: 'center' }}>{EXPECTED_POINTS_WORDS}</span>
+                  </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 44 }}>
                   <span style={{ fontSize: 14, fontFamily: NUM_FONT, color: st === 'live' ? C.purple : C.text2, fontWeight: 800 }}>
