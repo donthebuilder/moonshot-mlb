@@ -114,7 +114,9 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
   const game = row ? (board?.games || []).find((g) => g.id === row.gameId) : null
   const oppTxt = row ? `${row.home ? 'vs' : '@'} ${row.opp}` : data.nextGame ? `${data.nextGame.home ? 'vs' : '@'} ${data.nextGame.opp}` : null
   const tip = game?.start || data.nextGame?.start || null
-  const gamePos = oppTxt ? `${oppTxt}${tip ? ` · ${game?.state === 'live' ? 'LIVE' : game?.state === 'final' ? 'FINAL' : fmtTip(tip)}` : ''}` : null
+  // a game that is not tonight's carries its day ("Tue 5:30 PM"), so the header never reads "NO GAME · 5:30 PM" (10-19)
+  const tipWord = tip ? (game ? fmtTip(tip) : `${new Date(tip).toLocaleDateString('en-US', { weekday: 'short' })} ${fmtTip(tip)}`) : null
+  const gamePos = oppTxt ? `${oppTxt}${tip ? ` · ${game?.state === 'live' ? 'LIVE' : game?.state === 'final' ? 'FINAL' : tipWord}` : ''}` : null
   const peers = useMemo(() => (board?.rows || []).filter((r) => r.status !== 'off' && r.score != null).map((r) => ({ id: String(r.playerId), name: r.name, team: r.team, score: r.score, game_pk: r.gameId })).sort((a, b) => b.score - a.score), [board])
   const cur = peers.find((x) => x.id === pid) || { id: pid, name: card.name, team: card.team }
 
@@ -254,13 +256,13 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
             <a href={playerHref('nba', pid)} style={{ color: 'inherit', textDecoration: 'none' }}>{card.name}</a>
             <PlayerInjuryChip who={{ player_id: card.id, name: card.name, team: card.team }} />
           </>}
-          badge={row ? ptsMarket.label : 'NO GAME'} badgeQuiet={!shownRow || shownRow.status !== 'called'}
+          badge={row ? ptsMarket.label : data.nextGame ? 'NOT TONIGHT' : 'NO GAME'} badgeQuiet={!shownRow || shownRow.status !== 'called'}
           meta={<>
             {card.team ? <Tap onClick={onOpenTeam ? () => onOpenTeam(card.team) : null} title={`Open ${card.team}`}><TeamMark sport="nba" abbr={card.team} variant="logo" px={14} /></Tap> : null}
             {oppTxt ? <>{' '}{row?.home ?? data.nextGame?.home ? 'vs' : '@'}{' '}<Tap onClick={onOpenTeam ? () => onOpenTeam(row?.opp || data.nextGame?.opp) : null} title={`Open ${row?.opp || data.nextGame?.opp}`}>{row?.opp || data.nextGame?.opp}</Tap></> : null}
             {row?.gameId && onOpenGame ? <>{' · '}<Tap onClick={() => onOpenGame(row.gameId)} title="Open his game">Game ›</Tap></> : null}
           </>}
-          meta2={[meta2, tip ? (game?.state === 'live' ? 'LIVE' : game?.state === 'final' ? 'FINAL' : fmtTip(tip)) : null].filter(Boolean).join(' · ') || null}
+          meta2={[meta2, tip ? (game?.state === 'live' ? 'LIVE' : game?.state === 'final' ? 'FINAL' : tipWord) : null].filter(Boolean).join(' · ') || null}
           metaRight={heroPrice}
           market={row ? `${ptsMarket.bar}+ points` : 'not on tonight’s board'}
           right={lead?.close || null}
@@ -290,8 +292,8 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
 
         {view === 'overview' && (
           <>
-            {/* PRICE, then BUCKETS ON HIM (each market's locked record on him, MOONSHOT's BotOnHim), My note, the ledger, his numbers, his last five */}
-            <BucketsPriceHistory id={pid} />
+            {/* BUCKETS ON HIM (each market's locked record on him, MOONSHOT's BotOnHim), My note, his last five, the ledger, his numbers, then the PRICE
+                LAST (10-19, the rule Donovan set for TUDDY's page (k): the price timeline never leads) */}
             <BucketsOnHim calls={data.calls} homeOf={homeOf} style={{ marginTop: 0 }} />
             <PlayerNotes playerId={pid} scope="nba" accent={C.purple} />
             {last5.length > 0 && (
@@ -302,6 +304,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
             )}
             <InTheLedger sport="nba" id={pid} name={card.name} jersey={card.jersey} birthDate={card.birthDate} next={next} date={dateNow} />
             <HisNumbers name={card.name} jersey={card.jersey} birthDate={card.birthDate} next={next} nextWord="point" date={dateNow} theme={C} accent={C.purple} numFont={NUM_FONT} />
+            <BucketsPriceHistory id={pid} />
           </>
         )}
 

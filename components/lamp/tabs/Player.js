@@ -331,12 +331,13 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
 
       {shown === 'overview' && (
         <>
-          {/* the price (MOONSHOT's odds timeline), then LAMP ON HIM on the clean pregame record, then your note, the ledger and his numbers; the rest is folded in More */}
-          {!goalie && !locked && <LampPriceHistory id={String(p.id)} />}
+          {/* LAMP ON HIM on the clean pregame record, your note, the ledger, his numbers, then the price (MOONSHOT's odds timeline) LAST
+              (10-19, the rule from TUDDY's page (k): the price timeline never leads); the rest is folded in More */}
           {!goalie && <BotOnHim view={nhlBotView(rec.data)} />}
           <PlayerNotes playerId={String(p.id)} scope="nhl" accent={C.ice} />
           {!goalie && <InTheLedger sport="nhl" id={p.id} name={p.name} jersey={p.number} birthDate={p.birthDate} next={nextG} date={etToday()} />}
           {!goalie && <HisNumbers name={p.name} jersey={p.number} birthDate={p.birthDate} next={nextG} career={Number.isFinite(p.career?.regular?.g) ? p.career.regular.g + 1 : null} nextWord="goal" date={etToday()} theme={C} accent={C.ice} numFont={NUM_FONT} />}
+          {!goalie && !locked && <LampPriceHistory id={String(p.id)} />}
           <LampMore resetKey={p.id} summary={goalie ? 'last five, star memory, bio' : 'last five, star memory, multi-goal, bio'}>
             {p.last5.length > 0 && (
               <section aria-label="Last five">
