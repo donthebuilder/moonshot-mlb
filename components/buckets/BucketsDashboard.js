@@ -45,7 +45,6 @@ const Scores = dynamic(() => import('./tabs/Scores'), { loading: TabLoading })
 const Slate = dynamic(() => import('./tabs/Slate'), { loading: TabLoading })
 const Game = dynamic(() => import('./tabs/Game'), { loading: TabLoading })
 const Standings = dynamic(() => import('./tabs/Standings'), { loading: TabLoading })
-const Schedule = dynamic(() => import('./tabs/Schedule'), { loading: TabLoading })
 const Matchups = dynamic(() => import('./tabs/Matchups'), { loading: TabLoading })
 const Ledger = dynamic(() => import('./tabs/Ledger'), { loading: TabLoading })
 const Numerology = dynamic(() => import('./tabs/Numerology'), { loading: TabLoading })
@@ -72,7 +71,7 @@ import SkipLink from '../SkipLink'
 import BucketsProps from './BucketsProps'
 
 // Pages that show one day and keep it in the address (`date=`).
-const DATED_TABS = new Set(['home', 'scores', 'board', 'fullboard', 'games', 'schedule', 'matchups', 'power', 'ledger', 'storylines', 'odds', 'numerology'])
+const DATED_TABS = new Set(['home', 'scores', 'board', 'fullboard', 'games', 'matchups', 'power', 'ledger', 'storylines', 'odds', 'numerology'])
 const MARKETS = new Set(['pts', 'reb', 'ast', '3pm', 'pra', 'dd', 'td', 'first'])
 const ROUTE = {
   sport: 'nba', nav: NBA_NAV, datedTabs: DATED_TABS,
@@ -133,13 +132,12 @@ export default function BucketsDashboard() {
             {/* Props is the cards; the table of every player is Rankings (one page, 2026-10-06) */}
             {tab === 'board' && <button type="button" onClick={() => setTab('fullboard')} style={{ display: 'block', minHeight: 44, marginTop: 14, padding: '0 4px', border: 0, background: 'transparent', color: C.purple, font: `800 12px/1 ${NUM_FONT}`, cursor: 'pointer' }}>Every player, every number, and why: {NBA_NAV.fullboard.label} ›</button>}
             {tab === 'fullboard' && <Board date={date} setDate={setDate} market={market} {...nav} />}
-            {tab === 'scores' && <Scores date={date} setDate={setDate} onOpenGame={openGame} />}
+            {tab === 'scores' && <Scores date={date} setDate={setDate} onOpenGame={openGame} onOpenTeam={openTeam} />}
             {/* TOP TOTALS now ride each game (components/GameTotalLine.js); the record stays in the Ledger */}
             {tab === 'games' && <Slate date={date} setDate={setDate} market={market} {...nav} />}
             {/* THE CARD (2026-10-20, Donovan "turn it on"): one line under the slate, as LAMP's; its record is in the Ledger (LedgerShell's Record) */}
             {tab === 'games' && <CardSection sport="nba" Table={BucketsTable} compact />}
             {tab === 'game' && <Game id={gameId} {...nav} backLabel={backLabel('scores')} onBack={() => goBack('scores')} />}
-            {tab === 'schedule' && <Schedule date={date} setDate={setDate} onOpenGame={openGame} onOpenTeam={openTeam} />}
             {tab === 'odds' && <BucketsOdds date={date} onOpenPlayer={peekPlayer} />}
             {tab === 'storylines' && <StorylinesPage sport="nba" previewGames={4} eyebrow="BUCKETS · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.purple} onOpenPlayer={peekPlayer} onOpenGame={openGame} date={date} />}
             {tab === 'watchlist' && <Watchlist onOpenPlayer={peekPlayer} onOpenTeam={openTeam} onOpenGame={openGame} />}

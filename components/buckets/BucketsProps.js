@@ -12,6 +12,7 @@ import { useLiveFetch } from '../../lib/useLiveFetch'
 import { nbaQuote } from '../../lib/nba/oddsQuote'
 import { fmtOdds } from '../../lib/odds'
 import LineMoveChip from '../LineMoveChip'
+import BucketsCompare from './BucketsCompare'
 
 // 🏀 BUCKETS PROPS, MOONSHOT'S PAGE (2026-10-04, Donovan: "make sure the props
 // pages look like the mlb one"). The shared grid (components/props/PropCards.js)
@@ -118,6 +119,11 @@ export default function BucketsProps({ date = null, onOpenPlayer }) {
   return (
     <PropCards a={a} rows={rows} onOpen={(r) => onOpenPlayer?.(r.id)}
       onWatch={(r) => following.toggle({ id: r.id, name: r.name, team: r.team, position: r.pos })}
-      watchIds={following.ids} theme={C} numFont={NUM_FONT} accent={C.purple} accentWash={`color-mix(in srgb, ${C.purple} 14%, transparent)`} />
+      watchIds={following.ids}
+      // LAMP's Props, piece for piece (2026-10-20 style audit: "buckets doesnt feel shared"): the stat strip, search + Filter, and Compare
+      // two picks (BucketsCompare, the player page's compare, on the points board's rows the viewer may see)
+      hero find={{ nameOf: (r) => r.name || '', teamOf: (r) => r.team || '', placeholder: 'Search player or team…' }}
+      compareOf={(pool) => <BucketsCompare rows={pool.filter((r) => r.pts).map((r) => r.pts)} onOpenPlayer={onOpenPlayer} />}
+      theme={C} numFont={NUM_FONT} accent={C.purple} accentWash={`color-mix(in srgb, ${C.purple} 14%, transparent)`} />
   )
 }
