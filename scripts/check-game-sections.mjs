@@ -26,6 +26,7 @@ const WHERE = {
   'mlb/slate': { file: 'components/tabs/Games.js', mode: 'walk' },
   'nfl/slate': { file: 'components/nfl/NflSlate.js', mode: 'walk' },
   'nhl/slate': { file: 'components/lamp/LampSlate.js', mode: 'walk' },
+  'nba/slate': { file: 'components/buckets/tabs/Slate.js', mode: 'walk' },
   'nhl/page': { file: 'components/lamp/tabs/Game.js', mode: 'walk' },
   'nba/page': { file: 'components/buckets/tabs/Game.js', mode: 'walk' },
 }
