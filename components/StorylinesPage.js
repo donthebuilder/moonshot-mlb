@@ -4,6 +4,7 @@ import DenseTable from './DenseTable'
 import Tap from './Tap'
 import { MatchLogos } from './TeamMark'
 import { useEffect, useMemo, useState } from 'react'
+import useHashFilters from '../lib/useHashFilters'
 import PageHeader from './PageHeader'
 import HelpTip from './HelpTip'
 import StoryRow, { StoryParts, BoardBadge } from './StoryRow'
@@ -30,7 +31,7 @@ const TYPE_LABEL = {
   history: 'History', matchup: 'Matchup', funfact: 'Fun fact', milestone: 'Milestone', b2b: 'Back-to-back', duel: 'Duel',
   revenge: 'Revenge', rivalry: 'Rivalry', birthday: 'Birthday', giveaway: 'Giveaway', multi: '2+ Club', streak: 'Streak',
   model: 'Model', due: 'Chances vs TD', redzone: 'Red zone', hot: 'Hot stick', special: 'Special teams', rest: 'Back-to-back night',
-  list_td: 'TD every game', list_100: '100-yard run', goal_streak: 'Goal streak', point_streak: 'Point streak', iron_man: 'Iron man',
+  list_td: 'TD every game', list_100: '100-yard run', run: '25+ run', defense: 'Soft defense', goal_streak: 'Goal streak', point_streak: 'Point streak', iron_man: 'Iron man',
 }
 const SHOW = 3
 // The bar a frozen story was graded on, in words (lib/stories/grade.js).
@@ -57,10 +58,16 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
   const teamNav = useTeamNav()
   const [data, setData] = useState(null)
   const [err, setErr] = useState(null)
-  const [types, setTypes] = useState(() => new Set())
+  // THE FILTERS RIDE THE ADDRESS (2026-10-20, Donovan: milestones researchable like headlines): st.type= (comma list) and
+  // st.q= (lib/useHashFilters), so the Ledger's and Numerology's MILESTONES block can link straight to the Milestone view
+  // (components/MilestonesBlock.js) and a shared link reopens the same filtered page.
+  const [hf, setHf] = useHashFilters('st', { type: '', q: '' })
+  const types = useMemo(() => new Set(String(hf.type || '').split(',').filter(Boolean)), [hf.type])
+  const setTypes = (fn) => setHf('type', [...fn(types)].join(','))
   const [calledOnly, setCalledOnly] = useState(false)
   const [rareOnly, setRareOnly] = useState(false)
-  const [q, setQ] = useState('')
+  const q = hf.q || ''
+  const setQ = (v) => setHf('q', v)
   const [open, setOpen] = useState(() => new Set())
   const [allGames, setAllGames] = useState(false)
 
@@ -77,7 +84,7 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
   // MEMBERS LOCK (components/MemberGate.js): the CALLED word on tonight's not-started games; a locked man keeps his story, loses the word
   const lockOf = useStoryLock({ sport, stories: data?.stories, games: data?.games, date })
   const lockedNow = useLockOf()
-  const allTypes = useMemo(() => [...new Set((data?.stories || []).map((s) => s.type))], [data])
+  const allTypes = useMemo(() => [...new Set([...(data?.stories || []).map((s) => s.type), ...types])], [data, types])   // a type on from a link keeps its chip, so it can be turned off
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase()
     return (data?.stories || []).filter((s) => (!types.size || types.has(s.type))
@@ -144,6 +151,7 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
       {err && !data?.stories?.length ? <div style={{ color: C.text3, fontSize: 12 }}>Storylines are delayed ({err}). Nothing is filled in while they are.</div> : null}
       {!data && !err ? <div style={{ color: C.text3, fontSize: 12 }}>Reading tonight&apos;s games…</div> : null}
       {data && !games.length ? <div style={{ color: C.text3, fontSize: 12 }}>No games on the schedule for this date.</div> : null}
+      {data && games.length > 0 && filtering && !shown.length ? <div style={{ color: C.text3, fontSize: 12 }}>No {types.size ? [...types].map((t) => (TYPE_LABEL[t] || t).toLowerCase()).join(' or ') : ''} stories match on this slate. Turn a filter off to see the rest.</div> : null}
 
       {(previewGames && !allGames ? ordered.filter((g) => !(filtering && !shown.some((s) => s.game_id === g.game_id))).slice(0, previewGames) : ordered).map((g) => {
         const rows = shown.filter((s) => s.game_id === g.game_id)

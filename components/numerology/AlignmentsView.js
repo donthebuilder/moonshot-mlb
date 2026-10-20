@@ -5,7 +5,7 @@ import { usePreview, ShowMoreButton } from '../ListPreview'
 import { useState } from 'react'
 import { usePickLight } from '../../lib/pickLight'
 import { C as MLB_C, NUM_FONT as MLB_NUM } from '../../lib/theme'
-import HistoryWatch from '../HistoryWatch'
+import MilestonesBlock from '../MilestonesBlock'
 
 // 🔮 THE ALIGNMENTS VIEW, EVERY SPORT (2026-09-29, numerology parity).
 // MOONSHOT's components/Alignments.js, lifted out so TUDDY and LAMP render
@@ -114,7 +114,7 @@ export default function AlignmentsView({
   const ranked = [...clubs].sort((a, b) => b.count - a.count)
   const expected = totalMemberships / 9
 
-  const milestones = <HistoryWatch sport={sport} theme={C} numFont={NUM_FONT} accent={accent} dateRoot={todayRoot} title="MILESTONES" />
+  const milestones = <MilestonesBlock sport={sport} theme={C} numFont={NUM_FONT} accent={accent} dateRoot={todayRoot} date={/^\d{4}-\d{2}-\d{2}$/.test(String(todayKey || '')) ? todayKey : null} />
   if (!rows.length) return <div><div style={{ fontSize: 11.5, color: C.text3 }}>{W.empty}</div>{milestones}</div>
 
   return (
