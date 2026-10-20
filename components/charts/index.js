@@ -31,7 +31,7 @@ export function ChipGroup({ label, options, value, onChange, color, first = fals
     <>
       {label ? <span style={{ fontSize: 9, color: theme.text3, textTransform: 'uppercase', letterSpacing: '.07em', ...(first ? {} : { marginLeft: 6 }) }}>{label}</span> : null}
       {options.map(({ k, label: l, n, title }) => (
-        <button key={k} type="button" onClick={() => onChange(k)} disabled={n === 0 && k !== 'ALL'}
+        <button key={k} type="button" className="tap-box" onClick={() => onChange(k)} disabled={n === 0 && k !== 'ALL'}
           title={title} aria-pressed={value === k}
           style={{ ...chipBtn(value === k, color, theme, numFont), opacity: (n || n == null || k === 'ALL') ? 1 : 0.35, ...(chipStyle || {}) }}>
           {l}{k !== 'ALL' && n != null && <span style={{ opacity: 0.65 }}> {n}</span>}

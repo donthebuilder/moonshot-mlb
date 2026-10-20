@@ -3,13 +3,9 @@ import { useEffect, useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { NBA_TEAMS } from '../../../lib/nba/teams'
-import { useBucketsShots, useBucketsPlayers } from '../../../lib/nba/useBuckets'
+import { useBucketsShots, useBucketsPlayers, useBucketsBoard } from '../../../lib/nba/useBuckets'
 import { unpackShots } from '../../../lib/nba/shots'
 import ShotChart from '../ShotChart'
-import dynamic from 'next/dynamic'
-
-// the 3D court loads only when opened (next/dynamic, as the other 3D views)
-const CourtArena = dynamic(() => import('../CourtArena'), { ssr: false })
 import { DelayedBanner, Loading, EmptyState, Pills, NavBtn, readHashParam, writeHashParam } from '../ui'
 
 // 🎯 SHOT MAP -- where a club or a player shoots from: every field-goal
@@ -31,11 +27,19 @@ export default function ShotMap({ onOpenPlayer, onOpenTeam }) {
     window.addEventListener('hashchange', sync); window.addEventListener('popstate', sync)
     return () => { window.removeEventListener('hashchange', sync); window.removeEventListener('popstate', sync) }
   }, [])
-  const [three, setThree] = useState(false)
   const players = useBucketsPlayers()
+  // WHOSE DEFENSE LIGHTS THE COURT (2026-10-20): tonight's opponent when the pick plays tonight (the night's board knows),
+  // or any club picked here; the pick rides the address as vs=
+  const { data: board } = useBucketsBoard(null, 'pts')
+  const tonightOpp = useMemo(() => {
+    const r = (board?.rows || []).find((x) => (mode === 'team' ? x.team === team : String(x.playerId) === String(who)))
+    return r?.opp || null
+  }, [board, mode, team, who])
+  const [vsPick, setVsPick] = useState(() => teamOf(readHashParam('vs')))
+  const vs = vsPick || tonightOpp
   const sel = mode === 'team' ? { team } : who ? { player: who } : null
   const { data, error, loading } = useBucketsShots(sel)
-  const shots = useMemo(() => unpackShots(data?.shots), [data])
+  const shots = useMemo(() => unpackShots(data?.shots, data?.games), [data])
   const plist = useMemo(() => [...(players.data?.players || [])].sort((a, b) => b.pts - a.pts), [players.data])
   const pname = plist.find((p) => p.id === who)?.name
   const set = (k, v) => writeHashParam(k, v)
@@ -67,14 +71,17 @@ export default function ShotMap({ onOpenPlayer, onOpenTeam }) {
       {loading && !data ? <Loading what="the shots" /> : null}
       {mode === 'player' && !who && <EmptyState title="PICK A PLAYER" note="Choose a player above for every shot he took on file." />}
       {data && sel && !shots.length && <EmptyState title="NO SHOTS ON FILE" note="No shots recorded for this pick yet." />}
-      {shots.length > 0 && <ShotChart shots={shots} filters={['result', 'type']} title={`Shot map, ${mode === 'team' ? team : pname || ''}`}
-        source="Every field-goal attempt on file, from ESPN play-by-play (this season and last)." />}
-      {shots.length > 0 && (
-        <div>
-          <NavBtn onClick={() => setThree((v) => !v)} strong={three}>{three ? 'Close the 3D court' : '🏀 3D court'}</NavBtn>
-          {three ? <div style={{ marginTop: 8 }}><CourtArena shots={shots} names={{}} title={mode === 'team' ? team : (pname || 'Shot map')} /></div> : null}
-        </div>
+      {(mode === 'team' || who) && (
+        <label style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 11, fontWeight: 800, color: C.text3, fontFamily: NUM_FONT }}>AGAINST
+          <select value={vs || ''} onChange={(e) => { const v = teamOf(e.target.value); setVsPick(v); set('vs', v) }} style={{ ...selStyle, maxWidth: 240 }}>
+            <option value="">No defense</option>
+            {[...NBA_TEAMS].filter((t) => mode !== 'team' || t[0] !== team).sort((a, b) => a[2].localeCompare(b[2])).map((t) => <option key={t[0]} value={t[0]}>{t[2]} {t[3]}{t[0] === tonightOpp ? ' · tonight' : ''}</option>)}
+          </select>
+        </label>
       )}
+      {shots.length > 0 && <ShotChart urlKey="sm" shots={shots} filters={['result', 'type']} threeD title={`Shot map, ${mode === 'team' ? team : pname || ''}`}
+        defense={vs} defenseNote={vs && vs === tonightOpp ? 'tonight' : null} ownDefense={mode === 'team' ? team : null} who={mode === 'team' ? 'their' : 'his'}
+        source="Every field-goal attempt on file, from ESPN play-by-play (this season and last)." />}
     </div>
   )
 }

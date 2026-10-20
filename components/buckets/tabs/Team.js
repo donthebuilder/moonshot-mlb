@@ -29,19 +29,20 @@ export default function Team({ abbrev, onBack, backLabel = 'Teams', onOpenPlayer
   const { data: deep, error: deepError } = useBucketsTeamDeep(known ? abbrev : null)
   const { data: board } = useBucketsBoard(null, 'pts')
   const shotsRead = useBucketsShots(known ? { team: known.abbrev } : null)
-  const shots = useMemo(() => unpackShots(shotsRead.data?.shots), [shotsRead.data])
+  const shots = useMemo(() => unpackShots(shotsRead.data?.shots, shotsRead.data?.games), [shotsRead.data])
   const teamNav = useTeamNav()
   const view = useMemo(() => (known ? buildNbaTeam({ team: known.abbrev, payload, deep, board, shots: shots.length > 0 }) : null), [known, payload, deep, board, shots])
   // the two modules are one stable component each (a new function every render would remount them); they read the latest props from a ref
   const live = useRef({})
-  live.current = { known, shots, onOpenPlayer, onOpenGame, onOpenTeam: onOpenTeam || teamNav }
+  live.current = { known, shots, nextOpp: deep?.next?.game?.opp || null, onOpenPlayer, onOpenGame, onOpenTeam: onOpenTeam || teamNav }
   const slots = useMemo(() => ({
     teamCards: (p) => <TeamCards {...p} />,
     h2h: ({ sport, team }) => <HeadToHead sport={sport} a={team} heading={false} ui={{ Table: BucketsTable, EmptyState: EmptyState, Kicker: Kicker }} theme={{ C, NUM_FONT, accent: C.purple }} nav={{ onOpenTeam: (a) => live.current.onOpenTeam?.(a), onOpenGame: (id, d) => live.current.onOpenGame?.(id, d) }} />,
     injuries: ({ clubs }) => <InjuryOut sport="nba" clubs={clubs} theme={{ C, NUM_FONT, accent: C.purple }} title="Out" onOpenTeam={(a) => live.current.onOpenTeam?.(a)} openPlayer={(e) => (live.current.onOpenPlayer && e.player_id ? () => live.current.onOpenPlayer(e.player_id) : null)} />,
     usage: ({ usage }) => <UsageTreemap usage={usage} metrics={NBA_USAGE_METRICS} groups={NBA_USAGE_GROUPS} theme={{ C, NUM_FONT, accent: C.purple }} title="Who carries it"
       onOpen={(p) => live.current.onOpenPlayer?.(p.id)} />,
-    shots: () => <ShotChart shots={live.current.shots} filters={['result', 'type']} title={`${live.current.known?.nick}, every field-goal attempt on file`} source="Every field-goal attempt on file for the club, from ESPN play-by-play." />,
+    shots: () => <ShotChart urlKey="ts" shots={live.current.shots} filters={['result', 'type']} threeD who="their" ownDefense={live.current.known?.abbrev || null} defense={live.current.nextOpp || null} defenseNote={live.current.nextOpp ? 'next game' : null}
+      title={`${live.current.known?.nick}, every field-goal attempt on file`} source="Every field-goal attempt on file for the club, from ESPN play-by-play." />,
   }), [])
   if (!abbrev) return <EmptyState title="NO CLUB PICKED" note="Open a club from Teams or Standings."><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   if (!known) return <EmptyState title="NO SUCH CLUB" note={`“${String(abbrev).slice(0, 8)}” isn’t an NBA club code.`}><BackBtn onBack={onBack} label={backLabel} /></EmptyState>

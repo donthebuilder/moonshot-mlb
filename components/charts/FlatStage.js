@@ -1,4 +1,5 @@
 'use client'
+import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 import { useEffect, useState } from 'react'
 import { useIsPhone } from '../MobileFold'
 import { alpha } from '../../lib/scales'
@@ -34,17 +35,15 @@ export function StageTile({ C, numFont, accent, label, big, line, pct, hot }) {
   )
 }
 
-/** Two or three big pills, 44px, one choice (flex-equal). items: [[key, text, extra?]] */
+/** Two or three flat chips, one choice (lib/chips.js; 44px to the thumb). items: [[key, text, extra?]] */
 export function StageSeg({ C, numFont, accent, items, value, onChange, label }) {
   return (
     <div role="group" aria-label={label} style={{ display: 'flex', gap: 6 }}>
       {items.map(([k, text, extra]) => {
         const on = value === k
         return (
-          <button key={k} type="button" onClick={() => onChange(k)} aria-pressed={on}
-            style={{ flex: '1 1 0', minWidth: 0, minHeight: 44, padding: '0 10px', borderRadius: 999, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              border: `1px solid ${on ? accent : C.border}`, background: on ? alpha(accent, 0.13) : alpha(C.text, 0.035),
-              color: on ? accent : C.text2, fontSize: 13, fontWeight: 800, fontFamily: numFont, whiteSpace: 'nowrap' }}>
+          <button key={k} type="button" className={FLAT_CHIP_CLASS} onClick={() => onChange(k)} aria-pressed={on}
+            style={{ ...flatChip(on, accent, C, numFont), justifyContent: 'center' }}>
             {extra}{text}
           </button>
         )
