@@ -1,7 +1,4 @@
 {
-  "why": "BUCKETS' moments cron answers 'skipped' on every call until BUCKETS_PUBLIC=on, so it is taken out of vercel.json while BUCKETS is hidden (about 900 idle invocations a day). When BUCKETS opens, add these entries back to the crons list in vercel.json (scripts/check-crons.mjs fails if they sit in both places).",
-  "crons": [
-    { "path": "/api/buckets/moments", "schedule": "* 16-23 * * *" },
-    { "path": "/api/buckets/moments", "schedule": "* 0-6 * * *" }
-  ]
+  "why": "BUCKETS opened 2026-10-19 (Donovan: 'open the nba side'): the moments cron went back into vercel.json. This file holds the BUCKETS-only crons to park here again if BUCKETS is ever closed (scripts/check-crons.mjs fails if they sit in both places).",
+  "crons": []
 }
