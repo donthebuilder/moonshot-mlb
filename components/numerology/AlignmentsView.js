@@ -5,6 +5,7 @@ import { usePreview, ShowMoreButton } from '../ListPreview'
 import { useState } from 'react'
 import { usePickLight } from '../../lib/pickLight'
 import { C as MLB_C, NUM_FONT as MLB_NUM } from '../../lib/theme'
+import HistoryWatch from '../HistoryWatch'
 
 // 🔮 THE ALIGNMENTS VIEW, EVERY SPORT (2026-09-29, numerology parity).
 // MOONSHOT's components/Alignments.js, lifted out so TUDDY and LAMP render
@@ -113,7 +114,8 @@ export default function AlignmentsView({
   const ranked = [...clubs].sort((a, b) => b.count - a.count)
   const expected = totalMemberships / 9
 
-  if (!rows.length) return <div style={{ fontSize: 11.5, color: C.text3 }}>{W.empty}</div>
+  const milestones = <HistoryWatch sport={sport} theme={C} numFont={NUM_FONT} accent={accent} dateRoot={todayRoot} title="MILESTONES" />
+  if (!rows.length) return <div><div style={{ fontSize: 11.5, color: C.text3 }}>{W.empty}</div>{milestones}</div>
 
   return (
     <div>
@@ -505,6 +507,10 @@ export default function AlignmentsView({
         pair notes use the measured rules. The two claims never mix — a braid is watched, a ticket is graded.
       </div></MoreNote>
       </>)}
+      {/* MILESTONES ON NUMEROLOGY (2026-10-20, Donovan: "shared milestone pages can be looped in to ledger and numerology"): the
+          shared History Watch, each milestone number checked against the day's number (🔮 when it reduces to it). Under the sections,
+          so nothing above moves on a phone; empty for a sport the history route doesn't cover. */}
+      {milestones}
       {children}
     </div>
   )

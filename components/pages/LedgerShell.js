@@ -20,6 +20,10 @@ import { useSportTheme } from '../SportTheme'
 import ErrorBoundary from '../ErrorBoundary'
 import HelpTip from '../HelpTip'
 import TopTotals from '../TopTotals'
+import HistoryWatch from '../HistoryWatch'
+
+// the sports /api/history/watch answers for (BUCKETS: not built; the block would only ever be empty)
+const HISTORY_SPORTS = new Set(['mlb', 'nfl', 'nhl'])
 import CardSection from '../card/CardSection'
 import {
   LEDGER_VIEWS, ledgerWord, ledgerBlurb, cleanView, tabOfView,
@@ -96,6 +100,9 @@ export default function LedgerShell({ sport, bodies = {} }) {
       )}
       <ErrorBoundary resetKey={view} label={`the Ledger's ${view} view`}>
         <div role="tabpanel" key={view}>{body ? body() : null}</div>
+        {/* MILESTONES ON THE LEDGER (2026-10-20, Donovan: "shared milestone pages can be looped in to ledger and numerology"): the
+            shared History Watch (who is one step from a history rung, with its proof) under Tonight, every sport it is built for */}
+        {active === 'tonight' && HISTORY_SPORTS.has(sport) && <div style={{ marginTop: 12 }}><HistoryWatch sport={sport} theme={C} numFont={NUM_FONT} accent={accent} title="MILESTONES" /></div>}
         {/* TOP TOTALS (2026-10-09): the market's record and graded rows ride the Record view of every sport's Ledger */}
         {active === 'record' && <div style={{ marginTop: 12 }}><CardSection sport={sport} mode="record" /></div>}
         {active === 'record' && <div style={{ marginTop: 12 }}><TopTotals sport={sport} mode="record" /></div>}
