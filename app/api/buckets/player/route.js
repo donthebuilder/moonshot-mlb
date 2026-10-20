@@ -25,6 +25,7 @@ async function shotsOf(db, id) {
   }
   return { data, error: null }
 }
+import { readNbaFloor, trackingOf } from '../../../../lib/record/nbaFloorRead'
 export const GET = bucketsRoute('player', async (q) => {
   const id = q.get('id') || ''
   if (!/^\d{2,10}$/.test(id)) return bad('id must be an ESPN athlete id')
@@ -38,9 +39,10 @@ export const GET = bucketsRoute('player', async (q) => {
     gamelogFor(id, sn.prev).then(reduceGamelog).then(real).catch(() => []),
     seasonStats(sn.cur), seasonStats(sn.prev),
     db ? shotsOf(db, id) : { data: [] },
-    db ? db.from('buckets_log').select('game_id, game_date, market, model_version, status, role, score, hit, actual, opp, void_reason').in('model_version', LIVE_VERSIONS).eq('player_id', id).order('game_date', { ascending: false }).limit(200) : { data: [] },
+    db ? db.from('buckets_log').select('game_id, game_date, market, model_version, status, role, score, hit, actual, opp, void_reason, season_type').in('model_version', LIVE_VERSIONS).eq('player_id', id).order('game_date', { ascending: false }).limit(200) : { data: [] },
   ])
   const card = card0 ? { ...card0, birthDate } : card0
+  const floor = db ? await readNbaFloor(db).catch(() => null) : null
   // his club's schedule, both seasons: the next game (any season type) for "his games against them", and every FINAL
   // game the club played, by ET day, for the rest-days split (a game he sat out still counts as a day the club played)
   const club = nbaTeam(card?.team)
@@ -60,7 +62,10 @@ export const GET = bucketsRoute('player', async (q) => {
     log: logCur.length ? logCur : logPrev, logSeason: logCur.length ? seasonLabel(sn.cur) : seasonLabel(sn.prev),
     shots: (shots.error ? [] : shots.data || []).map((s) => [s.x, s.y, s.made ? 1 : 0, s.three ? 1 : 0, s.game_id]),
     shotsFrom: shots.data?.length ? shots.data[shots.data.length - 1].game_date : null,
-    calls: calls.error ? [] : calls.data || [],
+    // THE PUBLIC-NUMBER FLOOR ON HIS PAGE (10-19, before BUCKETS opens): his record lines, last week and the on-him table are
+    // results, so they carry only what the record may count -- no preseason row, and no market still under its 30 graded
+    // regular-season nights (lib/record/nbaFloor.js; the same floor as /api/buckets/record, the ledger and the posts)
+    calls: (calls.error ? [] : calls.data || []).filter((r) => r.season_type !== 1 && !trackingOf(floor, r.market)),
     fetchedAt: new Date().toISOString(),
   }, 600)
 })
