@@ -40,17 +40,23 @@ ok(withVoice(body, v, body.length + 12).endsWith('TEST ask?') && !withVoice(body
 ok(withVoice(body, v, body.length) === body, 'no room: the body alone')
 ok(withVoice(body, v, 10) === body, 'even over budget the body is never cut (the caller decides)')
 
-// 5. the footer (2026-10-20: "that line doesn't always have to be there .. keep spreading good and helpful information"):
-// Discord and the record keep it; X goes without, and the 280 version spends the room on the headliner's case
+// 5. the footer (2026-10-20: "that line doesn't always have to be there .. keep spreading good and helpful information", then
+// "dont all sports do that too"): Discord and the record keep the whole footer; X ends on the receipt line alone
 const lines = (...t) => t.map((x) => ({ t: x, v: [] }))
 const player = (i) => ({ name: `TEST Player ${i}`, team: 'TST', opp: 'OPP', role: 'TOP', status_word: 'CALLED', bar: 'home run', position: 'RB', scoreName: 'MOONSHOT score', spot: 3, band: null, tdScore: 80, grade: 'A', rank: 1, of: 20, posRank: 1, posOf: 10, score: 80, markets: [{ word: 'double-double', score: 80, rank: 1, of: 20 }], why: lines('TEST why one', 'TEST why two'), watch: lines('TEST watch one'), price: null })
-const FOOT = 'TEST footer line that is long, the way the real ones are.'
+const RECEIPT = 'TEST receipt line.'
+const FOOT = `${RECEIPT} TEST not advice.`
+// the real receipt lines: one per sport, the same shape, never the disclaimer
+const B = { nfl: await import('../../lib/writeups/build.js'), mlb: await import('../../lib/writeups/mlb.js'), nhl: await import('../../lib/writeups/nhl.js'), nba: await import('../../lib/writeups/nba.js') }
+for (const [s, rec] of [['nfl', B.nfl.RECEIPT], ['mlb', B.mlb.MLB_RECEIPT], ['nhl', B.nhl.NHL_RECEIPT], ['nba', B.nba.NBA_RECEIPT]]) {
+  ok(/^Locked before .+\. Graded against exactly that\.$/.test(rec) && !/advice/i.test(rec), `${s} receipt: ${rec}`)
+}
 for (const sport of ['nfl', 'nhl', 'nba', 'mlb']) {
-  const W = { sport, away: 'AAA', home: 'BBB', when: '7:05 PM ET', header: { t: 'TEST header line.' }, game: lines('TEST game one'), players: [player(1), player(2)], noCall: [], bottom: lines('TEST bottom line.'), footer: FOOT }
+  const W = { sport, away: 'AAA', home: 'BBB', when: '7:05 PM ET', header: { t: 'TEST header line.' }, game: lines('TEST game one'), players: [player(1), player(2)], noCall: [], bottom: lines('TEST bottom line.'), footer: FOOT, receipt: RECEIPT }
   const r = renderWriteup(W, { xLimit: 280 })
   ok(r.ok, `${sport}: renders (${r.why.join('; ')})`)
   ok(r.full.endsWith(FOOT), `${sport}: Discord keeps the footer`)
-  ok(!r.x.includes(FOOT), `${sport}: X has no footer`)
+  ok(!r.x.includes(FOOT) && r.x.endsWith(`\n\n${RECEIPT}`), `${sport}: X ends on the receipt, not the whole footer`)
   ok([...r.x].length <= 280, `${sport}: X fits 280`)
   if (sport !== 'mlb') ok(r.x.includes('The case for TEST Player 1: TEST why one.'), `${sport}: X spends the room on the headliner's case`)
 }
