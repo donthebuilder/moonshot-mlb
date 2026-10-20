@@ -12,6 +12,7 @@ import { boardOrder } from '../../lib/boardOrder'
 import { hr9Color, hr9Fill, hr9Pct, hr9Title } from '../../lib/hr9'
 import { PanelTitle, Empty, btnStyle } from '../ui'
 import MlbH2H from '../h2h/MlbH2H'
+import OurLine from '../game/OurLine'
 import { teamKey } from '../../lib/mlbTeams'
 import PlayerCard from '../PlayerCard'
 import { PICK_GRID_CSS } from '../card/RankCard'
@@ -1703,6 +1704,11 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                           <MlbH2H a={teamKey(g.away)} b={teamKey(g.home)} />
                         </div>
                             </>
+                          ),
+                          // OUR LINE (2026-10-20, components/game/OurLine.js): our run margin beside the book's run line and moneyline; info only, nothing drawn without a row
+                          ourline: () => (
+                          <OurLine sport="mlb" date={slateDate || gameDay(g.game_time)} away={teamKey(g.away)} home={teamKey(g.home)} start={g.game_time} theme={{ C, NUM_FONT }}
+                            id={`gp-ourline-${g.game_pk}`} style={{ marginTop: 14 }} />
                           ),
                           out: () => (
                             <>

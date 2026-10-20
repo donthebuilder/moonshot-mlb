@@ -10,6 +10,7 @@ import { nhlMug } from '../../../lib/nhl/format'
 import { strengthTag } from '../ScoreTable'
 import LampTable from '../LampTable'
 import NhlH2H from '../../h2h/NhlH2H'
+import OurLine from '../../game/OurLine'
 import GoalieQuality from '../GoalieQuality'
 import GoalieWeakSpots from '../GoalieWeakSpots'
 import GameRink from '../GameRink'
@@ -170,6 +171,8 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
       <GameRink game={g} />
       </>
     ),
+    // OUR LINE (2026-10-20, components/game/OurLine.js): our goal margin beside the book's puck line and moneyline; info only, nothing drawn without a row
+    ourline: () => <OurLine sport="nhl" date={g.date} away={g.away.abbrev} home={g.home.abbrev} start={g.startUtc} theme={{ C, NUM_FONT }} onOpenTeam={onOpenTeam} />,
     compare: () => (
       <>
       {/* ── team comparison ── */}
