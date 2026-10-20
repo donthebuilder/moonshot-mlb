@@ -325,7 +325,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
       </>
       {/* STANLEY CUP ODDS (2026-10-13): MOONSHOT's October fold for the NHL (components/PennantRace.js). Not drawn until the bot has published the file. */}
       <ChampionshipFold sport="nhl" />
-      {/* AWARD RACES (2026-10-20, lib/awards.js): draws nothing until LAMP's award model ships (BUCKETS has the first). */}
+      {/* AWARD RACES (2026-10-20, lib/awards.js + lib/nhl/awards.js): Hart, Vezina, Norris and Calder, a model of past votes. */}
       <AwardRaces sport="nhl" onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />
       </>}
     </div>
