@@ -9,7 +9,6 @@ import { C, NUM_FONT } from '../lib/theme'
 import { alpha, catColor, verdictInk } from '../lib/scales'
 import { n, clean, obj, arr, nameOf } from '../lib/player'
 import { fetchBatterDetail } from '../lib/dataSource'
-import { chipColor } from './Heatmap'
 // Pitch colours shared with ZoneMap and the live feed parser, so a sinker is
 // the same orange on the spray chips as it is on the strike-zone dots.
 // isDeepFlyOut too (Pass 3, 2026-08-14): the 📏 DEEP gate has ONE definition
@@ -1607,7 +1606,9 @@ export default function SprayField({
             height while its width collapsed, letterboxing a short wide picture
             inside a tall box and eating most of a portrait screen for nothing.
             The class lets the phone rule reclaim the height. */}
-        <svg className="spray-svg" viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: 460, height, flexShrink: 0 }}>
+        {/* TIGHTER (2026-10-20, Donovan: "update our 2D spray chart ... a tighter, better product"): the field is a fifth bigger on a
+            wide screen (the readout beside it had the room); a phone's rule (.spray-svg) still sets its own height */}
+        <svg className="spray-svg" viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: 560, height: Math.round(height * 1.2), flexShrink: 0 }}>
           {/* ── FIELD GEOMETRY COLOURS: DOMAIN, NOT ROUTED (2026-08-24) ──────
               Every fixed hex from here down through the wall/turf/track/
               infield/arcs — including the field's own dark base tone,
@@ -2065,19 +2066,16 @@ export default function SprayField({
           {/* Lane shares are a SEASON read — five bars off tonight's three
               batted balls would be a shape drawn from nothing. Hidden here. */}
           {!liveOnly && (
-          <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 4 }} aria-label="Where his balls go, by lane">
+            {/* THE LANES AS TILES (10-20: no bar charts): each lane's share of his balls, lit by it, and the homers off it */}
             {laneCounts.map((l) => {
               const pctv = hits.length ? (100 * l.n) / hits.length : 0
-              const bg = chipColor(pctv, 0, 45)
               return (
-                <div key={l.key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10 }}>
-                  <span style={{ width: 26, color: C.text3, fontFamily: NUM_FONT }}>{l.key}</span>
-                  <div style={{ flex: 1, height: 11, background: C.bg3, borderRadius: 2 }}>
-                    <div style={{ width: `${Math.max(2, pctv)}%`, height: '100%', background: bg, borderRadius: 2 }} />
-                  </div>
-                  <span style={{ fontFamily: NUM_FONT, color: C.text2, minWidth: 52, textAlign: 'right' }}>
-                    {pctv.toFixed(0)}%{l.hr > 0 && <span style={{ color: C.orange }}> {l.hr}HR</span>}
-                  </span>
+                <div key={l.key} style={{ border: `1px solid ${l.hr ? C.orange : C.border}`, borderRadius: 3, padding: '5px 6px', textAlign: 'center',
+                  background: `${C.orange}${Math.round(255 * (0.04 + 0.32 * Math.min(1, pctv / 40))).toString(16).padStart(2, '0')}` }}>
+                  <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.06em', color: C.text3, fontFamily: NUM_FONT }}>{l.key}</div>
+                  <div style={{ fontSize: 16, fontWeight: 900, color: C.text, fontFamily: NUM_FONT, lineHeight: 1.15 }}>{pctv.toFixed(0)}%</div>
+                  <div style={{ fontSize: 9.5, fontFamily: NUM_FONT, color: l.hr ? C.orange : C.text3 }}>{l.hr ? `${l.hr} HR` : '—'}</div>
                 </div>
               )
             })}
