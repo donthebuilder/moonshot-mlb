@@ -78,5 +78,15 @@ const run2 = await EN.runFacts(dbWith(today), { dry: true, ignoreWindow: true, s
   read: async () => ({ sport: 'mlb', active: true, gameDay: TODAY, window: { open: 0, close: Date.parse('2026-10-22T00:00:00Z') }, facts: [hits, bl], errors: [] }) }).catch((e) => ({ error: e.message }))
 ok(!run2.error && run2.found === 0, `a sport that posted a list today gets no second one (${run2.error || run2.found})`)
 
+// 7. its own slot (2026-10-20, "make useful"): three facts posted today don't stop the list; the list doesn't count as a fact
+const streakFact = PL.streakFacts({ sport: 'mlb', players, streaks: [hit('T2', 11)], today: TODAY })[0]
+const three = [1, 2, 3].map((i) => ({ id: `f${i}`, day: TODAY, sport: 'mlb', status: 'posted', posted_at: `2026-10-21T1${i}:00:00Z`, fact: { family: 'p_streak', named: [`Q${i}`] } }))
+const readBoth = async () => ({ sport: 'mlb', active: true, gameDay: TODAY, window: { open: 0, close: Date.parse('2026-10-22T00:00:00Z') }, facts: [streakFact, hits], errors: [] })
+const r3 = await EN.runFacts(dbWith(three), { dry: true, ignoreWindow: true, sports: ['mlb'], now: Date.parse('2026-10-21T18:00:00Z'), read: readBoth }).catch((e) => ({ error: e.message }))
+ok(!r3.error && r3.found === 1 && r3.tried.length === 1 && r3.tried[0].family === 'p_list', `three facts today: the list still posts, a fourth fact doesn't (${r3.error || JSON.stringify(r3.tried?.map((t) => t.family))})`)
+const twoAndList = [...three.slice(0, 2), { ...today[0], posted_at: '2026-10-21T15:00:00Z' }]
+const r4 = await EN.runFacts(dbWith(twoAndList), { dry: true, ignoreWindow: true, sports: ['mlb'], now: Date.parse('2026-10-21T18:00:00Z'), read: readBoth }).catch((e) => ({ error: e.message }))
+ok(!r4.error && r4.found === 1 && r4.tried[0].family === 'p_streak', `two facts and the list today: the third fact still has its slot (${r4.error || JSON.stringify(r4.tried?.map((t) => t.family))})`)
+
 console.log(bad ? `${bad}/${n} FAILED` : `check-the-list: ${n} checks passed (TEST data)`)
 process.exit(bad ? 1 : 0)
