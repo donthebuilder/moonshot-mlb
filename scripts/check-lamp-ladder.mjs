@@ -157,11 +157,16 @@ ok('nhlMeasures: capture is labelled as coverage and the ladder holds the hit ra
 // ── grep guards ──────────────────────────────────────────────────────────────────────────────────────
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8')
 const walk = (dir, out = []) => { for (const f of readdirSync(new URL(`../${dir}`, import.meta.url))) { if (['node_modules', '.next', 'ARCHIVE'].includes(f)) continue; const p = join(dir, f); const st = statSync(new URL(`../${p}`, import.meta.url)); if (st.isDirectory()) walk(p, out); else if (/\.(js|mjs)$/.test(f)) out.push(p) } return out }
-const SURFACES = ['app/(front)/page.js', 'app/start/page.js', 'app/called/page.js', 'components/lamp/tabs/Results.js']
+// THE SURFACES SINCE 10-17 (front door rebuilt; /start is a redirect into the app): /called and the Record tab draw LadderBlock;
+// the front door draws LAMP's ladder as a record block (lib/dash/recordBlocks.js ladderRows, lib/record/ladder.js).
+const SURFACES = ['app/called/page.js', 'components/lamp/tabs/Results.js']
+const DOOR = ['app/(front)/page.js', 'lib/dash/recordBlocks.js', 'components/home/RecordBlocks.js']
 ok('one reader: every surface draws the ladder from lib/record/ladder.js, which reads the calibration body', () => {
   for (const p of SURFACES) assert.ok(/LadderBlock|LadderFromApi/.test(read(p)), `${p} draws the ladder`)
   assert.match(read('app/(front)/page.js'), /pulse\.nhlLadder/); assert.match(read('lib/dash/pulse.js'), /ladderFrom\(c\)/)
-  for (const p of ['app/start/page.js', 'app/called/page.js']) assert.match(read(p), /ladderFrom\(cal\)/)
+  assert.match(read('lib/dash/recordBlocks.js'), /from '\.\.\/record\/ladder'/)
+  assert.match(read('app/start/page.js'), /redirect\(/)
+  assert.match(read('app/called/page.js'), /ladderFrom\(cal\)/)
   assert.match(read('components/record/LadderBlock.js'), /\/api\/calibration\?sport=/)
   assert.match(read('lib/calibration/readSportCalibration.js'), /ladderFromRecords\(rows/)
 })
@@ -169,11 +174,12 @@ ok('no second definition: only lib/record/ladder.js builds a ladder; nothing els
   const files = [...walk('lib'), ...walk('components'), ...walk('app')]
   const defs = files.filter((p) => /function ladderFromRecords|const ladderFromRecords/.test(read(p)))
   assert.deepEqual(defs, ['lib/record/ladder.js'])
-  const byVersion = files.filter((p) => !['lib/record/ladder.js', 'lib/record/nhl.js'].includes(p) && /model_version/.test(read(p)) && /byVersion|perVersion|groupBy\(.*model_version/.test(read(p)))
+  // app/api/lamp/record: ONE skater's record, counted per model version (2026-10-17: never pooled across versions) -- a count, not a ladder
+  const byVersion = files.filter((p) => !['lib/record/ladder.js', 'lib/record/nhl.js', 'app/api/lamp/record/route.js'].includes(p) && /model_version/.test(read(p)) && /byVersion|perVersion|groupBy\(.*model_version/.test(read(p)))
   assert.deepEqual(byVersion, [])
 })
 ok('scroll cost: /start and /called fold the table behind a one-line summary (44px target); the Record tab keeps it open', () => {
-  for (const p of ['app/start/page.js', 'app/called/page.js']) assert.match(read(p), /<LadderBlock [^>]*\bfold\b/, p)
+  assert.match(read('app/called/page.js'), /<LadderBlock [^>]*\bfold\b/)
   assert.match(read('components/record/LadderBlock.js'), /minHeight: 44/)
   assert.ok(!/fold/.test(read('components/lamp/tabs/Results.js')))
   assert.equal(ladderOneLine(L), 'CALLED scored 48 of 147 (32.7%) vs 15.1% for every dressed skater')
@@ -181,10 +187,11 @@ ok('scroll cost: /start and /called fold the table behind a one-line summary (44
 ok('the old front-door headline (capture as the LAMP number) is gone', () => {
   const door = read('app/(front)/page.js')
   assert.ok(!/<b>\{pulse\.nhlRecord\.called\} of \{pulse\.nhlRecord\.total\}<\/b> CALLED/.test(door))
-  assert.match(door, /CAPTURE/); assert.match(door, /coverage, not how often a call scores/)
+  // the rebuilt door (10-17) prints no capture number at all, so there is no capture line left to label
+  assert.ok(!/nhlRecord\.called\} of/.test(door))
 })
 ok('no hard-coded record numbers in the ladder files or the surfaces', () => {
-  for (const p of ['lib/record/ladder.js', 'components/record/LadderBlock.js', ...SURFACES]) {
+  for (const p of ['lib/record/ladder.js', 'components/record/LadderBlock.js', ...SURFACES, ...DOOR]) {
     const src = read(p).split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n')
     assert.ok(!/\b(147|48 of|380|123|788|1580|2515)\b|(?<!fontSize: )\b(32\.7|19\.0|11\.5|15\.1)\b/.test(src), `${p} has a number that looks like a record`)
   }
