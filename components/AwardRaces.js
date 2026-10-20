@@ -19,7 +19,7 @@ import { awardsConfig, loadAwards } from '../lib/awards'
 
 const NOTE = { fontSize: 12, color: C.text3, lineHeight: 1.55, margin: '8px 2px 0', maxWidth: 720 }
 
-function Races({ sport, data, onOpenPlayer, onOpenTeam }) {
+function Races({ sport, data, onOpenPlayer, onOpenTeam, canOpenPlayer }) {
   const cfg = awardsConfig(sport)
   const accent = SPORT_ACCENT[sport] || C.text
   const [key, setKey] = useState(data.races[0]?.key)
@@ -42,15 +42,15 @@ function Races({ sport, data, onOpenPlayer, onOpenTeam }) {
             rows={shown.map((r, i) => ({ ...r, _key: r.id, rank: i + 1, playerId: r.id }))}
             columns={[
               { key: 'rank', label: '#', group: 'Player', heat: false, w: 26 },
-              { key: 'name', label: 'Player', group: 'Player', heat: false, bold: true, sticky: true, w: 150 },
+              { key: 'name', label: 'Player', group: 'Player', heat: false, bold: true, sticky: true, w: 150, ...(canOpenPlayer ? { link: (r) => (canOpenPlayer(String(r.playerId)) ? () => onOpenPlayer?.(String(r.playerId)) : null) } : null) },
               // the share leads, beside the name, so a phone sees it without scrolling the table
               { key: 'share', label: 'Share', group: 'Player', w: 64, primary: true, bar: 'primary', domain: [0, top], title: `His share of the ${race.title} race`, fmt: (v) => sharePct(v) },
               { key: 'team', label: 'Tm', group: 'Player', heat: false, mono: true, w: 52, teamMark: cfg.teamMark, link: (r) => (onOpenTeam ? () => onOpenTeam(r.team) : null) },
-              ...[...cfg.cols, ...(cfg.extraCols?.[race.key] || [])].map((c) => ({ key: c.key, label: c.label, title: c.title, group: 'Line', w: 46, dp: c.dp, mono: true })),
+              ...[...cfg.cols, ...(cfg.extraCols?.[race.key] || [])].map((c) => ({ key: c.key, label: c.label, title: c.title, group: 'Line', w: 46, dp: c.dp, mono: true, ...(c.heat === false ? { heat: false } : null), ...(c.subOnly ? { subOnly: true } : null) })),
             ]}
-            onRowClick={(r) => onOpenPlayer?.(String((r?._raw ?? r).playerId))} nameCell="player" faceOf={(r) => ({ sport: cfg.teamMark, id: r.playerId, name: r.name })}
+            onRowClick={canOpenPlayer ? undefined : (r) => onOpenPlayer?.(String((r?._raw ?? r).playerId))} nameCell="player" faceOf={(r) => ({ sport: cfg.teamMark, id: r.playerId, espnId: r.espnId, name: r.name })}
             initialSort={{ key: 'share', dir: 'desc' }} heatMode="sorted" maxHeight={9999} maxRows={rows.length}
-            caption={`${race.title}: the top ${rows.length} of ${race.pool} players, each with his share of the race. Each row opens that player.`} />
+            caption={`${race.title}: the top ${rows.length} of ${race.pool} players, each with his share of the race. ${canOpenPlayer ? 'A linked name' : 'Each row'} opens that player.`} />
           <ShowMoreButton open={allOpen} restN={rows.length - shown.length} toggle={() => setAllOpen((v) => !v)} itemWord="players" />
           <p style={NOTE}>Other {Math.max(0, (race.pool || 0) - rows.length)}: {sharePct(race.rest)}. {race.measured}</p>
         </>
@@ -60,7 +60,9 @@ function Races({ sport, data, onOpenPlayer, onOpenTeam }) {
   )
 }
 
-export default function AwardRaces({ sport, onOpenPlayer, onOpenTeam }) {
+// canOpenPlayer(id) (optional): only those names are links, the rest plain text -- a product whose player card does not cover
+// everyone in a race (TUDDY's card covers its board: passers, runners, catchers) never draws a dead tap.
+export default function AwardRaces({ sport, onOpenPlayer, onOpenTeam, canOpenPlayer = null }) {
   const cfg = awardsConfig(sport)
   const [data, setData] = useState(null)
   useEffect(() => {
@@ -72,7 +74,7 @@ export default function AwardRaces({ sport, onOpenPlayer, onOpenTeam }) {
   if (!cfg || !data?.ok) return null
   return (
     <Fold id={cfg.foldId} title={cfg.foldTitle} meta={cfg.foldMeta}>
-      <Races sport={sport} data={data} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />
+      <Races sport={sport} data={data} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} canOpenPlayer={canOpenPlayer} />
     </Fold>
   )
 }

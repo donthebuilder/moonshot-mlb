@@ -526,7 +526,7 @@ export default function NflDashboard({ palettePass = 0 }) {
           <GameNav.Provider value={openGameNav}>
           <ErrorBoundary resetKey={tab} label={`the ${tab} tab`}>
             {oddsHold && <TabLoading />}
-            {tab === 'home' && <Home data={slate} picks={picks} results={nflResults} matchup={matchup} logs={logs} onPlayerClick={openPlayer} setTab={setTab} liveSnap={liveSnap} />}
+            {tab === 'home' && <Home data={slate} picks={picks} results={nflResults} matchup={matchup} logs={logs} onPlayerClick={openPlayer} onOpenTeam={openTeamPage} setTab={setTab} liveSnap={liveSnap} />}
             {/* MOONSHOT's Players page (2026-09-30): list + the card inline. */}
             {!oddsHold && tab === 'players' && <NflPlayers data={data} logs={logs} matchup={matchup} picks={picks} results={nflResults} odds={odds} />}
             {tab === 'binder' && <Binder sport="nfl" board={binderBoard} />}
