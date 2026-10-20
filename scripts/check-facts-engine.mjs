@@ -106,6 +106,17 @@ await ok('the voice (2026-10-20): short streaks are not facts; swearing, "due" a
   assert.ok(!CK.checkShape(good.split('\n').slice(0, -2).join('\n'), f).ok)
 })
 
+await ok('the unbeaten / winless matchup templates fit the shape now (a line was 82 characters, cap 80)', () => {
+  for (const family of ['both_unbeaten', 'both_winless']) {
+    const rec = family === 'both_unbeaten' ? '4-0' : '0-4'
+    const f = LB.decorate({ id: `test:${family}`, family, sport: 'nfl', week: 5, prior: 0, since: 1999, proves: ['first'],
+      teams: [{ name: 'Testa', code: 'TSA', record: rec }, { name: 'Testb', code: 'TSB', record: rec }] })
+    const d = WR.templateDrafts(f)[0]
+    const sh = CK.checkShape(d, f), dr = CK.checkDraft(d, f)
+    assert.ok(sh.ok, `${family} shape: ${sh.why}`); assert.ok(dr.ok, `${family} draft: ${dr.why}`)
+  }
+})
+
 // ── 2. the birthday / vs-team / form guards ────────────────────────────────────────────────────────
 await ok('birthday: only today in ET, age from the birth year; vs-team needs 2 meetings and a TD; form needs 7 of 8+', () => {
   const b = built.p_birthday()[0]; assert.equal(b.age, 27); assert.equal(b.born, 'Oct 9, 1999')
