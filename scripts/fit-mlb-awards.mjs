@@ -11,7 +11,7 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { AWARD_DEFS, SEASON_GAMES, addRoleVal, blendClubs, racePeople, parseLines, leagueConsts, rawFeatures } from '../lib/mlb/awardModel.js'
-import { zScore, softmax, fitSoftmax, fitTemperature } from '../lib/awardFit.js'
+import { zScore, softmax, fitSoftmax, fitTemperature } from '../lib/awardCore.js'
 import { LEAGUE } from '../lib/mlb/awardModel.js'
 
 const DIR = process.argv[2]
