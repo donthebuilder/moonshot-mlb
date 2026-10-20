@@ -217,6 +217,9 @@ for (const sport of ['mlb', 'nhl', 'nfl']) {
     check(`writeup ${sport} short`, r.short)
     const rs = renderWriteup(W(sport), { xLimit: 280 })
     check(`writeup ${sport} x(280)`, rs.x)
+    // the paid long post (X_TEXT_LIMIT 900 in prod, less the margin): the X layout, 2026-10-20
+    const rl = renderWriteup(W(sport), { xLimit: 890 })
+    check(`writeup ${sport} x(890)`, rl.x, { limit: 890 })
   })
 }
 safe('writeup nba', () => {

@@ -59,6 +59,10 @@ for (const sport of ['nfl', 'nhl', 'nba', 'mlb']) {
   ok(!r.x.includes(FOOT) && r.x.endsWith(`\n\n${RECEIPT}`), `${sport}: X ends on the receipt, not the whole footer`)
   ok([...r.x].length <= 280, `${sport}: X fits 280`)
   if (sport !== 'mlb') ok(r.x.includes('The case for TEST Player 1: TEST why one.'), `${sport}: X spends the room on the headliner's case`)
+  const rl = renderWriteup(W, { xLimit: 890 })
+  ok(rl.ok && rl.xIsLong && rl.x.includes('TEST PLAYER 1') && rl.x.includes('TEST PLAYER 2'), `${sport}: the long X post carries both calls (${rl.why.join('; ')})`)
+  ok(!/BOTTOM LINE|TEST game one|TEST header line/.test(rl.x), `${sport}: the long X post skips the venue, header sentence and bottom line`)
+  ok(rl.x.split('\n')[2] === callVoice(W).hook && rl.x.endsWith(`${callVoice(W).ask}\n\n${RECEIPT}`), `${sport}: the long X post: hook under the headline, ask, then the receipt`)
 }
 
 console.log(bad ? `${bad}/${n} FAILED` : `${n} voice checks passed (TEST data)`)
