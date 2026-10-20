@@ -213,7 +213,9 @@ await ok('HIS ENTRY POSTS (card_don_<sport>_<two_man|n_man|straight_N>, up to 3 
     assert.equal(P.sportOfKind(k), sp, k)
     assert.equal(mayPostNow({ kind: k, now: at(DAY, '12:30') }).ok, true, k)
   }
-  assert.ok(!P.isDonovanKind('card_nhl') && !P.isDonovanKind('card_don_nba_two_man') && !P.isRepeatExempt('card_nhl'))
+  assert.ok(!P.isDonovanKind('card_nhl') && !P.isRepeatExempt('card_nhl'))
+  // BUCKETS' Card is on (2026-10-20): his NBA entries are his posts like every other sport's
+  assert.ok(P.isDonovanKind('card_don_nba_two_man') && P.sportOfKind('card_don_nba_n_man_1_result') === 'nba' && P.tierOf('card_nba') === P.tierOf('card_nhl'))
   assert.deepEqual(untagged(), [])
 })
 await ok('hold and drop: a post that is not due is held with the next window; 30 minutes before its game it is dropped', () => {
