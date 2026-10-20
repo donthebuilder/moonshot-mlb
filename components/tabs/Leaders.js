@@ -657,8 +657,11 @@ key={lens}
         <Fold id="comebacks" title="🔄 Comeback board" meta="who wins after falling behind — and who gives it away">
           <ComebackBoard />
         </Fold>
-        {/* AWARD RACES (2026-10-20, lib/awards.js): draws nothing until MOONSHOT's award model ships (BUCKETS has the first). */}
-        <AwardRaces sport="mlb" />
+        {/* AWARD RACES (2026-10-20, lib/awards.js + lib/mlb/awards.js): MVP, Cy Young and ROY, AL and NL. A name opens his card
+            (the slate's when he plays tonight, else the archive card, as Quick Search opens anyone); a club opens its page. */}
+        <AwardRaces sport="mlb"
+          onOpenPlayer={(id, r) => { const p = slateById.get(Number(id)); onPlayerClick?.(p || { api_only: true, player_id: String(id), name: r?.name || '', team: r?.team || '', bats: '?' }) }}
+          onOpenTeam={(team) => openTeam(team)?.()} />
       </div>
     </div>
   )
