@@ -19,7 +19,9 @@ import { FactLines } from '../matchup/MatchupParts'
 import { alpha } from '../../lib/scales'
 import FiltersSheet from '../player/FiltersSheet'
 import useHashFilters from '../../lib/useHashFilters'
-import { ChartLegend, ChartEmpty, StatStrip, viewBtn } from '../charts'
+import { ChartLegend, ChartEmpty, StatStrip } from '../charts'
+import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
+import LampTable from './LampTable'
 import FlatStage from '../charts/FlatStage'
 import TeamMark from '../TeamMark'
 
@@ -192,11 +194,11 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
   const winWords = onlyDates ? 'In these games' : win === 'last5' ? 'Last 5 games' : win === 'last10' ? 'Last 10 games' : 'The season'
   const summary = `${winWords}: ${shots.length} ${filtered ? 'shots in view' : 'shots'}, ${goalsShown} ${goalsShown === 1 ? 'goal' : 'goals'}${slotZ && shots.length ? `. ${Math.round(slotZ.pct)}% came from the slot.` : '.'}`
   const viewToggle = gl ? (
-    <div role="group" aria-label="Chart view" style={{ display: 'inline-flex', gap: 6 }}>
+    <div role="group" aria-label="Chart view" style={{ display: 'inline-flex', gap: 4, marginLeft: 6 }}>
       {[['2D', false], ['3D', true]].map(([label, on]) => (
-        <button key={label} type="button" aria-pressed={arena === on} onClick={() => setArena(on)}
+        <button key={label} type="button" className={FLAT_CHIP_CLASS} aria-pressed={arena === on} onClick={() => setArena(on)}
           title={on ? 'The same shots, in the arena, in 3D' : 'The flat rink'}
-          style={{ ...viewBtn(arena === on, C.ice, C, NUM_FONT), font: `800 12px/1 ${NUM_FONT}`, minWidth: 52, minHeight: 44 }}>{label}</button>
+          style={flatChip(arena === on, C.ice, C, NUM_FONT)}>{label}</button>
       ))}
     </div>
   ) : null
@@ -260,7 +262,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
             <RinkArena shots={view === 'zones' || view === 'dots' || view === 'goalie' ? shots : NO_SHOTS} goalieRead={view === 'goalie' ? goalieRead : null} onPickZone={(z) => setPicked({ zone: z })} map={m} league={data.league} slot={data.slot} gridSpec={data.gridSpec} view={view === 'zones' ? 'dots' : view}
               speed={speed} hardest={hardest} stats={stats} dockChips={dockChips} onClearAll={clearAll} totalShots={recent.length} slotPct={slotStat?.v ? parseInt(slotStat.v, 10) : null}
               title={sel?.name || sel?.team || sel?.against || ''} subtitle={`${shots.length} of the last ${recent.length} attempts`} venue={venue}
-              onPick={(sh) => setPicked(sh)} onPickCell={(cell) => setPicked({ cell })} hillShots={shots} />
+              onPick={(sh) => setPicked(sh)} onPickCell={(cell) => setPicked({ cell })} />
           )}
           {/* 2D / 3D, one chart (2026-10-03): the flat rink and the arena share the chart's place; the toggle rides with the view buttons */}
           {arena && gl && viewToggle}
@@ -358,36 +360,32 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
                     </div>
                   </>}
               </div>
-              {/* VS GOALIE: the goalie's named zones -- his share of the shots there (the bar), the
-                  goalie's rate vs the league's, MATCH where both line up (lib/nhl/zones matchZones) */}
+              {/* VS GOALIE, AS A TABLE (2026-10-20, Donovan: likes that it shows the matching, not the bar chart): each named zone his busiest
+                  first -- his share of the shots, the goalie's rate there, against the league, and ATTACK where both line up (lib/nhl/zones
+                  matchZones). A row lights its zone on the rink. */}
               {view === 'goalie' && goalieRead && shots.length > 0 && (
-                <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }} aria-label="Where the shooter and the goalie match">
-                  {matchZones(goalieRead, shots).filter((z) => z.n && (!compact || z.match || z.share >= 0.1)).map((z) => {
-                    const pct = Math.round(z.share * 100)
-                    return (
-                      <button key={z.key} type="button" onClick={() => setPicked({ zone: z.key })} title={`${z.label}: ${z.n} of ${who === 'He' ? 'his' : 'their'} ${shots.length} shots${z.r.thin ? '; the goalie is thin here' : `; ${goalie?.name} lets in ${(z.r.rate * 100).toFixed(1)}% (league ${(z.r.lg * 100).toFixed(1)}%)`}`}
-                        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', color: 'inherit' }}>
-                        <span style={{ width: 70, color: z.match ? C.lamp : C.text3, fontFamily: NUM_FONT, fontWeight: z.match ? 800 : 400 }}>{z.label}</span>
-                        <div style={{ flex: 1, height: 11, background: C.bg3, borderRadius: 2, outline: z.match ? `1px dashed ${C.lamp}` : 'none', outlineOffset: 1 }}>
-                          <div style={{ width: `${Math.max(2, pct)}%`, height: '100%', background: alpha(C.ice, 0.75), borderRadius: 2 }} />
-                        </div>
-                        <span style={{ fontFamily: NUM_FONT, color: C.text2, minWidth: 96, textAlign: 'right' }}>
-                          {pct}% <span style={{ color: z.r.thin ? C.text3 : z.r.tint === 'worse' ? C.lamp : z.r.tint === 'better' ? RINK.blue : C.text3 }}>{z.r.thin ? 'thin' : `${(z.r.rate * 100).toFixed(1)}%`}</span>
-                          {z.match ? <b style={{ color: C.lamp }}> MATCH</b> : null}
-                        </span>
-                      </button>
-                    )
-                  })}
+                <div style={{ marginTop: 10 }} aria-label="Where the shooter and the goalie match">
+                  <LampTable rows={matchZones(goalieRead, shots).filter((z) => z.n && (!compact || z.match || z.share >= 0.1)).map((z) => ({
+                    _id: z.key, key: z.key, label: z.label, share: z.share * 100, rate: z.r.thin ? null : z.r.rate * 100, lg: z.r.lg != null ? z.r.lg * 100 : null,
+                    d: z.r.thin ? null : z.r.d * 100, sa: z.r.sa, match: z.match }))}
+                    columns={[
+                      { key: 'label', label: 'Zone', group: 'Zone', w: 92, heat: false, bold: true, sticky: true, fmt: (v, r) => <span style={{ color: r.match ? C.cream : undefined }}>{v}</span> },
+                      { key: 'share', label: who === 'He' ? 'His shots' : 'Their shots', group: who === 'He' ? 'Him' : 'Them', w: 66, mono: true, fmt: (v) => `${Math.round(v)}%` },
+                      { key: 'rate', label: 'Lets in', group: 'Goalie', w: 58, mono: true, heat: false, title: 'Goals per shot on goal from the zone', fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>few</span> : <span style={{ color: r.d > 0 ? C.lamp : undefined, fontWeight: 800 }}>{v.toFixed(1)}%</span>) },
+                      { key: 'd', label: 'vs Lg', group: 'Goalie', w: 54, mono: true, heat: false, fmt: (v) => (v == null ? '—' : `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}`) },
+                      { key: 'match', label: '', group: 'Goalie', w: 58, heat: false, fmt: (v) => (v ? <b style={{ color: C.cream, fontSize: 10, letterSpacing: '.06em' }}>ATTACK</b> : '') },
+                    ]}
+                    onRowClick={(r) => setPicked({ zone: (r?._raw ?? r).key })} heatMode="none" maxHeight={9999} maxRows={9}
+                    caption={`Every zone ${who === 'He' ? 'he shoots' : 'they shoot'} from, busiest first: the share of the shots, what ${goalie?.name || 'the goalie'} lets in there and against the league. ATTACK = he lets in more there and ${Math.round(MATCH_SHARE * 100)}%+ of the shots come from it.`} />
                 </div>
               )}
               {/* ONE LEGEND, FROM WHAT IS DRAWN (BATCH-2D-CORE flag 2): the
                   two hand-written keys (under the rink and here) became this. */}
               <ChartLegend theme={C} style={{ marginTop: 8 }} items={view === 'goalie' && goalieRead
-                ? [{ key: 'worse', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.lamp}aa` }} />, label: `${goalie?.name || 'the goalie'} lets in more than the league` },
-                  { key: 'better', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${RINK.blue}aa` }} />, label: 'fewer' },
-                  { key: 'thin', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, border: `1px solid ${C.border2}` }} />, label: 'thin' },
-                  { key: 'match', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, border: `1.5px dashed ${C.lamp}` }} />, label: `MATCH = he's weak there and ${who === 'He' ? 'he takes' : 'they take'} ${Math.round(MATCH_SHARE * 100)}%+ of the shots from it` },
-                  { key: 'bar', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: alpha(C.ice, 0.75) }} />, label: `bar = ${who === 'He' ? 'his' : 'their'} share of the shots` }]
+                ? [{ key: 'worse', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.lamp}cc` }} />, label: `lit = ${goalie?.name || 'the goalie'} lets in more than the league` },
+                  { key: 'better', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.bg}aa`, border: `1px solid ${C.border2}` }} />, label: 'dark = fewer' },
+                  { key: 'match', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, border: `1.5px solid ${C.cream}` }} />, label: 'outlined = ATTACK' },
+                  { key: 'tap', mark: null, label: 'tap a zone' }]
                 : view === 'vs'
                 ? [{ key: 'more', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.lamp}aa` }} />, label: `more of ${who === 'He' ? 'his' : 'their'} attempts here than the league's (points)` },
                   { key: 'less', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.ice}aa` }} />, label: 'fewer' },
@@ -403,8 +401,8 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
               period / hardest sit behind MORE */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              {!onlyDates && <Pills tall ariaLabel="Shot window" value={win} onChange={setWin} options={WINDOWS} />}
-              {seasonSwitch && <Pills tall ariaLabel="Shot map season" value={localSeason} onChange={setLocalSeason} options={SEASONS} />}
+              {!onlyDates && <Pills ariaLabel="Shot window" value={win} onChange={setWin} options={WINDOWS} />}
+              {seasonSwitch && <Pills ariaLabel="Shot map season" value={localSeason} onChange={setLocalSeason} options={SEASONS} />}
               <span data-shot-season={data.season} style={{ color: data.fallback ? C.amber : C.text2, font: `800 11px/1.3 ${NUM_FONT}`, letterSpacing: '.06em' }}>{stampLine(data, m)}</span>
             </div>
             {recent.length > 0 && recent[0].length > 3 && (

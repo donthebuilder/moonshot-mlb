@@ -1,4 +1,5 @@
 'use client'
+import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 import { useState } from 'react'
 import { STATUS_WORD } from '../../lib/callStatus'
 import CallStatusBadge from '../CallStatusBadge'
@@ -11,7 +12,6 @@ import { fmtDay } from '../../lib/nhl/format'
 import { hashParams, writeHash } from '../../lib/urlState'
 import { StaleNote, DelayedBanner as SharedDelayedBanner } from '../StaleBanner'
 import { Empty } from '../ui'
-import { FilterPill } from '../Filters'
 import { localTime } from '../../lib/localTime'
 export { fmtDay, fmtPct3, fmt2, fmtSec, plusMinus } from '../../lib/nhl/format'
 
@@ -137,8 +137,10 @@ export function Kicker({ children, tone = C.ice }) {
 export function Pills({ value, onChange, options, ariaLabel }) {
   return (
     <div role="group" aria-label={ariaLabel} className="chip-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+      {/* flat square chips (lib/chips.js, 2026-10-20); 44px to the thumb through .tap-box */}
       {options.map((o) => (
-        <FilterPill key={o.key} active={o.key === value} onClick={() => onChange(o.key)} title={o.title} disabled={o.disabled}>{o.text}</FilterPill>
+        <button key={o.key} type="button" className={FLAT_CHIP_CLASS} aria-pressed={o.key === value} onClick={() => !o.disabled && onChange(o.key)} title={o.title} disabled={o.disabled}
+          style={flatChip(o.key === value, C.ice, C, NUM_FONT, { disabled: o.disabled })}>{o.text}</button>
       ))}
     </div>
   )
