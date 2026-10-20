@@ -1,8 +1,9 @@
 'use client'
 import { Fragment, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
-import PageHeader from '../../PageHeader'
 import TeamMark from '../../TeamMark'
+import GameHead from '../../game/GameHead'
+import { nbaLogo } from '../../../lib/nba/teams'
 import Tap from '../../Tap'
 import ShareCardButton from '../../card/ShareCardButton'
 import { shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
@@ -55,9 +56,13 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
   const SECTIONS = {
     header: () => (
       <>
-        <PageHeader eyebrow={`BUCKETS · GAME · ${fmtDay(gameDay(data.date)).toUpperCase()}`} title={`${away.name} at ${home.name}`} theme={C} numFont={NUM_FONT} accent={C.purple} showToday={false}
-          note={<>{live ? <><RimDot />{data.detail}</> : done ? 'Final' : `Tip ${fmtTip(data.date)}`}{data.venue ? ` · ${data.venue}` : ''}</>}
-        />
+        {/* LAMP's game header, shared (components/game/GameHead, 2026-10-20): each club once and big, the score or @ between them; the 📸 at the
+            right end of the eyebrow row */}
+        <GameHead C={C} NUM_FONT={NUM_FONT} accent={C.purple} eyebrow="BUCKETS · GAME" meta={fmtDay(gameDay(data.date))}
+          share={<ShareCardButton sport="nba" what="this game" style={{ marginLeft: 'auto' }} url={shareUrl({ kind: 'game', sport: 'nba', game: id, market: 'pts', date: gameDay(data.date) })} filename={`game-${slug(away.abbrev)}-${slug(home.abbrev)}_${stamp(gameDay(data.date))}.png`} />}
+          away={{ abbrev: away.abbrev, name: away.name, score: away.score, logo: nbaLogo(away.abbrev) }} home={{ abbrev: home.abbrev, name: home.name, score: home.score, logo: nbaLogo(home.abbrev) }}
+          state={data.state} status={live ? data.detail : done ? 'FINAL' : `${fmtDay(gameDay(data.date))} · ${fmtTip(data.date)}`} liveInk={C.purple} liveDot={<RimDot />}
+          venue={data.venue || ''} />
         <DelayedBanner error={error} what="game data" />
         <GameTotalLine sport="nba" row={gameTotals?.[String(id)]} />
       </>
@@ -94,11 +99,7 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* 📸 this game as a baseball card: the right end of the top row, beside Back (no extra line on a phone) */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <BackBtn onBack={onBack} label={backLabel} />
-        <ShareCardButton sport="nba" what="this game" style={{ marginLeft: 'auto' }} url={shareUrl({ kind: 'game', sport: 'nba', game: id, market: 'pts', date: gameDay(data.date) })} filename={`game-${slug(away.abbrev)}-${slug(home.abbrev)}_${stamp(gameDay(data.date))}.png`} />
-      </div>
+      <BackBtn onBack={onBack} label={backLabel} />
       {gameSections('nba', 'page').map((sec) => <Fragment key={sec.id}>{SECTIONS[sec.id]?.()}</Fragment>)}
     </div>
   )
