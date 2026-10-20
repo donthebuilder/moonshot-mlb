@@ -268,7 +268,8 @@ function normNfl(e, slate) {
     // scorer still gets his row, just without a link into the board.
     // A row stored without one (the QB rushing TDs) joins the same way at
     // read time; the stored row is never rewritten.
-    href: scorerId ? `/app#sport=nfl&tab=players&player=${encodeURIComponent(scorerId)}` : null,
+    // a touchdown stored with no scorer (a team / defensive score) prints the club, so it links to the club (check-clickable: team:TEN)
+    href: scorerId ? `/app#sport=nfl&tab=players&player=${encodeURIComponent(scorerId)}` : (!r.scorer_name && r.team ? teamHref('nfl', r.team) : null),
     called: e.status === 'called',
     onBoard: e.status !== 'off',
     detail: [
