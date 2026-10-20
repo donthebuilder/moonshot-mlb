@@ -12,6 +12,9 @@ import GameCockpit from './GameCockpit'
 import Storylines from './Storylines'
 import TeamVsStarter from './TeamVsStarter'
 import TeamMark from './TeamMark'
+import AttackSheet from './game/AttackSheet'
+import { mlbAttackRows } from '../lib/mlb/attackSheet'
+import { SPORT_ACCENT } from '../lib/sportAccent'
 
 // GAME DEEP DIVE — what clicking a game actually earns you (2026-08-06).
 //
@@ -496,6 +499,18 @@ export default function GameDeepDive({ game, allPlayers = [], slateDate = '', re
           <SidePanel key={t} team={t} rows={gp.filter((p) => clean(p?.team, '') === t)} odds={odds} onPlayerClick={onPlayerClick} />
         ))}
       </div>
+
+      {/* HOW TO ATTACK HIM (2026-10-20, Donovan: "how to attack for all sports"): TUDDY's attack sheet on each starter --
+          his traits ranked among tonight's starters, each answered by the bat in the other lineup who beats it. */}
+      {teams.length === 2 && (
+        <div style={{ marginTop: 10 }}>
+          <AttackSheet sport="mlb" teams={teams} C={C} NUM_FONT={NUM_FONT} accent={SPORT_ACCENT.mlb} kicker="HOW TO ATTACK THE STARTER"
+            rowsFor={(off) => mlbAttackRows(gp, allPlayers, off)} turn={() => 'bats'} answerWord="WHO BEATS HIM"
+            head={(def) => { const r = mlbAttackRows(gp, allPlayers, def === teams[0] ? teams[1] : teams[0]).find((x) => x.rank != null); return `${def} STARTER${r ? ` · RANK OF ${r.of} TONIGHT` : ''}` }}
+            onPick={onPlayerClick ? (p) => onPlayerClick(p) : null}
+            note="Fly balls, contact and his pitch mix are the usual answer to that trait; the hitter and his number are real." />
+        </div>
+      )}
       </>)}
 
       {/* 🆚 career vs the starter, both sides (2026-08-14 — the competitor

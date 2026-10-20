@@ -9,6 +9,7 @@ import { Dial } from '../VerdictHero'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { receiverEdge } from '../../lib/nfl/gameMatchup'
 import { attackRows } from '../../lib/nfl/attackSheet'
+import AttackSheet from '../game/AttackSheet'
 import { factsNote } from './tabs/Matchups'
 import { softRole, softLine } from '../../lib/nfl/dvpSignal'
 import { mostWord } from '../../lib/format'
@@ -150,44 +151,13 @@ export function KeyPlayers({ matchup, data, game, onPlayerClick, onOpenTeam }) {
 // says so (lib/nfl/attackSheet.js). The most extreme traits come first; a standout (top or bottom 8) wears the defense's
 // colour, the middle plain ink. The play-type words are the usual football answer, said once under the rows.
 export function MatchupScoreboard({ matchup, data, game, onPlayerClick = null }) {
-  const [ball, setBall] = useState(game.home)
-  const def = ball === game.home ? game.away : game.home
-  const rows = attackRows(matchup, data?.players, ball, def)
   const chart = Number(matchup?.chart_season)
   const slate = Number(data?.season) || null
-  if (!attackRows(matchup, data?.players, game.home, game.away).length && !attackRows(matchup, data?.players, game.away, game.home).length) return null
-  const pill = (t) => ({ minHeight: 0, padding: '6px 12px', borderRadius: 999, cursor: 'pointer', font: `800 12px/1 ${NUM_FONT}`, background: 'transparent',
-    border: `1px solid ${t === ball ? C.green : C.border2}`, color: t === ball ? C.green : C.text2, display: 'inline-flex', alignItems: 'center', gap: 6 })
   return (
-    <section aria-label="How they defend" style={{ marginBottom: 16 }}>
-      <Kicker>HOW TO ATTACK THEM</Kicker>
-      <div role="group" aria-label="Whose ball" style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
-        {[game.away, game.home].map((t) => (
-          <button key={t} type="button" className="tap-box" aria-pressed={t === ball} onClick={() => setBall(t)} style={pill(t)}>
-            <TeamMark sport="nfl" abbr={t} variant="logo" px={16} />{t} ball
-          </button>
-        ))}
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.08em', color: C.text3, padding: '4px 0' }}>
-        <span>{def} DEFENSE · RANK OF 32</span><span>WHO BEATS IT</span>
-      </div>
-      {rows.map((r) => (
-        <div key={r.k} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 0.9fr) 14px minmax(0, 1.3fr)', gap: 8, alignItems: 'center', minHeight: 44, padding: '6px 0', borderTop: `1px solid ${C.border}` }}>
-          <span style={{ display: 'grid', gap: 2, minWidth: 0 }}>
-            <b style={{ font: `900 12px/1.15 ${NUM_FONT}`, letterSpacing: '.03em', color: r.tier === 1 ? C.text2 : C.text }}>{r.word}</b>
-            <span style={{ font: `700 11px/1.2 ${NUM_FONT}`, color: C.text3 }}>{r.val} · #{r.rank}</span>
-          </span>
-          <span aria-hidden="true" style={{ font: `900 14px/1 ${NUM_FONT}`, color: C.green, textAlign: 'center' }}>→</span>
-          <span style={{ display: 'grid', gap: 2, minWidth: 0 }}>
-            <b style={{ fontSize: 13, lineHeight: 1.2, color: C.text }}>{r.player && onPlayerClick ? <Tap onClick={() => onPlayerClick(r.player, 'TD')}>{r.name}</Tap> : r.name}</b>
-            <span style={{ fontSize: 11, color: C.text2, lineHeight: 1.3 }}>{r.why}</span>
-          </span>
-        </div>
-      ))}
-      <p style={{ margin: '6px 0 0', fontSize: 11, color: C.text3, lineHeight: 1.4 }}>
-        Quick throws, go deep, run it: the usual answer to that trait; the player and his number are real.{chart && slate && chart < slate ? ` Pass rush, coverage and receivers vs zone / man: ${chart}.` : ''}
-      </p>
-    </section>
+    <AttackSheet sport="nfl" teams={[game.away, game.home]} start={game.home} C={C} NUM_FONT={NUM_FONT} accent={C.green} Kicker={Kicker}
+      ariaLabel="How they defend" rowsFor={(off, def) => attackRows(matchup, data?.players, off, def)} head={(def) => `${def} DEFENSE · RANK OF 32`}
+      onPick={onPlayerClick ? (p) => onPlayerClick(p, 'TD') : null}
+      note={`Quick throws, go deep, run it: the usual answer to that trait; the player and his number are real.${chart && slate && chart < slate ? ` Pass rush, coverage and receivers vs zone / man: ${chart}.` : ''}`} />
   )
 }
 
