@@ -3,7 +3,8 @@ import { useMemo } from 'react'
 import PageHeader from '../../PageHeader'
 import { MatchLogos } from '../../TeamMark'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
-import { useBucketsDefense } from '../../../lib/nba/useBuckets'
+import { useBucketsDefense, useBucketsDefPos } from '../../../lib/nba/useBuckets'
+import DefPosTable from '../DefPosTable'
 import BucketsTable from '../BucketsTable'
 import { EmptyState, DelayedBanner, Loading, Kicker, DayPager, LastSeasonNote, Why, fmtDay, fmtTip } from '../ui'
 
@@ -18,6 +19,7 @@ const rankTone = (r) => (r == null ? C.text3 : r <= 5 ? C.purple : r >= 26 ? C.t
 
 export default function Matchups({ date, setDate, onOpenTeam, onOpenGame }) {
   const { data, error, loading } = useBucketsDefense(date)
+  const { data: dp } = useBucketsDefPos(date)
   const by = useMemo(() => new Map((data?.teams || []).map((t) => [t.abbrev, t])), [data])
   const games = data?.games || []
   const statCols = (sub) => STATS.map(([k, label]) => ({
@@ -57,6 +59,13 @@ export default function Matchups({ date, setDate, onOpenTeam, onOpenGame }) {
           </>
         )}
       </section>
+      {dp?.byPos?.G && (
+        <section>
+          <Kicker>DEFENSE VS POSITION · {dp.seasonLabel}</Kicker>
+          {dp.stale && <LastSeasonNote label={dp.seasonLabel} what="defense-vs-position numbers" />}
+          <DefPosTable key={dp.date} byPos={dp.byPos} tonight={(dp.games || []).flatMap((g) => [g.away.abbrev, g.home.abbrev])} onOpenTeam={onOpenTeam} />
+        </section>
+      )}
       {(data?.teams || []).length > 0 && (
         <section>
           <Kicker>EVERY DEFENSE · {data.seasonLabel}</Kicker>

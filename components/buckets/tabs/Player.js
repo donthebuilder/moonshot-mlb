@@ -32,6 +32,9 @@ import TeamMark from '../../TeamMark'
 import Tap from '../../Tap'
 import SeasonToggle from '../../nfl/SeasonToggle'
 import { TabBtn, Navigator } from '../../card/CardNav'
+import { DefPosFor } from '../DefPosSheet'
+import PosVsOpp from '../PosVsOpp'
+import { posOf, POS_WORD } from '../../../lib/nba/defPos'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useCardLock, useCallMask, useMemberState, CardLockLine } from '../../MemberGate'
@@ -466,7 +469,8 @@ function VsTab({ card, games, logRows, nextGame, row, onOpenTeam, onOpenGame, lo
   const f1 = (v) => (v == null ? '—' : Number(v).toFixed(1))
   const sumRows = sum ? [{ _id: 'his', who: `${card.name.split(' ').slice(-1)[0]} vs ${opp}`, gp: sum.gp, min: sum.min, pts: sum.pts, reb: sum.reb, ast: sum.ast, tpm: sum.tpm, fgPct: sum.fgPct != null ? `${(sum.fgPct * 100).toFixed(1)}%` : '—', thin: sum.thin }] : []
   const sumCols = [
-    { key: 'who', label: 'His games', group: 'Split', w: 130, heat: false, sticky: true, bold: true, numeric: false },
+    // the phone shortens the cell to the club's code, so it opens the club (check-clickable)
+    { key: 'who', label: 'His games', group: 'Split', w: 130, heat: false, sticky: true, bold: true, numeric: false, link: () => (onOpenTeam && opp ? () => onOpenTeam(opp) : null) },
     { key: 'gp', label: 'GP', group: 'Sample', w: 38, heat: false, mono: true },
     { key: 'min', label: 'MIN', group: 'Per game', w: 44, heat: false, mono: true, fmt: f1 },
     { key: 'pts', label: 'PTS', group: 'Per game', w: 44, heat: false, mono: true, fmt: f1, bold: true },
@@ -491,6 +495,13 @@ function VsTab({ card, games, logRows, nextGame, row, onOpenTeam, onOpenGame, lo
       {sum && <BucketsTable rows={sumRows} columns={sumCols} heatMode="none" maxHeight={9999} maxRows={1} caption={`${sum.gp} game${sum.gp === 1 ? '' : 's'}${sum.thin ? ': few games, read it lightly' : ''}.`} />}
       {al && <p style={{ margin: 0, fontSize: 12, color: C.text2, lineHeight: 1.5 }}>{opp} allows <b style={{ color: C.text, fontFamily: NUM_FONT }}>{f1(al.oppPts)}</b> points a game, <b style={{ color: C.text, fontFamily: NUM_FONT }}>#{rank}</b> most of 30 (1 = gives up the most), and {f1(al.oppReb)} rebounds, {f1(al.oppAst)} assists, {f1(al.oppTpm)} threes. The league’s own opponent stats; nothing modelled.</p>}
       {rows.length > 0 && <BucketsTable rows={rows} columns={logCols} onRowClick={(r) => onOpenGame?.((r?._raw ?? r).id)} heatMode="standouts" maxHeight={9999} maxRows={rows.length} caption={`His games against ${opp}, newest first. Each row opens the game.`} />}
+      {opp && posOf(card.pos) && (
+        <>
+          <Kicker>{opp} D VS {POS_WORD[posOf(card.pos)].toUpperCase()}</Kicker>
+          <DefPosFor opp={opp} espnPos={card.pos} onOpenTeam={onOpenTeam} />
+          <PosVsOpp opp={opp} espnPos={card.pos} onOpenGame={onOpenGame} />
+        </>
+      )}
     </section>
   )
 }
