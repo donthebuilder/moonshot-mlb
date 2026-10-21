@@ -5,6 +5,7 @@
 // Since 2026-10-20: quick chips for the called players + the game's storylines (see below).
 import { useEffect, useState } from 'react'
 import CallStatusBadge from './CallStatusBadge'
+import { playerHref } from '../lib/routes'
 import Tap from './Tap'
 import { useLockOf, CardLockLine } from './MemberGate'
 
@@ -59,7 +60,10 @@ export default function GameWriteupBlock({ w, theme, words, onOpen, depth = null
           {stories.slice(0, STORY_MAX).map((st, i) => (
             <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'baseline', fontSize: TYPE.body, lineHeight: 1.45, color: C.text2, minWidth: 0 }}>
               <span style={{ flexShrink: 0 }}>{st.icon}</span>
-              <span style={{ minWidth: 0 }}>{(st.parts || []).map((x, j) => (x.t === 'name' ? <b key={j} style={{ color: C.text }}>{x.v}</b>
+              <span style={{ minWidth: 0 }}>{(st.parts || []).map((x, j) => (x.t === 'name'
+                ? (x.v === st.name && st.player_id && !String(st.player_id).startsWith('team:')
+                  ? <a key={j} href={playerHref(w.sport, st.player_id)} style={{ color: C.text, fontWeight: 800, textDecoration: 'none' }}>{x.v}</a>
+                  : <b key={j} style={{ color: C.text }}>{x.v}</b>)
                 : x.t === 'num' ? <b key={j} style={{ fontFamily: NUM_FONT, color: ACCENT }}>{x.v}</b> : <span key={j}>{x.v}</span>))}</span>
             </div>
           ))}
