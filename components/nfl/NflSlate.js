@@ -9,9 +9,10 @@ import GameSwitcher from '../GameSwitcher'
 import { panelPairs, panelSubs, gameSections } from '../../lib/game/sections'
 import { GameFilterRail, SlateStrip, GamePanelPills, PanelAnchor, GameFrame, PrevNextGame } from '../slate/SlateParts'
 import { Kicker } from './Kicker'
-import { GameHeader, KeyPlayers, MatchupScoreboard, ImportantStats } from './GameSections'
+import { KeyPlayers, MatchupScoreboard, ImportantStats } from './GameSections'
 import GameFieldSmall from './GameFieldSmall'
 import { GameDvp } from './tabs/Matchups'
+import GameHeadRow from '../slate/GameHeadRow'
 import ShareCardButton from '../card/ShareCardButton'
 import { shareUrl, slug, stamp, gameDay } from '../../lib/cards/saveCard'
 import { tdStatusFor } from '../../lib/nfl/tdStatus'
@@ -297,10 +298,19 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
           <div id="tuddy-slate-game" style={{ scrollMarginTop: 'calc(var(--hdr-h, 0px) + var(--gsw-h, 0px) + 8px)', marginBottom: 20 }}>
             <GameFrame accent={C.green} past={Boolean(g.completed)}>
               {/* 1. THE GAME, ONCE: the matchup, the kickoff, the dial, and this game's own total */}
-              <div style={{ padding: '12px 14px 12px' }}>
-                <GameHeader game={g} when={kickWhen(g)} air={airText(g)} xtd={x} heat={heatOf(g)} past={Boolean(g.completed)} onOpenTeam={onOpenTeam}
-                  action={<ShareCardButton sport="nfl" what="this game" style={{ margin: '-12px 0' }} url={shareUrl({ kind: 'game', sport: 'nfl', game: g.game_id })} filename={`game-${slug(g.away)}-${slug(g.home)}_${stamp(gameDay(g.kickoff))}.png`} />}
-                  outLine={(() => { const oc = outCounts([g.away, g.home]); return oc?.out ? `${oc.out} out` : null })()} />
+              {/* ONE ROW (2026-10-21, Donovan: "space is large for no reason"): components/slate/GameHeadRow.js, shared with LAMP and BUCKETS;
+                  the venue / air / out line and the live drive ride one small line under it */}
+              <GameHeadRow sport="nfl" away={g.away} home={g.home} state={g.state === 'in' ? 'live' : g.completed ? 'final' : 'upcoming'} score={[g.away_score, g.home_score]} onOpenTeam={onOpenTeam}
+                status={g.state === 'in' ? (g.detail || 'LIVE') : g.completed ? 'FINAL' : kickWhen(g)}
+                dial={{ value: x, dp: 1, pct: 100 * heatOf(g), col: C.green, title: x == null ? TD_WORD : `${x.toFixed(1)} ${TD_WORD} between the two teams: each club's touchdown rate against the other's defense. The ring shows where it sits among all matchups in the league.`, label: 'TDs' }}
+                share={<ShareCardButton sport="nfl" what="this game" icon url={shareUrl({ kind: 'game', sport: 'nfl', game: g.game_id })} filename={`game-${slug(g.away)}-${slug(g.home)}_${stamp(gameDay(g.kickoff))}.png`} />}
+                sub={(() => {
+                  const oc = outCounts([g.away, g.home])
+                  const bits = [g.venue, airText(g), oc?.out ? `${oc.out} out` : null].filter(Boolean)
+                  const drive = g.state === 'in' && (g.down_distance || g.possession) ? [g.possession ? `${g.possession} ball` : null, g.down_distance || null, g.red_zone ? 'RED ZONE' : null].filter(Boolean).join(' · ') : null
+                  return bits.length || drive ? <>{bits.join(' · ')}{drive ? <span style={{ color: C.green, fontWeight: 800 }}>{bits.length ? ' · ' : ''}{drive}</span> : null}</> : null
+                })()} />
+              <div style={{ padding: '0 14px 12px' }}>
                 <GameTotalLine sport="nfl" row={gameTotals?.[String(g.game_id)]} style={{ marginTop: 8 }} />
                 {/* THE DVP GRID, AT THE TOP (Donovan 10-18): what each defense allows each role, one tap to switch clubs */}
                 <GameDvp key={g.game_id} matchup={matchup} away={g.away} home={g.home} slateSeason={data?.season}

@@ -2,7 +2,7 @@
 import { Fragment, useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import Tap from '../../Tap'
-import { Dial } from '../../VerdictHero'
+import GameHeadRow from '../../slate/GameHeadRow'
 import TeamMark, { MatchLogos } from '../../TeamMark'
 import GameSwitcher from '../../GameSwitcher'
 import BoardTopBar from '../../BoardTopBar'
@@ -10,7 +10,6 @@ import { useIsPhone } from '../../MobileFold'
 import { useHashFilter } from '../../../lib/filterHash'
 import { panelPairs, panelSubs, gameSections } from '../../../lib/game/sections'
 import { ViewPills, GameFilterRail, SlateStrip, GamePanelPills, PanelAnchor, GameFrame, PrevNextGame } from '../../slate/SlateParts'
-import { FactTiles } from '../../matchup/MatchupParts'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsBoard, useBucketsExpected, useBucketsTeamModel, useBucketsHot } from '../../../lib/nba/useBuckets'
 import { MARKET_OPTIONS, NBA_MARKETS } from '../../../lib/nba/legs'
@@ -178,11 +177,11 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
           read: () => (
             <PanelAnchor id="read" gamePk={g.id}>
               <NbaWriteupBlock gameId={g.id} date={shown} onOpenPlayer={onOpenPlayer} />
-              <FactTiles theme={C} numFont={NUM_FONT} big min={130} tiles={[
-                { k: `${away} expected`, v: m1 ? m1.away.pts.toFixed(1) : null, sub: m1 ? 'points' : null },
-                { k: `${home} expected`, v: m1 ? m1.home.pts.toFixed(1) : null, sub: m1 ? 'points' : null },
-                { k: 'Board', v: rows.length && rows.every((r) => r.locked !== false) ? 'Locked' : 'Not locked', sub: rows.length && rows.every((r) => r.locked !== false) ? null : 'can still change' },
-              ]} />
+              {/* one line, not three big tiles (2026-10-20, Donovan: "make that shorter, especially for the phone") */}
+              <div style={{ fontSize: 12, color: C.text3, fontFamily: NUM_FONT, margin: '0 0 6px' }}>
+                {m1 ? <><b style={{ color: C.text }}>{away} {m1.away.pts.toFixed(1)}</b>{' · '}<b style={{ color: C.text }}>{home} {m1.home.pts.toFixed(1)}</b> expected points · </> : null}
+                {rows.length && rows.every((r) => r.locked !== false) ? 'board locked' : 'board not locked, can still change'}
+              </div>
               <div style={{ marginTop: 12 }}><BucketsAttack date={shown} away={away} home={home} onOpenPlayer={onOpenPlayer} /></div>
             </PanelAnchor>
           ),
@@ -219,29 +218,14 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
         return (
           <div id="buckets-slate-game" style={{ scrollMarginTop: 'calc(var(--hdr-h, 0px) + var(--gsw-h, 0px) + 8px)', marginBottom: 20 }}>
             <GameFrame accent={C.purple} past={st === 'final'}>
-              <div style={{ padding: '14px 14px 6px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  {teamLink(away)}
-                  {st === 'upcoming'
-                    ? <span style={{ fontSize: 20, color: C.text3, fontWeight: 600 }}>@</span>
-                    : <span style={{ fontFamily: NUM_FONT, fontSize: 30, fontWeight: 900, color: st === 'live' ? C.purple : C.text }}>{g.away.score ?? 0}–{g.home.score ?? 0}</span>}
-                  {teamLink(home)}
-                  {/* TUDDY's ring in the game header (2026-10-20, "match the nfl pages"): the team model's expected points, the strip's own dial */}
-                  <span style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, width: 84 }}>
-                    <Dial value={m1 ? m1.total : null} dp={0} pct={m1 ? 100 * (m1.heat ?? 0.5) : null} col={heatTier(m1?.heat ?? 0.5) === 'hot' ? C.purple : heatTier(m1?.heat ?? 0.5) === 'cold' ? C.text3 : C.text2} size={64}
-                      title={m1 ? `${m1.total.toFixed(1)} ${EXPECTED_POINTS_WORDS} in this game: ${away} ${m1.away.pts.toFixed(1)}, ${home} ${m1.home.pts.toFixed(1)}` : `No ${EXPECTED_POINTS_WORDS} number for this game yet.`} />
-                    <span style={{ fontSize: 12, lineHeight: 1.25, color: C.text2, textAlign: 'center' }}>{EXPECTED_POINTS_WORDS}</span>
-                  </span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 44 }}>
-                  <span style={{ fontSize: 14, fontFamily: NUM_FONT, color: st === 'live' ? C.purple : C.text2, fontWeight: 800 }}>
-                    {st === 'live' ? (g.detail || 'LIVE') : st === 'final' ? 'FINAL' : fmtTip(g.start)}
-                  </span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                    {onOpenGame && <Tap onClick={() => onOpenGame(g.id)}><span style={{ fontSize: 14, fontFamily: NUM_FONT, color: C.purple, fontWeight: 800 }}>{st === 'upcoming' ? 'Game ›' : 'Box score ›'}</span></Tap>}
-                    <ShareCardButton sport="nba" what="this game" url={shareUrl({ kind: 'game', sport: 'nba', game: g.id, market: m, date: shown || null })} filename={`game-${slug(away)}-${slug(home)}_${stamp(shown)}.png`} />
-                  </span>
-                </div>
+              {/* ONE ROW (2026-10-21, Donovan: "space is large for no reason"): components/slate/GameHeadRow.js, shared */}
+              <GameHeadRow sport="nba" away={away} home={home} state={st} score={[g.away.score, g.home.score]} onOpenTeam={onOpenTeam}
+                status={st === 'live' ? (g.detail || 'LIVE') : st === 'final' ? 'FINAL' : fmtTip(g.start)}
+                link={onOpenGame ? <Tap onClick={() => onOpenGame(g.id)}><span style={{ color: C.purple }}>{st === 'upcoming' ? 'Game ›' : 'Box score ›'}</span></Tap> : null}
+                dial={{ value: m1 ? m1.total : null, dp: 0, pct: m1 ? 100 * (m1.heat ?? 0.5) : null, col: heatTier(m1?.heat ?? 0.5) === 'hot' ? C.purple : heatTier(m1?.heat ?? 0.5) === 'cold' ? C.text3 : C.text2,
+                  title: m1 ? `${m1.total.toFixed(1)} ${EXPECTED_POINTS_WORDS} in this game: ${away} ${m1.away.pts.toFixed(1)}, ${home} ${m1.home.pts.toFixed(1)}` : `No ${EXPECTED_POINTS_WORDS} number for this game yet.`, label: 'pts' }}
+                share={<ShareCardButton sport="nba" what="this game" icon url={shareUrl({ kind: 'game', sport: 'nba', game: g.id, market: m, date: shown || null })} filename={`game-${slug(away)}-${slug(home)}_${stamp(shown)}.png`} />} />
+              <div style={{ padding: '0 12px' }}>
                 <GameTotalLine sport="nba" row={gameTotals?.[String(g.id)]} style={{ marginTop: 2, paddingBottom: 6 }} />
               </div>
               <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px 14px', background: 'rgba(0,0,0,.15)' }}>
