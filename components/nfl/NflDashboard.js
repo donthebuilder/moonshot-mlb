@@ -14,7 +14,7 @@ import CardSection from '../card/CardSection'
 import { leaveTarget } from '../../lib/openTarget'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { resolveTab, pageTitle, NFL_TABS as NFL_TAB_KEYS, isLiveTab } from '../../lib/routes'
-import { usePageTitle } from '../../lib/usePageTitle'
+import { usePageTitle, addressTab } from '../../lib/usePageTitle'
 import ErrorBoundary from '../ErrorBoundary'
 import TabNotFound from '../TabNotFound'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
@@ -148,7 +148,9 @@ export default function NflDashboard({ palettePass = 0 }) {
   // page is the registry's title. One hook, so the two never fight.
   const [hubTitle, setHubTitle] = useState(null)
   const onHub = tab === 'research'
-  usePageTitle(`${(onHub && hubTitle) || pageTitle('nfl', tab)} \u00b7 DASH Network`)
+  const hashDone = useRef(false)   // set once the address has been read (the deep-link effect below)
+  // before the address is read: the tab it names, not Home's title for a frame (2026-10-21)
+  usePageTitle(`${(onHub && hubTitle) || pageTitle('nfl', hashDone.current ? tab : addressTab('nfl'))} \u00b7 DASH Network`)
   const [dataRaw, setData] = useState(null)
   const [meta, setMeta] = useState(null)
   const [matchupRaw, setMatchup] = useState(null)
@@ -253,7 +255,6 @@ export default function NflDashboard({ palettePass = 0 }) {
 
   // Deep links: #sport=nfl&tab=boards is a real address, same contract the
   // MLB side honours.
-  const hashDone = useRef(false)
   useEffect(() => {
     if (hashDone.current) return
     hashDone.current = true

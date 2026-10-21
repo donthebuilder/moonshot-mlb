@@ -18,7 +18,7 @@ import { SportTheme } from '../SportTheme'
 import { TodayContext } from '../TodayContext'
 import { pageTitle, NBA_NAV, isLiveTab } from '../../lib/routes'
 import { useShellRoute } from '../../lib/useShellRoute'
-import { usePageTitle } from '../../lib/usePageTitle'
+import { usePageTitle, addressTab } from '../../lib/usePageTitle'
 import { C, NUM_FONT } from '../../lib/nba/theme'
 import { GAME_ID_RE, PLAYER_ID_RE, TEAM_RE } from '../../lib/nba/ids'
 import { AccentProvider } from '../Filters'
@@ -82,7 +82,7 @@ const ROUTE = {
 
 export default function BucketsDashboard() {
   const { routed, tab, setTab, gameId, teamKey, playerId, missingTab, date, setDate, badDate, setBadDate, openGame, openTeam, openPlayer, backLabel, goBack, peekId, peekPlayer, closePeek, stepPlayer } = useShellRoute(ROUTE)
-  usePageTitle(`${pageTitle('nba', tab)} · DASH Network`)
+  usePageTitle(`${pageTitle('nba', routed ? tab : addressTab('nba'))} · DASH Network`)   // before it routes: the address's tab, not Home's title for a frame (2026-10-21)
   // starred players, remembered night by night for "Your nights, graded"
   useBucketsSaves()
 
