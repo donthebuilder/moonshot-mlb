@@ -105,7 +105,7 @@ function PitchesTable({ active, onPlayerClick }) {
   }), [active])
   const columns = useMemo(() => [
     { key: 'rank', label: '#', w: 30, heat: false, rankCol: true },
-    { key: 'pitch', label: 'His pitch', w: 120, heat: false, sticky: true, group: PM_GROUP, fmt: (v, r) => <span><b>{v}</b> <span style={{ color: C.text3, fontSize: 10 }}>{r.code}</span></span> },
+    { key: 'pitch', label: 'His pitch', w: 120, heat: false, sticky: true, group: PM_GROUP, fmt: (v, r) => <span><b>{v}</b> <span data-pitch="" style={{ color: C.text3, fontSize: 10 }}>{r.code}</span></span> },
     { key: 'use', label: 'Thrown', w: 100, dp: 0, bar: 'primary', barW: 56, domain: [0, 70], group: PM_GROUP, fmt: (v) => `${Math.round(v)}%`, title: 'Share of his pitches that are this one' },
     { key: 'crush', label: `Crush it (of ${nine})`, w: 100, dp: 0, bar: 'secondary', barW: 56, domain: [0, Math.max(nine, 1)], group: PM_GROUP, title: 'Hitters in tonight\u2019s lineup whose damage lines up with this pitch (MOONSHOT\u2019s pitch-mix note)' },
     { key: 'who', label: 'Who', w: 260, heat: false, numeric: false, group: PM_GROUP,

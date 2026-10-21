@@ -515,7 +515,7 @@ const FREE_PREGAME_N = 5
 const _lock = { day: '', at: 0, idx: null }
 async function lockIndex(day) {
   if (_lock.idx && _lock.day === day && Date.now() - _lock.at < 2 * 60 * 1000) return _lock.idx
-  const txt = await fetch(dataUrl(`current/por_rows_${day}.jsonl`), { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')).catch(() => '')
+  const txt = await fetch(dataUrl(`current/por_rows_${day}.jsonl`), { cache: 'no-store', signal: AbortSignal.timeout(10000) }).then((r) => (r.ok ? r.text() : '')).catch(() => '')
   const rows = String(txt).split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean)
   const byKey = new Map(); const games = new Set(); let of = 0
   for (const r of rows) {
@@ -749,7 +749,7 @@ async function published(slot, paths, ok) {
   if (c.data && Date.now() - c.at < TTL_MS) return c.data
   for (const url of paths) {
     try {
-      const res = await fetch(url, { cache: 'no-store' })
+      const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(10000) })
       if (!res.ok) continue
       const json = await res.json()
       if (ok(json)) { _cache[slot] = { at: Date.now(), data: json }; return json }
@@ -797,7 +797,7 @@ const pairsFile = () => published('pairs', pairSummaryPaths(), (j) => Array.isAr
 // a call-up with no homer history yet (lib/dash/homerFeed.js).
 async function personInfoOf(id) {
   try {
-    const res = await fetch(`https://statsapi.mlb.com/api/v1/people?personIds=${encodeURIComponent(id)}&fields=people,id,primaryNumber,birthDate`, { cache: 'no-store' })
+    const res = await fetch(`https://statsapi.mlb.com/api/v1/people?personIds=${encodeURIComponent(id)}&fields=people,id,primaryNumber,birthDate`, { cache: 'no-store', signal: AbortSignal.timeout(10000) })
     if (!res.ok) return { jersey: null, birthDate: null }
     const j = await res.json()
     const person = j?.people?.[0] || {}
@@ -831,7 +831,7 @@ async function birthdaysToday(rows, day) {
   for (let i = 0; i < ids.length; i += 100) {
     const batch = ids.slice(i, i + 100)
     try {
-      const res = await fetch(`https://statsapi.mlb.com/api/v1/people?personIds=${batch.join(',')}&fields=people,id,birthDate`, { cache: 'no-store' })
+      const res = await fetch(`https://statsapi.mlb.com/api/v1/people?personIds=${batch.join(',')}&fields=people,id,birthDate`, { cache: 'no-store', signal: AbortSignal.timeout(10000) })
       if (!res.ok) continue
       const j = await res.json()
       for (const person of j?.people || []) {

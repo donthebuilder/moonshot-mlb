@@ -13,6 +13,7 @@ import { nbaQuote } from '../../lib/nba/oddsQuote'
 import { fmtOdds } from '../../lib/odds'
 import LineMoveChip from '../LineMoveChip'
 import BucketsCompare from './BucketsCompare'
+import { STATUS_WORD } from '../../lib/callStatus'
 
 // 🏀 BUCKETS PROPS, MOONSHOT'S PAGE (2026-10-04, Donovan: "make sure the props
 // pages look like the mlb one"). The shared grid (components/props/PropCards.js)
@@ -61,7 +62,7 @@ function bucketsAdapter(startOf, odds) {
         dialTitle: `${SHORT[k]} score — BUCKETS' number for this market, 0-100 within tonight's pool`,
         market: NBA_MARKETS[k]?.label || SHORT[k],
         title: r.name,
-        badge: x.status === 'called' ? 'CALLED' : x.status === 'board' ? 'ON BOARD' : 'NOT CALLED',
+        badge: STATUS_WORD[x.status] || STATUS_WORD.off,   // lib/callStatus words, never typed here (audit 2026-10-20)
         badgeQuiet: x.status !== 'called',
         meta: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, minWidth: 0, maxWidth: '100%' }}>
           <TeamMark sport="nba" abbr={r.team} variant="logo" px={16} />

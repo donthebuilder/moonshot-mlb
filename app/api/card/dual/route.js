@@ -5,6 +5,7 @@
 // is its real place among the lane's locked Two-Men (card_calls). 404 with a reason for nba / unknown sports / no row; no secrets in the response.
 import { adminClient } from '../../../../lib/supabase/admin'
 import { hasCards } from '../../../../lib/cards/registry'
+import { hiddenCardGate } from '../../../../lib/cards/hiddenGate'
 import { dualCardImage, DATE_RE } from '../../../../lib/cards/cardImage'
 import { latestCardDate } from '../../../../lib/card/store'
 
@@ -19,6 +20,8 @@ export async function GET(request) {
   const q = new URL(request.url).searchParams
   const sport = String(q.get('sport') || '').toLowerCase()
   if (!hasCards(sport)) return json({ error: 'NOT FOUND', detail: 'no cards for that sport' }, 404, 'public, max-age=300')
+  const gate = await hiddenCardGate(sport)
+  if (gate.no) return gate.no
   let db = null
   try { db = adminClient() } catch { db = null }
   if (!db) return json({ error: 'NOT CONFIGURED' }, 503)
@@ -29,5 +32,5 @@ export async function GET(request) {
   const w = Number(q.get('w'))
   const r = await dualCardImage({ sport, date, lane: q.get('lane') === 'donovan' ? 'donovan' : 'bot', width: WIDTHS.includes(w) ? w : 1080, db, publicOnly: true })
   if (!r.ok) return json({ error: r.status === 404 ? 'NOT FOUND' : 'CARD DELAYED', detail: r.why }, r.status || 502, r.status === 404 ? 'public, max-age=60' : 'no-store')
-  return new Response(r.png, { status: 200, headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } })
+  return new Response(r.png, { status: 200, headers: { 'Content-Type': 'image/png', 'Cache-Control': gate.cache('public, s-maxage=300, stale-while-revalidate=600') } })
 }

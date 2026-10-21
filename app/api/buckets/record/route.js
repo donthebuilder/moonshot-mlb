@@ -14,12 +14,18 @@ export const GET = bucketsRoute('record', async (q) => {
   const pre = q.get('pre') === '1'
   const since = shiftDay(easternToday(), -days)
   if (!db) return ok({ dbReady: false, nights: [] }, 60)
+  // ONLY THE ROWS THE FOLD USES (audit 2026-10-20). foldBucketsNights counts CALLED rows and lists the 25-point scorers the board
+  // did not call; every other graded row only made an empty { n: 0 } market, which no reader shows. Reading every graded row was
+  // ~1.3k a night (5.3 MB for the preseason window) and, sorted oldest first, a 100k cap would have dropped the NEWEST nights.
+  // Same page output (scratchpad rec-diff, 22,710 -> 911 rows). A failed read throws: bucketsRoute answers DELAYED, never an
+  // empty record cached as if it were real.
   const rows = []
-  for (let from = 0; from < 100000; from += 1000) {
+  for (let from = 0; ; from += 1000) {
     let qy = db.from('buckets_log').select('game_date, game_id, player_id, name, team, opp, market, status, role, score, rank_in_game, actual, hit, season_type').in('model_version', LIVE_VERSIONS).gte('game_date', since).not('graded_at', 'is', null)
+      .or('status.eq.called,and(market.eq.pts,hit.is.true)')
     if (!pre) qy = qy.neq('season_type', 1)
     const { data, error } = await qy.order('game_date').order('game_id').order('player_id').order('market').range(from, from + 999)
-    if (error) return ok({ dbReady: false, nights: [], note: error.message }, 60)
+    if (error) throw new Error(error.message)
     rows.push(...data)
     if (data.length < 1000) break
   }

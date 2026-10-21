@@ -5,6 +5,7 @@
 // are public record); a row that is not graded yet, or a night with no stored receipt, is a 404. 404 for nba / unknown sports; no secrets in the response.
 import { adminClient } from '../../../../lib/supabase/admin'
 import { hasCards } from '../../../../lib/cards/registry'
+import { hiddenCardGate } from '../../../../lib/cards/hiddenGate'
 import { slabCardImage, DATE_RE } from '../../../../lib/cards/cardImage'
 
 export const runtime = 'nodejs'
@@ -21,6 +22,8 @@ export async function GET(request) {
   const product = ['two_man', 'long_shot', 'double'].includes(q.get('product')) ? q.get('product') : 'straight'
   // the Double is the one cross-sport row (sport=all); every other product needs a Card sport
   if (kind === 'card' && (product === 'double' ? sport !== 'all' : !hasCards(sport))) return json({ error: 'NOT FOUND', detail: 'no cards for that sport' }, 404, 'public, max-age=300')
+  const gate = await hiddenCardGate(sport)
+  if (gate.no) return gate.no
   const date = q.get(kind === 'receipt' ? 'day' : 'date')
   if (!date || !DATE_RE.test(date)) return json({ error: 'BAD REQUEST', detail: 'a date is needed (YYYY-MM-DD)' }, 400)
   let db = null
@@ -33,5 +36,5 @@ export async function GET(request) {
     ? { kind, day: date, width, db }
     : { kind, sport, date, lane: q.get('lane') === 'donovan' ? 'donovan' : 'bot', product, slot, width, db })
   if (!r.ok) return json({ error: r.status === 404 ? 'NOT FOUND' : r.status === 400 ? 'BAD REQUEST' : 'CARD DELAYED', detail: r.why }, r.status || 502, r.status === 404 ? 'public, max-age=60' : 'no-store')
-  return new Response(r.png, { status: 200, headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1200' } })
+  return new Response(r.png, { status: 200, headers: { 'Content-Type': 'image/png', 'Cache-Control': gate.cache('public, s-maxage=600, stale-while-revalidate=1200') } })
 }

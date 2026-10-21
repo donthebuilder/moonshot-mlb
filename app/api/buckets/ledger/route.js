@@ -38,6 +38,8 @@ export const GET = bucketsRoute('ledger', async (q) => {
       db.from('buckets_log').select('game_id, player_id, market, status, role').in('game_id', ids).in('model_version', VERSIONS).in('status', ['called', 'board']),
       db.from('buckets_games').select('game_id').in('game_id', ids),
     ])
+    // a failed read is a failure (audit 2026-10-20): without the locked rows every scorer would read NOT ON THE BOARD
+    if (st.error || lk.error) throw new Error((st.error || lk.error).message)
     for (const r of st.data || []) tag.set(`${r.game_id}|${r.player_id}|${r.market}`, { status: r.status, role: r.role })
     for (const r of lk.data || []) locked.add(String(r.game_id))
     // the calls actually written (not an assumed two a game): CALLED rows of the locked games, per market

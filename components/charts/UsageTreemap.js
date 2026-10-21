@@ -10,6 +10,7 @@ import { squarify, usageShares } from '../../lib/charts/treemap'
 import { alpha } from '../../lib/scales'
 
 const W = 358, H = 280, LAB = 14, G = 3
+const MIN_TAP = 36   // viewBox units; the chart draws ~0.92x at a 360-wide phone, so 36 is ~33px there
 const pct = (v) => `${Math.round(v * 100)}%`
 const shortN = (n) => { const p = String(n || '').split(' '); return p.length > 1 ? `${p[0][0]}. ${p.slice(1).join(' ')}` : String(n || '') }
 const fits = (t, w, fs) => t.length * fs * 0.6 <= w - 10
@@ -41,10 +42,13 @@ export default function UsageTreemap({ usage, metrics, groups, theme, onOpen = n
               const x = p.x + G / 2, y = p.y + G / 2, w = Math.max(0, p.w - G), h = Math.max(0, p.h - G), on = pick?.id === p.id
               const fs = Math.min(15, Math.max(11, Math.sqrt(w * h) / 7))
               const nm = [shortN(p.name), p.name.split(' ').slice(1).join(' ') || p.name].find((t) => fits(t, w, 11))   // B. Robinson where it fits, so two Robinsons stay two
+              // A sliver (a 1% bench man) is too small for a thumb on both sides (under 32px at 360 wide): it stays drawn, but is not a
+              // tap target of its own, so a tap never lands on the wrong man (audit 2026-10-20).
+              const tap = Math.max(w, h) >= MIN_TAP
               return (
-                <g key={p.id} role="button" tabIndex={0} aria-label={`${p.name}: ${pct(p.sh)} of the club's ${metric.unit}`} aria-pressed={on}
-                  onClick={() => setPick(p.id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPick(p.id) } }}
-                  style={{ cursor: 'pointer' }} opacity={p.tr < 0 && !on ? 0.5 : 1}>
+                <g key={p.id} {...(tap ? { role: 'button', tabIndex: 0, 'aria-label': `${p.name}: ${pct(p.sh)} of the club's ${metric.unit}`, 'aria-pressed': on,
+                  onClick: () => setPick(p.id), onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPick(p.id) } } } : { 'aria-hidden': true })}
+                  style={{ cursor: tap ? 'pointer' : 'default' }} opacity={p.tr < 0 && !on ? 0.5 : 1}>
                   <rect x={x} y={y} width={w} height={h} rx="4" fill={p.tr > 0 ? soft : C.bg3} stroke={on ? C.text : p.tr > 0 ? accent : C.border2} strokeWidth={on ? 1.5 : 1} />
                   {w > 44 && h > 30 ? <>
                     <text x={x + 6} y={y + fs + 4} fontSize={fs} fontWeight="800" fontFamily={NUM_FONT} fill={p.tr > 0 ? accent : C.text}>{pct(p.sh)}</text>

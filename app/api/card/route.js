@@ -6,6 +6,7 @@
 // MEMBERS FIRST (2026-10-12): before any row of the Card is graded this answers the lead straight, the Long Shot, Donovan's rows and the records ONLY; the bot's Two-Man and straights
 // #2-#3 are stripped on the server (lib/card/reveal.js) and only counted in `held`. Once a row is graded the whole Card is history and is returned. Nothing here writes. The table missing (migration not run) answers an empty card.
 import { unstable_cache } from 'next/cache'
+import { hiddenCardGate } from '../../../lib/cards/hiddenGate'
 import { adminClient } from '../../../lib/supabase/admin'
 import { easternToday } from '../../../lib/data'
 import { CARD_SPORTS, CARD_WORDS, CARD_RULE_TEXT, CARD_LOCK_LEAD_MIN, STAKE, DOUBLE_SPORT, MARKETS, recordWords } from '../../../lib/card/core'
@@ -48,6 +49,8 @@ export async function GET(request) {
   const q = new URL(request.url).searchParams
   const sport = String(q.get('sport') || 'nhl')
   if (!CARD_SPORTS.includes(sport)) return Response.json({ error: 'BAD REQUEST', detail: `the Card runs in ${CARD_SPORTS.join(', ')}` }, { status: 400, headers: { 'Cache-Control': 'no-store' } })
+  const gate = await hiddenCardGate(sport)
+  if (gate.no) return gate.no
   const w = CARD_WORDS[sport]
   const empty = { sport, market: w.market, window: w.window, lockLeadMin: CARD_LOCK_LEAD_MIN, stakes: STAKE, rule: CARD_RULE_TEXT, date: null, rows: [], prices: {}, held: null, revealed: false, records: null, words: null }
   const db = adminClient()
@@ -69,7 +72,7 @@ export async function GET(request) {
     // `held` is a COUNT and a sentence, never a name: how many calls the members have that this response does not
     const held = card.held.straights + card.held.two_man > 0 ? { ...card.held, line: HELD_LINE } : null
     const body = { ...empty, date, rows: pub, prices: Object.fromEntries(prices), held, revealed: card.revealed, records: rec?.records || null, words: rec?.words || null }
-    return Response.json(body, { headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' } })
+    return Response.json(body, { headers: { 'Cache-Control': gate.cache('public, s-maxage=60, stale-while-revalidate=120') } })
   } catch (e) {
     console.error(`[card] read ${sport}: ${e?.message || e}`)
     return Response.json({ error: 'LIVE DATA DELAYED', detail: 'The card could not be read.' }, { status: 502, headers: { 'Cache-Control': 'no-store' } })

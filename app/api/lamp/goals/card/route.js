@@ -23,7 +23,9 @@ export async function GET(request) {
   }
   const db = client()
   if (!db) return Response.json({ error: 'not configured' }, { status: 503 })
-  const { data: row } = await db.from('lamp_goal_feed').select('*').match({ game_id: Number(game), player_id: Number(pid), goal_n: n }).is('overturned_at', null).maybeSingle()
+  const { data: row, error } = await db.from('lamp_goal_feed').select('*').match({ game_id: Number(game), player_id: Number(pid), goal_n: n }).is('overturned_at', null).maybeSingle()
+  // a failed read is not "no such goal" (audit 2026-10-20): 502, never cached
+  if (error) { console.error(`[lamp goals/card] ${error.message}`); return Response.json({ error: 'LIVE DATA DELAYED' }, { status: 502, headers: { 'Cache-Control': 'no-store' } }) }
   if (!row) return Response.json({ error: 'no standing goal row for that game / player / n' }, { status: 404 })
   const site = (process.env.NEXT_PUBLIC_SITE_URL || 'dashnetwork.vercel.app').replace(/^https?:\/\//, '').replace(/\/$/, '')
   const img = await goalCard(row, { site })
