@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import {
   CARD_SPORTS, PLAYS_BY_GAMES, PLAY_CAP, FULL_SLATE, PLUS_MONEY, MIN_LONG_SHOTS, MARKETS, SLOTS, STAKE, CARD_RULE, CARD_VERSION, CARD_VERSIONS, SAME_GAME_NOTE, DOUBLE_SPORT,
   playsFor, planStraights, lockPlan, planWindow, percentileOf, leadStraight, pickTwoManFor, pickTwoManSameGame, pickLongShot, longShotRow, pickDouble, doubleRow,
-  donovanDoubleRow, legWord, productResult, gradeCardRow, recordOf, recordsOf, recordWords, rowPrice, legPriceOf, lockAtOf, inPlusMoney, resultKey, fieldOf, nflWindowsOf,
+  donovanDoubleRow, legWord, productResult, gradeCardRow, isLongShotPrice, recordOf, recordsOf, recordWords, rowPrice, legPriceOf, lockAtOf, inPlusMoney, resultKey, fieldOf, nflWindowsOf,
 } from '../lib/card/core.js'
 import { xCardText, membersCardText, membersCardEmbed, resultText, longShotText, longShotResultText, longShotRecordLine, doubleResultText, dayText, dayEmbed, exposureLine, todayText, dayLead, cleanPublic } from '../lib/card/text.js'
 import { lockCard, lockDouble, gradeCardRows, publicRow, doubleLocked } from '../lib/card/store.js'
@@ -199,37 +199,40 @@ await t('the same-game caption (legs correlated; the multiplied price is higher 
 // ── 5. THE LONG SHOT OF THE DAY ─────────────────────────────────────────────────
 const FULL = [PM('l1', 'g1', 2, 99, 140), PM('l2', 'g2', 2, 95, 160), PM('l3', 'g3', 3, 93, 320), PM('l4', 'g4', 3, 90, 500), PM('l5', 'g5', 4, 88, 501), PM('l6', 'g6', 4, 70, 700), C('l7', 'g7', 4, 100)]
 const PR = (cands) => new Map(cands.filter((c) => c.price).map((c) => [c.player_id, c.price]))
-await t('Long Shot: one per sport with a FULL slate (6+ games); the top-scored player with a stored median in +160..+500; the range ends are in, +159 and +501 are out', () => {
+await t('Long Shot (v2, Donovan 2026-10-20: +550 or better): one per sport with a FULL slate (6+ games); the top-scored player with a stored median of +550 or longer; +549 is out', () => {
+  // the Double keeps its own +160..+500 window (PLUS_MONEY); the Long Shot reads FLOORS.longShot
   assert.deepEqual([inPlusMoney(159), inPlusMoney(160), inPlusMoney(500), inPlusMoney(501), inPlusMoney(-200), inPlusMoney(250.5)], [false, true, true, false, false, false]); assert.deepEqual(PLUS_MONEY, { min: 160, max: 500 })
+  assert.deepEqual([isLongShotPrice(549), isLongShotPrice(550), isLongShotPrice(4000), isLongShotPrice(550.5)], [false, true, true, false])
   const a = pickLongShot({ games: 6, cands: FULL, prices: PR(FULL), now: NOW })
-  assert.equal(a.pick.player_id, 'l2', 'l1 (+140) is too short, l7 has no price; l2 (+160) is the top-scored in range'); assert.equal(a.pick.price.median, 160)
+  assert.equal(a.pick.player_id, 'l6', 'l1..l5 (+140 to +501) are too short, l7 has no price; l6 (+700) is the top-scored long price'); assert.equal(a.pick.price.median, 700)
   const five = pickLongShot({ games: 5, cands: FULL, prices: PR(FULL), now: NOW })
   assert.equal(five.pick, null); assert.match(five.reason, /full slate is 6\+/)
-  assert.equal(pickLongShot({ games: 6, cands: FULL, prices: PR(FULL), now: NOW }).pick.player_id, 'l2')
+  assert.equal(pickLongShot({ games: 6, cands: FULL, prices: PR(FULL), now: NOW }).pick.player_id, 'l6')
   // a game that has started is not eligible
-  assert.equal(pickLongShot({ games: 6, cands: FULL, prices: PR(FULL), now: NOW + 2 * H + 1 }).pick.player_id, 'l3')
+  assert.equal(pickLongShot({ games: 6, cands: [...FULL, PM('l8', 'g8', 2, 99, 900)], prices: PR([...FULL, PM('l8', 'g8', 2, 99, 900)]), now: NOW }).pick.player_id, 'l8', 'the higher score wins among long prices')
+  assert.equal(pickLongShot({ games: 6, cands: [...FULL, PM('l8', 'g8', 2, 99, 900)], prices: PR([...FULL, PM('l8', 'g8', 2, 99, 900)]), now: NOW + 2 * H + 1 }).pick.player_id, 'l6', 'his game started: the next long price')
 })
 
 await t('Long Shot: no price in range = SKIPPED, nothing shorter or longer is ever substituted; a tie goes to the model rate/start/id', () => {
-  const none = [PM('s1', 'g1', 2, 99, 150), PM('s2', 'g2', 2, 90, 600), C('s3', 'g3', 2, 80)]
+  const none = [PM('s1', 'g1', 2, 99, 150), PM('s2', 'g2', 2, 90, 500), C('s3', 'g3', 2, 80)]
   const r = pickLongShot({ games: 8, cands: none, prices: PR(none), now: NOW })
-  assert.equal(r.pick, null); assert.match(r.reason, /no price in range/)
+  assert.equal(r.pick, null); assert.match(r.reason, /no price of \+550 or longer/)
   assert.equal(pickLongShot({ games: 8, cands: [], prices: new Map(), now: NOW }).pick, null)
-  const tie = [PM('b', 'g1', 3, 80, 200), PM('a', 'g2', 3, 80, 300)]
+  const tie = [PM('b', 'g1', 3, 80, 600), PM('a', 'g2', 3, 80, 700)]
   assert.equal(pickLongShot({ games: 6, cands: tie, prices: PR(tie), now: NOW }).pick.player_id, 'a', 'same score, same rate, same start: the player id')
 })
 
 await t('Long Shot row: one leg, the stored median price frozen with it, 1 unit, own product and rule; graded all-or-nothing at that price; void when he does not play', () => {
   const pick = pickLongShot({ games: 7, cands: FULL, prices: PR(FULL), now: NOW }).pick
   const row = longShotRow({ sport: 'nhl', slate_key: 'k', card_date: '2026-10-10', pick, games: 7, lockAtMs: LOCK_AT, board: board(FULL) })
-  assert.equal(row.product, 'long_shot'); assert.equal(row.rule, 'long-shot-v1'); assert.equal(row.stake, 1); assert.equal(row.leg_count, 1); assert.equal(row.window_games, 7)
-  assert.equal(row.legs[0].price.median, 160); assert.deepEqual(legPriceOf(row.legs[0]), { median: 160, best: 180 })
+  assert.equal(row.product, 'long_shot'); assert.equal(row.rule, 'long-shot-v2-550'); assert.equal(row.stake, 1); assert.equal(row.leg_count, 1); assert.equal(row.window_games, 7)
+  assert.equal(row.legs[0].price.median, 700); assert.deepEqual(legPriceOf(row.legs[0]), { median: 700, best: 720 })
   assert.ok(Date.parse(row.start_at) > NOW && Date.parse(row.locks_at) <= Date.parse(row.start_at))
   assert.equal(gradeCardRow(row, ['hit']).result, 'hit'); assert.equal(gradeCardRow(row, ['miss']).result, 'miss'); assert.equal(gradeCardRow(row, ['void']).result, 'void'); assert.equal(gradeCardRow(row, [null]), null)
-  // units at the stored median: a hit at +160 = +1.6 on a 1 unit stake, a miss -1 (best price is never used for the Long Shot)
+  // units at the stored median: a hit at +700 = +7 on a 1 unit stake, a miss -1 (best price is never used for the Long Shot)
   const hit = { ...row, result: 'hit' }; const miss = { ...row, result: 'miss' }
   const rec = recordOf([hit, miss], { priceOf: (r) => rowPrice(r, r.legs.map((l) => legPriceOf(l))), minPriced: 2 })
-  assert.deepEqual(rec.units.median, 0.6)
+  assert.deepEqual(rec.units.median, 6)
 })
 
 await t('Long Shot record: counts only until 300 are graded (no hit rate, no ROI, no units); K of N and units only after', () => {
@@ -252,9 +255,9 @@ await t('Long Shot posts: plain and honest, never lock / guaranteed / nuke, no l
   const pick = pickLongShot({ games: 7, cands: FULL, prices: PR(FULL), now: NOW }).pick
   const row = longShotRow({ sport: 'nhl', slate_key: 'k', card_date: '2026-10-10', pick, games: 7, lockAtMs: LOCK_AT })
   const x = longShotText({ sport: 'nhl', day: '2026-10-10', leg: row.legs[0] })
-  assert.match(x.text, /LONG SHOT OF THE DAY/); assert.match(x.text, /at \+160/); assert.match(x.text, /A long shot: most of these miss\./)
+  assert.match(x.text, /LONG SHOT OF THE DAY/); assert.match(x.text, /at \+700/); assert.match(x.text, /A long shot: most of these miss\./)
   assert.ok(cleanPublic(x.text) && !/\block|guarantee|nuke|winner/i.test(x.text) && [...x.text].length + 4 <= 280)
-  assert.deepEqual(x.named, ['l2'])
+  assert.deepEqual(x.named, ['l6'])
   assert.equal(longShotText({ sport: 'nhl', day: 'd', leg: { ...row.legs[0], price: undefined } }).text, '', 'no stored price, no post')
   for (const result of ['hit', 'miss', 'void']) {
     const r = longShotResultText({ sport: 'nhl', day: '2026-10-10', row: { ...row, result }, rec: recordOf([{ ...row, result }]) })
