@@ -18,7 +18,7 @@ eq(m.quoteFor({ player_id: 10, game_pk: 900, _test_status: 'called' }), '222', '
 eq(m.quoteFor({ player_id: 11, game_pk: 901, _test_status: 'called' }), '111', 'MLB: else the morning post when he was on it')
 eq(m.quoteFor({ player_id: 11, game_pk: 901, _test_status: 'board' }), null, 'MLB: ON THE BOARD quotes nothing')
 eq(m.quoteFor({ player_id: 12, game_pk: 901, _test_status: 'called' }), null, 'MLB: called but NOT NAMED in the morning post (even if in the old `called` list) -> nothing')
-eq(m.calledAtLine({ player_id: 10, game_pk: 900, _test_status: 'called' }), 'WE HAD HIM 🔥 Called at 5:10 PM ET.', 'MLB: the called-at line (the receipt words, 2026-10-20)')
+eq(/^(WE HAD HIM|GONE\. WE HAD HIM|THE NETWORK HAD HIM) 🔥 Called at 5:10 PM ET\.$/.test(m.calledAtLine({ player_id: 10, game_pk: 900, _test_status: 'called' })), true, 'MLB: the called-at line (a hit line, 2026-10-20)')
 eq(mlbQuotes({ pre: { x_post_id: '111', payload: { picks: [{ player_id: 13 }] } }, gamePosts: [], callStatus: status }).quoteFor({ player_id: 13, _test_status: 'called' }), '111', 'MLB: an old pregame row (picks only) still quotes')
 
 // ── THE SLATE (TEST rows, 2026-10-09): the morning post names players of several sports; MLB reads named_by_sport.mlb ──
@@ -66,6 +66,13 @@ eq(pregameQuotes('nba', all)({ day: D, playerId: '20', gameId: '9' })?.id, '601'
 eq(receiptLineOf(nq({ day: D, playerId: '9', gameId: '77' })), 'WE HAD HIM 🔥 Called at 6:05 PM ET.', 'the line: the quoted post\'s own ET time')
 eq(receiptLineOf(nq({ day: D, playerId: '6', gameId: '78' })), 'WE HAD HIM 🔥 Called at 9:12 AM ET.', 'a post with no posted_at uses its row time')
 eq(receiptLineOf(null), null, 'no quote, no line')
+// the hit's first words vary by sport and event, the same event always the same (lib/posts/replies.js)
+const RP = await import('../../lib/posts/replies.js')
+const q1 = nq({ day: D, playerId: '9', gameId: '77' })
+eq(receiptLineOf(q1, { sport: 'nhl', key: 'g1' }), receiptLineOf(q1, { sport: 'nhl', key: 'g1' }), 'stable per event')
+eq(new Set(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((k) => receiptLineOf(q1, { sport: 'nhl', key: k }))).size > 1, true, 'a night of goals does not all read the same')
+eq(Object.values(RP.HIT_WORDS).flat().every((w) => /^[A-Z .]+ \p{Extended_Pictographic}$/u.test(w) && !/TOLD YOU|NEVER MISS|LOCK/.test(w)), true, 'every hit line: caps + one emoji, never "told you" / "never miss" / "lock"')
+eq(/^(WE HAD HIM|LIGHT IT UP\. WE HAD HIM|THE NETWORK HAD HIM) 🚨 Called at 6:05 PM ET\.$/.test(receiptLineOf(q1, { sport: 'nhl', key: 'g9' })), true, 'NHL hit line + the time')
 eq(quoteKinds('nhl').join(), 'card_nhl,nhl_slate,nhl_board,slate', 'the kinds NHL reads')
 // the sender never doubles it: a quoted alert already carries its receipt (lib/posts/receiptLine.js)
 const RL = await import('../../lib/posts/receiptLine.js')

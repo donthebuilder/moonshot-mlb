@@ -140,7 +140,8 @@ async function goalsTick(request) {
         // discordSent rides back so the tick never re-sends the channel post when X refuses (10-09 bug)
         // the receipt: quote the post that named him; "Called before puck drop." becomes "WE HAD HIM 🔥 Called at 6:05 PM ET."
         const q = row ? quoteOf({ day: row.day, playerId: row.player_id, gameId: row.game_id }) : null
-        const xText = q ? (text.includes('Called before puck drop.') ? text.replace('Called before puck drop.', receiptLineOf(q)) : `${text}\n\n${receiptLineOf(q)}`) : text
+        const line = q ? receiptLineOf(q, { sport: 'nhl', key: `${row.game_id}:${row.player_id}:${row.goal_n}` }) : null
+        const xText = q ? (text.includes('Called before puck drop.') ? text.replace('Called before puck drop.', line) : `${text}\n\n${line}`) : text
         return { ...(await postToX(xText, { kind: 'nhlgoal', ...(mediaId ? { mediaId } : {}), ...(q ? { quoteId: q.id } : {}) })), discordSent }
       },
       // THE CORRECTION: a goal posted earlier came off the board. Channel card (same routing as the original alert, never members or

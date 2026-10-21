@@ -379,7 +379,7 @@ async function runTouchdownTick(db, day) {
     const receiptFor = (row, called) => {
       if (!called) return null
       const q = quoteOf({ day: row.day, playerId: row.gsis_id, gameId: row.game_id })
-      return q ? { id: q.id, line: receiptLineOf(q) } : null
+      return q ? { id: q.id, line: receiptLineOf(q, { sport: 'nfl', key: `${row.game_id}:${row.gsis_id}:${row.td_n}` }) } : null
     }
     for (const row of pending || []) {
       const ev = eventFromRow(row)
