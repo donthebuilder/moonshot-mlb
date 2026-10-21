@@ -67,8 +67,54 @@ function GroupHead({ label, color, count, C, NUM_FONT }) {
   )
 }
 
-function Card({ a, r, k, onOpen, onWatch, watched, onSlip = null, inSlip = false, C, NUM_FONT, accent, accentWash }) {
+// HIS STORYLINES ON THE CARD (2026-10-20, Donovan: "there's text under that shows percentiles ... that needs their storylines
+// or milestones that they're getting close to"). The same rows as the Storylines page and the home tape (/api/stories), his own,
+// milestones first; the percentile line stays only on a card with no story. The long "priced for X, delivered Y" model rows stay
+// on the Storylines page.
+const STORY_MAX = 2
+function StoryChips({ stories, C, NUM_FONT, accent }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+      {stories.slice(0, STORY_MAX).map((s, i) => (
+        <span key={i} style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 11.5, lineHeight: 1.45, color: C.text2, minWidth: 0 }}>
+          <span style={{ flexShrink: 0 }}>{s.icon}</span>
+          <span style={{ minWidth: 0 }}>
+            {(s.parts || []).map((x, j) => (x.t === 'name' && j === 0 && x.v === s.name ? null
+              : x.t === 'num' ? <b key={j} style={{ fontFamily: NUM_FONT, color: accent }}>{x.v}</b>
+                : x.t === 'name' ? <b key={j} style={{ color: C.text }}>{x.v}</b>
+                  : <span key={j}>{j === 1 ? String(x.v).replace(/^\s+/, '') : x.v}</span>))}
+          </span>
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function useStoriesByPlayer(sport) {
+  const [by, setBy] = useState(null)
+  useEffect(() => {
+    if (!sport) return undefined
+    let alive = true
+    fetch(`/api/stories?sport=${encodeURIComponent(sport)}`).then((x) => (x.ok ? x.json() : null)).then((j) => {
+      if (!alive || !j) return
+      const m = new Map()
+      for (const s of j.stories || []) {
+        if (s.type === 'model' || !s.player_id || String(s.player_id).startsWith('team:')) continue
+        const k = String(s.player_id)
+        if (!m.has(k)) m.set(k, [])
+        m.get(k).push(s)
+      }
+      for (const l of m.values()) l.sort((x, y) => (y.type === 'milestone') - (x.type === 'milestone') || (y.rarity || 0) - (x.rarity || 0))
+      setBy(m)
+    }).catch(() => {})
+    return () => { alive = false }
+  }, [sport])
+  return by
+}
+
+function Card({ a, r, k, onOpen, onWatch, watched, onSlip = null, inSlip = false, stories = null, C, NUM_FONT, accent, accentWash }) {
   const p = a.card(r, k)
+  const storyLine = stories?.length ? <StoryChips stories={stories} C={C} NUM_FONT={NUM_FONT} accent={accent} /> : null
   return (
     <div onClick={onOpen ? () => onOpen(r) : undefined}
       style={{ cursor: onOpen ? 'pointer' : 'default', minWidth: 0 }}>
@@ -85,7 +131,7 @@ function Card({ a, r, k, onOpen, onWatch, watched, onSlip = null, inSlip = false
         badgeQuiet={p.badgeQuiet}
         meta={p.meta}
         metaRight={p.metaRight}
-        line={p.line}
+        line={storyLine || p.line}
         facts={p.facts}
         chips={p.chips}
         footer={p.tiles ? <PeriodTiles tiles={p.tiles} /> : null}
@@ -168,6 +214,7 @@ export default function PropCards({
   const [sortBy, setSortBy] = useState('score')
   // THE SLIP: ONE store per sport (lib/slip/store.js), the same slip the floating slip bar (components/Slip.js) and every player page add to.
   const sport = aIn.sportKey
+  const storiesBy = useStoriesByPlayer(sport)
   const { legs: slip, toggle: toggleLeg, remove: removeLeg, clear: clearSlip, addMany } = useSlip(sport)
   const slipKeyOf = (r, k) => `${a.keyOf(r)}|${k}`
   // PAIRING HELP ON THE SLIP (the deleted Parlay Builder's useful parts, lib/slipPairs.js): only a product whose
@@ -456,7 +503,7 @@ export default function PropCards({
               <GroupHead label={a.groupLabel(g.key)} color={a.color(g.key)} count={g.rows.length} C={C} NUM_FONT={NUM_FONT} />
               <div style={{ display: 'grid', gap: 11, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 330px), 1fr))' }}>
                 {g.rows.map((r) => (
-                  <Card key={a.keyOf(r)} a={a} r={r} k={g.key} onOpen={onOpen} onWatch={onWatch} watched={watchIds?.has(a.idOf(r))}
+                  <Card key={a.keyOf(r)} a={a} r={r} k={g.key} stories={storiesBy?.get(String(a.idOf(r))) || null} onOpen={onOpen} onWatch={onWatch} watched={watchIds?.has(a.idOf(r))}
                     onSlip={g.key !== 'NONE' && a.priceNum(r, g.key) != null ? toggleSlip : null} inSlip={slip.some((l) => l.key === slipKeyOf(r, g.key))}
                     C={C} NUM_FONT={NUM_FONT} accent={accent} accentWash={accentWash} />
                 ))}
