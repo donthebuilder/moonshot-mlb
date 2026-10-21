@@ -2,13 +2,11 @@
 // THE CALL ON A GAME PAGE, ANY SPORT (2026-10-05). MOONSHOT's block (components/MlbWriteupBlock.js,
 // TUDDY's look) made sport-blind: the write-up JSON (lib/writeups/<sport>.js) plus the product's
 // theme and three lines of its own words -- the status line, each player's meta and his numbers.
-// Phone first: each called player's name, status, numbers and two reasons; the rest one tap down.
-import { useState } from 'react'
+// Since 2026-10-20: quick chips for the called players + the game's storylines (see below).
+import { useEffect, useState } from 'react'
 import CallStatusBadge from './CallStatusBadge'
 import Tap from './Tap'
 import { useLockOf, CardLockLine } from './MemberGate'
-import { useIsPhone } from './MobileFold'
-import { Chip, ChipRow } from './writeups/ChipLines'
 
 /**
  * @param w        a write-up (buildWriteup)
@@ -25,69 +23,63 @@ import { Chip, ChipRow } from './writeups/ChipLines'
  * @param playerHead optional (p) => node: replaces each player's name / status / meta row (TUDDY's face, club logo and score); absent: the row below
  */
 export default function GameWriteupBlock({ w, theme, words, onOpen, depth = null, lockIn = null, chips = false, title = 'THE CALL', ariaLabel = 'The call', closed = null, playerHead = null }) {
+  // QUICK CHIPS, NO FULL WRITE-UP (2026-10-20, Donovan: "the call thing with the full write-up, let's just get rid of that but
+  // we can keep the players ... use little chips, quick chips"). Each called player is one chip (his name, the board word and
+  // score) that opens him; under them, the game's own storylines (/api/stories, the same rows as the Storylines page and the
+  // home tape). `depth`, `chips` and `playerHead` stay accepted so no caller changes; the reasons and the depth sections now live
+  // on the player's page. TUDDY's swipe cards (`closed`) still draw in place of the chips.
   const { C, NUM_FONT, TYPE, accent: ACCENT } = theme
-  const [open, setOpen] = useState(false)
   const lockOf = useLockOf()
-  const phone = useIsPhone(560)
-  const asChips = Boolean(chips) && phone && typeof words.chips === 'function'
+  const stories = useGameStories(w?.sport, w?.game_id)
   if (!w || !w.players.length) return null
-  const hiddenN = lockIn ? w.players.filter((p) => lockOf({ status: p.status, ...lockIn(p) }).locked).length : 0
-  if (hiddenN > 0) {
-    const shown = w.players.filter((p) => !lockOf({ status: p.status, ...lockIn(p) }).locked)
-    w = { ...w, players: shown, game: [], bottom: [], noCall: [], footer: '' }
-    depth = null
-  }
-  const Kicker = ({ children }) => (
-    <div style={{ font: `800 ${TYPE.micro}px/1 ${NUM_FONT}`, letterSpacing: '.1em', color: C.text3, margin: '8px 0 4px' }}>{children}</div>
-  )
+  const shown = lockIn ? w.players.filter((p) => !lockOf({ status: p.status, ...lockIn(p) }).locked) : w.players
+  const hiddenN = w.players.length - shown.length
   return (
-    <section aria-label={ariaLabel} style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: '11px 13px', marginBottom: 12, minWidth: 0 }}>
+    <section aria-label={ariaLabel} style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: '10px 12px', marginBottom: 12, minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
         <span style={{ font: `900 ${TYPE.label}px/1 ${NUM_FONT}`, letterSpacing: '.12em', color: ACCENT }}>{title}</span>
         <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{words.status(w)}</span>
       </div>
-      {!open && closed}
-      {(open || !closed) && w.players.map((p) => (
-        <div key={p.player_id} style={{ marginTop: 10, minWidth: 0 }}>
-          {playerHead ? playerHead(p) : <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-            <Tap onClick={onOpen ? () => onOpen(p) : null}
-              style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', fontSize: TYPE.name, fontWeight: 900, color: C.text }}>{p.name}</Tap>
-            <CallStatusBadge status={p.status} />
-            {!asChips && <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{words.meta(p)}</span>}
-          </div>}
-          {asChips ? (<>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
-              {words.chips(p).map((c, i) => <Chip key={i} theme={theme} value={c.value} label={c.label} heat={c.hot ? 2 : 0} />)}
-            </div>
-            <ChipRow theme={theme} lines={open ? p.why : p.why.slice(0, 3)} />
-            {open && p.watch.length > 0 && (<><Kicker>WATCH OUT</Kicker><ChipRow theme={theme} lines={p.watch} warn style={{ marginTop: 0 }} /></>)}
-          </>) : (<>
-            <div style={{ fontSize: TYPE.body, color: C.text2, fontFamily: NUM_FONT }}>
-              {words.numbers(p)}
-            </div>
-            <ul style={{ margin: '4px 0 0', paddingLeft: 16, fontSize: TYPE.body, lineHeight: 1.5, color: C.text2 }}>
-              {(open ? p.why : p.why.slice(0, 2)).map((l) => <li key={l.t} title={l.src}>{l.t}</li>)}
-            </ul>
-            {open && p.watch.length > 0 && (<><Kicker>WATCH OUT</Kicker>
-              <ul style={{ margin: 0, paddingLeft: 16, fontSize: TYPE.body, lineHeight: 1.5, color: C.text2 }}>{p.watch.map((l) => <li key={l.t} title={l.src}>{l.t}</li>)}</ul></>)}
-          </>)}
-          {open && depth?.player && depth.player(p)}
+      {closed || (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+          {shown.map((p) => (
+            <Tap key={p.player_id} onClick={onOpen ? () => onOpen(p) : null} title={words.numbers ? words.numbers(p) : undefined}
+              style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 12px', borderRadius: 999, border: `1px solid ${C.border2 || C.border}`, background: C.bg2, color: C.text, fontSize: TYPE.body + 1, fontWeight: 800 }}>
+              <span>{p.name}</span>
+              <CallStatusBadge variant="text" status={p.status} score={p.score ?? null} theme={C} numFont={NUM_FONT} accent={ACCENT} />
+            </Tap>
+          ))}
         </div>
-      ))}
+      )}
       {/* no per-game count: with the visible list it could point at the man (2026-10-17) */}
       {hiddenN > 0 && <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ marginTop: 6 }} />}
-      {open && (<>
-        {w.game.length > 0 && (<><Kicker>THE GAME</Kicker>{w.game.map((l) => <div key={l.t} title={l.src} style={{ fontSize: TYPE.body, color: C.text2 }}>{l.t}</div>)}</>)}
-        {depth?.game}
-        <Kicker>BOTTOM LINE</Kicker>
-        {w.bottom.map((l) => <div key={l.t} style={{ fontSize: TYPE.body, color: C.text2 }}>{l.t}</div>)}
-        <div style={{ marginTop: 8, fontSize: TYPE.micro, color: C.text3 }}>{w.footer}</div>
-      </>)}
-      {!open && w.noCall.map((n) => <div key={n.team} style={{ marginTop: 8, fontSize: TYPE.body, color: C.text3 }}>{w.bottom.find((l) => l.t.startsWith(`${n.team}:`))?.t}</div>)}
-      {hiddenN === 0 && <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
-        style={{ marginTop: 6, minHeight: 44, padding: '0 2px', border: 0, background: 'transparent', color: ACCENT, font: `800 ${TYPE.micro}px/1 ${NUM_FONT}`, letterSpacing: '.06em', cursor: 'pointer' }}>
-        {open ? 'SHOW LESS' : 'THE FULL WRITE-UP ›'}
-      </button>}
+      {stories.length > 0 && (
+        <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 10, paddingTop: 8, display: 'grid', gap: 4 }}>
+          <span style={{ font: `800 ${TYPE.micro}px/1 ${NUM_FONT}`, letterSpacing: '.1em', color: C.text3 }}>STORYLINES</span>
+          {stories.slice(0, STORY_MAX).map((st, i) => (
+            <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'baseline', fontSize: TYPE.body, lineHeight: 1.45, color: C.text2, minWidth: 0 }}>
+              <span style={{ flexShrink: 0 }}>{st.icon}</span>
+              <span style={{ minWidth: 0 }}>{(st.parts || []).map((x, j) => (x.t === 'name' ? <b key={j} style={{ color: C.text }}>{x.v}</b>
+                : x.t === 'num' ? <b key={j} style={{ fontFamily: NUM_FONT, color: ACCENT }}>{x.v}</b> : <span key={j}>{x.v}</span>))}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   )
+}
+
+const STORY_MAX = 3
+// the game's own stories, rarest first; the long model rows stay on the Storylines page
+function useGameStories(sport, gameId) {
+  const [rows, setRows] = useState([])
+  useEffect(() => {
+    if (!sport || !gameId) return undefined
+    let alive = true
+    fetch(`/api/stories?sport=${encodeURIComponent(sport)}`).then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (alive && j) setRows((j.stories || []).filter((s) => String(s.game_id) === String(gameId) && s.type !== 'model')) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [sport, gameId])
+  return rows
 }

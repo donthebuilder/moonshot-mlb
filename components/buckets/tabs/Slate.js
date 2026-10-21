@@ -10,7 +10,6 @@ import { useIsPhone } from '../../MobileFold'
 import { useHashFilter } from '../../../lib/filterHash'
 import { panelPairs, panelSubs, gameSections } from '../../../lib/game/sections'
 import { ViewPills, GameFilterRail, SlateStrip, GamePanelPills, PanelAnchor, GameFrame, PrevNextGame } from '../../slate/SlateParts'
-import { FactTiles } from '../../matchup/MatchupParts'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsBoard, useBucketsExpected, useBucketsTeamModel, useBucketsHot } from '../../../lib/nba/useBuckets'
 import { MARKET_OPTIONS, NBA_MARKETS } from '../../../lib/nba/legs'
@@ -178,11 +177,11 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
           read: () => (
             <PanelAnchor id="read" gamePk={g.id}>
               <NbaWriteupBlock gameId={g.id} date={shown} onOpenPlayer={onOpenPlayer} />
-              <FactTiles theme={C} numFont={NUM_FONT} big min={130} tiles={[
-                { k: `${away} expected`, v: m1 ? m1.away.pts.toFixed(1) : null, sub: m1 ? 'points' : null },
-                { k: `${home} expected`, v: m1 ? m1.home.pts.toFixed(1) : null, sub: m1 ? 'points' : null },
-                { k: 'Board', v: rows.length && rows.every((r) => r.locked !== false) ? 'Locked' : 'Not locked', sub: rows.length && rows.every((r) => r.locked !== false) ? null : 'can still change' },
-              ]} />
+              {/* one line, not three big tiles (2026-10-20, Donovan: "make that shorter, especially for the phone") */}
+              <div style={{ fontSize: 12, color: C.text3, fontFamily: NUM_FONT, margin: '0 0 6px' }}>
+                {m1 ? <><b style={{ color: C.text }}>{away} {m1.away.pts.toFixed(1)}</b>{' · '}<b style={{ color: C.text }}>{home} {m1.home.pts.toFixed(1)}</b> expected points · </> : null}
+                {rows.length && rows.every((r) => r.locked !== false) ? 'board locked' : 'board not locked, can still change'}
+              </div>
               <div style={{ marginTop: 12 }}><BucketsAttack date={shown} away={away} home={home} onOpenPlayer={onOpenPlayer} /></div>
             </PanelAnchor>
           ),
