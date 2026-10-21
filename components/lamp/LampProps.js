@@ -70,7 +70,7 @@ function lampAdapter(season, odds) {
         dialTitle: `${WORD[k]} score — LAMP's number for this market, 0-100 within tonight's pool`,
         market: BAR[k],
         title: r.name,
-        badge: k === 'NONE' ? (x.status === 'board' ? 'ON BOARD' : 'NOT CALLED') : (x.status === 'called' ? STATUS_WORD.called : 'ON BOARD'),
+        badge: STATUS_WORD[x.status] || STATUS_WORD.off,   // lib/callStatus words, never typed here (audit 2026-10-20)
         badgeQuiet: x.status !== 'called',
         meta: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, minWidth: 0, maxWidth: '100%' }}>
           <TeamMark sport="nhl" abbr={r.team} variant="logo" px={16} />

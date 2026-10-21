@@ -11,6 +11,10 @@ import { boardReason } from '../../lib/nfl/boardReason'
 import { baselineFor } from '../../lib/nfl/tdPool'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
 import TdCompare from './TdCompare'
+import { useGameCalls } from './GameCalls'
+import { tdPool } from '../../lib/nfl/tdPool'
+import { tdStatusFor } from '../../lib/nfl/tdStatus'
+import { STATUS_WORD } from '../../lib/callStatus'
 
 // 🏈 TUDDY PROPS, MOONSHOT'S PAGE (2026-10-04, Donovan: "make sure the props
 // pages look like the mlb one"). The shared grid (components/props/PropCards.js)
@@ -36,7 +40,7 @@ const TILES = {
   KICK_PTS: (s) => [['FG / G', one(s.FGM)], ['PAT / G', one(s.PAT)], ['PTS / G', Number.isFinite(Number(s.FGM)) && Number.isFinite(Number(s.PAT)) ? one(3 * Number(s.FGM) + Number(s.PAT)) : '—']],
 }
 
-function nflAdapter({ players, card, markets, odds, games }) {
+function nflAdapter({ players, card, markets, odds, games, statusOf }) {
   // 2026-10-07 colour diet: one accent for every market; 'not on the card' is grey.
   const colors = { TD: C.green, REC_YDS: C.green, RUSH_YDS: C.green, REC: C.green, PASS_YDS: C.green, KICK_PTS: C.green, RUSH_ATT: C.green, NONE: C.text3 }
   // who is on each market's card, and at which bar
@@ -90,8 +94,10 @@ function nflAdapter({ players, card, markets, odds, games }) {
         dialTitle: `${LONG[mk]} score for this market`,
         market: card?.[mk]?.bar != null ? `${card[mk].bar}+ ${SHORT[mk].toLowerCase()}` : LONG[mk],
         title: r.name,
-        badge: slot ? 'CALLED' : 'NOT CALLED',
-        badgeQuiet: !slot,
+        // A yardage / count market's call IS its card. Touchdowns (and Not on the card) say what every TUDDY page says:
+        // lib/nfl/tdStatus -- the TD ladder, then his game's call; the top third of the week's TD board is ON THE BOARD (audit 2026-10-20).
+        badge: mk === 'TD' ? STATUS_WORD[statusOf(r)] : slot ? STATUS_WORD.called : STATUS_WORD.off,
+        badgeQuiet: mk === 'TD' ? statusOf(r) !== 'called' : !slot,
         meta: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, minWidth: 0, maxWidth: '100%' }}>
           <TeamMark sport="nfl" abbr={r.team} variant="logo" px={16} />
           <span>vs</span>
@@ -123,7 +129,9 @@ export default function NflProps({ data, picks, odds, matchup = null, onPlayerCl
   const players = useMemo(() => (data?.players || []).filter((p) => p && p.player_id && !p.on_bye), [data])
   const watchlist = useNflWatchlist(data)
   const watchIds = useMemo(() => new Set((watchlist.pins || []).map((p) => String(p.player_id ?? p.id))), [watchlist.pins])
-  const a = useMemo(() => nflAdapter({ players, card: picks?.card, markets: data?.markets, odds, games: data?.games }), [players, picks, data, odds])
+  const gameCalls = useGameCalls()
+  const statusOf = useMemo(() => tdStatusFor({ picksCard: picks?.card, gameCalls, games: data?.games, board: tdPool(data).rows }).statusOf, [picks, gameCalls, data])
+  const a = useMemo(() => nflAdapter({ players, card: picks?.card, markets: data?.markets, odds, games: data?.games, statusOf }), [players, picks, data, odds, statusOf])
   if (!players.length) return null
   return (
     <PropCards a={a} rows={players} onOpen={onPlayerClick} onWatch={(p) => watchlist.toggle(p)} watchIds={watchIds}

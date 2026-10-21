@@ -59,6 +59,8 @@ export const GET = bucketsRoute('player', async (q) => {
   const tag = (log, s) => log.map((g) => ({ ...g, s }))
   // PROJECTED POINTS for his next game (lib/nba/expectedPoints.js), from the same games the page shows
   const proj = nextGame ? projectFromLog([...logCur, ...logPrev], oppAllowance(sCur, sPrev, nextGame.opp)) : null
+  // a failed read is a failure (audit 2026-10-20), not a player with no shots and no record
+  if (shots.error || calls.error) throw new Error((shots.error || calls.error).message)
   return ok({
     nextGame: nextGame ? { id: nextGame.id, start: nextGame.start, opp: nextGame.opp, home: nextGame.home, seasonType: nextGame.seasonType } : null,
     card, season: sn.read, seasonLabel: seasonLabel(sn.read), stale: sn.stale,
@@ -68,12 +70,12 @@ export const GET = bucketsRoute('player', async (q) => {
     xpts: proj?.ok ? { xpts: Math.round(proj.xpts * 10) / 10, minRecent: Math.round(proj.minRecent * 10) / 10, rate: Math.round(proj.rate * 1000) / 1000, oppFactor: Math.round(proj.oppFactor * 1000) / 1000, oppKnown: proj.oppKnown, n: proj.n, line: proj.line, opp: nextGame.opp, start: nextGame.start } : (proj ? { xpts: null, reason: proj.reason } : null),
     log: logCur.length ? logCur : logPrev, logSeason: logCur.length ? seasonLabel(sn.cur) : seasonLabel(sn.prev),
     // packed as the shots route packs them (lib/nba/shots.js): [x, y, made, three, game index, period] + shotGames [[id, date]]
-    ...(() => { const p = packShots(shots.error ? [] : shots.data || []); return { shots: p.shots, shotGames: p.games } })(),
+    ...(() => { const p = packShots(shots.data || []); return { shots: p.shots, shotGames: p.games } })(),
     shotsFrom: shots.data?.length ? shots.data[shots.data.length - 1].game_date : null,
     // THE PUBLIC-NUMBER FLOOR ON HIS PAGE (10-19, before BUCKETS opens): his record lines, last week and the on-him table are
     // results, so they carry only what the record may count -- no preseason row, and no market still under its 30 graded
     // regular-season nights (lib/record/nbaFloor.js; the same floor as /api/buckets/record, the ledger and the posts)
-    calls: (calls.error ? [] : calls.data || []).filter((r) => r.season_type !== 1 && !trackingOf(floor, r.market)),
+    calls: (calls.data || []).filter((r) => r.season_type !== 1 && !trackingOf(floor, r.market)),
     fetchedAt: new Date().toISOString(),
   }, 600)
 })
