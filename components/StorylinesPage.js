@@ -37,7 +37,7 @@ const TYPE_LABEL = {
 }
 const SHOW = 3
 // The bar a frozen story was graded on, in words (lib/stories/grade.js).
-const BAR_WORD = { hr: 'homered', hit: '1+ hit', td: 'scored a TD', goal: 'scored', productive: 'productive' }
+const BAR_WORD = { hr: 'homered', hit: '1+ hit', td: 'scored a TD', goal: 'scored', productive: 'productive', pts25: '25+ points', 'team:soft': 'scored what that D allows', 'team:tired': 'tired club lost', 'team:pp': 'power-play goal' }
 const barWord = (bar) => BAR_WORD[bar] || (String(bar).startsWith('milestone:') ? 'reached it' : String(bar).startsWith('streak:') ? 'streak extended' : String(bar || ''))
 const MIN_PCT = 30   // no percentage until a type has this many graded stories
 const ORDER = { pre: 0, unknown: 0, live: 1, final: 2 }
