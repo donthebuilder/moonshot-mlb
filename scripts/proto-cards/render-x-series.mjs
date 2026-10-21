@@ -15,7 +15,12 @@ import { headshotIdFor } from '../../lib/nfl/headshotIds.js'
 import { inline } from '../../lib/cards/cardKit.js'
 import { TOPICS, filmData, filmRoomText } from '../../lib/posts/filmRoom.js'
 import { pickFiveA, pickFiveB, fiveText } from '../../lib/posts/theFive.js'
-import { filmRoomPoster, fivePoster } from '../../lib/cards/proto/xSeriesCards.js'
+import { filmRoomPoster } from '../../lib/cards/proto/xSeriesCards.js'
+import { renderTopThree } from '../../lib/cards/topThreeCard.js'
+import { logoFor } from '../../lib/cards/adapters/common.js'
+import { BRAND } from '../../lib/routes.js'
+import { C } from '../../lib/theme.js'
+import { mlbHeadshot } from '../../lib/mlbTeams.js'
 
 const OUT = process.argv[2] || './x-series-proto'
 const FROM = process.argv[3] || '2026-10-13'
@@ -37,20 +42,31 @@ const faceOf = async (c) => {
   if (c.sport === 'nhl') return inline(`https://assets.nhle.com/mugs/nhl/latest/${c.id}.png`)
   if (c.sport === 'nba') return inline(nbaHeadshot(c.id))
   if (c.sport === 'nfl') { const h = headshotIdFor(c.id); return h ? inline(nflHeadshot(h, 200, 146)) : '' }
+  if (c.sport === 'mlb') return inline(mlbHeadshot(c.id))
   return ''
 }
-const posterRows = async (picks) => Promise.all(picks.map(async (c) => ({ sport: c.sport, name: c.name, team: c.team, rank: c.rank, of: c.of, why: /^#\d+ of/.test(c.proof || '') ? 'CALLED on our board' : c.proof, face: await faceOf(c) })))
+// THE FIVE is the Top 3 card with five tiles (lib/cards/topThreeCard.js, compact mode): each tile in its own product's accent, #1 holo, the rest shimmer
+const tileOf = async (c, i) => {
+  const logo = await logoFor(c.sport, c.team)
+  return {
+    sport: c.sport, name: c.name, team: c.team, face: await faceOf(c), logo: logo.src, logoPlate: logo.plate, tone: null,
+    tier: i === 0 ? 'elite' : 'star', holo: i === 0, shimmer: i !== 0,
+    tag: `CALLED · ${BRAND[c.sport]?.name || c.sport} · #${c.rank} OF ${c.of}`, line: c.proof,
+  }
+}
 const texts = []
 for (const [v, pick, label] of [['A', pickFiveA, 'One from every board, then the best of the rest'], ['B', pickFiveB, 'The five best spots on our boards']]) {
   const picks = pick(sports)
   const text = fiveText({ picks, dayWords: 'Weekend of Oct 24', variant: v, limit: 890 })
   texts.push(`===== THE FIVE · VERSION ${v} (${label}) =====\n${text}\n`)
-  writeFileSync(`${OUT}/the-five-${v}.png`, await fivePoster({ rows: await posterRows(picks), label, day: 'Weekend of Oct 24' }))
+  const model = { sport: 'all', accent: C.orange, brand: { name: 'CALLED IT', league: 'ALL SPORTS' }, title: 'THE FIVE', dayWord: 'Weekend of Oct 24', tiles: await Promise.all(picks.map(tileOf)), test: false, note: v === 'A' ? 'One from every board, then the rest' : 'The five best spots on our boards' }
+  writeFileSync(`${OUT}/the-five-${v}.png`, await renderTopThree(model))
   console.log('wrote', `the-five-${v}.png`, picks.map((p) => `${p.sport}:${p.name}`).join(' | '))
 }
 
 // ── FILM ROOM: the real line from the public call record of [FROM..TO] ──
 const receipts = []
+const hitsSeen = []
 for (const sport of ['mlb', 'nfl', 'nhl']) {
   const rec = await getJson(`${SITE}/api/record/calls?sport=${sport}`).catch(() => null)
   const calls = (rec?.calls || []).filter((c) => c.date >= FROM && c.date <= TO && (c.result === 'hit' || c.result === 'miss'))
@@ -60,16 +76,24 @@ for (const sport of ['mlb', 'nfl', 'nhl']) {
     const k = c.result === 'hit' ? 'cashed' : 'missed'
     night.payload.counts[k] += 1
     const bs = (night.payload.by_sport[sport] ||= { cashed: 0, missed: 0, void: 0 }); bs[k] += 1
-    if (k === 'cashed') night.payload.results.push({ sport, player_id: c.player_id, name: c.name, outcome: 'cashed' })
+    if (k === 'cashed') { night.payload.results.push({ sport, player_id: c.player_id, name: c.name, outcome: 'cashed' }); hitsSeen.push({ sport, id: String(c.player_id), name: c.name, team: c.team, date: c.date }) }
   }
 }
 const data = filmData({ receipts, tuesdayRow: null })
 notes.push(`FILM ROOM real line: ${FROM}..${TO} from /api/record/calls (mlb, nfl, nhl): ${data.made} calls, ${data.cashed} landed`)
+// the faces: the last 7 nights' CALLED scorers, newest first, each once; the CALLED example is the newest one whose face loads
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const dayWordOf = (d) => `${MON[Number(d.slice(5, 7)) - 1]} ${Number(d.slice(8, 10))}`.toUpperCase()
+const uniq = []
+for (const h of hitsSeen.sort((a, b) => b.date.localeCompare(a.date))) if (!uniq.some((u) => u.sport === h.sport && u.id === h.id)) uniq.push(h)
+const faces = []
+for (const h of uniq) { if (faces.length >= 5) break; const face = await faceOf(h); if (face) { const logo = await logoFor(h.sport, h.team); faces.push({ ...h, face, logo: logo.src, logoPlate: logo.plate, dayWord: dayWordOf(h.date) }) } }
+notes.push(`FILM ROOM faces: ${faces.map((f) => `${f.name} (${f.sport} ${f.date})`).join(', ')}`)
 for (let i = 0; i < TOPICS.length; i += 1) {
   const day = new Date(Date.parse('2026-10-21T12:00:00Z') + i * 7 * 864e5).toISOString().slice(0, 10)
   const t = filmRoomText({ day, data, limit: 900 })
   const topic = TOPICS[i]
-  writeFileSync(`${OUT}/film-room-${i + 1}-${topic.key}.png`, await filmRoomPoster({ topic, n: i + 1, data }))
+  writeFileSync(`${OUT}/film-room-${i + 1}-${topic.key}.png`, await filmRoomPoster({ topic, n: i + 1, data, ex: faces[0] || null, faces, dayWord: dayWordOf(day).replace(/^(\w)(\w+)/, (m, a, b) => a + b.toLowerCase()) }))
   texts.push(`===== FILM ROOM NO. ${i + 1} · ${day} · ${topic.key} =====\n${t.text}\n`)
   console.log('wrote', `film-room-${i + 1}-${topic.key}.png`)
 }
