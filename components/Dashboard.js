@@ -127,7 +127,7 @@ export default function Dashboard({ palettePass = 0 }) {
   // 2026-09-24 (SEO/NAV-12): the tab title in the browser tab and history.
   // Every page of both products read as the site name before this.
   // lib/usePageTitle.js holds it against Next's own static <title> write.
-  usePageTitle(`${pageTitle('mlb', tab)} \u00b7 DASH Network`)
+  usePageTitle(`${pageTitle('mlb', tab)} \u00b7 DASH Network`, 'mlb')
   const openGameNav = (pk) => { if (!pk) return; leaveTarget('game', pk); setTab('games') }
   const openPitcherNav = (pid) => { if (!pid) return; leaveTarget('pitcher', pid); setTab('pitchers') }
   const openTeam = (abbr) => { if (!abbr) return; leaveTarget('team', String(abbr).toUpperCase()); setTab('team') }
