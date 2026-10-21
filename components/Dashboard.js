@@ -586,6 +586,7 @@ export default function Dashboard({ palettePass = 0 }) {
     if (tab === 'fullboard') { for (const k of ['cols', 'sort', 'cln', 'pos']) if (live.get(k)) h.set(k, live.get(k)) }   // Rankings' column view and its sort chain (10-07); cln = the Called last night filter (10-10)
     carryLedgerView(h, live, tab)                                                     // The Ledger's sub-tab (lv=, lib/ledger/views.js)
     if (tab === 'storylines') for (const k of ['st.type', 'st.q']) if (live.get(k)) h.set(k, live.get(k))   // Storylines' filters (10-20: the MILESTONES block links to its Milestone view)
+    if (tab === 'numerology') for (const k of ['nf.q', 'nf.game', 'nf.ax']) if (live.get(k)) h.set(k, live.get(k))   // Numerology's filters (10-20, components/numerology/AlignFilters.js)
     if (tab === 'odds' && live.get('lens')) h.set('lens', live.get('lens'))   // the Longshots lens (components/OddsWithLongshots.js)
     if (tab === 'team' && live.get('team')) h.set('team', live.get('team'))           // the team page's club (10-03)
     if (tab === 'team') for (const k of ['sec', 'sv']) if (live.get(k)) h.set(k, live.get(k))   // its section and view (components/team/TeamPage.js)

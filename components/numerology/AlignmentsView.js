@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { usePickLight } from '../../lib/pickLight'
 import { C as MLB_C, NUM_FONT as MLB_NUM } from '../../lib/theme'
 import MilestonesBlock from '../MilestonesBlock'
+import AlignFilters, { useAlignFilters } from './AlignFilters'
 
 // 🔮 THE ALIGNMENTS VIEW, EVERY SPORT (2026-09-29, numerology parity).
 // MOONSHOT's components/Alignments.js, lifted out so TUDDY and LAMP render
@@ -75,7 +76,7 @@ export const MLB_WORDS = {
 }
 
 export default function AlignmentsView({
-  model, tonight, todayKey, todayRoot, AXIS_META, scoreOf = () => null,
+  model: modelIn, tonight: tonightIn, todayKey, todayRoot, AXIS_META, scoreOf = () => null,
   head = null, days = null, watchedRows = [], hasWatch = false,
   words = MLB_WORDS, builder = false, chipLimit = 24, compact = false, onBuildAround, onName, children = null,
   theme = MLB_C, numFont = MLB_NUM, accent = null, sport = 'mlb',
@@ -84,6 +85,12 @@ export default function AlignmentsView({
   const NUM_FONT = numFont
   accent = accent || C.orange
   const W = { ...MLB_WORDS, ...words }
+  // FILTERS (2026-10-20, components/numerology/AlignFilters.js): search / game / which numbers count; every section
+  // below reads the filtered model and tonight, re-run through the same engine, so its chance numbers fit the set
+  const ctl = useAlignFilters({ model: modelIn, tonight: tonightIn, todayRoot, scoreOf, AXIS_META, sport })
+  const model = ctl.model
+  const tonight = ctl.tonight
+  const filters = <AlignFilters ctl={ctl} AXIS_META={AXIS_META} todayRoot={todayRoot} theme={C} numFont={NUM_FONT} accent={accent} words={W} onName={onName} />
   const { rows, clubs, totalMemberships, braids, names } = model
   // THE PICKED SET IS SITE-WIDE (2026-09-30, Donovan: "click and highlight
   // players and then click thru and see they are highlighted -- that
@@ -115,11 +122,13 @@ export default function AlignmentsView({
   const expected = totalMemberships / 9
 
   const milestones = <MilestonesBlock sport={sport} theme={C} numFont={NUM_FONT} accent={accent} dateRoot={todayRoot} date={/^\d{4}-\d{2}-\d{2}$/.test(String(todayKey || '')) ? todayKey : null} />
-  if (!rows.length) return <div><div style={{ fontSize: 11.5, color: C.text3 }}>{W.empty}</div>{milestones}</div>
+  if (!modelIn.rows.length) return <div><div style={{ fontSize: 11.5, color: C.text3 }}>{W.empty}</div>{milestones}</div>
+  if (!rows.length) return <div>{head}{filters}{milestones}</div>
 
   return (
     <div>
       {head}
+      {filters}
 
       {/* ── TONIGHT'S NUMBER (2026-08-31) ─────────────────────────────────
           Donovan: "you mus give us preditcution using the numeroly
