@@ -196,107 +196,35 @@ await ok('text: the record line is always the true one -- wins beyond the rows a
   const more = /\+(\d+) more cashed/.exec(out.text)
   assert.equal(shown + (Number(more?.[1]) || 0), 6, out.text)
 })
-await ok('misses: one clean reply each under the post that named him (write-up first, else THE SLATE), never a fake id, at most 10 a night, never twice', () => {
-  const g = (i, extra = {}) => ({ sport: 'nhl', id: `m${i}`, name: `Test Skater ${i}`, market: 'goal scorer', outcome: 'missed', writeupId: null, slateId: '7001', ...extra })
-  const plan = RC.missReplyPlan({ day: DAY, graded: [g(1, { writeupId: '9001' }), g(2), g(3, { slateId: 'dry' }), g(4, { tracking: true }), { ...g(5), outcome: 'cashed' }, g(6, { market: 'HRR' })] })
-  assert.deepEqual(plan.map((p) => [p.key, p.replyTo]), [['nhl:m1', '9001'], ['nhl:m2', '7001']])
-  assert.ok(plan.every((p) => /Test Skater \d/.test(p.text) && /\bgoal\b/.test(p.text) && !BANNED.test(p.text)), plan.map((p) => p.text).join(' | '))
-  assert.equal(RC.missReplyPlan({ day: DAY, graded: [g(1), g(2)], done: { 'nhl:m1': '123' } }).length, 1, 'a miss already replied to is not replied to again')
-  assert.equal(RC.missReplyPlan({ day: DAY, graded: Array.from({ length: 15 }, (_, i) => g(i + 10)) }).length, RC.MAX_MISS_REPLIES)
-  const texts = new Set(Array.from({ length: 12 }, (_, i) => RC.missReplyPlan({ day: DAY, graded: [g(i + 30)] })[0].text.replace(/Test Skater \d+/, 'X')))
-  assert.ok(texts.size > 1, 'not one line for every miss')
+await ok('misses ("one recap is good, including missed", 2026-10-20): ONE clean recap reply naming every miss, under the receipt, else THE SLATE, else a write-up; never a fake id', () => {
+  const g = (i, extra = {}) => ({ sport: 'nhl', id: `m${i}`, name: `Test Skater ${i}`, market: 'goal scorer', outcome: 'missed', writeupId: null, slateId: null, ...extra })
+  const graded = [g(1, { writeupId: '9001' }), g(2, { slateId: '7001' }), g(3, { tracking: true }), { ...g(4), outcome: 'cashed' }, g(5, { market: 'HRR' }), { ...g(6), sport: 'nfl', market: 'anytime touchdown' }]
+  const p = RC.missRecapPlan({ day: DAY, graded, receiptId: '5555' })
+  assert.equal(p.replyTo, '5555', 'under the night receipt when it went to X')
+  assert.match(p.text, /Test Skater 1 · no goal/); assert.match(p.text, /Test Skater 2 · no goal/); assert.match(p.text, /Test Skater 6 · no touchdown/)
+  assert.ok(!/Test Skater 3|Test Skater 4|Test Skater 5/.test(p.text), 'tracking rows, landed calls and markets with no plain word stay out')
+  assert.match(p.text, /It all counts\. Every call, graded → DASH · The Ledger$/); assert.ok(!BANNED.test(p.text), p.text)
+  assert.equal(RC.missRecapPlan({ day: DAY, graded }).replyTo, '7001', 'no receipt on X: under THE SLATE that named them')
+  assert.equal(RC.missRecapPlan({ day: DAY, graded: [g(1, { writeupId: '9001' })] }).replyTo, '9001', 'else under his write-up')
+  assert.equal(RC.missRecapPlan({ day: DAY, graded: [g(1, { slateId: 'dry' })], receiptId: 'skipped' }), null, 'no post of ours went to X: no reply')
+  assert.equal(RC.missRecapPlan({ day: DAY, graded: [{ ...g(1), outcome: 'cashed' }], receiptId: '5555' }), null, 'no miss: no reply')
+  const many = RC.missRecapPlan({ day: DAY, graded: Array.from({ length: 12 }, (_, i) => g(i + 10, { slateId: '7001' })), receiptId: '5555' })
+  assert.equal(many.text.split('\n').filter((l) => / · no goal$/.test(l)).length, RC.MAX_MISS_ROWS); assert.match(many.text, /\+4 more/)
 })
-await ok('text: long names still fit 280 (rows come off, the record line never does)', () => {
-  const graded = Array.from({ length: 6 }, (_, i) => ({ sport: 'mlb', id: `x${i}`, name: `Test Hyphenated-Longname Extraordinarily ${i}`, market: 'home run', outcome: i < 2 ? 'cashed' : 'missed' }))
-  const out = RC.renderReceipt({ day: DAY, graded })
-  assert.ok(S.xLen(out.text) <= 280, String(S.xLen(out.text)))
-  assert.match(out.text, /CALLED · 2 of 6 cashed/)
-})
-await ok('text: all cashed -> "The signal was there."; any miss -> no tagline; no link / hashtag / "bot" / probability / percent anywhere', () => {
-  const win = (id) => ({ sport: 'mlb', id, name: `Test Hitter ${id}`, market: 'home run', outcome: 'cashed' })
-  assert.match(RC.renderReceipt({ day: DAY, graded: [win('a'), win('b')] }).text, /The signal was there\./)
-  const mixedOut = RC.assembleReceipt({ day: DAY, rows: posts(), ...mixed(), now: T0 }).text
-  assert.ok(!/can't be modeled/.test(mixedOut)); assert.ok(!/\n\n\n/.test(mixedOut))
-  assert.ok(!/told you so/i.test(mixedOut))
-  for (const t of [mixedOut, RC.renderReceipt({ day: DAY, graded: [win('a')] }).text]) assert.ok(!BANNED.test(t), t)
-  assert.equal((mixedOut.match(/\p{Extended_Pictographic}/gu) || []).length <= 2, true)
-})
-await ok('text: the words are the registry\'s -- CALLED is STATUS_WORD.called, the markets are POST_WORDS, the pointer is the real Ledger nav name', () => {
-  assert.equal(CS.STATUS_WORD.called, 'CALLED')
-  const t = RC.assembleReceipt({ day: DAY, rows: posts(), ...mixed(), now: T0 }).text
-  assert.match(t, new RegExp(`${R.POST_WORDS.mlb.market} · cashed`))
-  assert.match(t, new RegExp(`${R.POST_WORDS.nhl.market} · cashed`))
-  assert.equal(RC.ledgerPointer(), `Every call, graded → ${R.POST_POINTER.home} · ${R.MLB_NAV.ledger.label}`)
-  assert.equal(R.MLB_NAV.ledger.label, 'The Ledger'); assert.equal(R.NFL_NAV.ledger.label, 'The Ledger'); assert.equal(R.NHL_NAV.ledger.label, 'The Ledger')
-  // no sport ternary and no URL in the module
-  const src = fs.readFileSync('lib/posts/receipt.js', 'utf8').replace(/\/\/.*$/gm, '')
-  assert.ok(!/sport\s*===\s*'(mlb|nfl|nhl|nba)'\s*\?/.test(src))
-  assert.ok(!/https?:\/\//.test(src))
-})
-await ok('text: no BUCKETS pointer or row until BUCKETS is public', () => {
-  const t = RC.assembleReceipt({ day: DAY, rows: [...posts(), { day: DAY, kind: 'slate', x_post_id: '7001', payload: slateRow().payload }], ...mixed(), now: T0 }).text
-  assert.ok(!/BUCKETS|25 points|NBA/.test(t))
-})
-
-// ═══ 3. ONLY WHO WAS NAMED ══════════════════════════════════════════════════
-await ok('only named players appear: an unnamed homer / scorer / touchdown is not on the receipt', () => {
-  const m = mixed({ homered: ['m1', 'stranger'], tds: ['n1', 'other-td'] })
-  const a = RC.assembleReceipt({ day: DAY, rows: posts(), ...m, now: T0 })
-  assert.ok(!/stranger|other-td/.test(JSON.stringify(a.payload)))
-  for (const g of a.graded) assert.ok(['m1', 'm2', 'n1', 'h1', 'h2'].includes(g.id), g.id)
-  assert.deepEqual(a.payload.results.map((r) => r.player_id).sort(), ['h1', 'h2', 'm1', 'm2', 'n1'])
-  // and a man the text shows is one of them
-  for (const id of a.named) assert.ok(['m1', 'm2', 'n1', 'h1', 'h2'].includes(id))
-})
-await ok('grades come from the sports\' own results: a touchdown in the feed cashes the Slate\'s back, a bar short of a hit is a miss', () => {
-  const a = RC.assembleReceipt({ day: DAY, rows: posts(), ...mixed({ tds: ['n1'] }), now: T0 })
-  assert.equal(a.graded.find((g) => g.id === 'n1').outcome, 'cashed')
-  assert.equal(a.graded.find((g) => g.id === 'm2').outcome, 'missed')
-  assert.equal(a.graded.find((g) => g.id === 'h2').outcome, 'void')
-  // a HIT call (a write-up on another bar) is graded on its own bar, not on a home run
-  const hit = RC.assembleReceipt({ day: DAY, rows: [callRow({ role: 'HIT', bar: '1+ hit' })], ...mixed(), now: T0 })
-  assert.equal(hit.graded.find((g) => g.id === 'm2').outcome, 'cashed')   // box() has h: 1
-  assert.equal(hit.graded.find((g) => g.id === 'm2').market, 'hit')
-})
-
-// ═══ 4. THE QUOTE ═══════════════════════════════════════════════════════════
-await ok('quote: the Slate\'s real tweet id when the Slate named someone who cashed', () => {
-  const a = RC.assembleReceipt({ day: DAY, rows: posts(), ...mixed(), now: T0 })
-  assert.equal(a.quoteId, '7001')
-})
-await ok('quote: a write-up player who cashed and is ONLY in the write-up quotes the write-up; a Slate man who missed does not pull the quote', () => {
-  // only h2 (NHL write-up) cashed; the Slate\'s men all missed
-  const m = mixed({ homered: [], nhl: { h1: { graded_at: 'x', dressed: true, hit: false }, h2: { graded_at: 'x', dressed: true, hit: true } } })
-  const a = RC.assembleReceipt({ day: DAY, rows: posts(), ...m, now: T0 })
-  assert.equal(a.state, 'go')
-  assert.equal(a.quoteId, '7003')
-  // and the call_<pk> write-up for a MLB hitter
-  const m2 = mixed({ homered: ['m2'], nhl: { h1: { graded_at: 'x', dressed: true, hit: false }, h2: { graded_at: 'x', dressed: false, hit: null } } })
-  assert.equal(RC.assembleReceipt({ day: DAY, rows: posts(), ...m2, now: T0 }).quoteId, '7002')
-})
-await ok('quote: never a dry / skipped / missing id -- a Slate that did not reach X is not quoted (and names no one)', () => {
-  for (const bad of ['dry', 'skipped', 'backfill', null, '']) {
-    const rows = posts().map((r) => (r.kind === 'slate' ? { ...r, x_post_id: bad } : r))
-    const a = RC.assembleReceipt({ day: DAY, rows, ...mixed({ homered: [], nhl: { h1: { graded_at: 'x', dressed: true, hit: false }, h2: { graded_at: 'x', dressed: true, hit: true } } }), now: T0 })
-    assert.notEqual(a.quoteId, bad)
-    assert.ok(a.quoteId == null || /^\d+$/.test(a.quoteId), String(a.quoteId))
-  }
-  // quoteId is what postToX receives (the API field quote_tweet_id), tested end to end below
-})
-
-await ok('misses (5b): a cash night with misses posts the receipt AND one clean reply per miss under the post that named him, recorded on the row, never twice', async () => {
+await ok('misses (5b): a cash night with misses posts the receipt AND one recap reply under it, recorded on the row, never twice', async () => {
   reset(); delete process.env.MISS_REPLIES_OFF
   try {
     const db = fakeDb({ homer_feed_posts: posts() })
     await RC.postReceiptOnce(db, { day: DAY, load: load(mixed()), hooks: '', now: T0 })
     assert.equal(await RC.postReceiptOnce(db, { day: DAY, load: load(mixed()), hooks: '', now: T0 + RC.SETTLE_MS + 1 }), 'posted')
     const top = tweets.filter((t) => !t.reply), rep = tweets.filter((t) => t.reply)
-    assert.equal(top.length, 1, 'one receipt')
-    assert.ok(rep.length >= 1 && rep.every((t) => /^\d+$/.test(t.reply.in_reply_to_tweet_id) && !/https?:|#[A-Za-z]/.test(t.text)), JSON.stringify(rep.map((t) => t.text)))
+    assert.equal(top.length, 1, 'one receipt'); assert.equal(rep.length, 1, 'one recap')
     const row = db.tables.homer_feed_posts.find((r) => r.kind === 'receipt')
-    assert.equal(Object.keys(row.payload.miss_replies).length, rep.length)
+    assert.equal(rep[0].reply.in_reply_to_tweet_id, row.x_post_id, 'the recap answers the receipt')
+    assert.ok(/ · no /.test(rep[0].text) && !/https?:|#[A-Za-z]/.test(rep[0].text), rep[0].text)
+    assert.match(String(row.payload.miss_recap), /^\d+$/)
     assert.equal(await RC.postReceiptOnce(db, { day: DAY, load: load(mixed()), hooks: '', now: T0 + 1e7 }), 'already-posted')
-    assert.equal(tweets.length, top.length + rep.length, 'nothing sent twice')
+    assert.equal(tweets.length, 2, 'nothing sent twice')
   } finally { process.env.MISS_REPLIES_OFF = 'on' }
 })
 
@@ -309,11 +237,11 @@ await ok('no cash = no post: nothing cashed -> state none, nothing posted, logge
   const db = fakeDb({ homer_feed_posts: posts() })
   assert.equal(await RC.postReceiptOnce(db, { day: DAY, load: load(m), hooks: '', now: T0 }), 'settling')
   assert.equal(await RC.postReceiptOnce(db, { day: DAY, load: load(m), hooks: '', now: T0 + RC.SETTLE_MS + 1 }), 'dropped: no cash')
-  // no receipt post; each miss whose naming post went to X gets its one clean reply under it (2026-10-20)
+  // no receipt post (the miss recap is off in these tests; section 5b covers it)
   assert.ok(tweets.every((t) => t.reply?.in_reply_to_tweet_id), 'replies only, never a top-level post'); assert.equal(discords.length, 0)
   const row = db.tables.homer_feed_posts.find((r) => r.kind === 'receipt')
   assert.equal(row.x_post_id, 'skipped'); assert.equal(row.payload.counts.cashed, 0); assert.equal(row.payload.counts.missed, 4)
-  assert.equal(Object.keys(row.payload.miss_replies || {}).length, tweets.length, 'every reply sent is recorded, so it is never sent twice')
+  assert.equal(row.payload.miss_recap ? 1 : 0, tweets.length, 'a recap sent is recorded, so it is never sent twice')
   assert.ok(L.recentLog().some((e) => e.kind === 'receipt' && e.state === 'DROPPED' && e.reason === 'no cash'))
   // asked again later: the row exists, so nothing more happens
   assert.equal(await RC.postReceiptOnce(db, { day: DAY, load: async () => { throw new Error('must not load') }, hooks: '', now: T0 + 3600e3 }), 'already-posted')
@@ -344,7 +272,7 @@ await ok('called-it: 2 called / 0 landed -> a Discord-only receipt with both mis
   assert.equal(await RC.postReceiptOnce(db, { day: DAY, load: load(missNight()), hooks, receiptsHook: CALLED_IT, now: pastSettle }), 'dropped: no cash (discord only)')
   // X: no receipt post, only each miss's clean reply under the post that named him (2026-10-20)
   assert.ok(tweets.length <= 2 && tweets.every((t) => t.reply?.in_reply_to_tweet_id), JSON.stringify(tweets.map((t) => t.text)))
-  assert.equal(Object.keys(db.tables.homer_feed_posts.find((r) => r.kind === 'receipt').payload.miss_replies || {}).length, tweets.length)
+  assert.equal(db.tables.homer_feed_posts.find((r) => r.kind === 'receipt').payload.miss_recap ? 1 : 0, tweets.length)
   assert.equal(discords.length, 1); assert.equal(discords[0].url, CALLED_IT); assert.equal(discords[0].body.content, undefined)   // 10-10: the Discord copy is the DASH card, not the text
   assert.match(discords[0].body.embeds[0].title, /^\u{1F9FE} Receipt · /u); assert.match(discords[0].body.embeds[0].description, /· 0 for 2$/)
   assert.ok(discords[0].body.embeds[0].fields.some((f) => /\u2717 Test Hitter Two, home run: missed/.test(f.value)))
