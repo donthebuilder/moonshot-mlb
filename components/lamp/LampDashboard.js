@@ -110,7 +110,7 @@ export default function LampDashboard({ palettePass = 0 }) {
   const today = useLampScores(null)
   const night = today.data?.date || null
   const { routed, tab, setTab, gameId, teamKey, playerId, missingTab, date, setDate, badDate, setBadDate, openGame, openTeam, openPlayer, backLabel, goBack, peekId, peekPlayer, closePeek, stepPlayer } = useShellRoute({ ...ROUTE, night })
-  usePageTitle(`${pageTitle('nhl', routed ? tab : addressTab('nhl'))} · DASH Network`)   // before it routes: the address's tab, not Home's title for a frame (2026-10-21)
+  usePageTitle(`${pageTitle('nhl', routed ? tab : addressTab('nhl'))} · DASH Network`, 'nhl')   // before it routes: the address's tab, not Home's title for a frame (2026-10-21)
 
   const live = today.data?.live || 0
   // The picked day's scores, fetched only when a day other than today is

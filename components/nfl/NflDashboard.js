@@ -150,7 +150,7 @@ export default function NflDashboard({ palettePass = 0 }) {
   const onHub = tab === 'research'
   const hashDone = useRef(false)   // set once the address has been read (the deep-link effect below)
   // before the address is read: the tab it names, not Home's title for a frame (2026-10-21)
-  usePageTitle(`${(onHub && hubTitle) || pageTitle('nfl', hashDone.current ? tab : addressTab('nfl'))} \u00b7 DASH Network`)
+  usePageTitle(`${(onHub && hubTitle) || pageTitle('nfl', hashDone.current ? tab : addressTab('nfl'))} \u00b7 DASH Network`, 'nfl')
   const [dataRaw, setData] = useState(null)
   const [meta, setMeta] = useState(null)
   const [matchupRaw, setMatchup] = useState(null)
