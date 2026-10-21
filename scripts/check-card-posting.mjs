@@ -204,7 +204,11 @@ const slabStub = (bytes = 'SLAB') => async (o) => { askedSlab.push(o); return Bu
   const r = await POST.postLongShotResult(richDb(), { sport: 'nhl', day: '2026-01-02', row: ls, rec: { graded: 4, hits: 1, voids: 0, pushes: 0 }, now: NOW, slab: slabStub('ls') })
   check(/^posted/.test(r) && askedSlab[0]?.product === 'long_shot' && askedSlab[0].lane === 'bot' && askedSlab[0].sport === 'nhl', 'F: the Long Shot result asks for the long_shot slab of its sport and date')
   const t = tweetOf()
-  check(t?.text.includes('Test Nine') && t.media?.media_ids?.length === 1 && !/units|ROI|\bunit\b/i.test(t.text), 'F: the Long Shot result post: names its man, carries the slab on X, no units / ROI in the text')
+  // LONGSHOT TUESDAY (Donovan, 2026-10-20): the daily long shot and its result are no longer X posts (the Tuesday post and its reply are);
+  // the result still goes to the sport's free channel with its slab
+  const hook = calls.find((c) => c.url === FREE)
+  const lt = (await import('../lib/card/text.js')).longShotResultText({ sport: 'nhl', day: '2026-01-02', row: ls, rec: { graded: 4, hits: 1, voids: 0, pushes: 0 } }).text
+  check(!t && hook && filesOf(hook).length === 1 && lt.includes('Test Nine') && !/units|ROI|\bunit\b/i.test(lt), 'F: the Long Shot result post: the free channel carries it with the slab, no X post; its text names its man, no units / ROI')
   setEnv({ ...XENV, DISCORD_HOMER_WEBHOOK: FREE }); calls.length = 0; askedSlab.length = 0
   const dbl = mkRow({ sport: 'all', product: 'double', result: 'miss', leg_results: [{ result: 'hit' }, { result: 'miss' }], legs: [{ ...leg('P1', 'Test One'), sport: 'nhl' }, { ...leg('P7', 'Test Seven'), sport: 'mlb' }] })
   const r2 = await POST.postDoubleResult(richDb(), { day: '2026-01-02', row: dbl, slab: slabStub('dbl') })
