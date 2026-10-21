@@ -49,6 +49,9 @@ const daysBetween = (a, b) => Math.round(
   (new Date(`${a}T12:00:00Z`).getTime() - new Date(`${b}T12:00:00Z`).getTime()) / 864e5,
 )
 
+// 'today' / 'tomorrow' / 'on Tue, Oct 20' for a slate date against the ET date
+const slateDayWord = (d, today) => (d === today ? 'today' : d === addDays(today, 1) ? 'tomorrow' : `on ${new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })}`)
+
 export default function StaleBanner({ slateDate = '', mode = 'today', loading = false, truncated = false, games = 0, compact = false, schedule = null }) {
   // Re-check on a slow timer so a tab left open overnight notices the rollover
   // rather than sitting on the assumption it made when it was opened.
@@ -62,6 +65,15 @@ export default function StaleBanner({ slateDate = '', mode = 'today', loading = 
   // Rendered only once we know the ET clock — computing it during render would
   // make the server and the client disagree.
   if (!now || loading) return null
+
+  // CALLED OFF (2026-10-20, bot audit). MLB's schedule, read for this slate's own date, has NO game on it: the slate's games
+  // were taken off (an if-necessary game that wasn't needed -- ALCS game 849814 -- or a postponement). The bot skips a day with no
+  // games, so nothing replaces that slate; it is not "incomplete", and its games will not be played on this date.
+  if (slateDate && schedule?.byDate && !schedule.byDate[slateDate]) {
+    const nx = schedule.next ? new Date(`${schedule.next}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }) : null
+    return <StaleNote compact={compact} tone={C.blue} icon="📅" title={`No MLB games ${slateDayWord(slateDate, now.date)}`}
+      meta={`${games === 1 ? 'this game came' : 'these games came'} off the schedule${nx ? ` · next games ${nx}` : ''}`} />
+  }
 
   // A TRUNCATED PAYLOAD IS ITS OWN ALARM (2026-08-09 incident).
   //
