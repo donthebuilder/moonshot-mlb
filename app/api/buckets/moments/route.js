@@ -16,7 +16,7 @@ import { cronAuthorized, adminClient } from '../../../../lib/supabase/admin'
 import { bucketsPublic } from '../../../../lib/nba/gate'
 import { scoreboardFor, reduceScoreboard, summaryFor, reduceBox } from '../../../../lib/nba/api'
 import { NBA_MARKETS } from '../../../../lib/nba/model'
-import { momentRows, momentText, KIND } from '../../../../lib/nba/moments'
+import { momentRows, momentText, KIND, ddtdRows, ddtdText, DD_KIND, TD_KIND } from '../../../../lib/nba/moments'
 import { easternToday, shiftDay, etHour } from '../../../../lib/data'
 import { hasX, postToDiscord, postToX } from '../../../../lib/dash/xPost'
 import { feedHooksFor } from '../../../../lib/dash/discordChannels'
@@ -43,11 +43,16 @@ export async function GET(request) {
   const ids = on.map((g) => String(g.id))
   // a final game is read only until its moments are on file (then it is done)
   const [seen, locks, lockedRows] = await Promise.all([
-    db.from('buckets_feed').select('game_id, player_id').in('game_id', ids).eq('kind', KIND),
+    db.from('buckets_feed').select('game_id, player_id, kind').in('game_id', ids).in('kind', [KIND, DD_KIND, TD_KIND]),
     // the night's scored points rows: status for the tag, score for the night rank
     db.from('buckets_log').select('game_id, game_date, player_id, status, score').in('game_date', dates).eq('market', 'pts').eq('model_version', NBA_MARKETS.pts.version).not('score', 'is', null),
     db.from('buckets_games').select('game_id, graded_at').in('game_id', ids),
   ])
+  // THE DOUBLE-DOUBLE / TRIPLE-DOUBLE CALLS (2026-10-20): only the CALLED rows of those two markets, for the CALLED-only moment below
+  const ddtd = await db.from('buckets_log').select('game_id, player_id, market, status').in('game_date', dates).eq('status', 'called')
+    .or(`and(market.eq.dd,model_version.eq.${NBA_MARKETS.dd.version}),and(market.eq.td,model_version.eq.${NBA_MARKETS.td.version})`)
+  if (ddtd.error) console.error(`[buckets moments] dd/td calls: ${ddtd.error.message}`)   // a failed read costs the dd/td moments, never the 30 piece
+  const ddtdLocks = new Map((ddtd.data || []).map((r) => [`${r.game_id}|${r.player_id}|${r.market}`, r.status]))
   const graded = new Set((lockedRows.data || []).filter((r) => r.graded_at).map((r) => String(r.game_id)))
   const read = on.filter((g) => g.state === 'live' || !graded.has(String(g.id)))
   const boxes = await Promise.all(read.map((g) => summaryFor(g.id, g.state === 'final').then(reduceBox).catch(() => [])))
@@ -58,26 +63,27 @@ export async function GET(request) {
     night.forEach((r, i) => lockMap.set(`${r.game_id}|${r.player_id}`, { status: r.status, nightRank: i + 1 }))
   }
   const lockedGames = new Set((lockedRows.data || []).map((r) => String(r.game_id)))
-  const have = new Set((seen.data || []).map((r) => `${r.game_id}|${r.player_id}`))
-  const fresh = momentRows(read, boxes, lockMap, lockedGames).filter((r) => !have.has(`${r.game_id}|${r.player_id}`))
+  const have = new Set((seen.data || []).map((r) => `${r.game_id}|${r.player_id}|${r.kind}`))
+  const fresh = [...momentRows(read, boxes, lockMap, lockedGames), ...ddtdRows(read, boxes, ddtdLocks, lockedGames)].filter((r) => !have.has(`${r.game_id}|${r.player_id}|${r.kind}`))
   const out = { dates, live: on.filter((g) => g.state === 'live').length, read: read.length, new: [], posted: [] }
   if (fresh.length) {
-    const ins = await db.from('buckets_feed').upsert(fresh.map(({ _rank, ...r }) => r), { onConflict: 'game_id,player_id,kind', ignoreDuplicates: true }).select('game_id, player_id, kind')
+    const ins = await db.from('buckets_feed').upsert(fresh.map(({ _rank, _line, ...r }) => r), { onConflict: 'game_id,player_id,kind', ignoreDuplicates: true }).select('game_id, player_id, kind')
     if (ins.error) return Response.json({ ...out, error: `buckets_feed: ${ins.error.message}` }, { status: 500 })
-    const written = new Set((ins.data || []).map((r) => `${r.game_id}|${r.player_id}`))
-    out.new = fresh.filter((r) => written.has(`${r.game_id}|${r.player_id}`)).map((r) => `${r.name} ${r.points} (${r.status || 'not locked'})`)
+    const written = new Set((ins.data || []).map((r) => `${r.game_id}|${r.player_id}|${r.kind}`))
+    const isNew = (x) => written.has(`${x.game_id}|${x.player_id}|${x.kind}`)
+    out.new = fresh.filter(isNew).map((r) => `${r.name} ${r.kind === KIND ? r.points : r.kind} (${r.status || 'not locked'})`)
     // POST: regular season / playoffs only, the kind switched on, not in maintenance
     const canPost = kindOn('nba30') && !(await isMaintenanceMode())
     // THE RECEIPT (2026-10-20, lib/dash/quoteFor.js pregameQuotes): a CALLED 30-point night quotes the post that named him before tip
     // (his game's write-up, THE CARD, then THE SLATE). Read once, only when a CALLED one is about to post.
-    const anyCalled = canPost && hasX() && fresh.some((x) => written.has(`${x.game_id}|${x.player_id}`) && x.status === 'called' && x.season_type !== 1)
+    const anyCalled = canPost && hasX() && fresh.some((x) => isNew(x) && x.status === 'called' && x.season_type !== 1)
     const { data: quotePosts } = anyCalled ? await db.from('homer_feed_posts').select('day,kind,x_post_id,payload,seen_at').in('day', dates).or(`kind.like.writeup_nba_%,kind.in.(${quoteKinds('nba').join(',')})`) : { data: [] }
     const quoteOf = pregameQuotes('nba', quotePosts || [])
-    for (const r of fresh.filter((x) => written.has(`${x.game_id}|${x.player_id}`))) {
+    for (const r of fresh.filter(isNew)) {
       if (!canPost || r.season_type === 1) continue
       const claim = await db.from('buckets_feed').update({ x_post_id: 'posting' }).match(KEY(r)).is('x_post_id', null).select('game_id')
       if (claim.error || !claim.data?.length) continue
-      const text = momentText(r, { site: SITE })
+      const text = r.kind === KIND ? momentText(r, { site: SITE }) : ddtdText(r)
       const hooks = feedHooksFor('nba', r.status)
       let discord = false
       // a card linked to him on BUCKETS, in BUCKETS' colour (2026-10-04)
@@ -85,7 +91,7 @@ export async function GET(request) {
       let id = 'skipped'
       if (r.status === 'called' && hasX()) {
         const q = quoteOf({ day: r.game_date || r.day, playerId: r.player_id, gameId: r.game_id })
-        const x = await postToX(q ? `${text}\n\n${receiptLineOf(q)}` : text, { kind: 'nba30', ...(q ? { quoteId: q.id } : {}) }).catch((e) => ({ ok: false, error: e?.message }))
+        const x = await postToX(q ? `${text}\n\n${receiptLineOf(q, { sport: 'nba', key: `${r.game_id}:${r.player_id}:${r.kind}` })}` : text, { kind: 'nba30', ...(q ? { quoteId: q.id } : {}) }).catch((e) => ({ ok: false, error: e?.message }))
         id = x?.ok && x.id ? String(x.id) : 'skipped'
       }
       await db.from('buckets_feed').update({ x_post_id: id, discord_sent: discord }).match(KEY(r))
