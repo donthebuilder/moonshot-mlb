@@ -133,7 +133,8 @@ export default function LampDashboard({ palettePass = 0 }) {
       <main id="board-main" className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '14px 14px 40px', background: C.bg, color: C.text }}>
         <h1 className="sr-only">{pageTitle('nhl', missingTab ? 'home' : tab)}</h1>
         {/* the page's one line and its (?), TUDDY's (NflDashboard): only on a page with no header of its own (2026-10-20, the chip is gone) */}
-        {routed && !missingTab && LAMP_LINE_TABS.has(tab) && <div style={{ margin: '2px 0 12px', fontSize: 12, lineHeight: 1.45, color: C.text3 }}><NflNote tab={tab} subs={LAMP_SUBS} /></div>}
+        {/* the page's line and the ↻ on ONE row (2026-10-21 dead-space pass; the stamp was a 44px row of its own) */}
+        {routed && !missingTab && LAMP_LINE_TABS.has(tab) && <div style={{ margin: '2px 0 10px', fontSize: 12, lineHeight: 1.45, color: C.text3, display: 'flex', alignItems: 'center', gap: 10 }}><span style={{ flex: 1, minWidth: 0 }}><NflNote tab={tab} subs={LAMP_SUBS} /></span>{isLiveTab('nhl', tab) && <SportTheme theme={C} accent={C.ice} numFont={NUM_FONT}><RefreshStamp inline live={live > 0} /></SportTheme>}</div>}
         {badDate && !missingTab && (
           <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 10px', padding: '8px 12px', border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.amber}`, borderRadius: 10, background: C.bg2, fontSize: 12, color: C.text2 }}>
             <span style={{ flex: 1 }}><b style={{ color: C.text, fontFamily: NUM_FONT }}>{badDate}</b> isn&apos;t a real date, so that day is unavailable -- showing tonight instead.</span>
@@ -156,7 +157,7 @@ export default function LampDashboard({ palettePass = 0 }) {
           {/* ONE ACCENT SOURCE (0g C2-C6 root cause): every tab inside its product's theme */}
           <SportTheme theme={C} accent={C.ice} numFont={NUM_FONT}>
           {/* the ↻ on the live pages: nothing refreshes on a timer (lib/liveRefresh.js) */}
-          {isLiveTab('nhl', tab) && <RefreshStamp live={live > 0} style={{ marginBottom: 8 }} />}
+          {isLiveTab('nhl', tab) && !(routed && !missingTab && LAMP_LINE_TABS.has(tab)) && <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '0 0 4px', minHeight: 17 }}><RefreshStamp inline live={live > 0} /></div>}
           <TeamNav.Provider value={openTeam}>
           <GameNav.Provider value={openGame}>
           <ErrorBoundary resetKey={`${tab}:${gameId || ''}:${teamKey || ''}:${playerId || ''}`} label={`the ${tab} tab`}>

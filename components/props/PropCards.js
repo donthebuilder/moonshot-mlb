@@ -463,15 +463,15 @@ export default function PropCards({
           <FilterPill key={k} active={sortBy === k} onClick={() => setSortBy(k)}
             title={k === 'score' ? T.sortScore : k === 'price' ? T.sortPrice : T.sortTime}>{label}</FilterPill>
         ))}
-      </div>
-      <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
+        {/* one row, not two (2026-10-21 dead-space pass: ONLY/SORT and PER MARKET were two 52px rows on a phone) */}
+        <span style={{ width: 6 }} />
         <span style={kicker}>Per market</span>
         {PRECISION.map((o) => (
           <FilterPill key={o.key} active={precision === o.key} onClick={() => pickPrecision(o.key)} title={T.precision[o.key] || o.title}>{o.label}</FilterPill>
         ))}
       </div>
 
-      <div style={{ fontSize: TYPE.body, color: C.text3, margin: '8px 0 4px', lineHeight: 1.55 }}>
+      <div style={{ fontSize: TYPE.body, color: C.text3, margin: '6px 0 2px', lineHeight: 1.5 }}>
         {hidden > 0 ? `showing ${total - hidden} of ${total}` : `${total} card${total === 1 ? '' : 's'}`}
         {dropped > 0 && (
           <>

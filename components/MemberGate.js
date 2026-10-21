@@ -165,10 +165,12 @@ export function HiddenCalledLine({ n, C, NUM_FONT, style }) {
 
 function JoinLine({ C, NUM_FONT, style, text, dataPm }) {
   return (
-    <div data-pm={dataPm} style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0 10px', fontFamily: NUM_FONT, fontSize: 12, lineHeight: 1.45, color: C.text2, ...style }}>
-      <span>{text}</span>
+    // Join rides the end of the sentence (2026-10-21 dead-space pass): it wrapped onto a 44px line of its own, so the line was
+    // 61px tall. Its tap box is still 44px tall (the padding), pulled back by the negative margin so it adds no height.
+    <div data-pm={dataPm} style={{ fontFamily: NUM_FONT, fontSize: 12, lineHeight: 1.45, color: C.text2, padding: '4px 0', ...style }}>
+      <span>{text}</span>{' '}
       <a href={membersUrl()} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
-        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box', minWidth: 44, minHeight: 44, padding: '0 8px', fontWeight: 900, letterSpacing: '.04em', color: C.text, textDecoration: 'underline', whiteSpace: 'nowrap' }}>
+        style={{ display: 'inline-block', padding: '14px 8px', margin: '-14px -8px -14px 0', fontWeight: 900, letterSpacing: '.04em', color: C.text, textDecoration: 'underline', whiteSpace: 'nowrap' }}>
         Join
       </a>
     </div>

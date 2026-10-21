@@ -257,7 +257,12 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, logs = nul
   const builtAt = meta?.built_at || data?.built_at || ''
   const builtAtMs = Date.parse(builtAt)
   const ageHours = Number.isFinite(builtAtMs) ? Math.max(0, (Date.now() - builtAtMs) / 3_600_000) : 0
-  const stale = ageHours >= 24
+  // ONLY WHEN IT MATTERS (2026-10-21, Donovan: "Last updated ... 24 hours ago ... I don't like that it shows this"). The week
+  // file is built once a day, so between game days a day-old file is normal, not news. The line shows when a kickoff is
+  // inside 24 hours on a day-old file (lineups and odds do move then), or when the file is 3+ days old (the build stopped).
+  const kickMs = Date.parse(nextKick?.kickoff || '')
+  const kickSoon = Number.isFinite(kickMs) && kickMs > Date.now() && kickMs - Date.now() <= 24 * 3_600_000
+  const stale = ageHours >= 72 || (ageHours >= 24 && kickSoon)
   const ageLabel = ageHours >= 48
     ? `${Math.floor(ageHours / 24)} days`
     : ageHours >= 24
