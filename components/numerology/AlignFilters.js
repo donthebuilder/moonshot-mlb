@@ -2,6 +2,7 @@
 import { useMemo } from 'react'
 import useHashFilters from '../../lib/useHashFilters'
 import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
+import { usePreview, ShowMoreButton } from '../ListPreview'
 import { alignModel, alignedWithBy } from '../../lib/numerology/align'
 import { TeamTap } from '../EntityTap'
 import Tap from '../Tap'
@@ -14,6 +15,8 @@ import Tap from '../Tap'
 //            with the ones on tonight's number lit
 //   game     one matchup
 //   pathway  which numbers count (jersey, birth day, life path, next HR ...): the others drop out of the reduction
+//   number   the reverse search (10-21, Donovan: "yes and all sports"): pick a root 1-9 and see everyone carrying it,
+//            across every game, strongest (most of his own numbers on it) first, then the product's score
 // The filters ride the address (nf.q / nf.game / nf.ax, lib/useHashFilters) so a filtered view is a link.
 // Nothing here is computed but the filter; the arithmetic is the engine's.
 
@@ -32,30 +35,38 @@ export function gameOf(a) {
 
 /** The night's rows, filtered, and the model + tonight re-run on them. */
 export function useAlignFilters({ model, tonight, todayRoot, scoreOf, AXIS_META = {}, sport }) {
-  const [f, setF, reset] = useHashFilters('nf', { q: '', game: '', ax: '' })
+  const [f, setF, reset] = useHashFilters('nf', { q: '', game: '', ax: '', root: '' })
   const axes = useMemo(() => new Set(String(f.ax || '').split(',').filter((k) => AXIS_META[k])), [f.ax, AXIS_META])
   const games = useMemo(() => [...new Set(model.rows.map(gameOf).filter(Boolean))].sort(), [model.rows])
   // only the pathways somebody tonight actually carries
   const axisKeys = useMemo(() => Object.keys(AXIS_META).filter((k) => model.rows.some((a) => a.axes?.[k] != null)), [AXIS_META, model.rows])
   const needle = String(f.q || '').trim().toLowerCase()
-  const active = Boolean(needle || f.game || axes.size)
+  const root = /^[1-9]$/.test(String(f.root || '')) ? Number(f.root) : null
+  const active = Boolean(needle || f.game || axes.size || root)
   const out = useMemo(() => {
-    if (!active) return { model, tonight, matches: [] }
+    if (!active) return { model, tonight, matches: [], carriers: [] }
     let rows = model.rows
     if (f.game) rows = rows.filter((a) => gameOf(a) === f.game)
     if (needle) rows = rows.filter((a) => `${a.name || ''} ${a.team || ''}`.toLowerCase().includes(needle))
     if (axes.size) rows = rows.map((a) => ({ ...a, axes: Object.fromEntries(Object.entries(a.axes || {}).filter(([k]) => axes.has(k))) })).filter((a) => Object.values(a.axes).some((v) => v != null))
+    if (root) rows = rows.filter((a) => Object.values(a.axes || {}).some((v) => Number(v) === root))
     const m = alignModel(rows, scoreOf)
     const t = tonight && todayRoot ? alignedWithBy(todayRoot, rows, scoreOf) : tonight
     // HIS NUMBERS: a search that narrows to a few players
     const matches = needle && rows.length <= 3 ? rows : []
-    return { model: m, tonight: t, matches }
-  }, [active, model, tonight, todayRoot, scoreOf, f.game, needle, axes])
-  return { ...out, active, f, setF, reset, axes, games, axisKeys, sport }
+    // THE REVERSE SEARCH: everyone on the picked number, how many of his own numbers land there, best score next
+    const carriers = root ? rows.map((a) => {
+      const keys = Object.entries(a.axes || {}).filter(([, v]) => Number(v) === root).map(([k]) => k)
+      return { a, keys, strength: keys.length }
+    }).sort((x, y) => (y.strength - x.strength) || ((scoreOf(y.a) ?? -1) - (scoreOf(x.a) ?? -1)) || String(x.a.name).localeCompare(String(y.a.name))) : []
+    return { model: m, tonight: t, matches, carriers }
+  }, [active, model, tonight, todayRoot, scoreOf, f.game, needle, axes, root])
+  return { ...out, active, f, setF, reset, axes, games, axisKeys, sport, root }
 }
 
 export default function AlignFilters({ ctl, AXIS_META = {}, todayRoot, theme: C, numFont, accent, words = {}, onName = null }) {
-  const { f, setF, reset, axes, games, axisKeys, active, matches, model } = ctl
+  const { f, setF, reset, axes, games, axisKeys, active, matches, model, root, carriers } = ctl
+  const pv = usePreview(carriers, 5)
   const chip = (on) => flatChip(on, accent, C, numFont)
   const toggleAxis = (k) => { const n = new Set(axes); if (n.has(k)) n.delete(k); else n.add(k); setF('ax', [...n].join(',')) }
   const field = { minHeight: 44, padding: '0 10px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bg2, color: C.text, font: 'inherit', fontSize: 16, minWidth: 0, outlineColor: accent }
@@ -82,6 +93,15 @@ export default function AlignFilters({ ctl, AXIS_META = {}, todayRoot, theme: C,
       ) : active ? (
         <button type="button" className={FLAT_CHIP_CLASS} style={{ ...chip(false), marginTop: 8 }} onClick={reset}>Clear</button>
       ) : null}
+      <div role="group" aria-label="Everyone carrying a number" style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '11px 0', margin: '0 0 -11px', scrollbarWidth: 'none', alignItems: 'center' }}>
+        <span style={{ flex: '0 0 auto', fontSize: 10, fontWeight: 800, letterSpacing: '.08em', color: C.text3, fontFamily: numFont }}>NUMBER</span>
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((r) => (
+          <button key={r} type="button" className={FLAT_CHIP_CLASS} aria-pressed={root === r} onClick={() => setF('root', root === r ? '' : String(r))}
+            title={r === Number(todayRoot) ? `${r}: tonight's number` : `Everyone carrying ${r}`}
+            style={{ ...chip(root === r), minWidth: 30, justifyContent: 'center', ...(r === Number(todayRoot) && root !== r ? { borderColor: accent, color: C.text } : null) }}>{r}</button>
+        ))}
+        <span style={{ flex: '0 0 auto', fontSize: 10, color: C.text3 }}>{todayRoot ? <>outlined = tonight&apos;s</> : null}</span>
+      </div>
       {active ? (
         <div style={{ marginTop: 8, fontSize: 11, color: C.text3 }}>
           {model.rows.length
@@ -113,6 +133,30 @@ export default function AlignFilters({ ctl, AXIS_META = {}, todayRoot, theme: C,
             </div>
           ))}
         </div>
+      ) : null}
+      {root ? (
+        <section aria-label={`Everyone carrying ${root}`} style={{ marginTop: 8, border: `1px solid ${C.border}`, borderRadius: 10, background: C.bg2, padding: '8px 10px' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.08em', color: accent, fontFamily: numFont }}>EVERYONE ON {root}</span>
+            <span style={{ fontSize: 10.5, color: C.text3 }}>{carriers.length} {carriers.length === 1 ? (words.person || 'player') : (words.persons || 'players')}{f.game ? ` · ${f.game}` : ' · every game'}{root === Number(todayRoot) ? " · tonight's number" : ''}</span>
+          </div>
+          {pv.shown.map(({ a, keys, strength }) => (
+            <div key={a.pid} style={{ display: 'flex', alignItems: 'center', gap: '2px 6px', flexWrap: 'wrap', padding: '5px 0', borderTop: `1px solid ${C.border}` }}>
+              <Tap onClick={onName ? () => onName(a) : null}><b style={{ color: C.text, fontSize: 12.5 }}>{a.name}</b></Tap>
+              <TeamTap abbr={a.team} sport={ctl.sport} px={14} />
+              {gameOf(a) ? <Tap onClick={() => setF('game', gameOf(a))}><span title="Show only this game" style={{ fontSize: 10.5, color: C.text3 }}>{gameOf(a)}</span></Tap> : null}
+              {strength >= 2 ? <b style={{ fontSize: 11, color: accent, fontFamily: numFont }}>{strength}×</b> : null}
+              <span style={{ flexBasis: '100%', fontSize: 11, color: C.text2, fontFamily: numFont }}>
+                {keys.map((k, i) => {
+                  const raw = AXIS_META[k]?.raw?.(a)
+                  return <span key={k} title={AXIS_META[k]?.why?.(a) || k}>{i ? ' · ' : ''}{AXIS_META[k]?.label || k} {raw != null && raw !== '' ? <>{raw}→</> : null}<b style={{ color: accent }}>{root}</b></span>
+                })}
+              </span>
+            </div>
+          ))}
+          {!carriers.length ? <div style={{ fontSize: 11, color: C.text3, paddingTop: 6 }}>Nobody carries {root} with these filters.</div> : null}
+          <ShowMoreButton open={pv.open} restN={pv.restN} toggle={pv.toggle} itemWord={words.persons || 'players'} />
+        </section>
       ) : null}
     </div>
   )
