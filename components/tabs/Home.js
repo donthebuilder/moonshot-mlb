@@ -1,5 +1,5 @@
 'use client'
-import DayHero from '../DayHero'
+import StoryTape from '../StoryTape'
 import { computeSlateStats } from '../SlateTiles'
 import PlayerFace from '../PlayerFace'
 import { useEffect, useMemo, useState } from 'react'
@@ -14,7 +14,6 @@ import { laneRecord } from '../../lib/lanes'
 import { groupGames } from '../../lib/data'
 import { fetchPenFatigue, penTier } from '../../lib/bullpen'
 import { teamAbbrs } from '../../lib/gamelogs'
-import StorylinesStrip from '../StorylinesStrip'
 import ScoreRail from '../ScoreRail'
 import { hr9Color, isLeaky } from '../../lib/hr9'
 import YourPlayers from '../YourPlayers'
@@ -854,123 +853,28 @@ export default function Home({
           the home page, the welcome thing needs to.") */}
 
       {/* ── HERO ─────────────────────────────────────────────────────── */}
-      <DayHero
-        icon={icon}
-        /* A finished slate isn't "Today" after midnight ET (stranger F5). */
-        /* The postseason round names the day (DAY-AWARE-OPENERS-PLAN): the
-           schedule's own gameType for THIS slate's date, never guessed. */
-        eyebrow={<>{`${slateInPast ? (slateDate === etShift(-1) ? 'Last night' : 'Final') : (mode === 'tomorrow' && slateDate === etShift(0) ? 'Tonight' /* the 'Tmrw' slate after midnight is tonight (2026-10-04 day rule) */ : (dateLabel || (mode === 'today' ? 'Today' : 'Tomorrow')))}${!slateInPast && nextMlb?.round && nextMlb.date === slateDate ? ` · ${nextMlb.round}` : ''}`}{slateDate ? <>{' · '}<span style={{ color: C.orange, fontWeight: 900, fontSize: TYPE.body, letterSpacing: '.08em' }}>{slateDayLabel(slateDate)}</span></> : null}</>}
-        live={isLive}
-        /* THE FACT FIRST, THE VOICE SECOND (2026-08-29): the headline is the
-           state of the night -- how many games, how many live, whether it has
-           been graded -- computed, never furniture. The hero itself is
-           components/DayHero.js now (2026-09-28), shared with TUDDY and LAMP. */
-        lead={empty
+      {/* THE TAPE (2026-10-20, Donovan picked prototype A: "this whole section ... needs to be
+          the storylines jumping out"): the day in one line, every product's storylines
+          rolling, a line per product (components/StoryTape.js). It replaces the hero's stat
+          tiles and the crawl; the rundown and the four sit right under it, as before. */}
+      <StoryTape sport="mlb" theme={C} numFont={NUM_FONT} onSeeAll={onNavigate ? () => onNavigate('storylines') : null}
+        day={{ icon, live: isLive,
+          eyebrow: <>{`${slateInPast ? (slateDate === etShift(-1) ? 'Last night' : 'Final') : (mode === 'tomorrow' && slateDate === etShift(0) ? 'Tonight' /* the 'Tmrw' slate after midnight is tonight (2026-10-04 day rule) */ : (dateLabel || (mode === 'today' ? 'Today' : 'Tomorrow')))}${!slateInPast && nextMlb?.round && nextMlb.date === slateDate ? ` · ${nextMlb.round}` : ''}`}{slateDate ? <>{' · '}<span style={{ color: C.orange, fontWeight: 900, fontSize: TYPE.body, letterSpacing: '.08em' }}>{slateDayLabel(slateDate)}</span></> : null}</>,
+          lead: empty
           ? <>Tonight&apos;s board isn&apos;t built yet.</>
           : slateInPast
             ? <>That slate is done.</>
-            : <><span style={{ fontFamily: NUM_FONT }}>{games.length}</span>{games.length === 1 ? ' game' : ' games'} {slateWhen(slateDate, etToday())}{isLive && liveGames > 0 && (<>, <span style={{ fontFamily: NUM_FONT }}>{liveGames}</span> live</>)}.</>}
-        accentText={empty ? null : slateInPast ? (gradesPending ? 'Final grades post in the morning.' : 'Every pick is graded.') : (isLive ? 'Grading as they land.' : null)}
-        dayText={slateInPast && nextLine(nextMlb, etToday()) ? `No games tonight · ${nextLine(nextMlb, etToday())}.` : null}
-        /* A done slate is the morning after, whatever the clock says (2026-09-28). */
-        chip={slateInPast ? `🧾 MORNING AFTER` : `${icon} ${hello}`}
-        sub={empty ? 'board posts when tonight’s card is final' : isLive ? 'grading live' : slateInPast ? (gradesPending ? 'final · grades post in the morning' : 'final · every pick graded') : null}
-      >
-        {/* TONIGHT IN ONE SENTENCE (2026-08-15, "make the home page better").
-            The old body was the same mission statement every single day —
-            furniture. This is the slate itself, assembled from the numbers
-            already on this page, so the first paragraph is different every
-            night because every night is.
-
-            2026-08-16 — IT ATE THE TILE ROW. Four tiles used to sit under this
-            paragraph repeating half of it in 22px numerals: GAMES (+ how many
-            lineups are confirmed), PROJECTED HR (the model's own figure, the
-            bot's range, the power grade), FIRST PITCH (local time) and BOT
-            BASE-HIT RECORD (accuracy + graded days). Every one of those facts
-            is a clause here now, every tile's sub-line is either spoken or in
-            the hover text, and a clause whose field is missing SAYS SO rather
-            than disappearing — that was the whole point of the tiles' honest
-            "not published yet" sub-lines and it survives the fold. */}
-        {/* THE CHIP ROW SITS OUTSIDE THE PROSE COLUMN (2026-08-24). The
-            paragraph under it is capped at 720px because that is about the
-            width prose stays readable at; the chips are not prose, and inside
-            that cap the fifth one — GRADED — had nowhere to go but a line of
-            its own. Out here they get the hero's full width and make one even
-            row on a desktop. See .hero-stats in components/MobileCSS.js. */}
-        {!empty && (
-          <div className="hero-stats" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-            <Stat label="GAMES" value={games.length}
-              sub={slateInPast ? 'final' : `${confirmedGames} confirmed`}
-              col={C.text}
-              title="Games on tonight's slate, and how many have lineups the league has posted. Confirmed picks homer at a meaningfully higher clip than unconfirmed ones." />
-            {/* NEXT PITCH, COUNTING DOWN (2026-09-06). "First pitch was 1:10 PM"
-                is a fact about the afternoon; what a viewer wants at 7pm is
-                which game is next and how long until it. Ticks every second;
-                once everything has started it says so and names the last one. */}
-            {/* THE DONE SLATE KEEPS ITS FACTS, NOT ITS PREGAME ONES (2026-09-28):
-                "ALL UNDER WAY" and BEST AIR are about a night that's over. */}
-            {slateInPast ? null : <NextPitchStat games={games} />}
-            {/* A DONE SLATE SAYS WHAT HAPPENED (DAY-AWARE-OPENERS-PLAN): the
-                night's real homer count, the projection beside it. No count on
-                the graded file -> the projection chip below, as before. */}
-            {slateInPast && slateHrs > 0 ? (
-              <Stat label="HOMERS" value={slateHrs}
-                sub={modelHr != null ? `proj ${modelHr.toFixed(1)}${proj ? ` · range ${proj.low}–${proj.high}` : ''}` : proj ? `range ${proj.low}–${proj.high}` : null}
-                col={C.orange}
-                title="Home runs hit on this slate, from the graded results. The second line is what the model and MOONSHOT's sheet projected before first pitch." />
-            ) : modelHr != null ? (
-              <Stat label="PROJ HR" value={modelHr.toFixed(1)}
-                sub={proj ? `range ${proj.low}–${proj.high}${proj.grade ? ` · ${proj.grade}` : ''}` : null}
-                col={C.orange}
-                title="The site's team model, both clubs of every game on the slate. The second figure is the range on MOONSHOT's own published sheet — a second opinion, not the site's number." />
-            ) : proj ? (
-              <Stat label="PROJ HR" value={`${proj.low}–${proj.high}`} sub={proj.grade || null} col={C.orange}
-                title="From MOONSHOT's published sheet. The site's own model figure isn't available for this slate." />
-            ) : (
-              <Stat label="PROJ HR" value="not published yet" col={C.text3}
-                title="Neither the site's model nor MOONSHOT's sheet has a homer projection for this slate yet." />
-            )}
-            {!slateInPast && airRanked[0] && (
-              <Stat label="BEST AIR" value={`${airRanked[0].venue} ${airRanked[0].edge > 0 ? '+' : ''}${airRanked[0].edge.toFixed(0)}%`}
-                col={airRanked[0].edge > 0 ? C.orange : C.text3}
-                title={`${airLine(airRanked[0]) || ''}${airTitle(airRanked[0]) ? `\n${airTitle(airRanked[0])}` : ''}\nPark HR factor plus the published weather effect, as a percentage swing on the rate — not a chance of anything.${airRanked[0].edge > 0 ? '' : ' Nothing on tonight\'s slate is playing above neutral; that is the finding, not a missing section.'}`} />
-            )}
-          </div>
-        )}
-
-        {/* ── THE RUNDOWN (2026-09-06) ─────────────────────────────────────
-            Donovan: "I feel that should be the best place for quick picks and
-            looks ... vintage SportsCenter vibe." So the paragraph of mission
-            statement is gone and the hero's body is a rundown -- the top of
-            the show: five numbered looks, each a name and one reason, each a
-            tap to open. Every look is a field already on this page. The
-            rotating line survives as the crawl underneath. */}
-        {empty ? (
-          <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.75, maxWidth: 720 }}>
-            No hitters on the board yet. Everything below fills in once tonight’s slate posts.
-          </div>
-        ) : (
+            : <><span style={{ fontFamily: NUM_FONT }}>{games.length}</span>{games.length === 1 ? ' game' : ' games'} {slateWhen(slateDate, etToday())}{isLive && liveGames > 0 && (<>, <span style={{ fontFamily: NUM_FONT }}>{liveGames}</span> live</>)}.</>,
+          accentText: [empty ? null : slateInPast ? (gradesPending ? 'Final grades post in the morning.' : 'Every pick is graded.') : (isLive ? 'Grading as they land.' : null),
+            slateInPast && nextLine(nextMlb, etToday()) ? `No games tonight · ${nextLine(nextMlb, etToday())}.` : null].filter(Boolean).join(' ') }} />
+      {!empty && (
+        <div style={{ marginBottom: 12 }}>
           <Headlines players={players} headline={headline} results={results} isLive={isLive} airRanked={airRanked} odds={odds} onPlayerClick={onPlayerClick} onNavigate={onNavigate} />
-        )}
-        {/* the crawl — rotates through tonight's storylines */}
-        {pulse && (
-          <div key={pulse} style={{
-            marginTop: 12, display: 'flex', alignItems: 'stretch', overflow: 'hidden', borderRadius: 4,
-            animation: 'homeFade .5s ease both',
-          }}>
-            <span style={{ background: C.orange, color: C.bg, fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.14em', fontFamily: NUM_FONT, padding: '6px 8px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>CRAWL</span>
-            <span style={{ flex: 1, minWidth: 0, background: `${C.orange}12`, borderTop: `1px solid ${C.orange}33`, borderBottom: `1px solid ${C.orange}33`, fontSize: TYPE.body, color: C.text, fontFamily: NUM_FONT, padding: '6px 10px', lineHeight: 1.5 }}>{pulse}</span>
-          </div>
-        )}
-        {/* THE FOUR LIVES IN THE HERO (2026-09-14, Donovan: "move the four
-            into the hero"). The bot's four headline picks are the top of the
-            show, not a panel below it. Same strip, same data, one container up. */}
-        {!empty && (
           <div style={{ marginTop: 14 }}>
             <BotPicksStrip players={players} graded={results?.graded_slots || null} onPlayerClick={onPlayerClick} onFullCard={onNavigate ? () => onNavigate('props') : null} />
           </div>
-        )}
-      </DayHero>
+        </div>
+      )}
 
       {/* TONIGHT'S CALLS AS CARDS (2026-10-18, PHONE-PARITY 9a): /m's swipe deck, shut by default so nothing above the table moves and no request is made until it is opened */}
       {!empty && <Fold id="tonight-calls" title="🃏 Tonight's calls" meta="swipe the real cards"><TonightsCalls sport="mlb" /></Fold>}
@@ -1008,8 +912,6 @@ export default function Home({
           (not 5-8: no taller than what it replaced), same rows as the Storylines tab, then into it. Was the collapsed
           panel + History Watch (283px at 390); History Watch's claims lead here
           as the rarest stories. */}
-      <StorylinesStrip sport="mlb" theme={C} numFont={NUM_FONT} accent={C.orange} max={3} onSeeAll={() => onNavigate?.('storylines')}
-        onOpenPlayer={(id) => { const p = (players || []).find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) onPlayerClick?.(p) }} />
       <LongshotsPreview plain sport="mlb" theme={C} numFont={NUM_FONT} accent={C.orange} onSeeAll={() => onNavigate?.('longshots')}
         onOpenPlayer={(id) => { const p = (players || []).find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) onPlayerClick?.(p) }} />
 

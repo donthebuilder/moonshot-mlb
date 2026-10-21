@@ -4,8 +4,7 @@ import Tap from '../../Tap'
 import { playerHref, teamHref } from '../../../lib/routes'
 import { fmtCountdown } from '../../../lib/headlines'
 import { dayLine } from '../../../lib/dayLine'
-import HeroStat from '../../HeroStat'
-import DayHero from '../../DayHero'
+import StoryTape from '../../StoryTape'
 import PlayerFace from '../../PlayerFace'
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
@@ -15,7 +14,6 @@ import { ledgerTotals } from '../../../lib/nfl/myPicks'
 import TeamMark from '../../TeamMark'  // the shared club mark (R1: was FRANCHISE's roster badge)
 import TeamPower from '../TeamPower'
 import StartSit from '../StartSit'
-import StorylinesStrip from '../../StorylinesStrip'
 import Fold from '../../Fold'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
 import { BigPlayWatch } from './Explosive'
@@ -399,23 +397,9 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
 
   return (
     <div className="tuddy-home">
-      <DayHero
-        icon="🏈" eyebrow={dl.eyebrow} live={todayLive > 0}
-        lead={dl.lead} accentText={String(dl.accent || '').replace(/^(Next: [A-Za-z]+): /, '$1, ')}
-        chip={`🏈 ${edition}`}
-        sub={todayLive ? 'grading live' : todays.length && todayFinal === todays.length ? 'final' : todays.length ? 'the board is set' : `${data?.label || 'this week'}`}
-        accent={C.green} grad={[C.green, C.green]} theme={C}
-      >
-        <div className="hero-stats" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          <HeroStat label="GAMES TODAY" value={todays.length} sub={todayLive ? `${todayLive} live` : todays.length && todayFinal === todays.length ? 'final' : !todays.length && nextDay ? `next ${nextDay.date.slice(5).replace('-', '/')}` : null} col={C.green} theme={C} numFont={NUM_FONT}
-            title="Games kicking off today, and how many are live or final." />
-          {dl.count?.ms > 0 && (
-            <HeroStat label={dl.count.label} value={fmtCountdown(dl.count.ms)} col={C.green} theme={C} numFont={NUM_FONT}
-              title="Time until the next kickoff on the schedule." />
-          )}
-          {/* No TOP TD chip: the headline strip right below leads with the bot's #1. */}
-        </div>
-      </DayHero>
+      {/* THE TAPE (2026-10-20): components/StoryTape.js, as on LAMP */}
+      <StoryTape sport="nfl" theme={C} numFont={NUM_FONT} onSeeAll={() => setTab('storylines')}
+        day={{ icon: '🏈', eyebrow: dl.eyebrow, live: todayLive > 0, lead: dl.lead, accentText: String(dl.accent || '').replace(/^(Next: [A-Za-z]+): /, '$1, ') }} />
 
       {/* TONIGHT (2026-10-04): who went, who lines up, who's still to go (components/tonight/NflTonight.js) */}
       <NflTonight data={data} picks={picks} results={results} liveSnap={liveSnap} onPlayerClick={onPlayerClick} setTab={setTab} />
@@ -468,8 +452,6 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
       {/* 2026-09-27 (BATCH-STORYLINES-PAGE step 4): the story engine's rarest six
           on games still to come, then the by-game Storylines tab. Was the whole
           Storylines view embedded here (2,759px at 390). */}
-      <StorylinesStrip sport="nfl" theme={C} numFont={NUM_FONT} accent={C.green} max={3} onSeeAll={() => setTab('storylines')}
-        onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) onPlayerClick?.(p, 'TD') }} />
 
       {/* ⭐ YOUR PLAYERS (2026-09-16, parity pass) -- replaces the old
           FollowingStrip mount, and moves to MOONSHOT's own shelf for it:

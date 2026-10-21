@@ -1,14 +1,12 @@
 'use client'
 import { dayLine } from '../../../lib/dayLine'
-import DayHero from '../../DayHero'
+import StoryTape from '../../StoryTape'
 import { useEffect, useState } from 'react'
 import HeadlineStrip from '../../HeadlineStrip'
 import PlayerFace from '../../PlayerFace'
 import { nhlMug } from '../../../lib/nhl/format'
-import StorylinesStrip from '../../StorylinesStrip'
 import LampHeadline from '../LampHeadline'
 import LongshotsPreview from '../../LongshotsPreview'
-import HeroStat from '../../HeroStat'
 import { C, NUM_FONT, TYPE } from '../../../lib/nhl/theme'
 import LampYourPlayers from '../LampYourPlayers'
 import { useLampStandings, useLampBoard, useLampLeaders, useLampRecord, useLampHotSticks, useLampSpecialTeams, useLampLedger, useLampSeasonStats } from '../../../lib/nhl/useLamp'
@@ -157,38 +155,12 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      {/* THE DAY, MOONSHOT'S HERO (2026-09-28, DAY-AWARE-OPENERS-PLAN): the same
-          components/DayHero.js MOONSHOT and TUDDY open with, fed by lib/dayLine.js
-          from this day's scores -- the day, what's on, its state, the next night
-          when there is none. The chips and the crawl are LAMP's own, below it. */}
-      <DayHero
-        icon="🏒" eyebrow={hero.eyebrow} live={Boolean(day?.live)}
-        lead={!day ? 'Tonight on LAMP.' : hero.lead}
-        accentText={!day ? '' : games.length ? (allLocked ? 'Grading as they land.' : 'One called per team.') : hero.accent}
-        // The chip row only carries a fact on a game night; an off night has
-        // nothing to add there, and the opener may not grow on a phone.
-        chip={games.length ? '🏒 GAME NIGHT' : null}
-        sub={games.length ? (boardGames.length ? `${lockedN} of ${boardGames.length} boards locked before puck drop` : 'boards lock before puck drop') : null}
-        accent={C.ice} grad={[C.ice, C.teal]} headingLevel="h2" theme={C}
-      >
-        {games.length > 0 && (
-          <div className="hero-stats-touch" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <HeroStat theme={C} numFont={NUM_FONT} label="GAMES" value={games.length} title="Games on the day." />
-            {firstDrop && <HeroStat theme={C} numFont={NUM_FONT} label="FIRST PUCK DROP" value={fmtPuckDrop(firstDrop)} sub={zoneAbbrev()} title="The first puck drop of the day." />}
-            {boardGames.length > 0 && <HeroStat theme={C} numFont={NUM_FONT} label="LOCKED" value={`${lockedN}/${boardGames.length}`} col={allLocked ? C.teal : C.text} title="Games whose board has locked before puck drop." />}
-            {graded && <HeroStat theme={C} numFont={NUM_FONT} label="GRADED" value={graded.value} sub={graded.sub} col={C.text} title="Called skaters who dressed and scored, over those who dressed." />}
-          </div>
-        )}
-        {/* THE CRAWL: the latest graded night in one sentence, its real
-            numbers. calledN counts called skaters who DRESSED -- a called man
-            who was scratched is void, not a miss -- so the line says so. */}
-        {last ? (
-          <p style={{ margin: '10px 0 0', color: C.text2, fontSize: 12, lineHeight: 1.5 }}>
-            <b style={{ color: C.text }}>{fmtDay(last.date)}{lastIsPre ? ' (preseason)' : ''}:</b>{' '}
-            {last.calledHits} of {last.calledN} called skaters who dressed scored · {last.scorersCalled} of {last.scorers} goal scorers were called, {last.scorersOnBoard} more on the board.
-          </p>
-        ) : null}
-      </DayHero>
+      {/* THE TAPE (2026-10-20, Donovan picked prototype A): the day in one line, then every
+          product's storylines rolling, then a line per product (components/StoryTape.js).
+          It replaces the hero's stat tiles and the crawl. */}
+      <StoryTape sport="nhl" theme={C} numFont={NUM_FONT} onSeeAll={() => setTab?.('storylines')}
+        day={{ icon: '🏒', eyebrow: hero.eyebrow, live: Boolean(day?.live), lead: !day ? 'Tonight on LAMP.' : hero.lead,
+          accentText: !day ? '' : games.length ? (allLocked ? 'Grading as they land.' : 'One called per team.') : hero.accent }} />
 
       {/* LAYOUT SHIFT (2026-10-06, CLS 0.3-0.9 on slow 4G): everything under the hero is
           built from the day's scores and the board. Until both have answered it is one
@@ -283,7 +255,6 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
           five (History Watch's claims lead as the rarest), then the Storylines tab. */}
       {/* ⭐ YOUR PLAYERS (2026-10-03): MOONSHOT's section, fed by the scores and board read above. */}
       <LampYourPlayers games={games} board={board.data} onOpenPlayer={onOpenPlayer} />
-      <StorylinesStrip sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} max={3} onOpenTeam={onOpenTeam} onSeeAll={() => setTab?.('storylines')} onOpenPlayer={(id) => onOpenPlayer?.(Number(id))} />
       <RankList title="Offense, ranked" sub={standings.data?.seasonLabel || null} rows={offenseRows} sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onAll={() => setTab?.('standings')} allLabel="Standings" />
       <RankList title="Goal ledger" sub={lastNight.data?.season?.to ? `last night · ${fmtDay(lastNight.data.season.to)}` : 'last night'} rows={ledgerRows} ranked={false} sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onAll={() => setTab?.('ledger')} allLabel="Ledger" />
       <RankList title="Leaky nets" sub="tonight" rows={leakRows} sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} />
