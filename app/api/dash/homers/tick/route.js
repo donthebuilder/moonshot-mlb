@@ -45,6 +45,7 @@ import { primeInjuries } from '../../../../../lib/injuries/read'
 import { postSlateOnce } from '../../../../../lib/posts/slate'
 import { foldedForDiscord } from '../../../../../lib/posts/sportPlans'
 import { periodsDue, postPeriodOnce, postReceiptOnce } from '../../../../../lib/posts/receipt'
+import { filmRoomDue, postFilmRoomOnce } from '../../../../../lib/posts/filmRoom'
 import { receiptLoader } from '../../../../../lib/posts/receiptLoad'
 import { phxClock } from '../../../../../lib/dash/xSchedule'
 import { slateLoader } from '../../../../../lib/posts/slateLoad'
@@ -966,6 +967,9 @@ async function receiptTick(db, { day }) {
     for (const period of periodsDue(phxClock(Date.now()))) {
       out[period.kind] = await postPeriodOnce(db, { period, hooks })
     }
+    // FILM ROOM (Wednesday, 2026-10-20, lib/posts/filmRoom.js): the free feed channels only, not #called-it (it is an explainer, not a receipt)
+    const clock = phxClock(Date.now())
+    if (filmRoomDue(clock)) out.film_room = await postFilmRoomOnce(db, { day: clock.day, hooks: FEED_WEBHOOKS() })
   } catch (err) {
     console.error('[homers] receipt threw', err)
     out.error = String(err?.message || err)
