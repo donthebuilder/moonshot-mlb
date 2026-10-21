@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import {
   CARD_SPORTS, PLAYS_BY_GAMES, PLAY_CAP, FULL_SLATE, PLUS_MONEY, MIN_LONG_SHOTS, MARKETS, SLOTS, STAKE, CARD_RULE, CARD_VERSION, CARD_VERSIONS, SAME_GAME_NOTE, DOUBLE_SPORT,
   playsFor, planStraights, lockPlan, planWindow, percentileOf, leadStraight, pickTwoManFor, pickTwoManSameGame, pickLongShot, longShotRow, pickDouble, doubleRow,
-  donovanDoubleRow, legWord, productResult, gradeCardRow, isLongShotPrice, recordOf, recordsOf, recordWords, rowPrice, legPriceOf, lockAtOf, inPlusMoney, resultKey, fieldOf, nflWindowsOf,
+  donovanDoubleRow, legWord, productResult, gradeCardRow, isLongShotPrice, anyMarketField, recordOf, recordsOf, recordWords, rowPrice, legPriceOf, lockAtOf, inPlusMoney, resultKey, fieldOf, nflWindowsOf,
 } from '../lib/card/core.js'
 import { xCardText, membersCardText, membersCardEmbed, resultText, longShotText, longShotResultText, longShotRecordLine, doubleResultText, dayText, dayEmbed, exposureLine, todayText, dayLead, cleanPublic } from '../lib/card/text.js'
 import { lockCard, lockDouble, gradeCardRows, publicRow, doubleLocked } from '../lib/card/store.js'
@@ -220,6 +220,21 @@ await t('Long Shot: no price in range = SKIPPED, nothing shorter or longer is ev
   assert.equal(pickLongShot({ games: 8, cands: [], prices: new Map(), now: NOW }).pick, null)
   const tie = [PM('b', 'g1', 3, 80, 600), PM('a', 'g2', 3, 80, 700)]
   assert.equal(pickLongShot({ games: 6, cands: tie, prices: PR(tie), now: NOW }).pick.player_id, 'a', 'same score, same rate, same start: the player id')
+})
+
+await t('Long Shot, BUCKETS (2026-10-20, "can be from any market, just has to meet the criteria"): any market, his own stored line and price, +550 or longer, graded on that market', () => {
+  const nbaC = (id, game, score, med, line = 27.5) => ({ ...C(id, game, 2, score), market: undefined, line, price: { median: med, best: med + 20, books: 3, taken_at: '2026-10-10T19:00:00Z' } })
+  const byMarket = { pts: { cands: [nbaC('p1', 'g1', 99, 120), nbaC('p2', 'g2', 80, 600)] }, reb: { cands: [nbaC('r1', 'g3', 90, 700, 14.5), { ...nbaC('r2', 'g4', 95, 900), price: null }] } }
+  const field = anyMarketField(byMarket)
+  assert.deepEqual(field.map((c) => `${c.player_id}:${c.market}`), ['p1:pts', 'p2:pts', 'r1:reb'], 'every CALLED man of every market with a stored price, in his market')
+  const ls = pickLongShot({ games: 7, cands: field, prices: null, now: NOW })
+  assert.equal(ls.pick.player_id, 'r1'); assert.equal(ls.pick.market, 'reb'); assert.equal(ls.pick.line, 14.5); assert.equal(ls.pick.price.median, 700)
+  const row = longShotRow({ sport: 'nba', slate_key: 'k', card_date: '2026-10-10', pick: ls.pick, games: 7, lockAtMs: LOCK_AT })
+  assert.equal(row.market, 'reb'); assert.equal(row.legs[0].market, 'reb'); assert.equal(row.legs[0].line, 14.5)
+  assert.equal(legWord({ played: true, values: { reb: 15 } }, row.legs[0]), 'hit'); assert.equal(legWord({ played: true, values: { reb: 14 } }, row.legs[0]), 'miss')
+  assert.equal(pickLongShot({ games: 7, cands: anyMarketField({ pts: { cands: [nbaC('p1', 'g1', 99, 540)] } }), prices: null, now: NOW }).pick, null, '+540 is not a long shot in any market')
+  const x = longShotText({ sport: 'nba', day: '2026-10-10', leg: row.legs[0] })
+  assert.match(x.text, /\(.*14\.5.*\) at \+700/, x.text)
 })
 
 await t('Long Shot row: one leg, the stored median price frozen with it, 1 unit, own product and rule; graded all-or-nothing at that price; void when he does not play', () => {
