@@ -17,8 +17,9 @@ import MilestoneRate from './MilestoneRate'
 const SHOW = 3
 const WHEN = { nfl: 'this week' }   // TUDDY's slate is a week; every other product's is a night
 
-export function milestonesHref(sport) {
-  return `${appHref(sport, 'storylines')}&st.type=milestone%2Chistory`
+export function milestonesHref(sport, date = null) {
+  // the day rides along (route audit 2026-10-21): Numerology on the 18th opened Storylines on tonight
+  return `${appHref(sport, 'storylines')}&st.type=milestone%2Chistory${date ? `&date=${date}` : ''}`
 }
 
 export default function MilestonesBlock({ sport, theme: C, numFont, accent, date = null, dateRoot = null }) {
@@ -31,7 +32,7 @@ export default function MilestonesBlock({ sport, theme: C, numFont, accent, date
   }, [sport, date])
   const rows = (data?.stories || []).filter((s) => s.type === 'milestone' && !s.outcome)
     .sort((a, b) => b.rarity - a.rarity)   // the engine's rarity: nearest-in-window first, game 1,000 near the top
-  const href = milestonesHref(sport)
+  const href = milestonesHref(sport, date)
   const link = { color: C.text2, fontFamily: numFont, fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', minHeight: 44 }
   return (
     <div>

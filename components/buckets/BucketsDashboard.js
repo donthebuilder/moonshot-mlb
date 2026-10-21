@@ -145,7 +145,7 @@ export default function BucketsDashboard() {
             {tab === 'storylines' && <StorylinesPage sport="nba" previewGames={4} eyebrow="BUCKETS · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.purple} onOpenPlayer={peekPlayer} onOpenGame={openGame} date={date} />}
             {tab === 'watchlist' && <Watchlist onOpenPlayer={peekPlayer} onOpenTeam={openTeam} onOpenGame={openGame} />}
             {/* THE LEDGER (2026-10-13): Tonight | Called | Record | Archive, as LAMP's (components/pages/LedgerShell; Called and Archive: tabs/CalledLedger) */}
-            {tab === 'ledger' && <LedgerShell sport="nba" bodies={{
+            {tab === 'ledger' && <LedgerShell sport="nba" date={date} bodies={{
               tonight: () => <Ledger date={date} setDate={setDate} {...nav} />,
               called: () => <CalledLedger onOpenPlayer={peekPlayer} onOpenTeam={openTeam} />,
               record: () => <Results {...nav} />,
