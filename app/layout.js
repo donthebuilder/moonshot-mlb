@@ -2,6 +2,7 @@ import './globals.css'
 import { Analytics } from '@vercel/analytics/next'
 import DashSync from '../components/DashSync'
 import StyledJsxRegistry from './registry'
+import TitleFromHash from '../components/TitleFromHash'
 
 // C1 rebrand sweep (dash-network-master-plan-2026-08-28.md): title, footer,
 // and share cards were already DASH-branded; OG/Twitter card metadata never
@@ -80,6 +81,8 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
+      {/* /app's tab title from the address before anything paints (components/TitleFromHash.js) */}
+      <head><TitleFromHash /></head>
       <body>
         <StyledJsxRegistry>{children}</StyledJsxRegistry>
         <Analytics />

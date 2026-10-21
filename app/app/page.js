@@ -15,18 +15,17 @@ import SportRoot from '../../components/SportRoot'
 import WelcomeTour from '../../components/WelcomeTour'
 import { PhoneViewPill, ViewRouter } from '../../components/ViewToggle'
 import { MemberGateProvider } from '../../components/MemberGate'
-import TitleFromHash from '../../components/TitleFromHash'
-import { BRAND } from '../../lib/routes'
+import { appStaticTitle } from '../../components/TitleFromHash'
 
 // 2026-09-24 (SEO-1/2): the board's own canonical. Every #sport=…&tab=… is
 // this one document to a crawler; the tab title is set client-side by each
 // dashboard (document.title) for people, not bots.
 // 2026-09-26 (Batch 6): three sports since LAMP; the static title is what a
 // crawler sees and what every tab showed before usePageTitle held its own.
-// 2026-10-21: BUCKETS is public, so the crawler's title names it too (and still doesn't while it is hidden).
-const LEAGUES = BRAND.nba.hidden ? 'MLB, NFL and NHL' : 'MLB, NFL, NHL and NBA'
+// 2026-10-21: BUCKETS is public, so the crawler's title names it too (and still doesn't while it is hidden). One string, shared
+// with the root layout's title script (components/TitleFromHash.js), which holds a deep link's own title against this one.
 export const metadata = {
-  title: `${LEAGUES} picks, graded in public · DASH Network`,
+  title: appStaticTitle(),
   description: 'Tonight\u2019s MLB home run board, this week\u2019s NFL touchdown board and tonight\u2019s NHL goal board — every call graded in public.',
   alternates: { canonical: '/app' },
 }
@@ -34,8 +33,6 @@ export const metadata = {
 export default function Page() {
   return (
     <>
-      {/* the page's own tab title from the address, before React loads (no flash of the static title) */}
-      <TitleFromHash />
       {/* who is a member, for the Members lock on tonight's CALLED labels (components/MemberGate.js); everyone else's view is unchanged */}
       <MemberGateProvider>
         <SportRoot />
