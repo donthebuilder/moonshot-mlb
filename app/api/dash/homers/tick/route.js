@@ -47,6 +47,7 @@ import { foldedForDiscord } from '../../../../../lib/posts/sportPlans'
 import { periodsDue, postPeriodOnce, postReceiptOnce } from '../../../../../lib/posts/receipt'
 import { filmRoomDue, postFilmRoomOnce } from '../../../../../lib/posts/filmRoom'
 import { fiveDue, postFiveOnce } from '../../../../../lib/posts/theFive'
+import { sheetDue, postSheetOnce } from '../../../../../lib/posts/sundaySheet'
 import { receiptLoader } from '../../../../../lib/posts/receiptLoad'
 import { phxClock } from '../../../../../lib/dash/xSchedule'
 import { slateLoader } from '../../../../../lib/posts/slateLoad'
@@ -973,6 +974,8 @@ async function receiptTick(db, { day }) {
     if (filmRoomDue(clock)) out.film_room = await postFilmRoomOnce(db, { day: clock.day, hooks: FEED_WEBHOOKS() })
     // THE FIVE (Friday, 2026-10-20, lib/posts/theFive.js): THE SLATE's own reads of the NFL, NHL and NBA boards (MLB's rows are not loaded here), free feed channels
     if (fiveDue(clock)) out.the_five = await postFiveOnce(db, { day: clock.day, clock, load: slateLoader({ day: clock.day }), hooks: FEED_WEBHOOKS() })
+    // THE SUNDAY SHEET (2026-10-20, lib/posts/sundaySheet.js): TUDDY's rankings card for that Sunday's games, the NFL free channel
+    if (sheetDue(clock)) out.sunday_sheet = await postSheetOnce(db, { day: clock.day, clock, hooks: feedHooks('nfl') })
   } catch (err) {
     console.error('[homers] receipt threw', err)
     out.error = String(err?.message || err)
