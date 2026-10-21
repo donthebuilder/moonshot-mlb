@@ -50,6 +50,7 @@ import { fiveDue, postFiveOnce } from '../../../../../lib/posts/theFive'
 import { sheetDue, postSheetOnce } from '../../../../../lib/posts/sundaySheet'
 import { nvbDue, postNvbOnce } from '../../../../../lib/posts/networkVsBoard'
 import { postNumbersOnce } from '../../../../../lib/posts/byNumbers'
+import { snapshotOnce } from '../../../../../lib/growth/snapshot'
 import { receiptLoader } from '../../../../../lib/posts/receiptLoad'
 import { phxClock } from '../../../../../lib/dash/xSchedule'
 import { slateLoader } from '../../../../../lib/posts/slateLoad'
@@ -983,6 +984,8 @@ async function receiptTick(db, { day }) {
     // BY THE NUMBERS (2026-10-21, lib/posts/byNumbers.js): any day with LAMP or BUCKETS games, before the first one; it sleeps until it is nearly due
     // (the boards are read a few times a day, not every minute), the free feed channels
     out.by_numbers = await postNumbersOnce(db, { day: clock.day, hooks: FEED_WEBHOOKS() })
+    // GROWTH (2026-10-21, lib/growth/snapshot.js): the week's snapshot for /admin, once a week from 6 AM Phoenix (the row is the claim)
+    out.growth = await snapshotOnce(db, { clock })
   } catch (err) {
     console.error('[homers] receipt threw', err)
     out.error = String(err?.message || err)

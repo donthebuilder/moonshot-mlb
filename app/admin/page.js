@@ -30,6 +30,8 @@ import { getFromX } from '../../lib/dash/xPost'
 import { writeupsAutopost } from '../../lib/writeups/post'
 import featuredBacktest from '../../lib/writeups/featuredBacktest.json'
 import AdminHub from '../../components/admin/AdminHub'
+import GrowthPanel from '../../components/admin/GrowthPanel'
+import { readSnapshots } from '../../lib/growth/snapshot'
 import { readHubStatus } from '../../lib/adminHubStatus'
 import { PARITY, SPORT_NAMES, isYes, naReason, todoReason } from '../../lib/parity'
 
@@ -129,6 +131,8 @@ const cachedXTier = unstable_cache(async () => {
   const r = await getFromX('/2/users/me', { 'user.fields': 'subscription_type' })
   return r.ok ? { type: r.json?.data?.subscription_type ?? null, user: r.json?.data?.username ?? null } : { error: r.error || `HTTP ${r.status}` }
 }, ['admin-xtier-v1'], { revalidate: 86400 })
+// GROWTH (2026-10-21, lib/growth/snapshot.js): the weekly rows, 10 min (one is written a week)
+const cachedGrowth = unstable_cache(async () => { const db = service(); return db ? readSnapshots(db, 8) : [] }, ['admin-growth-v1'], { revalidate: 600 })
 const cachedShadows = unstable_cache(async () => { const db = service(); return db ? readShadows(db) : [] }, ['admin-shadows-v1'], { revalidate: 600 })
 // LAMP SHOTS 3+ (public) against the book's lock line (M3)
 const cachedVsBook = unstable_cache(async () => { const db = service(); return db ? readVsBook(db, { table: 'lamp_prop_log', market: 'SOG', oddsMarket: 'sog', sport: 'nhl', versions: NHL_VERSIONS.sog, bar: 3 }) : null }, ['admin-vsbook-v1'], { revalidate: 600 })
@@ -158,7 +162,7 @@ export default async function AdminPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user || !isAdminUser(user)) notFound()
 
-  const [hub, c] = await Promise.all([readHubStatus(adminClient()).catch(() => null), cachedCounts()])
+  const [hub, c, growth] = await Promise.all([readHubStatus(adminClient()).catch(() => null), cachedCounts(), cachedGrowth().catch(() => [])])
   const a = c.accounts || {}
   const p = c.push || {}
   // THE ODDS MONTH (lib/odds/budget.js): what SGO says we've spent, and the planner's call
@@ -196,6 +200,8 @@ export default async function AdminPage() {
       <section style={{ padding: '22px 0 40px', maxWidth: 560 }}>
         <AdminHub status={hub} />
 
+        <GrowthPanel rows={growth} />
+
         <p id="numbers" className={start.kicker} style={{ marginTop: 28 }}>The numbers · read {c.readAt ? new Date(c.readAt).toLocaleString('en-US', { timeZone: 'America/New_York' }) : '—'} ET · cached 60 s</p>
         {c.error ? <p>{c.error}</p> : null}
 
@@ -231,7 +237,7 @@ export default async function AdminPage() {
             integration built for one number. The two settings say set / not set,
             never their values. */}
         <h2 className={start.kicker} style={{ marginTop: 18 }}>Members</h2>
-        <Line k="Founding members" v={<a href="https://whop.com/dashboard" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>Whop →</a>} src="counted in the Whop dashboard (the $5 founders product)" />
+        <Line k="Founding members" v={<a href="https://whop.com/dashboard" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>Whop →</a>} src="counted in the Whop dashboard; GROWTH above counts the site_members rows Whop keeps (source whop)" />
         <Line k="Checkout link" v={process.env.NEXT_PUBLIC_MEMBERS_URL ? 'set' : 'not set'} src="NEXT_PUBLIC_MEMBERS_URL (Vercel) -- the members line on /start and /called shows only when set" />
         <Line k="#members webhook" v={process.env.DISCORD_MEMBERS_WEBHOOK ? 'wired' : 'not wired'} src="DISCORD_MEMBERS_WEBHOOK (Vercel) -- no members post runs until it is" />
 
