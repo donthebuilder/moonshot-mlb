@@ -46,6 +46,7 @@ import { postSlateOnce } from '../../../../../lib/posts/slate'
 import { foldedForDiscord } from '../../../../../lib/posts/sportPlans'
 import { periodsDue, postPeriodOnce, postReceiptOnce } from '../../../../../lib/posts/receipt'
 import { filmRoomDue, postFilmRoomOnce } from '../../../../../lib/posts/filmRoom'
+import { fiveDue, postFiveOnce } from '../../../../../lib/posts/theFive'
 import { receiptLoader } from '../../../../../lib/posts/receiptLoad'
 import { phxClock } from '../../../../../lib/dash/xSchedule'
 import { slateLoader } from '../../../../../lib/posts/slateLoad'
@@ -970,6 +971,8 @@ async function receiptTick(db, { day }) {
     // FILM ROOM (Wednesday, 2026-10-20, lib/posts/filmRoom.js): the free feed channels only, not #called-it (it is an explainer, not a receipt)
     const clock = phxClock(Date.now())
     if (filmRoomDue(clock)) out.film_room = await postFilmRoomOnce(db, { day: clock.day, hooks: FEED_WEBHOOKS() })
+    // THE FIVE (Friday, 2026-10-20, lib/posts/theFive.js): THE SLATE's own reads of the NFL, NHL and NBA boards (MLB's rows are not loaded here), free feed channels
+    if (fiveDue(clock)) out.the_five = await postFiveOnce(db, { day: clock.day, clock, load: slateLoader({ day: clock.day }), hooks: FEED_WEBHOOKS() })
   } catch (err) {
     console.error('[homers] receipt threw', err)
     out.error = String(err?.message || err)

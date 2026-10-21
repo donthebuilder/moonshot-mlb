@@ -75,6 +75,20 @@ process.env.FILM_ROOM_OFF = 'on'
 ok(await F.postFilmRoomOnce(db, { day: '2026-10-28', hooks: '' }) === 'off', 'FILM_ROOM_OFF=on stops it')
 delete process.env.FILM_ROOM_OFF
 
+// 5b. the picture (2026-10-20): the card gets the topic, the series number, the real numbers and the CALLED scorers' faces, newest first, each once
+const faces = F.filmFaces([night('2026-10-15', 1, 0, ['Test Old']), night('2026-10-18', 2, 0, ['Test New', 'Test Old'])])
+ok(faces.map((f) => f.name).join() === 'Test New,Test Old', `faces newest first, each once: ${faces.map((f) => f.name)}`)
+ok(F.filmNumber('2026-10-21') === 1 && F.filmNumber('2026-11-25') === 6, 'the series number counts the Wednesdays')
+let drawn = null
+const pic = await F.filmPicture({ day: WED, data, receipts, draw: async (m) => { drawn = m; return Buffer.from('PNG') }, face: async (sport, id) => (id ? `data:image/png;base64,${id}` : '') })
+ok(pic && drawn.topic.key === 'called' && drawn.n === 1 && drawn.data === data && drawn.dayWord === 'Oct 21', 'the card model: topic, number, data, the day')
+ok(drawn.ex && drawn.faces.length === 3 && drawn.faces.every((f) => f.face && f.dayWord), `the faces (${drawn.faces.length}) and the CALLED example`)
+ok(await F.filmPicture({ day: WED, data, receipts, draw: async () => { throw new Error('boom') }, face: async () => '' }) === null, 'a render that throws: no picture, no throw')
+F._resetFilmForTests()
+store.length = 0
+const r2 = await F.postFilmRoomOnce(db, { day: '2026-12-02', hooks: '', draw: async () => Buffer.from('PNG'), face: async () => '' })
+ok(/^posted/.test(r2) && store.find((x) => x.day === '2026-12-02')?.payload?.picture === true, `the post carries the picture (${r2})`)
+
 // 6. the SQL and the wiring
 const fs = await import('node:fs')
 const sql = fs.readFileSync(new URL('../supabase/migrations/202610202100_film_room_kind.sql', import.meta.url), 'utf8')
