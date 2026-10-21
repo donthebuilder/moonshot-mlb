@@ -48,6 +48,7 @@ import { periodsDue, postPeriodOnce, postReceiptOnce } from '../../../../../lib/
 import { filmRoomDue, postFilmRoomOnce } from '../../../../../lib/posts/filmRoom'
 import { fiveDue, postFiveOnce } from '../../../../../lib/posts/theFive'
 import { sheetDue, postSheetOnce } from '../../../../../lib/posts/sundaySheet'
+import { nvbDue, postNvbOnce } from '../../../../../lib/posts/networkVsBoard'
 import { receiptLoader } from '../../../../../lib/posts/receiptLoad'
 import { phxClock } from '../../../../../lib/dash/xSchedule'
 import { slateLoader } from '../../../../../lib/posts/slateLoad'
@@ -976,6 +977,8 @@ async function receiptTick(db, { day }) {
     if (fiveDue(clock)) out.the_five = await postFiveOnce(db, { day: clock.day, clock, load: slateLoader({ day: clock.day }), hooks: FEED_WEBHOOKS() })
     // THE SUNDAY SHEET (2026-10-20, lib/posts/sundaySheet.js): TUDDY's rankings card for that Sunday's games, the NFL free channel
     if (sheetDue(clock)) out.sunday_sheet = await postSheetOnce(db, { day: clock.day, clock, hooks: feedHooks('nfl') })
+    // THE NETWORK vs THE BOARD (2026-10-21, lib/posts/networkVsBoard.js): Sunday evening, the week's polls graded, the free feed channels
+    if (nvbDue(clock)) out.network_vs_board = await postNvbOnce(db, { day: clock.day, clock, hooks: FEED_WEBHOOKS() })
   } catch (err) {
     console.error('[homers] receipt threw', err)
     out.error = String(err?.message || err)
