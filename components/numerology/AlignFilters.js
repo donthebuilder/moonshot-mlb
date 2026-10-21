@@ -6,6 +6,7 @@ import { usePreview, ShowMoreButton } from '../ListPreview'
 import { alignModel, alignedWithBy } from '../../lib/numerology/align'
 import { TeamTap } from '../EntityTap'
 import Tap from '../Tap'
+import PlayerInjuryChip from '../injuries/PlayerInjuryChip'
 
 // 🔮 NUMEROLOGY FILTERS, EVERY SPORT (2026-10-20, Donovan: "any way to make the numerology thing have filters like by
 // game or by whatever pathway ... like if I wanted to search a player by alignments"). Three filters over the night's
@@ -114,7 +115,7 @@ export default function AlignFilters({ ctl, AXIS_META = {}, todayRoot, theme: C,
         <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
           {matches.map((a) => (
             <div key={a.pid} style={{ border: `1px solid ${C.border}`, borderRadius: 10, background: C.bg2, padding: '8px 10px' }}>
-              <div style={{ fontSize: 12.5, fontWeight: 800, color: C.text }}><Tap onClick={onName ? () => onName(a) : null}>{a.name}</Tap> <span style={{ color: C.text3, fontWeight: 600 }}><TeamTap abbr={a.team} sport={ctl.sport} px={14} /></span>
+              <div style={{ fontSize: 12.5, fontWeight: 800, color: C.text }}><Tap onClick={onName ? () => onName(a) : null}>{a.name}</Tap><PlayerInjuryChip who={{ player_id: a.pid, name: a.name, team: a.team }} C={C} font={numFont} size={9} /> <span style={{ color: C.text3, fontWeight: 600 }}><TeamTap abbr={a.team} sport={ctl.sport} px={14} /></span>
                 <span style={{ float: 'right', fontSize: 10, fontWeight: 900, letterSpacing: '.08em', color: C.text3, fontFamily: numFont }}>HIS NUMBERS</span></div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
                 {Object.entries(a.axes || {}).filter(([, v]) => v != null).map(([k, v]) => {
@@ -143,6 +144,7 @@ export default function AlignFilters({ ctl, AXIS_META = {}, todayRoot, theme: C,
           {pv.shown.map(({ a, keys, strength }) => (
             <div key={a.pid} style={{ display: 'flex', alignItems: 'center', gap: '2px 6px', flexWrap: 'wrap', padding: '5px 0', borderTop: `1px solid ${C.border}` }}>
               <Tap onClick={onName ? () => onName(a) : null}><b style={{ color: C.text, fontSize: 12.5 }}>{a.name}</b></Tap>
+              <PlayerInjuryChip who={{ player_id: a.pid, name: a.name, team: a.team }} C={C} font={numFont} size={9} />
               <TeamTap abbr={a.team} sport={ctl.sport} px={14} />
               {gameOf(a) ? <Tap onClick={() => setF('game', gameOf(a))}><span title="Show only this game" style={{ fontSize: 10.5, color: C.text3 }}>{gameOf(a)}</span></Tap> : null}
               {strength >= 2 ? <b style={{ fontSize: 11, color: accent, fontFamily: numFont }}>{strength}×</b> : null}

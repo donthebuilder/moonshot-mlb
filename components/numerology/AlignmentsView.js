@@ -1,6 +1,7 @@
 'use client'
 import MoreNote from '../MoreNote'
 import Tap from '../Tap'
+import InjuryMark from '../injuries/InjuryMark'
 import { usePreview, ShowMoreButton } from '../ListPreview'
 import { useState } from 'react'
 import { usePickLight } from '../../lib/pickLight'
@@ -270,7 +271,7 @@ export default function AlignmentsView({
                   border: `1px solid ${picked.has(a.pid) ? accent : `${accent}55`}`,
                   background: picked.has(a.pid) ? `${accent}24` : 'transparent', color: C.text2,
                 }}>
-                {a.name}
+                {a.name}<InjuryMark who={{ player_id: a.pid, name: a.name, team: a.team }} C={C} font={NUM_FONT} />
                 {/* The bot's score, on the chip rather than buried in a
                     tooltip — it is what the list is ORDERED by, and a list
                     whose ordering is invisible reads as arbitrary. */}
@@ -360,7 +361,7 @@ export default function AlignmentsView({
                       border: `1px solid ${picked.has(a.pid) ? accent : any ? accent + '55' : C.border}`,
                       background: picked.has(a.pid) ? `${accent}24` : 'transparent', color: C.text2,
                     }}>
-                    {a.name}
+                    {a.name}<InjuryMark who={{ player_id: a.pid, name: a.name, team: a.team }} C={C} font={NUM_FONT} />
                     {hitsYesterday && <span style={{ color: accent, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 5 }}>Y</span>}
                     {hitsToday && <span style={{ color: accent, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 3 }}>T</span>}
                     {hitsTomorrow && <span style={{ color: accent, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 3 }}>+1</span>}
@@ -410,7 +411,7 @@ export default function AlignmentsView({
                     border: `1px solid ${picked.has(a.pid) ? accent : C.border}`,
                     background: picked.has(a.pid) ? `${accent}24` : 'transparent', color: C.text2,
                   }}>
-                  {a.name}
+                  {a.name}<InjuryMark who={{ player_id: a.pid, name: a.name, team: a.team }} C={C} font={NUM_FONT} />
                   {/* Raw number → root, not just the axis name. "season HR
                       19→1" is the read; "season HR" alone is a label. */}
                   <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9 }}>
@@ -445,7 +446,7 @@ export default function AlignmentsView({
                   border: `1px solid ${picked.has(a.pid) ? accent : strength >= 3 ? accent : C.border}`,
                   background: picked.has(a.pid) ? `${accent}24` : 'transparent', color: C.text2,
                 }}>
-                {a.name}
+                {a.name}<InjuryMark who={{ player_id: a.pid, name: a.name, team: a.team }} C={C} font={NUM_FONT} />
                 <span style={{ color: C.text, fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900 }}> {root}</span>
                 <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9 }}>×{strength}</span>
               </button>
@@ -496,7 +497,7 @@ export default function AlignmentsView({
         </span>
         {/* a picked name opens his file (0g A6: onName was accepted and never called) */}
         {pickedRows.map((a) => (
-          <span key={a.pid} style={{ fontSize: 10, color: C.text2 }}>{onName ? <Tap onClick={() => onName(a)}>{a.name}</Tap> : a.name}</span>
+          <span key={a.pid} style={{ fontSize: 10, color: C.text2 }}>{onName ? <Tap onClick={() => onName(a)}>{a.name}</Tap> : a.name}<InjuryMark who={{ player_id: a.pid, name: a.name, team: a.team }} C={C} font={NUM_FONT} /></span>
         ))}
         <button
           disabled={!pickedRows.length}
