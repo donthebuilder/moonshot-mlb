@@ -11,8 +11,6 @@ import StadiumShell from './charts/StadiumShell'
 import { buildPark, lerp5, fieldPoint, GENERIC_DIMS, GENERIC_HEIGHTS } from '../lib/stadiumWorld'
 import { makeComposer, enableShadows, loadPhotoSurfaces, loadSky, loadModels, isCoarse } from '../lib/stadiumLook'
 import { PARK_WALLS } from '../lib/parkWalls'
-import { densityGrid } from '../lib/charts/terrain'
-import { buildHills, rgb01 } from '../lib/three/hills'
 // The same sequential ramp the 2D grid paints its temp bands with. Importing
 // it — rather than picking colours here — is what keeps the two maps from
 // disagreeing about what "hot" looks like, and keeps this file free of hex.
@@ -515,28 +513,8 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
       })
     }
 
-    // ── HILLS (2026-10-19, the shared 3D look, lib/three/hills.js): tonight's plate crossings as ground, raised toward the
-    //    catcher, so where he lives is a hill. Orange where the share of swings and misses beats his own rate tonight.
-    //    Eight crossings before a hill is drawn. Plate feet on a 0.1-ft grid, x -2.5..2.5, height 0..5.
+    // (the strike-zone hills were retired 2026-10-20 with every other 3D hill: "the hills ... that's not what I wanted"); the group stays empty
     const hillGroup = new THREE.Group(); add(hillGroup)
-    {
-      const pts = live.filter((p) => Number.isFinite(p.x) && Number.isFinite(p.z) && p.x > -2.5 && p.x < 2.5 && p.z > 0 && p.z < 5)
-        .map((p) => ({ x: p.x + 2.5, y: p.z, wh: p.kind === 'whiff' }))
-      if (pts.length >= 8) {
-        const sig = pts.length < 40 ? 0.42 : 0.3
-        const g = densityGrid(pts, { w: 5, h: 5, cell: 0.1, sigma: sig })
-        const gw = densityGrid(pts.filter((q) => q.wh), { w: 5, h: 5, cell: 0.1, sigma: sig })
-        const rate = pts.filter((q) => q.wh).length / pts.length
-        const acc = rgb01(C.orange), pale = [0.96, 0.95, 0.92]
-        if (g.vmax) {
-          hillGroup.add(buildHills(g, {
-            toWorld: (gx, gy, h) => PT(gx - 2.5, gy, -h),
-            colorAt: (gx, gy) => { const k = Math.round(gy / 0.1) * g.gw + Math.round(gx / 0.1); const v = g.grid[k]; return rate > 0 && v > 0.3 * g.vmax && gw.grid[k] / v > rate * 1.25 ? acc : pale },
-            height: 0.9, floor: 0.06, fade: true, opacity: 0.72,
-          }))
-        }
-      }
-    }
 
     // ── TUNNEL. One ring at the point downrange where the pitches are still
     //    indistinguishable. Nothing on a flat map can show this.
@@ -997,7 +975,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
   }
 
   // The view modes are StadiumShell's chip row now (under the canvas, 44px).
-  const chipsRow = <>{btn('flight', 'Flight')}{btn('tunnel', 'Release + tunnel')}{btn('command', 'Command')}{btn('hills', 'Hills')}{btn('matchup', 'Matchup')}</>
+  const chipsRow = <>{btn('flight', 'Flight')}{btn('tunnel', 'Release + tunnel')}{btn('command', 'Command')}{btn('matchup', 'Matchup')}</>
   const PRESETS = [
     { key: 'mound', label: 'MOUND', title: "From the pitcher's side, looking in" },
     { key: 'catcher', label: 'CATCHER', title: 'Behind the plate, the matchup frame' },

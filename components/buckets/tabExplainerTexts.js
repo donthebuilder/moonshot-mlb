@@ -4,7 +4,7 @@
 // meaning moved into each page's (?) (components/buckets/ui.js Why).
 export const NBA_TEXTS = {
   home: { what: 'BUCKETS calls one player per team in every NBA game, locks the calls before tip and grades them in public after the final. Tap a game for its whole board.' },
-  board: { what: 'The night’s calls, one market at a time. CALLED is one per team in a game; ON THE BOARD is the top third. A PREVIEW is not a call until its game locks.' },
+  board: { what: 'The night’s calls, one market at a time. CALLED is one per team in a game; ON THE BOARD is the top third. Calls lock before tip.' },
   fullboard: { what: 'Every player tonight, #1 down. Tap Why on a row for the reason, or a name for his file.' },
   scores: { what: 'Every game on one day: score, quarter and clock. Tap a game for its box score and every shot.' },
   game: { what: 'One game top to bottom: line score, box scores, every shot where it was taken, and who scored first.' },

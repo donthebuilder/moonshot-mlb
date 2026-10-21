@@ -93,7 +93,7 @@ export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onO
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {!embedded && <PageHeader eyebrow="BUCKETS · RANKINGS" title={shown ? fmtDay(shown) : 'Tonight'} theme={C} numFont={NUM_FONT} accent={C.purple}
-        note={<>Every player tonight, every market side by side. <Why label="Rankings" text="Every player rated that day, every market side by side. CALLED is one per team in a game, per market. A PREVIEW is not a call until its game locks." /></>}
+        note={<>Every player tonight, every market side by side. <Why label="Rankings" text="Every player rated that day, every market side by side. CALLED is one per team in a game, per market. Calls lock before tip." /></>}
         stats={data ? [{ value: rows.length, label: 'PLAYERS', tone: C.text2 }, { value: calledN, label: 'CALLS', tone: C.purple }, { value: games.length, label: 'GAMES', tone: C.text2 }] : null} />}
       {!embedded && <DayPager shown={shown} date={date} setDate={setDate} />}
       <DelayedBanner error={pts.error} what="the board" />

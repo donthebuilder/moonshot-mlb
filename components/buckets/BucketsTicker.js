@@ -27,7 +27,7 @@ export default function BucketsTicker({ date = null, scores, liveScores, onOpenP
     // not hidden, drops the #1 claim from its label when somebody hidden ranks above him (no hint of why), and is skipped when nobody is left. Members and unknown viewers see no change.
     const top = ranked.find((r) => !r._callHidden)
     const skipped = Boolean(top) && ranked[0] !== top
-    if (top) out.push({ k: 'top', icon: '🎯', label: `${skipped ? 'PTS BOARD · ON THE BOARD' : top.locked ? "PTS BOARD'S #1" : "PTS BOARD'S #1 · PREVIEW"}${on}`, value: `${top.name} ${top.score}`, color: C.purple, title: 'Highest score on the night’s points board. PREVIEW until his game locks — a preview is not a call.', onClick: () => onOpenPlayer?.(top.playerId) })
+    if (top) out.push({ k: 'top', icon: '🎯', label: `${skipped ? 'PTS BOARD · ON THE BOARD' : "PTS BOARD'S #1"}${on}`, value: `${top.name} ${top.score}`, color: C.purple, title: 'Highest score on the night’s points board. The board can move until his game locks before tip.', onClick: () => onOpenPlayer?.(top.playerId) })
     const pl = leaders.data?.categories?.find((c) => c.key === 'pts')?.leaders?.[0]
     if (pl) out.push({ k: 'ppg', icon: '🏀', label: `SCORING LEADER${leaders.data.seasonLabel ? ` · ${leaders.data.seasonLabel}` : ''}`, value: `${pl.name} ${pl.value}`, color: C.text, title: 'League points-per-game leader.', onClick: () => onOpenPlayer?.(pl.id) })
     const day = scores?.data

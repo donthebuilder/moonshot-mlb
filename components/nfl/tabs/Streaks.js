@@ -140,7 +140,7 @@ export default function Streaks({ data, logs, onPlayerClick }) {
                     <span style={{ fontFamily: NUM_FONT, fontSize: 12, color: C.text3 }}>L5 <b style={{ color: C.text }}>{pct(pr.l5)}</b> · L10 {pct(pr.l10)} · Szn {pct(pr.szn)}</span>
                   </div>
                   <ValueBars values={pr.last.map((g) => ({ v: g.v, label: `W${g.w}` }))} line={line} ariaLabel={`${pr.player.name}'s last ${pr.last.length} games against ${line}`} C={C} accent={C.green} numFont={NUM_FONT} />
-                  <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>his last {pr.last.length} games · dashed = {line}</div>
+                  <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>his last {pr.last.length} games, oldest to newest · lit = cleared {line}</div>
                 </section>
               )}
             </div>

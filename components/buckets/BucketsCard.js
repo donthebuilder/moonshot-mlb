@@ -31,7 +31,6 @@ const MAIN = { pts: ['ptsPg', 'PTS/G'], reb: ['rebPg', 'REB/G'], ast: ['astPg', 
 export function BucketsCard({ r, rank, market = 'pts', onOpen, rankMove = null, quote = null, day = '', place = 0 }) {
   const M = NBA_MARKETS[market] || NBA_MARKETS.pts
   const called = r.status === 'called'
-  const preview = r.locked === false
   const [mainKey, mainLabel] = MAIN[market] || MAIN.pts
   const mainV = Number(r[mainKey] ?? r.legs?.[mainKey])
   const main = Number.isFinite(mainV) ? (mainKey === 'fgaShare' || RATE_LEGS.has(mainKey) ? `${Math.round(mainV * 100)}%` : mainV.toFixed(1)) : '—'
@@ -45,7 +44,7 @@ export function BucketsCard({ r, rank, market = 'pts', onOpen, rankMove = null, 
         role={called && r.role ? r.role : ''}
         face={<PlayerFace sport="nba" id={r.playerId} name={r.name} variant="tile" size={84} theme={C} />}
         score={Math.round(r.score ?? 0)} scoreWord="BUCKETS" explain={`The ${M.label} board score: his percentile ranks among tonight's players on this board's legs, averaged. A ranking, not a percentage.`}
-        rankTags={[...(preview ? ['PREVIEW'] : []), ...(r.injury ? [String(r.injury).toUpperCase()] : [])]}
+        rankTags={[...(r.injury ? [String(r.injury).toUpperCase()] : [])]}
         extraLine={<span style={{ marginLeft: 'auto', textAlign: 'right' }}>{/* where the book's price opened, when it has moved (lib/odds/lineMove.js: no opening price, no chip) */}{quote ? <LineMoveChip quote={quote} theme={C} numFont={NUM_FONT} compact /> : null}{quote ? ' ' : null}<b style={{ font: `900 20px/1 ${NUM_FONT}`, color: called ? C.purple : C.text }}>{main}</b> <span style={{ font: `800 10px/1 ${NUM_FONT}`, color: C.text3, letterSpacing: '.06em' }}>{mainLabel}</span></span>}
         stats={legs.slice(0, 3)}
         back={legs.length || Number.isFinite(min) ? { rows: [{ label: mainLabel, value: main }, ...(Number.isFinite(min) && market !== 'first' ? [{ label: 'MIN/G', value: min.toFixed(1) }] : []), ...legs.map((l) => ({ label: l.label, value: l.value, pct: l.pct }))], note: "Percentiles among tonight's players. A ranking, not a percentage." } : null}

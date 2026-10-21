@@ -4,6 +4,7 @@
 // underneath (components/ui Empty, StaleBanner StaleNote, CallStatusBadge,
 // TeamMark). Spelled once here so a state, a chip or a mark reads the same on
 // every page. Nothing here is a card.
+import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 import { STATUS_WORD } from '../../lib/callStatus'
 import CallStatusBadge from '../CallStatusBadge'
 import { C, NUM_FONT } from '../../lib/nba/theme'
@@ -88,11 +89,8 @@ export function Pills({ value, onChange, options, ariaLabel, nowrap = false }) {
       {options.map((o) => {
         const on = o.key === value
         return (
-          <button key={o.key} type="button" onClick={() => onChange(o.key)} aria-pressed={on} disabled={o.disabled} title={o.title} style={{
-            minHeight: 44, padding: '0 14px', borderRadius: 999, cursor: o.disabled ? 'default' : 'pointer',
-            border: `1px solid ${on ? C.purple : C.border2}`, background: on ? `${C.purple}1f` : 'transparent',
-            color: on ? C.purple : C.text2, font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.06em', opacity: o.disabled ? .45 : 1, whiteSpace: 'nowrap',
-          }}>{o.text}</button>
+          <button key={o.key} type="button" className={FLAT_CHIP_CLASS} onClick={() => onChange(o.key)} aria-pressed={on} disabled={o.disabled} title={o.title}
+            style={flatChip(on, C.purple, C, NUM_FONT, { disabled: o.disabled })}>{o.text}</button>
         )
       })}
     </div>

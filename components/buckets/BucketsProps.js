@@ -54,7 +54,6 @@ function bucketsAdapter(startOf, odds) {
       // the result, once graded (audit: BUCKETS cards never showed hit / miss)
       if (x.hit === true || x.hit === false) chips.push({ t: k === 'first' ? (x.hit ? '✅ scored first' : '❌ not first') : k === 'dd' || k === 'td' ? (x.hit ? `✅ ${SHORT[k].toLowerCase()}` : `❌ no ${SHORT[k].toLowerCase()}`) : `${x.hit ? '✅' : '❌'} ${x.actual ?? '—'} ${SHORT[k]}`, warn: !x.hit })
       else if (x.voidReason) chips.push({ t: `➖ void · ${x.voidReason}`, warn: true })
-      else if (!x.locked) chips.push({ t: '⏳ preview — not locked yet', warn: true })
       if (x.injury) chips.push({ t: `⚠ ${x.injury}`, warn: true })
       if (x.role && chips.length < 2) chips.push({ t: x.role, warn: false })
       return {

@@ -67,29 +67,29 @@ export function FilterPill({ active, onClick, children, count, title, disabled, 
   // It cannot be an invisible hit area: the phone rail scrolls, and a scroller clips whatever sticks out of it. MOONSHOT (not
   // themed) keeps its own 32px pill, so its look does not move.
   const themed = !!useSportTheme()?.themed
+  // THE CHIP INSIDE THE TARGET (2026-10-20, Donovan: "the very tiny square ones ... so it can fit well on the screen"): the button is
+  // the 44px thumb target on a touch screen (.fp-themed) and draws nothing; the chip you see is the small flat square inside it.
+  const chip = {
+    padding: tall ? '6px 10px' : '5px 9px', fontSize: tall ? 11 : 10, borderRadius: 3, letterSpacing: '.04em', lineHeight: 1.1,
+    ...(tall ? { fontFamily: NUM_FONT } : null),
+    border: `1px solid ${s.borderColor}`,
+    background: active ? alpha(s.color, 0.14) : 'transparent',
+    color: s.color, fontWeight: s.fontWeight,
+    whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 5,
+  }
   return (
     <button
-      className={themed ? 'fp-themed' : undefined}
+      className={themed ? 'fp-themed' : 'tap-box'}
       onClick={disabled ? undefined : onClick}
       title={title}
-      style={{
-        // 2026-09-13: 4px vertical was tight for the pill used on every filter
-        // row site-wide — this is the shared recipe, so the bump benefits
-        // every board, not just this one.
-        padding: '6px 12px', fontSize: 10, borderRadius: 999, cursor: disabled ? 'default' : 'pointer',
-        // tall (opt-in, 2026-10-08): the phone Rankings rail -- a 44px target and a count a thumb can read
-        ...(tall ? { minHeight: 44, fontSize: 11.5, padding: '6px 14px', fontFamily: NUM_FONT } : null),
-        border: `1px solid ${s.borderColor}`,
-        background: active ? alpha(s.color, 0.14) : 'transparent',
-        color: s.color, fontWeight: s.fontWeight,
-        whiteSpace: 'nowrap', opacity: disabled ? 0.45 : 1,
-        display: 'inline-flex', alignItems: 'center', gap: 5,
-      }}
+      style={{ padding: 0, border: 0, background: 'transparent', cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.45 : 1, display: 'inline-flex', alignItems: 'center', ...(tall ? { minHeight: 44 } : null) }}
     >
-      {children}
-      {count != null && (
-        <span style={{ fontSize: tall ? 11 : 8.5, fontFamily: NUM_FONT, fontWeight: 700, opacity: 0.85 }}>{count}</span>
-      )}
+      <span style={chip}>
+        {children}
+        {count != null && (
+          <span style={{ fontSize: tall ? 10.5 : 8.5, fontFamily: NUM_FONT, fontWeight: 700, opacity: 0.85 }}>{count}</span>
+        )}
+      </span>
     </button>
   )
 }
@@ -133,17 +133,23 @@ export function Segmented({ value, options, onChange, label, tall = false }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
       {label && <FilterLabel>{label}</FilterLabel>}
-      <span style={{ display: 'inline-flex', border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden' }}>
+      {/* the joined chips are drawn on inner spans; each button is the (44px on touch) target around its chip (10-20) */}
+      <span style={{ display: 'inline-flex', alignItems: 'center' }}>
         {options.map((o, i) => {
           const active = value === o.key
           const s = active ? on : STATE.off()
+          const last = i === options.length - 1
           return (
-            <button key={o.key} className={themed ? 'fp-themed' : undefined} onClick={() => onChange(o.key)} title={o.title} style={{
-              padding: tall ? '0 9px' : '6px 11px', fontSize: tall ? 12 : 10, cursor: 'pointer', border: 'none', ...(tall ? { minHeight: 44, whiteSpace: 'nowrap' } : null),
-              borderLeft: i ? `1px solid ${C.border}` : 'none',
-              background: active ? alpha(s.color, 0.14) : 'transparent',
-              color: s.color, fontWeight: s.fontWeight,
-            }}>{o.label}</button>
+            <button key={o.key} className={themed ? 'fp-themed' : 'tap-box'} onClick={() => onChange(o.key)} title={o.title} style={{
+              padding: 0, border: 0, background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', ...(tall ? { minHeight: 44 } : null),
+            }}>
+              <span style={{
+                padding: tall ? '6px 9px' : '5px 10px', fontSize: tall ? 11 : 10, whiteSpace: 'nowrap', lineHeight: 1.1, letterSpacing: '.04em',
+                border: `1px solid ${active ? s.borderColor || C.border : C.border}`, borderLeftWidth: i && !active ? 0 : 1,
+                borderRadius: i === 0 ? '3px 0 0 3px' : last ? '0 3px 3px 0' : 0,
+                background: active ? alpha(s.color, 0.14) : 'transparent', color: s.color, fontWeight: s.fontWeight,
+              }}>{o.label}</span>
+            </button>
           )
         })}
       </span>

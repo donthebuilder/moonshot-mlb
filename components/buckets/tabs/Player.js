@@ -201,7 +201,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
   ]
   const logPv = usePreview(logRows, 10)
   const last5 = logRows.slice(0, 5)
-  const shots = useMemo(() => unpackShots(data.shots), [data])
+  const shots = useMemo(() => unpackShots(data.shots, data.shotGames), [data])
   const calls = (data.calls || []).map((r, i) => ({ ...r, _id: `${r.game_date}-${r.market}-${i}`, marketLabel: NBA_MARKETS[r.market]?.label || (r.market === 'first_fg' ? 'FIRST BASKET' : r.market === 'first_pts' ? 'FIRST POINTS' : r.market) }))
   const callCols = [
     { key: 'game_date', label: 'Date', group: 'Night', w: 84, heat: false, sticky: true, fmt: (v) => fmtDay(v) },
@@ -359,7 +359,8 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
           shots.length > 0
             ? <section>
                 <Kicker>EVERY SHOT ON FILE · {shots.length} ATTEMPTS{data.shotsFrom ? ` SINCE ${fmtDay(data.shotsFrom).toUpperCase()}` : ''}</Kicker>
-                <ShotChart urlKey="shots" shots={shots} filters={["result", "type"]} title={`${card.name}, every field-goal attempt on file`}
+                <ShotChart urlKey="shots" shots={shots} filters={["result", "type"]} threeD title={`${card.name}, every field-goal attempt on file`}
+                  defense={row?.opp || data.nextGame?.opp || null} defenseNote={row?.opp ? 'tonight' : data.nextGame?.opp ? 'next game' : null}
                   source="Every field-goal attempt on file for him, from ESPN play-by-play; free throws and end-of-quarter heaves left out." />
               </section>
             : <EmptyState title="NO SHOTS ON FILE" note="We record shots from the play-by-play once games are played; none are on file for him yet." />

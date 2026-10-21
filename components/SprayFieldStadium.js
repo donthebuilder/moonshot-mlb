@@ -8,9 +8,7 @@ import * as THREE from 'three'
 import { labelSprite } from '../lib/three/sprites'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { C, NUM_FONT } from '../lib/theme'
-import { densityGrid } from '../lib/charts/terrain'
-import { leagueHrRate } from '../lib/mlb/leagueSpray'
-import { buildHills, rgb01 } from '../lib/three/hills'
+import { flatChip } from '../lib/chips'
 import StadiumShell from './charts/StadiumShell'
 import { catColor } from '../lib/scales'
 import { solveFlight } from '../lib/trajectory'
@@ -117,10 +115,6 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
   // effect's own handle (apiRef.preset / setView) so a chip can move the camera.
   const [full, setFull] = useState(false)
   const [preset, setPreset] = useState('press')
-  // THE HILLS (10-19, the shared 3D look): where his batted balls land, lifted; MOONSHOT orange where his home-run
-  // rate there beats the league's for balls landing there (lib/mlb/leagueSpray.js). Balls = the flights as before.
-  const [layer, setLayer] = useState('balls')
-  const layerRef = useRef(layer); layerRef.current = layer
   const apiRef = useRef({})
   const motionRef = useRef(motion); motionRef.current = motion
   const orbitRef = useRef(orbit); orbitRef.current = orbit
@@ -229,7 +223,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     controls.minDistance = maxD * 0.16
     // 1.5 (was 1.8): past it the park was under 15% of the frame on desktop
     // (the sweep test, BATCH-3D-CAMERA) -- zoomed out into empty night.
-    controls.maxDistance = maxD * 1.5
+    controls.maxDistance = maxD * 2.2   // 10-20: room for TOP to stand all the way out (the floor rule below keeps far cameras over the seats)
     controls.enableDamping = true
 
     // ── MAKING IT DRIVEABLE (2026-08-31). Donovan: "the spray chart was hard
@@ -275,9 +269,9 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     const SHOTS = {
       press: () => [P0.clone(), T0.clone()],
       plate: () => [V(maxD * 0.03, maxD * 0.10, -maxD * 0.20), V(0, 8, maxD * 0.5)],
-      outfield: () => [V(maxD * 0.02, maxD * 0.22, maxD * 0.12), V(0, 10, maxD * 0.92)],
       // a tall phone frame needs the camera higher to fit the whole fan
-      top: () => [V(maxD * 0.004, maxD * (camera.aspect < 1.15 ? 2.1 : 1.25), maxD * 0.40), V(0, 0, maxD * 0.45)],
+      // TOP, all the way out (10-20: "we can zoom all the way out as best as possible"): the whole bowl in frame, not just the fan
+      top: () => [V(maxD * 0.004, maxD * (camera.aspect < 1.15 ? 2.35 : 1.45), maxD * 0.40), V(0, 0, maxD * 0.43)],
     }
     let anim = null
     const ease = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2)
@@ -471,36 +465,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     // every arc, tube and glow — hidden from the plate seat, where a 3-ft
     // tube drawn for a 400-ft park is a wall of colour across the frame
     const arcGroup = new THREE.Group(); scene.add(arcGroup)
-    // the hills: landing spots on a 5-ft grid over the fair ground (x -350..350 ft, z 0..470 ft from the plate)
-    let hills = null
-    {
-      const pts = hits.filter((h) => Number.isFinite(h?.r) && Number.isFinite(h?.ang) && h.r > 0).map((h) => ({ x: -h.r * Math.sin(h.ang * DEG) + 350, y: h.r * Math.cos(h.ang * DEG), hr: Boolean(h.hr) }))
-      if (pts.length >= 8) {
-        const sig = pts.length < 60 ? 26 : 16   // a handful of balls spread wider, so a small sample reads as ground, not spikes
-        const g = densityGrid(pts, { w: 700, h: 470, cell: 5, sigma: sig })
-        const gh = densityGrid(pts.filter((p) => p.hr), { w: 700, h: 470, cell: 5, sigma: sig })
-        const rate = pts.filter((p) => p.hr).length / pts.length
-        const acc = rgb01(C.orange), pale = [0.96, 0.95, 0.92]
-        if (g.vmax) {
-          hills = buildHills(g, {
-            toWorld: (gx, gy, h) => new THREE.Vector3(gx - 350, h, gy),
-            // THE BAR (10-19, Donovan "handle"): the LEAGUE's home-run rate for balls landing in that direction and distance
-            // (lib/mlb/leagueSpray.js, measured from every 2025 batted ball) where it has 100+ balls; else his own overall rate
-            colorAt: (gx, gy) => {
-              const k = Math.round(gy / 5) * g.gw + Math.round(gx / 5); const v = g.grid[k], hv = gh.grid[k]
-              const lg = leagueHrRate(Math.hypot(gx - 350, gy), Math.atan2(-(gx - 350), gy) / DEG)
-              if (lg != null && lg < 0.02) return pale   // inside the fences the league almost never homers: no bar to beat (smoothing would paint it)
-              const bar = lg ?? rate
-              return bar > 0 && v > 0.15 * g.vmax && hv / v > bar * 1.25 ? acc : pale
-            },
-            height: 46, floor: 0.06,
-          })
-          scene.add(hills)
-        }
-      }
-    }
-    apiRef.current.showLayer = (l) => { arcGroup.visible = l !== 'hills' || !hills; if (hills) hills.visible = l === 'hills' }
-    apiRef.current.showLayer(layerRef.current)
+    // (the 3D hills were retired 2026-10-20, Donovan: "I think you added the hills today and that's not what I wanted")
     const flightOfHit = []   // hit index → flight index, for LIVE's "only the new one flies"
     hits.forEach((h, hi) => {
       if (!Number.isFinite(h?.r) || !Number.isFinite(h?.ang)) return
@@ -1342,12 +1307,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
 
   // The motion modes + orbit row (was floating top-right on the canvas): now
   // StadiumShell's chip slot, under the canvas, at a thumb's 44px.
-  const chipBtn = (on, col) => ({
-    minHeight: 0, padding: '6px 11px', fontSize: 12, fontWeight: 800, borderRadius: 999,   // small pills (10-18)
-    cursor: 'pointer', fontFamily: NUM_FONT,
-    border: `1px solid ${on ? col : C.border2}`,
-    background: on ? `${col}22` : 'transparent', color: on ? col : C.text2,
-  })
+  const chipBtn = (on, col) => flatChip(on, col, C, NUM_FONT)   // flat square chips (lib/chips.js, 10-20)
   const chipsRow = (
     <>
       {[
@@ -1359,24 +1319,20 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
           onClick={() => { setMotion(k); if (k === 'replay' && replayRef.current) replayRef.current() }}
           style={chipBtn(motion === k, k === 'live' ? C.green : k === 'hold' ? C.text2 : C.orange)}>{txt}</button>
       ))}
-      {[['balls', 'Balls'], ['hills', 'Hills']].map(([k, txt]) => (
-        <button key={k} type="button" className="tap-box" aria-pressed={layer === k} onClick={() => { setLayer(k); apiRef.current.showLayer?.(k) }} style={chipBtn(layer === k, C.orange)}>{txt}</button>
-      ))}
       <button type="button" onClick={() => setOrbit((v) => !v)}
         title={orbit ? 'Stop the slow turn' : 'Turn slowly around the park until you grab it'}
         style={chipBtn(orbit, C.cyan)}>⟳ orbit</button>
     </>
   )
+  // THE THREE CAMERAS (2026-10-20, Donovan: "I like the top view ... zoom out more ... the at the plate for sure and the press box. Those are my three")
   const PRESETS = [
     { key: 'press', label: 'PRESS BOX', title: 'The broadcast frame, high behind first base' },
-    { key: 'plate', label: 'PLATE', title: 'Low, from behind home plate' },
-    { key: 'outfield', label: 'OUTFIELD', title: 'From behind second base, looking out at the wall' },
-    { key: 'top', label: 'TOP', title: 'Straight down on the park' },
+    { key: 'plate', label: 'AT THE PLATE', title: 'Low, from behind home plate' },
+    { key: 'top', label: 'TOP', title: 'Straight down on the whole park' },
   ]
   const fill = full ? { height: '100%' } : null
   const caption = (
       <div style={{ fontSize: 9, color: C.text3, marginTop: 5, lineHeight: 1.5, fontFamily: NUM_FONT }}>
-        {layer === 'hills' ? <div style={{ fontSize: 11, color: C.text2, marginBottom: 3 }}>Higher = more of his balls land there · <b style={{ color: C.orange }}>orange</b> = he homers there more than the league does</div> : null}
         drag to orbit · scroll to zoom · swipe sideways on a phone, or ⛶ full screen · presets jump the camera · hover a ball for its readout{venue ? ` · ${venue}` : ''} · wall numbers are the park&apos;s five
         published distances ·{' '}
         {windMph > 0 && windLabel && (

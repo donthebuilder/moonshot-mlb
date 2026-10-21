@@ -1,6 +1,5 @@
 'use client'
-import { Fragment, useMemo, useState } from 'react'
-import dynamic from 'next/dynamic'
+import { Fragment, useMemo } from 'react'
 import TeamMark from '../../TeamMark'
 import GameHead from '../../game/GameHead'
 import { nbaLogo } from '../../../lib/nba/teams'
@@ -25,8 +24,6 @@ import NbaWriteupBlock from '../NbaWriteupBlock'
 import InjuryOut from '../../injuries/InjuryOut'
 import { EmptyState, DelayedBanner, Loading, Kicker, BackBtn, NavBtn, RimDot, fmtTip, gameDay, fmtDay } from '../ui'
 
-// the 3D court loads only when opened (next/dynamic, as the other 3D views)
-const CourtArena = dynamic(() => import('../CourtArena'), { ssr: false })
 
 // 🏀 ONE GAME -- the line score, both box scores, every field-goal attempt on
 // the floor (the shot chart, and the 3D court on tap), and who scored first.
@@ -36,7 +33,6 @@ const pct = (m, a) => (a ? `${Math.round((100 * m) / a)}%` : '—')
 export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onOpenTeam }) {
   const ok = GAME_ID_RE.test(String(id || ''))
   const { data, error, loading } = useBucketsGame(ok ? id : null)
-  const [three, setThree] = useState(false)
   const gameTotals = useGameTotals('nba')   // this game's own Top Totals row (components/GameTotalLine.js)
   // each club's record under its name in the header, as LAMP's (2026-10-20): this season's standings only -- a stale (last-season) table says nothing here
   const standings = useBucketsStandings()
@@ -94,9 +90,7 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
     shots: () => ((data.shots || []).length > 0 ? (
       <section>
         <Kicker>EVERY SHOT · {data.shots.length} FIELD-GOAL ATTEMPTS</Kicker>
-        <ShotChart urlKey="shots" shots={data.shots} names={names} teams={teams} title={`Shot chart, ${away.abbrev} at ${home.abbrev}`} />
-        <div style={{ marginTop: 10 }}><NavBtn onClick={() => setThree((v) => !v)} strong={three}>{three ? 'Close the 3D court' : '🏀 3D court'}</NavBtn></div>
-        {three ? <div style={{ marginTop: 8 }}><CourtArena shots={data.shots} names={names} /></div> : null}
+        <ShotChart urlKey="shots" shots={data.shots} names={names} teams={teams} threeD title={`Shot chart, ${away.abbrev} at ${home.abbrev}`} />
       </section>
     ) : <EmptyState title={done || live ? 'NO SHOT LOCATIONS' : 'NO SHOTS YET'} note={done || live ? 'The play-by-play for this game carries no shot spots.' : 'The shot chart fills from the play-by-play once the game tips.'} />),
   }
@@ -171,7 +165,7 @@ function GameCalls({ id, date, onOpenPlayer }) {
       // the market rides in the result cell, so every row says what was called
       result: `${NBA_MARKETS[m]?.label || m} · ${r.hit === true || r.hit === false
         ? (m === 'first' ? (r.hit ? '✅ scored first' : '❌ not first') : m === 'dd' || m === 'td' ? (r.hit ? `✅ ${NBA_MARKETS[m].barWord}` : '❌ not this time') : `${r.hit ? '✅' : '❌'} ${r.actual ?? '—'}`)
-        : r.voidReason ? `➖ void · ${r.voidReason}` : r.locked ? 'locked' : 'preview'}`,
+        : r.voidReason ? `➖ void · ${r.voidReason}` : r.locked ? 'locked' : 'locks at tip'}`,
     })))
   if (!date || !rows.length) return null
   const cols = [

@@ -140,16 +140,13 @@ export default function RedZoneDots({ data, matchup, team = 'all', onPlayerClick
               {!focus && <div>{picked.t.who.name} · {picked.t.who.team}</div>}
             </> : <span style={{ color: C.text3 }}>Showing {touches.length} touch{touches.length === 1 ? '' : 'es'}{focus ? '' : ` across ${rows.length} player${rows.length === 1 ? '' : 's'}`}. Tap a name to put one player on the strip.</span>}
           </div>
-          <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {/* THE THREE BANDS AS TILES (2026-10-20: no bar charts): the share of the touches, lit by it, and the TDs from each */}
+          <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 4 }}>
             {bands.map((b) => (
-              <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10 }}>
-                <span style={{ width: 52, color: C.text3, fontFamily: NUM_FONT }}>{b.label}</span>
-                <div style={{ flex: 1, height: 11, background: C.bg3, borderRadius: 2 }}>
-                  <div style={{ width: `${Math.max(2, b.pct)}%`, height: '100%', background: chipColor(b.pct, 0, 60), borderRadius: 2 }} />
-                </div>
-                <span style={{ fontFamily: NUM_FONT, color: C.text2, minWidth: 58, textAlign: 'right' }}>
-                  {Math.round(b.pct)}%{b.td > 0 && <span style={{ color: C.green }}> {b.td}TD</span>}
-                </span>
+              <div key={b.label} style={{ border: `1px solid ${C.border}`, borderRadius: 4, padding: '6px 8px', background: `${C.green}${Math.round(255 * (0.06 + 0.3 * Math.min(1, b.pct / 55))).toString(16).padStart(2, '0')}` }}>
+                <div style={{ fontFamily: NUM_FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.06em', color: C.text3 }}>{b.label.toUpperCase()}</div>
+                <div style={{ fontFamily: NUM_FONT, fontSize: 18, fontWeight: 900, color: C.text, lineHeight: 1.15 }}>{Math.round(b.pct)}%</div>
+                <div style={{ fontFamily: NUM_FONT, fontSize: 10, color: b.td ? C.green : C.text3 }}>{b.n} · {b.td} TD</div>
               </div>
             ))}
           </div>
@@ -159,12 +156,11 @@ export default function RedZoneDots({ data, matchup, team = 'all', onPlayerClick
             <span style={{ fontSize: 10, color: C.text3 }}><b style={{ color: C.text, fontSize: 12.5 }}>{touches.length ? Math.round((100 * nTd) / touches.length) : 0}%</b> scored</span>
           </div>
           <ChartLegend theme={C} style={{ marginTop: 8 }} items={[
-            { key: 'td', mark: <i aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: C.green, boxShadow: `0 0 6px ${C.green}` }} />, label: 'touchdown' },
-            { key: 'carry', mark: <i aria-hidden="true" style={{ width: 9, height: 9, borderRadius: 2, background: C.green }} />, label: 'carry' },
-            { key: 'target', mark: <i aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', border: `1.5px solid ${C.text2}`, boxSizing: 'border-box' }} />, label: 'target' },
+            { key: 'cell', mark: <i aria-hidden="true" style={{ width: 12, height: 9, borderRadius: 2, background: `linear-gradient(90deg, ${C.green}33, ${C.green})` }} />, label: 'brighter = more touches from that yard line' },
+            { key: 'td', mark: <i aria-hidden="true" style={{ width: 7, height: 7, background: C.cream, transform: 'rotate(45deg)' }} />, label: 'touchdown from there' },
           ]} />
           <div style={{ fontSize: 10, color: C.text3, marginTop: 4, lineHeight: 1.5 }}>
-            Each mark sits at the yard line the play started; up and down in a row is only spacing, not where on the field.
+            One cell per yard line, 20 out to the goal. Rush or Pass above narrows it to carries or targets.
           </div>
           {focus?._raw && onPlayerClick && (
             <button type="button" onClick={() => onPlayerClick(focus._raw, 'TD')} style={{ marginTop: 8, padding: '6px 12px', border: `1px solid ${C.border}`, borderRadius: 999, background: 'transparent', color: C.text2, fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 800, cursor: 'pointer' }}>
@@ -202,7 +198,7 @@ export default function RedZoneDots({ data, matchup, team = 'all', onPlayerClick
 
 function chip(on, heat) {
   return {
-    padding: '3px 10px', borderRadius: 7, cursor: 'pointer', fontSize: TYPE.label, fontWeight: 800,
+    padding: '3px 10px', borderRadius: 3, cursor: 'pointer', fontSize: TYPE.label, fontWeight: 800,
     fontFamily: NUM_FONT, whiteSpace: 'nowrap', minHeight: 0,
     border: `1px solid ${on ? C.text : C.border}`,
     background: heat || 'transparent', color: heat ? C.bg : C.text2,

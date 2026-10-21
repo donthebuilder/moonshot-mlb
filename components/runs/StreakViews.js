@@ -4,8 +4,8 @@
 //   HeatQuadrant  every player as a dot: across = his longer window (season / last 30), up = his last 5, on one scale
 //                 (`max`). Up-left is heating up, up-right hot, down-right cooling, down-left cold; above the dashed
 //                 diagonal = running hotter than his own norm. Names only where they clear the others. A tap picks him.
-//   ValueBars     one player's recent games as their real values against a dashed line (the bar, or his own norm),
-//                 so "by how much" shows, not only hit or miss.
+//   ValueBars     one player's recent games as GAME TILES (10-20): each game's real value in a tile, lit when it cleared
+//                 the line (brighter = further over), the current run bracketed -- "by how much" shows, not only hit or miss.
 import { alpha } from '../../lib/scales'
 
 const W = 340, H = 230, PAD = { l: 30, r: 10, t: 14, b: 26 }
@@ -28,7 +28,7 @@ export function HeatQuadrant({ points, picked, onPick, labels = 6, side = 'over'
     [sx(max * 0.98) - 60, sy(max * 0.04) - 10, sx(max * 0.98), sy(max * 0.04) + 2], [sx(max * 0.02), sy(max * 0.04) - 10, sx(max * 0.02) + 40, sy(max * 0.04) + 2],
   ]
   const sideOf = new Map()
-  const tryBox = (b) => !placed.some((p) => b[0] < p[2] && b[2] > p[0] && b[1] < p[3] && b[3] > p[1]) && b[0] >= 0 && b[2] <= W
+  const tryBox = (b) => !placed.some((p) => b[0] < p[2] && b[2] > p[0] && b[1] < p[3] && b[3] > p[1]) && b[0] >= 0 && b[2] <= W && b[1] >= 0 && b[3] <= H
   const fits = (x, y, n, id) => {
     const w = 6.2 * n.length
     for (const [k, b] of [['r', [x + 7, y - 15, x + 7 + w, y - 3]], ['l', [x - 7 - w, y - 15, x - 7, y - 3]], ['rb', [x + 7, y + 3, x + 7 + w, y + 15]]]) {
@@ -71,26 +71,43 @@ export function HeatQuadrant({ points, picked, onPick, labels = 6, side = 'over'
   )
 }
 
-/** values: [{ v, label }] oldest first; line: the dashed reference (his bar, or his norm) */
+/** values: [{ v, label }] oldest first; line: the reference (his bar, or his norm).
+ *  THE GAME TILES (2026-10-20, Donovan: "the hot streak charts can be better ... more updated visually"; no bar charts): one tile per
+ *  game, oldest to newest, the value big inside it. A game that cleared the line is LIT in the accent (brighter = further over), one that
+ *  didn't is the dark floor with the number dimmed; the current run (games in a row that cleared, from the newest back) is bracketed
+ *  over the tiles with its length. The name is kept so every sport's caller is unchanged. */
 export function ValueBars({ values, line, ariaLabel = '', C, accent, numFont }) {
   if (!values?.length) return null
-  const max = Math.max((Number(line) || 0) * 1.6, ...values.map((g) => g.v), 1)
-  const BW = 300, BH = 110, gap = 4, w = (BW - gap * (values.length - 1)) / values.length
-  const y = (v) => BH - 18 - ((BH - 34) * v) / max
   const has = Number.isFinite(Number(line))
+  const n = values.length
+  const BW = 320, gap = 4, w = (BW - gap * (n - 1)) / n, th = Math.min(46, Math.max(30, w * 1.15)), top = 18, BH = top + th + 16
+  const L = Number(line) || 0
+  let run = 0
+  for (let i = n - 1; i >= 0 && has && values[i].v >= L; i--) run++
+  const over = (v) => (L > 0 ? Math.min(1, Math.max(0, (v - L) / Math.max(L, 1))) : v > 0 ? 1 : 0)
+  const fmt = (v) => String(Math.round(v * 10) / 10)
+  const fs = Math.min(16, w * 0.46)
   return (
-    <svg viewBox={`0 0 ${BW} ${BH}`} width="100%" role="img" aria-label={ariaLabel} style={{ display: 'block' }}>
+    <svg viewBox={`0 0 ${BW} ${BH}`} width="100%" role="img" aria-label={`${ariaLabel}${has ? `; cleared ${values.filter((g) => g.v >= L).length} of ${n}` : ''}`} style={{ display: 'block' }}>
+      {run >= 2 && (() => {
+        const x0 = (n - run) * (w + gap), x1 = BW
+        return <g>
+          <path d={`M${x0 + 1} ${top - 3} V${top - 8} H${x1 - 1} V${top - 3}`} fill="none" stroke={accent} strokeWidth="1.4" />
+          <text x={(x0 + x1) / 2} y={top - 10} textAnchor="middle" fontSize="9.5" fontWeight="900" fill={accent} style={{ fontFamily: numFont, letterSpacing: '.08em' }}>{run} IN A ROW</text>
+        </g>
+      })()}
       {values.map((g, i) => {
-        const x = i * (w + gap), hit = has && g.v >= line
+        const x = i * (w + gap), hit = has && g.v >= L, t = over(g.v)
         return (
           <g key={i}>
-            <rect x={x} y={y(g.v)} width={w} height={Math.max(2, BH - 18 - y(g.v))} rx="3" fill={hit ? accent : alpha(C.text3, 0.55)} />
-            <text x={x + w / 2} y={y(g.v) - 3} textAnchor="middle" fontSize="10" fill={hit ? C.text : C.text3} style={{ fontFamily: numFont }}>{Math.round(g.v * 10) / 10}</text>
-            <text x={x + w / 2} y={BH - 5} textAnchor="middle" fontSize="9.5" fill={C.text3} style={{ fontFamily: numFont }}>{g.label}</text>
+            <title>{`${g.label}: ${fmt(g.v)}${has ? ` (line ${fmt(L)})` : ''}`}</title>
+            <rect x={x} y={top} width={w} height={th} rx="3" fill={hit ? accent : C.bg2} fillOpacity={hit ? 0.35 + 0.65 * t : 1} stroke={hit ? accent : C.border2} strokeWidth="1" />
+            <text x={x + w / 2} y={top + th / 2 + fs * 0.36} textAnchor="middle" fontSize={fs} fontWeight="900" fill={hit ? (t > 0.45 ? C.bg : C.text) : C.text3} style={{ fontFamily: numFont }}>{fmt(g.v)}</text>
+            <text x={x + w / 2} y={BH - 3} textAnchor="middle" fontSize="9" fill={i === n - 1 ? C.text2 : C.text3} fontWeight={i === n - 1 ? 800 : 400} style={{ fontFamily: numFont }}>{g.label}</text>
           </g>
         )
       })}
-      {has && <line x1="0" x2={BW} y1={y(line)} y2={y(line)} stroke={C.text2} strokeDasharray="4 4" />}
+      {has && <text x={0} y={top - 10} fontSize="9" fill={C.text3} style={{ fontFamily: numFont, letterSpacing: '.06em' }}>LINE {fmt(L)}</text>}
     </svg>
   )
 }

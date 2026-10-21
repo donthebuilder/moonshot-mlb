@@ -166,7 +166,14 @@ function seeded(n) {
 /** rows: [{ key, name, player, touches: [{ d, kind: 'pass'|'rush', res, seed }] }] */
 export function RedZoneStrip({ rows, kicker = null, rulerLabel = null, onPlayerClick = null, phone = false }) {
   if (!rows?.length) return null
-  const lane = phone ? 30 : 34
+  const lane = phone ? 32 : 36
+  // each row's touches by yard line, and the busiest cell on the whole strip (one scale for every row)
+  rows = rows.map((r) => {
+    const counts = {}, tdAt = {}
+    for (const t of r.touches) { const d = Math.max(1, Math.min(20, Math.round(t.d))); counts[d] = (counts[d] || 0) + 1; if (t.res === 'td') tdAt[d] = (tdAt[d] || 0) + 1 }
+    return { ...r, counts, tdAt }
+  })
+  const maxCell = Math.max(1, ...rows.flatMap((r) => Object.values(r.counts)))
   const dot = phone ? 9 : 10
   // the count column sizes to its text ('12 · 3 TD' overran a fixed 54px on a phone)
   const nameCol = phone ? 'minmax(96px, 28%) 1fr max-content' : 'minmax(120px, 22%) 1fr max-content'
@@ -198,20 +205,23 @@ export function RedZoneStrip({ rows, kicker = null, rulerLabel = null, onPlayerC
             <div style={{ position: 'relative', height: lane, borderRadius: 4, background: `linear-gradient(90deg, ${C.turf1}, ${C.turf2})` }}>
               {[15, 10, 5].map((y) => <div key={y} aria-hidden="true" style={{ position: 'absolute', top: 0, bottom: 0, left: atStrip(y), borderLeft: `1px dashed ${C.border2}` }} />)}
               <div aria-hidden="true" style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 4, background: C.green, opacity: 0.55, borderRadius: '0 4px 4px 0' }} />
-              {r.touches.map((t, i) => {
-                const fill = t.res === 'td' ? C.green : t.res === 'catch' ? C.cream : t.res === 'carry' ? C.green : 'transparent'
-                const stroke = t.res === 'td' ? C.green : t.res === 'carry' ? C.green : t.res === 'catch' ? C.cream : C.text2
-                return (
-                  <i key={i} aria-hidden="true" title={`${t.d} yards out · ${t.kind === 'rush' ? 'carry' : 'target'} · ${t.res === 'td' ? 'touchdown' : t.res}`}
-                    style={{
-                      position: 'absolute', left: `calc(${atStrip(t.d)} + ${(seeded(t.seed ?? i) * 8).toFixed(1)}px)`,
-                      top: `calc(50% + ${(seeded((t.seed ?? i) + 7) * (lane - dot - 6)).toFixed(1)}px)`,
-                      width: dot, height: dot, marginLeft: -dot / 2, marginTop: -dot / 2,
-                      borderRadius: t.kind === 'rush' ? 2 : '50%', background: fill, border: `1.5px solid ${stroke}`,
-                      boxSizing: 'border-box', boxShadow: t.res === 'td' ? `0 0 8px ${C.green}` : 'none',
-                    }} />
-                )
+              {/* THE HEAT STRIP (2026-10-20, Donovan: likes the rows of players, not the scattered dots): one cell per yard line,
+                  lit by how many of his touches started there (the same scale on every row), a diamond over each yard he scored from
+                  (a number beside it when more than one). Nothing is placed where the feed doesn't say: the yard line is the fact. */}
+              {Array.from({ length: 20 }, (_, k) => k + 1).map((d) => {
+                const n = r.counts[d] || 0
+                if (!n) return null
+                const t = Math.min(1, n / maxCell)
+                return <i key={`c${d}`} aria-hidden="true" title={`${d} yards out: ${n} touch${n === 1 ? '' : 'es'}${r.tdAt[d] ? `, ${r.tdAt[d]} TD` : ''}`}
+                  style={{ position: 'absolute', left: `calc(${((20 - d) / 20) * 100}% + 1px)`, width: 'calc(5% - 2px)', bottom: 4, height: lane - 14, borderRadius: 2,
+                    background: C.green, opacity: 0.18 + 0.82 * Math.sqrt(t), boxShadow: t > 0.6 ? `0 0 ${6 * t}px ${C.green}` : 'none' }} />
               })}
+              {Array.from({ length: 20 }, (_, k) => k + 1).filter((d) => r.tdAt[d]).map((d) => (
+                <span key={`t${d}`} aria-hidden="true" style={{ position: 'absolute', left: `${((20 - d + 0.5) / 20) * 100}%`, top: 1, transform: 'translateX(-50%)', display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'none' }}>
+                  <i style={{ width: 7, height: 7, background: C.cream, transform: 'rotate(45deg)', boxShadow: `0 0 4px ${C.green}` }} />
+                  {r.tdAt[d] > 1 ? <b style={{ font: `900 8px/1 ${NUM_FONT}`, color: C.cream }}>{r.tdAt[d]}</b> : null}
+                </span>
+              ))}
             </div>
             <span style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, color: C.text2, textAlign: 'right', whiteSpace: 'nowrap' }}>
               {r.touches.length}<span style={{ color: C.text3 }}> · </span><span style={{ color: td ? C.green : C.text3 }}>{td} TD</span>

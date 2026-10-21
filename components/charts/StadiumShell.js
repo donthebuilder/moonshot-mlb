@@ -16,6 +16,8 @@
 // to fill the height instead of using its inline max(340, 0.6W). Going full
 // screen portals the box to <body>, which remounts it: `children` may be a
 // function of { full } so the view can rebuild its scene in the new box.
+import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
+import { NUM_FONT } from '../../lib/theme'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
@@ -60,12 +62,7 @@ export default function StadiumShell({ children, chips = null, presets = [], onP
     }
   }, [full])
 
-  const chipStyle = (on) => ({
-    minHeight: 44, padding: '0 14px', borderRadius: 999, cursor: 'pointer', flex: '0 0 auto',
-    fontSize: 12, fontWeight: 800, letterSpacing: '.06em', whiteSpace: 'nowrap',
-    border: `1px solid ${on ? accent : theme.border2 || theme.border}`,
-    background: on ? `${accent}22` : 'transparent', color: on ? accent : theme.text2,
-  })
+  const chipStyle = (on) => flatChip(on, accent, theme, NUM_FONT)
 
   const controls = (
     <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
@@ -74,10 +71,10 @@ export default function StadiumShell({ children, chips = null, presets = [], onP
         <div style={{ display: 'flex', gap: 6, overflowX: 'auto', alignItems: 'center', paddingBottom: 2 }}>
           {presets.map((p) => (
             <button key={p.key} type="button" title={p.title || p.label} aria-pressed={active === p.key}
-              onClick={() => onPreset?.(p.key)} style={chipStyle(active === p.key)}>{p.label}</button>
+              onClick={() => onPreset?.(p.key)} className={FLAT_CHIP_CLASS} style={chipStyle(active === p.key)}>{p.label}</button>
           ))}
           {canFull && !full && (
-            <button type="button" onClick={openFull} aria-label="Full screen" style={{ ...chipStyle(false), marginLeft: 'auto' }}>⛶ full screen</button>
+            <button type="button" onClick={openFull} aria-label="Full screen" className={FLAT_CHIP_CLASS} style={{ ...chipStyle(false), marginLeft: 'auto' }}>⛶ full screen</button>
           )}
         </div>
       )}

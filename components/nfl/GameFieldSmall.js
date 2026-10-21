@@ -5,8 +5,9 @@
 //   Pass  components/nfl/PassAreaField.js: each area the offense's share of its targets, the top receiver's name
 //         where it counts, the defense's weak areas boxed (dashed; solid = attack: weak and 15%+ of the throws)
 //   Run   RunLineField: this defense's yards a carry through each hole (the league's where it has too few carries)
-// Tap an area or a hole: who gets the ball there (4, then All N). The 3D pill keeps the shared hills (GameArena).
+// Tap an area or a hole: who gets the ball there (4, then All N). The 3D pill draws the same areas on the turf (GameArena `areas`).
 // Numbers: lib/nfl/throwMap.js (pass), nfl_matchup.json field.def_rush / player_rush (run). Nothing modelled.
+import { flatChip } from '../../lib/chips'
 import { useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
@@ -73,7 +74,7 @@ export default function GameFieldSmall({ matchup, players, game, onPlayerClick =
   if (!map && !f.def_rush) return null
 
   const setOff = (t) => { setOffRaw(t); setPick(null); if (pv.open) pv.toggle(); onDefend?.(t === game.away ? game.home : game.away) }
-  const pill = (on) => ({ minHeight: 0, padding: '6px 11px', borderRadius: 999, cursor: 'pointer', font: `800 12px/1 ${NUM_FONT}`, background: on ? 'rgba(255,255,255,.06)' : 'transparent', border: `1px solid ${on ? C.text2 : C.border2}`, color: on ? C.text : C.text2, display: 'inline-flex', alignItems: 'center', gap: 6 })
+  const pill = (on) => flatChip(on, C.green, C, NUM_FONT)   // flat square chips (lib/chips.js, 10-20)
   const fl = z ? throwFlags(z) : {}
   const vs = !pass && pick ? run.vsOf(pick) : null
   const tag = pass
@@ -101,12 +102,15 @@ export default function GameFieldSmall({ matchup, players, game, onPlayerClick =
           {pass ? <button type="button" className="tap-box" aria-pressed={three} onClick={() => setThree((v) => !v)} style={pill(three)}>3D</button> : null}
         </span>
       </div>
-      <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12, padding: 10 }}>
+      {/* DESKTOP: the field and who gets the ball sit side by side (10-20, Donovan: "a big space right next to each chart");
+          on a phone they wrap, field first */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'flex-start' }}>
+      <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12, padding: 10, flex: '1 1 340px', minWidth: 0, maxWidth: three ? 'none' : 520 }}>
         <div style={{ font: `800 ${TYPE.label}px/1.3 ${NUM_FONT}`, color: C.text, marginBottom: 6 }}>
           {pass ? `${off} throws vs ${def}` : `${def} allow, yards a carry`}
         </div>
         {three && pass && map
-          ? <GameArena hills={{ zones: Object.fromEntries(Object.entries(map.zones).map(([k, q]) => [k, { share: q.share, weak: throwFlags(q).weak }])) }} title={`${off} throws vs ${def}`} />
+          ? <GameArena areas={passCells} title={`${off} throws vs ${def}`} />
           : pass
             ? <PassAreaField cells={passCells} pickedKey={pick} onPick={(k) => { setPick(k); if (pv.open) pv.toggle() }} label={`${off}'s share of its throws in each area, against ${def}`} />
             : <RunLineField cells={run.cells} pickedKey={pick} onPick={(k) => { setPick(k); if (pv.open) pv.toggle() }} hue={C.green} label={`${def} yards a carry allowed through each hole`} />}
@@ -115,7 +119,7 @@ export default function GameFieldSmall({ matchup, players, game, onPlayerClick =
         </div>
       </div>
       {pick ? (
-        <div style={{ marginTop: 10, display: 'grid', gap: 6 }}>
+        <div style={{ display: 'grid', gap: 6, flex: '1 1 260px', minWidth: 0, alignContent: 'start' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', alignItems: 'baseline' }}>
             <b style={{ font: `900 15px/1.1 ${NUM_FONT}`, color: C.text }}>{head}</b>
             <span style={{ fontSize: TYPE.label, color: C.text2 }}>{line}</span>
@@ -135,6 +139,7 @@ export default function GameFieldSmall({ matchup, players, game, onPlayerClick =
           <ShowMoreButton open={pv.open} restN={pv.restN} toggle={pv.toggle} total={pv.total} />
         </div>
       ) : null}
+      </div>
     </section>
   )
 }
