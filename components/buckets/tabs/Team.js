@@ -23,7 +23,7 @@ import { EmptyState, DelayedBanner, Loading, Kicker, BackBtn } from '../ui'
 // opponents, rest as numbers with their games), Our calls (the graded BUCKETS log) and Next game (the team model's expected
 // points, the stored line, both clubs' ranks). The view is lib/team/nba.js's. HIDDEN: every route behind this page answers 404
 // until BUCKETS_PUBLIC=on (lib/nba/gate.js), and the tab itself is only reachable inside the BUCKETS shell.
-export default function Team({ abbrev, onBack, backLabel = 'Teams', onOpenPlayer, onOpenGame, onOpenTeam }) {
+export default function Team({ abbrev, onBack, backLabel = 'Standings', onOpenPlayer, onOpenGame, onOpenTeam }) {
   const known = nbaTeam(abbrev)
   const { data: payload, error, loading } = useBucketsTeam(known ? abbrev : null)
   const { data: deep, error: deepError } = useBucketsTeamDeep(known ? abbrev : null)
@@ -44,7 +44,7 @@ export default function Team({ abbrev, onBack, backLabel = 'Teams', onOpenPlayer
     shots: () => <ShotChart urlKey="ts" shots={live.current.shots} filters={['result', 'type']} threeD who="their" ownDefense={live.current.known?.abbrev || null} defense={live.current.nextOpp || null} defenseNote={live.current.nextOpp ? 'next game' : null}
       title={`${live.current.known?.nick}, every field-goal attempt on file`} source="Every field-goal attempt on file for the club, from ESPN play-by-play." />,
   }), [])
-  if (!abbrev) return <EmptyState title="NO CLUB PICKED" note="Open a club from Teams or Standings."><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
+  if (!abbrev) return <EmptyState title="NO CLUB PICKED" note="Open a club from Standings."><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   if (!known) return <EmptyState title="NO SUCH CLUB" note={`“${String(abbrev).slice(0, 8)}” isn’t an NBA club code.`}><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   if (loading && !payload) return <Loading what="the club" />
   return (

@@ -122,7 +122,7 @@ ok(read('components/ChampionshipFold.js').includes('if (!has) return null'), 'th
 ok(/no placeholder|nothing here ever invents/i.test(lib), 'the contract comment must say nothing is invented')
 const homes = { nfl: 'components/nfl/tabs/Home.js', nhl: 'components/lamp/tabs/Home.js', nba: 'components/buckets/tabs/Home.js' }
 for (const [s, f] of Object.entries(homes)) ok(read(f).includes(`<ChampionshipFold sport="${s}" />`), `${s}: Home must mount the fold (${f})`)
-ok(read('components/tabs/Home.js').includes('<PennantRace />'), 'mlb: Home must still mount <PennantRace /> as before')
+ok(read('components/tabs/Leaders.js').includes('<PennantRace />'), 'mlb: Leaders must mount <PennantRace /> (moved off Home 10-17, 9269bda; lib/parity.js expects it there)')
 // BUCKETS is hidden: the NBA fold is mounted only inside BUCKETS' own Home, and nothing public names it
 const mounts = []
 const walk = (d) => { for (const n of fs.readdirSync(path.join(ROOT, d))) { const p = `${d}/${n}`; const st = fs.statSync(path.join(ROOT, p)); if (st.isDirectory()) { if (!['node_modules', '.next', 'ARCHIVE'].includes(n)) walk(p) } else if (/\.js$/.test(n) && read(p).includes('<ChampionshipFold sport="nba"')) mounts.push(p) } }

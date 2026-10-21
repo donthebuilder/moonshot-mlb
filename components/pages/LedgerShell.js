@@ -27,7 +27,7 @@ import {
   readLedgerView, writeLedgerView, takeLedgerView, peekLedgerView,
 } from '../../lib/ledger/views'
 
-export default function LedgerShell({ sport, bodies = {} }) {
+export default function LedgerShell({ sport, bodies = {}, date = null }) {
   const { C, NUM_FONT, accent } = useSportTheme()
   const shown = LEDGER_VIEWS.filter((v) => typeof bodies[v] === 'function')
   const pick = (raw) => {
@@ -100,7 +100,7 @@ export default function LedgerShell({ sport, bodies = {} }) {
         {/* MILESTONES ON THE LEDGER (2026-10-20, Donovan: "shared milestone pages can be looped in to ledger and numerology"): the
             shared History Watch (who is one step from a history rung, with its proof) under Tonight; since 10-20 also the
             milestone countdowns and the door to the Storylines Milestone view (components/MilestonesBlock.js), every sport */}
-        {active === 'tonight' && <div style={{ marginTop: 12 }}><MilestonesBlock sport={sport} theme={C} numFont={NUM_FONT} accent={accent} /></div>}
+        {active === 'tonight' && <div style={{ marginTop: 12 }}><MilestonesBlock sport={sport} theme={C} numFont={NUM_FONT} accent={accent} date={date} /></div>}
         {/* TOP TOTALS (2026-10-09): the market's record and graded rows ride the Record view of every sport's Ledger */}
         {active === 'record' && <div style={{ marginTop: 12 }}><CardSection sport={sport} mode="record" /></div>}
         {active === 'record' && <div style={{ marginTop: 12 }}><TopTotals sport={sport} mode="record" /></div>}

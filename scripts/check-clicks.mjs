@@ -36,11 +36,11 @@ const CHROME = arg('--chrome', [process.env.CHROME_PATH, '/opt/pw-browsers/chrom
 const ONLY = (arg('--pages', '') || '').split(',').map((s) => s.trim()).filter(Boolean)
 
 // ── what is allowed to leave the site ──
-const EXTERNAL_HOSTS = ['whop.com', 'discord.gg', 'discord.com', 'x.com', 'twitter.com']
+const EXTERNAL_HOSTS = ['whop.com', 'discord.gg', 'discord.com', 'x.com', 'twitter.com', 'github.com']   // github: the bot's public record files (the Calibration table's source line)
 const hostOk = (h) => EXTERNAL_HOSTS.some((x) => h === x || h.endsWith(`.${x}`))
 const RETIRED_PATHS = ['/start', '/c']          // redirect shims only (app/start, app/c): nothing on the site may point at them
 const SPORTS = R.SPORT_KEYS                      // public sports; hidden BUCKETS is never linked
-const TABS = { mlb: R.MLB_TABS, nfl: R.NFL_TABS, nhl: R.NHL_TABS }
+const TABS = { mlb: R.MLB_TABS, nfl: R.NFL_TABS, nhl: R.NHL_TABS, ...(SPORTS.includes('nba') ? { nba: R.NBA_TABS } : {}) }   // BUCKETS once it is public (10-20)
 
 // ── the pages whose links are harvested ──
 const FRONT = ['/', '/called', '/called?sport=nfl', '/called?sport=nhl', '/members', '/terms', '/m', '/m?sport=nfl', '/m?sport=nhl', '/login']
@@ -79,7 +79,17 @@ async function settle(page, ms = 2200) {
 }
 
 // what is on screen, reduced to what a shared link must reproduce
+// A legacy address (/start, /c, /app?sport=) redirects AFTER load, so a read can land mid-navigation ("Execution context was
+// destroyed"): wait for the new page and read again, instead of the whole run dying (2026-10-21).
 async function snapshot(page) {
+  for (let i = 0; ; i++) {
+    try { return await snapshotOnce(page) } catch (e) {
+      if (i >= 4 || !/context was destroyed|navigat/i.test(String(e?.message || e))) throw e
+      await page.waitForLoadState('load').catch(() => {}); await page.waitForTimeout(800)
+    }
+  }
+}
+async function snapshotOnce(page) {
   return page.evaluate(() => {
     const t = document.body?.innerText || ''
     const h = Object.fromEntries(new URLSearchParams(location.hash.replace(/^#/, '')))

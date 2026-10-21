@@ -176,7 +176,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'matchups' && <Matchups date={date} onOpenPlayer={peekPlayer} onOpenTeam={openTeam} />}
             {/* THE LEDGER (2026-10-07): one tab, four sub-tabs (components/pages/LedgerShell). Tonight's Ledger, the Lamp
                 Ledger and The record are its bodies; lampledger / results / record are aliases of it. */}
-            {tab === 'ledger' && <LedgerShell sport="nhl" bodies={{
+            {tab === 'ledger' && <LedgerShell sport="nhl" date={date} bodies={{
               tonight: () => <Ledger date={date} onOpenPlayer={peekPlayer} onOpenTeam={openTeam} onOpenGame={openGame} />,
               called: () => <LampLedger onOpenPlayer={peekPlayer} onOpenTeam={openTeam} />,
               record: () => <Results onOpenPlayer={peekPlayer} />,

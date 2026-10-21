@@ -33,7 +33,7 @@ const etTime = (ms) => (ms == null ? '—' : localTime(ms, { zone: false }))
 const short = (d) => String(d || '').slice(5).replace('-', '/')
 const lineText = (l) => `${l.hits} H · ${l.runs} R · ${l.rbi} RBI · ${l.tb} TB${l.hr ? ` · ${l.hr} HR` : ''}`
 
-function Calls({ tier, season, callsUrl, Table, C, NUM_FONT, accent }) {
+function Calls({ sport = 'mlb', tier, season, callsUrl, Table, C, NUM_FONT, accent }) {
   const { data, error } = useLiveFetch(`${callsUrl}?tier=${tier.key}&season=${season}`)
   const rows = useMemo(() => (data?.calls || []).map((c, i) => ({ ...c, _key: `${c.date}-${c.pk}-${c.pid}-${i}`, result: c.hit ? 'CLEARED' : 'MISSED' })), [data])
   if (error && !data) return <p style={{ fontSize: TYPE.body, color: C.text3 }}>The calls are delayed — try again in a minute.</p>
@@ -46,9 +46,9 @@ function Calls({ tier, season, callsUrl, Table, C, NUM_FONT, accent }) {
       <Table rows={rows} maxRows={PREVIEW} maxHeight={9999} heatMode="none" initialSort={null} bare dict={{}}
         caption={`Every graded ${tier.label} call, with the line it was graded on and when it was locked`}
         columns={[
-          { key: 'date', label: 'Game', group: 'Call', heat: false, w: 62, mono: true, fmt: (v, r) => <a href={`/app${gameHref('mlb', r.pk)}`} style={{ color: 'inherit' }}>{short(v)}</a> },
-          { key: 'name', label: 'Hitter', group: 'Call', heat: false, sticky: true, bold: true, w: 150, fmt: (v, r) => <a href={playerHref('mlb', r.pid)} style={{ color: 'inherit' }}>{v}</a> },
-          { key: 'team', label: 'Team', group: 'Call', heat: false, w: 48, teamMark: 'mlb' },
+          { key: 'date', label: 'Game', group: 'Call', heat: false, w: 62, mono: true, fmt: (v, r) => <a href={`/app${gameHref(sport, r.pk)}`} style={{ color: 'inherit' }}>{short(v)}</a> },
+          { key: 'name', label: 'Hitter', group: 'Call', heat: false, sticky: true, bold: true, w: 150, fmt: (v, r) => <a href={playerHref(sport, r.pid)} style={{ color: 'inherit' }}>{v}</a> },
+          { key: 'team', label: 'Team', group: 'Call', heat: false, w: 48, teamMark: sport },
           { key: 'opp', label: 'Opp', group: 'Call', heat: false, w: 44, fmt: (v) => <span style={{ color: C.text3 }}>{v || '—'}</span> },
           { key: 'result', label: 'Result', group: 'Result', heat: false, w: 78, fmt: (v) => <b style={{ color: v === 'CLEARED' ? accent : C.text3, fontFamily: NUM_FONT }}>{v}</b> },
           { key: 'line', label: 'Line', group: 'Result', heat: false, numeric: false, w: 190, fmt: (v) => lineText(v) },
@@ -138,7 +138,7 @@ export default function CalibrationTable({ sport = 'mlb', Table = DenseTable, ti
               <button key={t.key} type="button" aria-pressed={open === t.key} onClick={() => setOpen(open === t.key ? null : t.key)} style={chip(open === t.key)}>{t.label} · {nf(t.n)}</button>
             ))}
           </div>
-          {tierOpen ? <div style={{ marginTop: 10 }}><Calls tier={tierOpen} season={season} callsUrl={data.callsUrl} Table={Table} C={C} NUM_FONT={NUM_FONT} accent={accent} /></div> : null}
+          {tierOpen ? <div style={{ marginTop: 10 }}><Calls sport={sport} tier={tierOpen} season={season} callsUrl={data.callsUrl} Table={Table} C={C} NUM_FONT={NUM_FONT} accent={accent} /></div> : null}
         </>
       ) : null}
       <p style={{ margin: '10px 0 0', fontSize: TYPE.body, color: C.text3, lineHeight: 1.6 }}>
@@ -148,7 +148,7 @@ export default function CalibrationTable({ sport = 'mlb', Table = DenseTable, ti
         {data.noRecordNights?.length ? ` No locked board was published for ${data.noRecordNights.map(short).join(', ')}.` : ''}
         {hasLead ? (<>
           {' '}A call&apos;s lock is our own stamp on the board row, compared here with the game&apos;s scheduled first pitch; the rows are the public
-          {' '}<a href={DATA_FOLDER} style={{ color: 'inherit' }}>public record files</a>. The stamp is ours: nothing outside our own system timestamps it yet.
+          {' '}<a href={DATA_FOLDER} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>public record files</a>. The stamp is ours: nothing outside our own system timestamps it yet.
           {' '}Rows read from {short(data.since)}; the regular season and the postseason are counted apart.</>)
           : ' Each row was locked before the game by the record\'s own rule; no start time is stored beside it, so no lock lead is shown. Preseason is not counted; the regular season and the playoffs are counted apart.'}
       </p>
