@@ -352,7 +352,7 @@ const LOG_CAPTION = "Heat marks the standouts in each column against this window
 // balls (2026-10-22, THE BLEND): when the spray chart beside it hands over its filtered balls, this is just their numbers
 // and their log -- no controls, no zone map, no live pull of its own. The spray chart's one filter bar drives both.
 // zoneOnly: just the strike-zone map with his per-pitch line (it lives on the card's Pitches tab since the blend).
-export default function EVLog({ player, bbeRange: bbeRangeProp, balls = null, zoneOnly = false }) {
+export default function EVLog({ player, bbeRange: bbeRangeProp, balls = null, zoneOnly = false, pickedBall = null, onPickBall = null }) {
   const [mode, setMode] = useState('bbe')          // 'bbe' | 'games'
   const [games, setGames] = useState(10)
   const [bbeRange, setBbeRange] = useState(25)
@@ -534,7 +534,7 @@ export default function EVLog({ player, bbeRange: bbeRangeProp, balls = null, zo
       .slice(0, 5)
   }, [log, usagePct])
 
-  if (blended) return <BlendedLog balls={balls} />
+  if (blended) return <BlendedLog balls={balls} picked={pickedBall} onPick={onPickBall} />
   if (zoneOnly) return <ZoneMap playerId={pid} bats={String(player?.bats || '').toUpperCase().slice(0, 1)} pitchInfo={pitchInfo} />
 
   // The zone map is live API, so it renders even when the spray payload is
@@ -791,11 +791,17 @@ export default function EVLog({ player, bbeRange: bbeRangeProp, balls = null, zo
 
 // THE BLENDED LOG (2026-10-22). The numbers and the log of exactly the balls on the spray chart above it: one filter bar
 // (the chart's), so the dots and the rows can never disagree. Newest first; a phone sees ten rows, "+N more" opens the rest.
-function BlendedLog({ balls }) {
-  const rows = useMemo(
-    () => [...balls].sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).map(toLogRow),
-    [balls],
-  )
+// Linked to the chart (#35): the ball last tapped on the chart rides at the top of the log with the
+// accent stripe; tapping a row lights and flies its dot. Tap the same row again to let it go.
+const BLEND_COLUMNS = LOG_COLUMNS.map((c) => (c.key === 'date' ? { ...c, w: 54 } : c))
+function BlendedLog({ balls, picked = null, onPick = null }) {
+  const rows = useMemo(() => {
+    const sorted = [...balls].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
+    const i = picked ? sorted.indexOf(picked) : -1
+    if (i > 0) sorted.unshift(sorted.splice(i, 1)[0])
+    // month-day: the chart's balls are one season, and the full date cut to "2026-10…" in a narrow column (BvP keeps the year)
+    return sorted.map((h, k) => ({ ...toLogRow(h, k), date: h.date ? String(h.date).slice(5) : '—', _raw: h }))
+  }, [balls, picked])
   if (!rows.length) return <Empty text="No balls under these filters. Loosen one above." />
   return (
     <div>
@@ -803,7 +809,9 @@ function BlendedLog({ balls }) {
         {rows.length} ball{rows.length === 1 ? '' : 's'} on the chart · newest first
       </div>
       <ContactStrip rows={rows} />
-      <DenseTable rows={rows} columns={LOG_COLUMNS} initialSort={null} maxRows={10} caption={LOG_CAPTION} />
+      <DenseTable rows={rows} columns={BLEND_COLUMNS} initialSort={null} maxRows={10} caption={LOG_CAPTION}
+        rowEdge={(r) => (picked && r._raw === picked ? C.orange : null)}
+        onRowClick={onPick ? (raw) => onPick(raw === picked ? null : raw) : null} />
     </div>
   )
 }

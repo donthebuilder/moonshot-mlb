@@ -421,6 +421,10 @@ export default function SprayField({
   //                  ("last 10 games, top 3 pitches and hard hit ... what I look at when I'm looking for HRs")
   //   moreFilters    arm / side / distance / contact sit behind one "More filters" chip
   onShown = null, preset = null, moreFilters = false,
+  // LINKED (2026-10-22, KNOWN-ISSUES #35): a tapped / clicked ball goes out as its raw row (hover stays local, so the log
+  // doesn't reshuffle while the cursor crosses the chart), and a ball picked
+  // in the EV log beside it comes in the same way (lights its dot and flies it). Same object both ways, no key to drift.
+  pickedBall = null, onPickBall = null,
 }) {
   const [data, setData] = useState(null)
   const [state, setState] = useState('idle')
@@ -759,9 +763,19 @@ export default function SprayField({
   }), [inRange, only, picked, bbPick, armPick, sidePick, deepPick])
 
   // hand the filtered balls to the EV log (the blend); a new set only when the filters or the data change
+  // a ball picked in the EV log: light its dot and fly it (the hover ring and flight are the same as a tap on the dot)
+  useEffect(() => {
+    if (!pickedBall) return
+    const i = shown.findIndex((h) => h._raw === pickedBall)
+    if (i >= 0 && i !== hover) { setHover(i); setHoverNonce((v) => v + 1) }
+  }, [pickedBall])   // eslint-disable-line react-hooks/exhaustive-deps
   // (only once the balls have landed: an empty set while loading would read as "nothing under these filters")
   useEffect(() => { if (onShown && (state === 'done' || state === 'error')) onShown(shown.map((h) => h._raw)) }, [shown, state])   // eslint-disable-line react-hooks/exhaustive-deps
   const [showMore, setShowMore] = useState(!moreFilters)
+  // #37: with the rare filters folded, the pitch row keeps the starter's pitches (dotted), the top 3 and anything picked;
+  // pitches he won't see tonight wait behind "+ More filters" (a phone wrapped them to 3-4 rows)
+  const foldPitch = (p) => moreFilters && !showMore && matchable.length > 0 && !(p.tonight > 0) && !top3.includes(p.k) && !(picked && picked.has(p.k))
+  const foldedN = pitches.filter(foldPitch).length
   const moreOn = (armPick !== 'ALL' ? 1 : 0) + (sidePick !== 'ALL' ? 1 : 0) + (deepPick !== 'ALL' ? 1 : 0) + (bbPick && bbPick.size ? 1 : 0)
 
   // Tonight's balls, through the same transform as the season ones.
@@ -1463,7 +1477,7 @@ export default function SprayField({
               ⌖ Match {pitcherName ? pitcherName.split(' ').slice(-1)[0] : 'starter'} mix
             </button>
           )}
-          {pitches.map((p) => {
+          {pitches.filter((p) => !foldPitch(p)).map((p) => {
             const on = !!picked && picked.has(p.k)
             return (
               <button
@@ -1494,7 +1508,7 @@ export default function SprayField({
           <button type="button" onClick={() => setShowMore((v) => !v)} aria-expanded={showMore} style={chipBtn(showMore || moreOn > 0, C.orange)}>
             {showMore ? '− Fewer filters' : `+ More filters${moreOn ? ` · ${moreOn} on` : ''}`}
           </button>
-          <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>arm, side, distance, contact</span>
+          <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>arm, side, distance, contact{foldedN ? `, ${foldedN} more pitch${foldedN === 1 ? '' : 'es'}` : ''}</span>
         </div>
       )}
 
@@ -1895,7 +1909,7 @@ export default function SprayField({
                      and cancel out) is what makes tap-1 open, tap-2-same-dot
                      close, and tap-a-different-dot switch directly. Same fix as
                      ZoneMap.js's Phase 6 pass. */
-                  onClick={() => setHover(on ? null : i)}
+                  onClick={() => { setHover(on ? null : i); onPickBall?.(on ? null : h._raw) }}
                   style={{ cursor: 'crosshair' }}
                 />
               </g>

@@ -301,7 +301,9 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   const sprayRef = useRef(null)
   // the balls the spray chart is drawing under its filters; the EV log tables exactly these (null = still loading)
   const [chartBalls, setChartBalls] = useState(null)
-  useEffect(() => { setChartBalls(null) }, [player?.player_id || player?.id])   // eslint-disable-line react-hooks/exhaustive-deps
+  // the one ball picked on either side (a dot or a log row); the other side lights it (#35)
+  const [pickedBall, setPickedBall] = useState(null)
+  useEffect(() => { setChartBalls(null); setPickedBall(null) }, [player?.player_id || player?.id])   // eslint-disable-line react-hooks/exhaustive-deps
   const evRef = useRef(null)
   const bvpRef = useRef(null)
   const propsRef = useRef(null)
@@ -940,12 +942,14 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                 preset="hr"
                 moreFilters
                 onShown={setChartBalls}
+                pickedBall={pickedBall}
+                onPickBall={setPickedBall}
               />
             </section>}
             {showPanel('ev') && <section ref={evRef} className="portal-ev" style={PORTAL_CELL} aria-label="EV log">
               {chartBalls === null
                 ? <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Loading batted balls…</div>
-                : <EVLog player={p} balls={chartBalls} />}
+                : <EVLog player={p} balls={chartBalls} pickedBall={pickedBall} onPickBall={setPickedBall} />}
             </section>}
             {!apiOnly && showPanel('bvp') && (
               <section ref={bvpRef} className="portal-bvp" style={PORTAL_CELL} aria-label="Against tonight's pitcher">
