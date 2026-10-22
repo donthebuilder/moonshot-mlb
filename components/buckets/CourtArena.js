@@ -19,6 +19,7 @@ import { buildCourt, courtPoint, shotArc, COURT_W, HALF_L } from '../../lib/cour
 import { buildArenaRect } from '../../lib/arena'
 import { makeComposer, isCoarse } from '../../lib/stadiumLook'
 import { webglOk } from '../../lib/webglOk'
+import { lookParam } from '../../lib/three/look'
 import { floorZone } from '../../lib/nba/zones'
 import { ZONE_PATHS, ZONE_LABEL, ZONE_COURT_H } from '../../lib/nba/zoneCourt'
 import StadiumShell from '../charts/StadiumShell'
@@ -33,7 +34,8 @@ const ACCENT = C.purple
 const Z0 = -HALF_L / 2                                  // the baseline in the world
 const ZC = Z0 + ZONE_COURT_H / 2                        // the middle of the 40 ft the zones cover
 const VIEWS = [
-  { k: 'half', label: 'HALF COURT', title: 'From the centre line, looking at the basket', pos: [0, 21, HALF_L / 2 + 4], target: [0, 1, Z0 + 12] },
+  { k: 'half', label: 'HALF COURT', title: 'From the centre line, looking at the basket', pos: [0, 21, HALF_L / 2 + 4], target: [0, 1, Z0 + 12],
+    track: { pos: [0, 36, HALF_L / 2 + 12], target: [0, 0, Z0 + 15] } },   // the tracking look's broadcast-high angle: the whole half court in frame
   { k: 'top', label: 'TOP', title: 'Straight down: the same picture as the chart', pos: [0, 74, ZC + 0.01], target: [0, 0, ZC] },
 ]
 const q = (p) => (p > 4 ? `OT${p - 4}` : `Q${p}`)
@@ -41,13 +43,18 @@ const shotWords = (s, names) => `${s.player_id && names[s.player_id] ? `${names[
 
 const PX = 24   // texture pixels a foot
 /** Paint the lit zones (and their numbers) onto a canvas the floor plane wears. zones: ShotChart zoneRead rows + fill / label. */
-function paintZones(cv, zones, { picked = null } = {}) {
+function paintZones(cv, zones, { picked = null, halo = C.wood1, glow = false } = {}) {
   const g = cv.getContext('2d')
   g.clearRect(0, 0, cv.width, cv.height)
   g.save(); g.scale(PX, PX)
   for (const z of zones) {
     const p = new Path2D(ZONE_PATHS[z.k])
-    if (z.fill) { g.fillStyle = z.fill; g.fill(p, 'evenodd') }
+    // tracking look: a lit zone throws a little light on the floor around it (drawn once per repaint, free per frame)
+    if (z.fill && glow) {
+      // tracking look: the zone is light on the floor -- a soft fill, a bright edge, a little spill around it
+      g.save(); g.shadowColor = z.fill; g.shadowBlur = 1.4 * PX; g.globalAlpha = 0.62; g.fillStyle = z.fill; g.fill(p, 'evenodd')
+      g.globalAlpha = 1; g.lineWidth = 0.22; g.strokeStyle = z.fill; g.stroke(p); g.restore()
+    } else if (z.fill) { g.fillStyle = z.fill; g.fill(p, 'evenodd') }
     g.lineWidth = 0.08; g.strokeStyle = alpha(COURT.line, 0.28); g.stroke(p)
     if (z.outline) { g.lineWidth = 0.3; g.strokeStyle = C.cream; g.stroke(p) }
     if (picked === z.k) { g.lineWidth = 0.34; g.setLineDash([0.8, 0.5]); g.strokeStyle = C.text; g.stroke(p); g.setLineDash([]) }
@@ -60,9 +67,9 @@ function paintZones(cv, zones, { picked = null } = {}) {
     g.save(); g.translate(lx * PX, ly * PX); if (side) g.rotate(-Math.PI / 2)
     g.globalAlpha = z.quiet ? 0.55 : 1
     g.font = `900 ${fs}px ${NUM_FONT}`; g.textAlign = 'center'; g.textBaseline = 'alphabetic'
-    g.lineWidth = fs * 0.2; g.strokeStyle = C.wood1; g.strokeText(z.big, 0, 0)
+    if (halo) { g.lineWidth = fs * 0.2; g.strokeStyle = halo; g.strokeText(z.big, 0, 0) }
     g.fillStyle = z.hot ? C.cream : C.text; g.fillText(z.big, 0, 0)
-    if (z.small) { g.font = `800 ${fs * 0.52}px ${NUM_FONT}`; g.lineWidth = fs * 0.14; g.strokeText(z.small, 0, fs * 0.78); g.fillStyle = z.hot ? C.cream : C.text2; g.fillText(z.small, 0, fs * 0.78) }
+    if (z.small) { g.font = `800 ${fs * 0.52}px ${NUM_FONT}`; g.lineWidth = fs * 0.14; if (halo) g.strokeText(z.small, 0, fs * 0.78); g.fillStyle = z.hot ? C.cream : C.text2; g.fillText(z.small, 0, fs * 0.78) }
     g.restore()
   }
 }
@@ -83,7 +90,8 @@ export default function CourtArena({ shots = [], zones = [], names = {}, title =
   const [full, setFull] = useState(false)
   const [dockOpen, setDockOpen] = useState(true)
   const [narrow, setNarrow] = useState(false)
-  useEffect(() => { if (window.innerWidth < 640) { setNarrow(true); setDockOpen(false) } }, [])
+  const [tracking, setTracking] = useState(false)   // ?look=tracking (lib/three/look.js), read after mount so SSR and the first paint agree
+  useEffect(() => { if (window.innerWidth < 640) { setNarrow(true); setDockOpen(false) } setTracking(lookParam() === 'tracking') }, [])
   const namesRef = useRef(names); namesRef.current = names
   const viewRef = useRef(view); viewRef.current = view
   const pickRef = useRef(onPick); pickRef.current = onPick
@@ -95,11 +103,16 @@ export default function CourtArena({ shots = [], zones = [], names = {}, title =
     const boxH = (w) => (full ? Math.max(240, el.clientHeight || Math.round(window.innerHeight * 0.7)) : Math.max(340, Math.round(w * 0.62)))
     const W = el.clientWidth || 640, H = boxH(W)
     const scene = new THREE.Scene()
-    scene.background = new THREE.Color(COURT.apron)
-    buildCourt(scene)
-    const bowl = new THREE.Group(); scene.add(bowl)
-    buildArenaRect(bowl, { w: COURT_W + 30, l: HALF_L * 2 + 30, cornerR: 10, roof: true, colors: { seat: COURT.seat } })
-    bowl.position.z = HALF_L / 2   // the half court is one end of a full arena
+    // THE TRACKING LOOK (?look=tracking): no building, no wood, no AO -- a dark floor, thin lines, the lit zones
+    scene.background = new THREE.Color(tracking ? C.bg : COURT.apron)
+    // the floor: the chassis' top surface with a breath of the product's accent, lifted so it reads off the void
+    const trackFloor = new THREE.Color(C.bg3).lerp(new THREE.Color(ACCENT), 0.05).multiplyScalar(1.45)
+    buildCourt(scene, { tracking: tracking ? { floor: trackFloor, apron: C.bg2, line: C.text, paint: ACCENT } : null })
+    if (!tracking) {
+      const bowl = new THREE.Group(); scene.add(bowl)
+      buildArenaRect(bowl, { w: COURT_W + 30, l: HALF_L * 2 + 30, cornerR: 10, roof: true, colors: { seat: COURT.seat } })
+      bowl.position.z = HALF_L / 2   // the half court is one end of a full arena
+    }
     const camera = new THREE.PerspectiveCamera(42, W / H, 0.5, 1200)
     const renderer = new THREE.WebGLRenderer({ antialias: true })
     renderer.setSize(W, H); renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1))
@@ -107,7 +120,7 @@ export default function CourtArena({ shots = [], zones = [], names = {}, title =
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = true; controls.enablePan = false; controls.maxPolarAngle = Math.PI * 0.47; controls.minDistance = 18; controls.maxDistance = 160
     if (isCoarse()) { controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_ROTATE }; renderer.domElement.style.touchAction = 'pan-y' }
-    const look = makeComposer(renderer, scene, camera, W, H, { ao: !isCoarse(), scale: 0.4 })
+    const look = makeComposer(renderer, scene, camera, W, H, { ao: !tracking && !isCoarse(), scale: 0.4 })
 
     // THE LIT FLOOR: one transparent plane over the 40 ft the zones cover, under the line paint (0.03), over the key (0.015)
     const cv = document.createElement('canvas'); cv.width = 50 * PX; cv.height = ZONE_COURT_H * PX
@@ -140,7 +153,14 @@ export default function CourtArena({ shots = [], zones = [], names = {}, title =
       arc = new THREE.Line(new THREE.BufferGeometry().setFromPoints(shotArc(s.x, s.y, s.made)), new THREE.LineBasicMaterial({ color: new THREE.Color(s.made ? ACCENT : C.text2) }))
       scene.add(arc)
     }
-    const go = (k) => { const v = VIEWS.find((x) => x.k === k) || VIEWS[0]; camera.position.set(...v.pos); controls.target.set(...v.target); controls.update() }
+    const go = (k) => {
+      const v = VIEWS.find((x) => x.k === k) || VIEWS[0], t = tracking && v.track ? v.track : v
+      camera.position.set(...t.pos); controls.target.set(...t.target)
+      // a tall phone box: pull the tracking camera back along its own line so both corners stay in frame
+      const pull = tracking && v.track ? Math.max(1, 1.45 / camera.aspect) : 1
+      if (pull > 1) camera.position.sub(controls.target).multiplyScalar(pull).add(controls.target)
+      controls.update()
+    }
     go(viewRef.current)
     // where the pointer meets the floor: the zone under it, and the nearest disc within 2 ft
     const ray = new THREE.Raycaster(), ptr = new THREE.Vector2(), floor = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
@@ -196,15 +216,15 @@ export default function CourtArena({ shots = [], zones = [], names = {}, title =
       controls.dispose(); look.dispose?.(); renderer.dispose(); if (renderer.domElement.parentNode === el) el.removeChild(renderer.domElement)
       api.current = {}
     }
-  }, [shots, full]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [shots, full, tracking]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // repaint the floor whenever the chart's light, filters or tapped zone change (no new scene)
   useEffect(() => {
     const { cv, tex } = api.current
     if (!cv || !tex) return
-    paintZones(cv, zones, { picked })
+    paintZones(cv, zones, { picked, halo: tracking ? null : C.wood1, glow: tracking })   // tracking: clean numbers, no outline
     tex.needsUpdate = true
-  }, [zones, picked, shots, full])
+  }, [zones, picked, shots, full, tracking])
 
   if (!ok) return <ChartEmpty theme={C}>This device can&apos;t draw WebGL, so the 3D court isn&apos;t available here — the zone court above is the same shots.</ChartEmpty>
 
@@ -243,7 +263,7 @@ export default function CourtArena({ shots = [], zones = [], names = {}, title =
           emptyText="The chart's filters above set what is drawn." stats={narrow ? null : dockStats} theme={C} numFont={NUM_FONT}
           accent={ACCENT} accentSoft={`${ACCENT}1a`} maxWidth="72%" />
         {!narrow && <LowerThird title={title} subtitle={subtitle || `${shots.length} field-goal attempt${shots.length === 1 ? '' : 's'}`} theme={C} numFont={NUM_FONT} accent={ACCENT} fallback="BUCKETS" />}
-        <FilmOverlay />
+        {!tracking && <FilmOverlay />}
         <HoverReadout ref={tipRef} theme={C} numFont={NUM_FONT} maxWidth={240} />
       </div>
     </StadiumShell>
