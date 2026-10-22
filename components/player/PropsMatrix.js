@@ -7,7 +7,7 @@ import { heatCell, STREAK_AT } from './heat'
 // table: a cell at 60%+ glows in the product's accent, a run of 3+ wears a flame, a window on thin games is a flat
 // slab, the first column sticks while the table scrolls inside its own box (ScrollHint says so). That table now
 // lives here, and MLB (components/ThresholdGrid.js), TUDDY (components/nfl/PropsGrid.js), LAMP
-// (components/lamp/goal/GoalGrid.js) and BUCKETS (components/buckets/PropsMatrix.js) all draw it.
+// (components/lamp/goal/GoalGrid.js) draw it (BUCKETS folded its grid into PropBars, 10-21).
 //
 // A sport hands it ALREADY-COUNTED rows from its own game log; nothing in here reads a log or invents a number:
 //   rows     [{ key, label, cells: [{ ok, n, pct } | null, ...one per window], stk }]   stk = signed run, newest back

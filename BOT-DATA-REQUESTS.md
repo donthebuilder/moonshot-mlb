@@ -1045,3 +1045,27 @@ runs in, only when he has at least a stated minimum of stops there, and says it 
 location is not an alignment). Until the field exists the run view keeps the chip row and the "nobody is placed" line.
 
 **Not asked:** alignment / snap-by-snap front-seven positions (not in the free play-by-play). No new model, no new grading.
+
+## NBA chances: potential assists and rebound chances, per player per game (asked 2026-10-21)
+
+**Why.** Donovan's SPORTS-folder screenshots (PropFinder's player page) draw each game's assists in front of that game's potential assists,
+and rebounds in front of rebound chances. It is the chance behind the result: a 4-assist night on 14 potential assists and one on 5 are not
+the same player. BUCKETS draws per-game marks in MOONSHOT's game strip (components/buckets/PlayerBars.js -> components/Sparkline.js
+GameStrip). Points and threes already show their chance from ESPN's own box (FGA, 3PA). Assists and rebounds have none: ESPN carries no
+tracking stats.
+
+**Where it lives (not verified on a run).** stats.nba.com player tracking: per game `boxscoreplayertrackv3` (passes, potential assists,
+rebound chances off/def/total, touches), or season-to-date `leaguedashptstats` with `PtMeasureType=Passing` / `Rebounding`. The site
+cannot call it: stats.nba.com refuses most cloud IPs, Vercel included. GitHub Actions runners are often refused too, so **test one
+request from the runner first**; if it is refused, say so and we drop this ask (no proxy, no paid feed without Donovan's yes).
+
+**Ask (bot repo, a new `bots/nba/nba_tracking.py`, once a day after the last final).** For every final regular-season / playoff game that
+day, one row per player who played: `{ game_id (ESPN id, matched on date + teams), player_id (ESPN id, matched on name + team; unmatched
+rows listed, never guessed), potential_ast, passes, reb_chances, reb_chances_off, reb_chances_def, touches }`, published on the data branch
+as `nba_tracking.json` (season to date, keyed by game). Preseason not pulled.
+
+**What the site does with it.** PlayerBars' AST and REB tiles get the chance line ("of 14 POT AST", "of 11 REB CH"), and the defence table
+gains "rebound chances allowed" (summed by opponent, as `buckets_defpos` is). Counts only, never a percent chance.
+
+**Not asked:** five positions (PG..C) and per-quarter lines. Both come from ESPN (depth charts, play-by-play), which the site's own
+`/api/buckets/tick` already reads; those are site batches.

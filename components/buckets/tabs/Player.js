@@ -54,7 +54,6 @@ import BucketsTable from '../BucketsTable'
 import PlayerSplits from '../PlayerSplits'
 import ShotChart from '../ShotChart'
 import PlayerBars from '../PlayerBars'
-import BucketsPropsMatrix from '../PropsMatrix'
 import PlayerDdTd from '../PlayerDdTd'
 import ScoredFirst from '../../player/ScoredFirst'
 import { EmptyState, DelayedBanner, Loading, Kicker, BackBtn, PlayerFace, SeasonTypeChip, fmtDay, fmtTip, RimDot } from '../ui'
@@ -326,7 +325,6 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
                 <BucketsTable rows={xRows} columns={xCols} heatMode="none" maxHeight={9999} maxRows={1} caption={x.line} />
               </section>
             ) : x?.reason ? <p style={{ margin: 0, fontSize: 12, color: C.text3 }}>No projected points: {x.reason}.</p> : null}
-            <PlayerBars log={data.log || []} logSeason={data.logSeason} nextGame={data.nextGame} onOpenTeam={onOpenTeam} />
           </>
         )}
 
@@ -376,10 +374,11 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
         )}
 
         {/* NO MORE FOLD (Donovan 10-20: "they all don't need more section"): its blocks sit on the page -- your star and its memory,
-            his props grid and his double-double / triple-double lines. */}
+            his bars (props) and his double-double / triple-double lines. */}
         <div style={{ margin: '4px 0 0', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12, minWidth: 0 }}>
           <StarMemory sport="nba" id={pid} />
-          <BucketsPropsMatrix log={data.log || []} logSeason={data.logSeason} />
+          {/* THE BARS: one bar a game against the line + the L5..H2H hit rates (was THE BARS on The Read + the props grid, 10-21) */}
+          <PlayerBars log={data.log || []} logSeason={data.logSeason} pos={card.pos} nextGame={data.nextGame} onOpenTeam={onOpenTeam} />
           <PlayerDdTd playerId={pid} />
           <ScoredFirst sport="nba" playerId={pid} word="Scored the first basket" color={C.purple} textColor={C.text2} />
         </div>
