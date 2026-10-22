@@ -11,7 +11,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { C, NUM_FONT, RINK } from '../../lib/nhl/theme'
-import { buildRink, rinkPoint, roundedRect, GOAL_X, RINK_L, RINK_W, RINK_R, BLUE_X } from '../../lib/rinkWorld'
+import { buildRink, buildDashBowl, rinkPoint, roundedRect, GOAL_X, RINK_L, RINK_W, RINK_R, BLUE_X } from '../../lib/rinkWorld'
 import { makeComposer, isCoarse } from '../../lib/stadiumLook'
 import { webglOk } from '../../lib/webglOk'
 import { lookParam } from '../../lib/three/look'
@@ -25,33 +25,50 @@ import { ordinal } from '../../lib/format'
 // the two clubs: the product's accent and the rink's own gold (two colours you can tell apart, Donovan 2026-10-22)
 const INK = { away: C.ice, home: RINK.kick }
 const GAME_S = 30          // game seconds per replay second at 1x: a 60-minute game in about two minutes
-const SPEEDS = [[1, '1x'], [4, '4x']]
+const SPEEDS = [[1, '1x'], [2.5, '2.5x'], [4, '4x']]   // 2.5x opens (Donovan 2026-10-22: "2.5 ... I think that's the best one")
 const SHOW_MS = 1400       // how long a player's disc stays after his event (real time)
 const GOAL_HOLD_MS = 2600  // the replay holds this long on a goal (the clock stops on one)
 const INTRO_MS = 5200      // THE OPEN: a video-game fly-in, then the data lights up, then the puck drops
 const PERIOD_S = 1200
 const gameSec = (e) => (e.period - 1) * PERIOD_S + e.t
 // the box: the rink is 200 x 85 ft, so a wide screen gets a wide box (no empty band above and below); a phone a taller one
-const boxH = (w) => Math.max(260, Math.round(w * (w < 640 ? 0.66 : 0.42)))
+const boxH = (w, rec = false) => (rec ? Math.round(w * 9 / 16) : Math.max(260, Math.round(w * (w < 640 ? 0.66 : 0.42))))
 const pName = (players, id) => { const n = players?.[id]?.name; return n ? n.split(' ').slice(-1)[0] : '' }
 
-/** A round disc with a number on it, as a sprite: the player, in his club's colour. Cached per colour + number. */
+/** A player's chip, as a sprite: a dark disc ringed in his club's colour, the club's logo on top and his number under
+ *  it (Donovan 2026-10-22: "it's hard to tell the teams ... a logo as well with the number"). The logo comes through
+ *  the site's own /cdn/nhle rewrite (assets.nhle.com sends no CORS header, and a WebGL texture needs one); until it
+ *  loads the chip draws without it. Cached per club + number. */
 const discCache = new Map()
-function discSprite(hex, num) {
-  const key = `${hex}|${num ?? ''}`
+const logoCache = new Map()
+function clubLogo(abbrev) {
+  if (!abbrev || typeof Image === 'undefined') return null
+  let img = logoCache.get(abbrev)
+  if (!img) { img = new Image(); img.decoding = 'async'; img.src = `/cdn/nhle/logos/nhl/svg/${String(abbrev).toUpperCase()}_dark.svg`; logoCache.set(abbrev, img) }
+  return img
+}
+function discSprite(hex, num, abbrev = null) {
+  const key = `${hex}|${num ?? ''}|${abbrev || ''}`
   let tex = discCache.get(key)
   if (!tex) {
-    const cv = document.createElement('canvas'); cv.width = 128; cv.height = 128
-    const g = cv.getContext('2d')
-    g.beginPath(); g.arc(64, 64, 58, 0, Math.PI * 2); g.fillStyle = hex; g.fill()
-    g.lineWidth = 6; g.strokeStyle = C.bg; g.stroke()
-    g.fillStyle = C.bg; g.font = `900 ${num != null && num > 9 ? 58 : 66}px ${NUM_FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'
-    if (num != null) g.fillText(String(num), 64, 68)
+    const cv = document.createElement('canvas'); cv.width = 160; cv.height = 160
+    const draw = (logo) => {
+      const g = cv.getContext('2d')
+      g.clearRect(0, 0, 160, 160)
+      g.beginPath(); g.arc(80, 80, 72, 0, Math.PI * 2); g.fillStyle = C.bg2; g.fill()
+      g.lineWidth = 12; g.strokeStyle = hex; g.stroke()
+      if (logo?.complete && logo.naturalWidth) { try { g.drawImage(logo, 40, 18, 80, 80) } catch { /* a logo that will not draw: the chip without it */ } }
+      g.fillStyle = hex; g.font = `900 ${logo ? 40 : 64}px ${NUM_FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'
+      if (num != null) g.fillText(String(num), 80, logo ? 122 : 84)
+    }
+    const logo = clubLogo(abbrev)
+    draw(logo)
     tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace
+    if (logo && !(logo.complete && logo.naturalWidth)) logo.addEventListener('load', () => { draw(logo); tex.needsUpdate = true }, { once: true })
     discCache.set(key, tex)
   }
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false }))
-  sp.scale.set(5.2, 5.2, 1)
+  sp.scale.set(7, 7, 1)
   return sp
 }
 
@@ -66,7 +83,8 @@ const clockText = (e, gameType) => {
 
 export default function GameReplay({ game }) {
   const [on, setOn] = useState(false)
-  useEffect(() => { setOn(lookParam() === 'tracking') }, [])
+  const [rec, setRec] = useState(false)   // ?record=1: the video layout (16:9, no controls, a stepped clock a recorder drives)
+  useEffect(() => { setOn(lookParam() === 'tracking'); try { setRec(new URLSearchParams(window.location.search).get('record') === '1') } catch { /* no window */ } }, [])
   const id = game?.id
   const [data, setData] = useState(null)
   const [err, setErr] = useState(null)
@@ -81,22 +99,24 @@ export default function GameReplay({ game }) {
   if (err) return <ChartEmpty theme={C}>The replay is waiting on the league feed ({err}).</ChartEmpty>
   if (!data) return <ChartEmpty theme={C}>Loading the game&apos;s events…</ChartEmpty>
   if (!data.events?.length) return <ChartEmpty theme={C}>No events on the ice yet. The replay starts at puck drop.</ChartEmpty>
-  return <ReplayStage data={data} goals={game?.goals || []} />
+  return <ReplayStage data={data} goals={game?.goals || []} rec={rec} />
 }
 
-function ReplayStage({ data, goals = [] }) {
+function ReplayStage({ data, goals = [], rec = false }) {
   const mount = useRef(null)
   const api = useRef({})
   const [ok, setOk] = useState(true)
   const [playing, setPlaying] = useState(false)
-  const [speed, setSpeed] = useState(1)
+  const [speed, setSpeed] = useState(2.5)
   const speedRef = useRef(speed); speedRef.current = speed
   const [now, setNow] = useState({ i: -1, score: [0, 0] })
   const [intro, setIntro] = useState(null)   // the open: 'title' (the fly-in), 'data' (the numbers light up), or null
   const [gsUi, setGsUi] = useState(0)        // the game clock as the replay runs (the score bug ticks between events)
+  const [done, setDone] = useState(false)     // the final horn: the end card shows
   const events = data.events
   const total = useMemo(() => gameSec(events[events.length - 1]) + 1, [events])
   const side = (abbrev) => (abbrev === data.home.abbrev ? 'home' : 'away')
+  const otherClub = (abbrev) => (abbrev === data.home.abbrev ? data.away.abbrev : data.home.abbrev)
   // the goal's label (called / board / off) from the game's goals (lamp_goal_feed via /api/lamp/game): same scorer, period, within 10 s
   // THE POWER PLAY (Donovan 2026-10-22, yes): who is a man up comes from each event's strength code; who sits in the box,
   // and for how long, from the penalties (a minor ends early on a power-play goal). Which end a club attacks in a period:
@@ -121,11 +141,15 @@ function ReplayStage({ data, goals = [] }) {
   useEffect(() => {
     const el = mount.current
     if (!el) return undefined
+    // THE CLOCK THE REPLAY READS: the wall clock, or in record mode a stepped one the recorder moves frame by frame
+    let vt = 0
+    const nowMs = () => (rec ? vt : performance.now())
     if (!webglOk()) { setOk(false); return undefined }
-    const W = el.clientWidth || 640, H = boxH(W)
+    const W = el.clientWidth || 640, H = boxH(W, rec)
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(C.bg)
     const rink = buildRink(scene, { tracking: { floor: new THREE.Color(C.bg3).multiplyScalar(1.6), line: C.text, mark: '/icon-512.png' } })
+    buildDashBowl(scene, { floor: new THREE.Color(C.bg3).multiplyScalar(1.6), line: C.text, accent: C.ice, ribbon: `DASH NETWORK  ·  LAMP  ·  ${data.away.abbrev} @ ${data.home.abbrev}` })
     const camera = new THREE.PerspectiveCamera(34, W / H, 1, 2000)
     const renderer = new THREE.WebGLRenderer({ antialias: true })
     renderer.setSize(W, H); renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1))
@@ -135,7 +159,8 @@ function ReplayStage({ data, goals = [] }) {
     if (isCoarse()) { controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_ROTATE }; renderer.domElement.style.touchAction = 'pan-y' }
     // THE BROADCAST CAMERA: high over one side, the whole sheet in frame; a tall phone box pulls back along the same line
     const frame = () => {
-      const pull = Math.max(1, 2.2 / camera.aspect)
+      // a little wider than the sheet, so the first tier and the ribbon board frame it
+      const pull = Math.max(1, 2.2 / camera.aspect) * 1.16
       camera.position.set(0, 128 * pull, 92 * pull); controls.target.set(0, 0, 0); controls.update()
     }
     frame()
@@ -197,28 +222,42 @@ function ReplayStage({ data, goals = [] }) {
       ripple.mesh.scale.set(bulge, 1, 1 + (bulge - 1) * 0.3)
     }
     const live = []   // { obj, born, life, kind }
-    const shotLine = (e, color) => {
-      const from = rinkPoint(e.x, e.y, 0.3), to = rinkPoint(Math.sign(e.x || 1) * GOAL_X, e.kind === 'miss' ? (e.y > 0 ? 4.5 : -4.5) : 0, e.kind === 'goal' ? 2 : 0.6)
-      const ln = new THREE.Line(new THREE.BufferGeometry().setFromPoints([from, to]),
-        new THREE.LineBasicMaterial({ color: new THREE.Color(color), transparent: true, opacity: e.kind === 'goal' ? 1 : 0.75 }))
-      return ln
+    // WHERE A SHOT ENDS (Donovan 2026-10-22: "the puck got shot through the goal and it wasn't a goal"): a save stops at
+    // the goalie, in front of the crease; a miss goes by the post on its side, off the iron or over the bar, as the feed's
+    // reason says; only a goal goes into the net.
+    const shotEnd = (e) => {
+      const sx = Math.sign(e.x || 1), why = String(e.reason || '')
+      if (e.kind === 'goal') return rinkPoint(sx * (GOAL_X + 1.2), Math.max(-2, Math.min(2, e.y * 0.08)), 1.2)
+      if (e.kind === 'sog') return rinkPoint(sx * (GOAL_X - 3.2), Math.max(-2, Math.min(2, e.y * 0.12)), 1.4)
+      const side = /left/.test(why) ? 1 : /right/.test(why) ? -1 : Math.sign(e.y || 1)
+      if (/post/.test(why)) return rinkPoint(sx * GOAL_X, side * 3, 1.8)
+      if (/crossbar/.test(why)) return rinkPoint(sx * GOAL_X, 0, 4)
+      if (/high|over/.test(why)) return rinkPoint(sx * (GOAL_X + 2), 0, 6.5)
+      return rinkPoint(sx * (GOAL_X + 1), side * 5, 0.6)   // wide, or a reason the feed left out
     }
+    const shotLine = (e, color) => new THREE.Line(new THREE.BufferGeometry().setFromPoints([rinkPoint(e.x, e.y, 0.3), shotEnd(e)]),
+      new THREE.LineBasicMaterial({ color: new THREE.Color(color), transparent: true, opacity: e.kind === 'goal' ? 1 : 0.7 }))
     const pulse = (x, y, color, r0 = 1.5) => {
       const m = new THREE.Mesh(new THREE.RingGeometry(r0, r0 + 0.5, 48), new THREE.MeshBasicMaterial({ color: new THREE.Color(color), transparent: true, side: THREE.DoubleSide, depthWrite: false }))
       m.rotation.x = -Math.PI / 2; m.position.copy(rinkPoint(x, y, 0.08)); return m
     }
-    const add = (obj, life, kind) => { marks.add(obj); live.push({ obj, born: performance.now(), life, kind }) }
+    const add = (obj, life, kind) => { marks.add(obj); live.push({ obj, born: nowMs(), life, kind }) }
     const showEvent = (e) => {
       const ink = INK[side(e.team)]
       const otherInk = INK[side(e.team) === 'home' ? 'away' : 'home']
-      const d = discSprite(ink, data.players?.[e.who]?.num); d.position.copy(rinkPoint(e.x, e.y, 3.2)); add(d, SHOW_MS, 'disc')
-      if (e.kind === 'hit' && e.vs) { const v = discSprite(otherInk, data.players?.[e.vs]?.num); v.position.copy(rinkPoint(e.x + 3, e.y - 2, 3.2)); add(v, SHOW_MS, 'disc') }
+      const d = discSprite(ink, data.players?.[e.who]?.num, e.team); d.position.copy(rinkPoint(e.x, e.y, 3.4)); add(d, SHOW_MS, 'disc')
+      if (e.kind === 'hit' && e.vs) { const v = discSprite(otherInk, data.players?.[e.vs]?.num, otherClub(e.team)); v.position.copy(rinkPoint(e.x + 3.5, e.y - 2.5, 3.4)); add(v, SHOW_MS, 'disc') }
       if (e.kind === 'faceoff') add(pulse(e.x, e.y, C.text, 2), 700, 'pulse')
-      if (e.kind === 'sog' || e.kind === 'miss' || e.kind === 'goal') add(shotLine(e, ink), e.kind === 'goal' ? 2600 : 1100, 'line')
-      if (e.kind === 'goal') { const sx = Math.sign(e.x || 1), p = pulse(sx * GOAL_X, 0, C.lamp, 3); add(p, 1600, 'goal'); rippleNet(sx, performance.now()); kick(sx * (GOAL_X - 2), 0, 26, 1.3) }
+      if (e.kind === 'sog' || e.kind === 'miss' || e.kind === 'goal') add(shotLine(e, ink), e.kind === 'goal' ? 1800 : 650, 'line')
+      // the goalie: on a save or a goal his chip shows in the crease (goalieInNetId from the feed)
+      if ((e.kind === 'sog' || e.kind === 'goal') && e.vs && data.players?.[e.vs]) {
+        const gk = discSprite(otherInk, data.players[e.vs].num, otherClub(e.team)); gk.position.copy(shotEnd({ ...e, kind: 'sog' })).setY(3.2); add(gk, SHOW_MS, 'disc')
+        if (e.kind === 'sog') add(pulse(Math.sign(e.x || 1) * (GOAL_X - 3.2), 0, C.text, 1.2), 450, 'pulse')
+      }
+      if (e.kind === 'goal') { const sx = Math.sign(e.x || 1), p = pulse(sx * GOAL_X, 0, C.lamp, 3); add(p, 1600, 'goal'); rippleNet(sx, nowMs()); kick(sx * (GOAL_X - 2), 0, 26, 1.3) }
       if (e.kind === 'hit') kick(e.x, e.y, 22, 1.1)
       if (e.kind === 'block' || e.kind === 'takeaway') kick(e.x, e.y, 10, 0.7)
-      if (e.kind === 'hit' || e.kind === 'takeaway' || e.kind === 'giveaway' || e.kind === 'block') add(pulse(e.x, e.y, ink, 1.6), 600, 'pulse')
+      if (e.kind === 'hit' || e.kind === 'takeaway' || e.kind === 'giveaway' || e.kind === 'block') add(pulse(e.x, e.y, ink, 1.2), 450, 'pulse')
     }
     const fade = (t) => {
       for (let k = live.length - 1; k >= 0; k -= 1) {
@@ -226,7 +265,7 @@ function ReplayStage({ data, goals = [] }) {
         if (age >= 1) { marks.remove(m.obj); m.obj.geometry?.dispose?.(); m.obj.material?.dispose?.(); live.splice(k, 1); continue }
         const o = m.obj.material
         if (m.kind === 'pulse' || m.kind === 'goal') { m.obj.scale.setScalar(1 + age * (m.kind === 'goal' ? 4 : 2.5)); o.opacity = 1 - age }
-        else if (m.kind === 'line') o.opacity = (o.userData.o0 ??= o.opacity) * (1 - age * age)
+        else if (m.kind === 'line') o.opacity = (o.userData.o0 ??= o.opacity) * (1 - age)
         else o.opacity = age < 0.75 ? 1 : 1 - (age - 0.75) / 0.25
       }
     }
@@ -263,7 +302,7 @@ function ReplayStage({ data, goals = [] }) {
         const sideKey = side(p.team)
         if (on) {
           lit[sideKey] += 1
-          if (!boxed.has(k)) { const d = discSprite(INK[sideKey], data.players?.[p.who]?.num); d.scale.set(4.2, 4.2, 1); scene.add(d); boxed.set(k, d) }
+          if (!boxed.has(k)) { const d = discSprite(INK[sideKey], data.players?.[p.who]?.num, p.team); d.scale.set(4.4, 4.4, 1); scene.add(d); boxed.set(k, d) }
           const n = [...boxed.keys()].filter((j) => side(penalties[j].team) === sideKey).indexOf(k)
           boxed.get(k).position.copy(rinkPoint(boxAt[sideKey] - 3 + n * 4.5, BOX_Y, 2.6))
         } else if (boxed.has(k)) { const d = boxed.get(k); scene.remove(d); d.material.dispose(); boxed.delete(k) }
@@ -279,14 +318,14 @@ function ReplayStage({ data, goals = [] }) {
     }
 
     // THE CLOCK: replay time -> game seconds; the puck between event i and i+1 (unless play restarted before i+1)
-    let gs = 0, last = performance.now(), idx = -1, playingNow = false, holdUntil = 0, uiAt = 0
+    let gs = 0, last = nowMs(), idx = -1, playingNow = false, holdUntil = 0, uiAt = 0
     const at = (i) => rinkPoint(events[i].x, events[i].y, 0.4)
     const seek = (g) => {
       gs = Math.max(0, Math.min(total, g)); idx = -1
       while (idx + 1 < events.length && gameSec(events[idx + 1]) <= gs) idx += 1
       for (const m of live) { marks.remove(m.obj) } live.length = 0
       resetTail()
-      setNow({ i: idx, score: idx >= 0 ? events[idx].score : [0, 0] })
+      setNow({ i: idx, score: idx >= 0 ? events[idx].score : [0, 0] }); setDone(false)
     }
     // THE OPEN (Donovan 2026-10-22: "a video game first and then next gen stats ... welcome to the world ... boom"): the
     // camera comes in low behind one net, sweeps round the rink and settles on the broadcast angle; the title, then the
@@ -303,14 +342,14 @@ function ReplayStage({ data, goals = [] }) {
       const u = Math.min(1, (t - introAt) / INTRO_MS), e = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2
       const pull = Math.max(1, 2.2 / camera.aspect)
       const p = flight.getPoint(Math.min(1, e / 0.82))
-      if (e >= 0.82) p.lerp(new THREE.Vector3(0, 128 * pull, 92 * pull), (e - 0.82) / 0.18)
+      if (e >= 0.82) p.lerp(new THREE.Vector3(0, 128 * pull * 1.16, 92 * pull * 1.16), (e - 0.82) / 0.18)
       camera.position.copy(p); camera.lookAt(0, 0, 0)
       const ph = u < 0.55 ? 'title' : 'data'
       if (ph !== introPhase) { introPhase = ph; setIntro(ph) }
       if (u >= 1) endIntro(t)
     }
     const tick = () => {
-      const t = performance.now(), dt = Math.min(0.1, (t - last) / 1000); last = t
+      const t = nowMs(), dt = Math.min(0.1, (t - last) / 1000); last = t
       stepIntro(t)
       if (playingNow && t >= holdUntil) {
         gs += dt * GAME_S * speedRef.current
@@ -321,7 +360,7 @@ function ReplayStage({ data, goals = [] }) {
           if (events[idx].kind === 'goal') { holdUntil = t + GOAL_HOLD_MS; gs = gameSec(events[idx]); break }
         }
         if (moved) setNow({ i: idx, score: events[idx].score })
-        if (gs >= total) { playingNow = false; setPlaying(false) }
+        if (gs >= total) { playingNow = false; setPlaying(false); setDone(true) }
       }
       if (idx >= 0) {
         const cur = events[idx], nxt = events[idx + 1]
@@ -333,31 +372,42 @@ function ReplayStage({ data, goals = [] }) {
           p = from.clone().lerp(at(idx + 1), f)
         }
         puck.position.set(p.x, 0.4, p.z)
-        const prev = idx > 0 && !cur.fresh ? at(idx - 1) : null
+        // the event before only when the puck plausibly carried from it (a long cross-ice jump reads as an error, not a pass)
+        const prev0 = idx > 0 && !cur.fresh ? at(idx - 1) : null
+        const prev = prev0 && prev0.distanceTo(from) < 55 ? prev0 : null
         if (p.distanceTo(from) > 0.5 || prev) setTail([...(prev ? [prev] : []), from, p]); else resetTail()
       }
       stepSpray(dt); stepRipple(t); stepBox(gs, t)
       if (t - uiAt > 200) { uiAt = t; setGsUi(gs) }
-      fade(t); if (introAt == null) controls.update(); look.render(); raf = requestAnimationFrame(tick)
+      fade(t); if (introAt == null) controls.update(); look.render(); if (!rec) raf = requestAnimationFrame(tick)
     }
     let raf = 0, onScreen = true
-    const io = new IntersectionObserver(([e]) => { onScreen = e.isIntersecting; cancelAnimationFrame(raf); if (onScreen && !document.hidden) { last = performance.now(); raf = requestAnimationFrame(tick) } })
+    const io = new IntersectionObserver(([e]) => { if (rec) return; onScreen = e.isIntersecting; cancelAnimationFrame(raf); if (onScreen && !document.hidden) { last = nowMs(); raf = requestAnimationFrame(tick) } })
     io.observe(el)
-    const onVis = () => { cancelAnimationFrame(raf); if (!document.hidden && onScreen) { last = performance.now(); raf = requestAnimationFrame(tick) } }
+    const onVis = () => { if (rec) return; cancelAnimationFrame(raf); if (!document.hidden && onScreen) { last = nowMs(); raf = requestAnimationFrame(tick) } }
     document.addEventListener('visibilitychange', onVis)
-    raf = requestAnimationFrame(tick)
+    if (!rec) raf = requestAnimationFrame(tick)
+    else {
+      // THE RECORDER'S HANDLE (scripts/record-replay.mjs): start, then step the clock one frame at a time and grab each frame
+      io.disconnect(); document.removeEventListener('visibilitychange', onVis)
+      window.__lampReplay = {
+        start: () => { api.current.play?.(); setPlaying(true) },
+        step: (ms) => { vt += ms; tick() },
+        done: () => gs >= total && !playingNow,
+      }
+    }
     api.current = {
       play: () => {
         if (gs >= total) seek(0)
-        if (!introDone && gs === 0) { introAt = performance.now(); introPhase = null; controls.enabled = false; return }
-        playingNow = true; last = performance.now()
+        if (!introDone && gs === 0) { introAt = nowMs(); introPhase = null; controls.enabled = false; return }
+        playingNow = true; last = nowMs()
       },
-      skipIntro: () => { if (introAt != null) endIntro(performance.now()) },
+      skipIntro: () => { if (introAt != null) endIntro(nowMs()) },
       pause: () => { playingNow = false; if (introAt != null) { introAt = null; introDone = true; controls.enabled = true; frame(); setIntro(null) } },
       seek,
       nextGoal: () => { const n = events.findIndex((e, i) => i > idx && e.kind === 'goal'); if (n >= 0) seek(gameSec(events[n]) - 4) },
     }
-    const onResize = () => { const w = el.clientWidth || W, h = boxH(w); camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h); look.setSize?.(w, h); frame() }
+    const onResize = () => { const w = el.clientWidth || W, h = boxH(w, rec); camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h); look.setSize?.(w, h); frame() }
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(onResize) : null
     if (ro) ro.observe(el)
     return () => {
@@ -394,7 +444,7 @@ function ReplayStage({ data, goals = [] }) {
   )
   return (
     <section aria-label="The game, replayed" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <div role="group" aria-label="Replay controls" style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div role="group" aria-label="Replay controls" style={{ display: rec ? 'none' : 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
         <button type="button" className={FLAT_CHIP_CLASS} aria-pressed={playing} style={flatChip(playing, C.ice, C, NUM_FONT)}
           onClick={() => { if (playing) { api.current.pause?.(); setPlaying(false) } else { api.current.play?.(); setPlaying(true) } }}>{playing ? '❚❚ Pause' : '▶ Play the game'}</button>
         {intro ? <button type="button" className={FLAT_CHIP_CLASS} style={flatChip(false, C.ice, C, NUM_FONT)} onClick={() => api.current.skipIntro?.()}>Skip intro</button> : null}
@@ -403,7 +453,7 @@ function ReplayStage({ data, goals = [] }) {
         ))}
         <button type="button" className={FLAT_CHIP_CLASS} style={flatChip(false, C.ice, C, NUM_FONT)} onClick={() => api.current.nextGoal?.()}>Next goal</button>
       </div>
-      <div style={{ position: 'relative' }}>
+      <div data-replay-stage="" style={{ position: 'relative' }}>
         <div ref={mount} style={{ width: '100%', minHeight: 260, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }} />
         {/* THE OPEN'S CARDS: the title while the camera flies in, then the game's numbers (counted from the events) */}
         {intro ? (
@@ -428,7 +478,7 @@ function ReplayStage({ data, goals = [] }) {
                 <div style={{ fontSize: 12, color: C.text2, marginTop: 10, letterSpacing: 2, animation: 'lampUp .5s .35s both' }}>{data.date || ''} · REPLAY</div>
               </div>
             ) : (
-              <div style={{ display: 'flex', gap: 'clamp(14px, 4vw, 34px)', fontFamily: NUM_FONT, textAlign: 'center' }}>
+              <div style={{ display: 'flex', gap: 'clamp(14px, 4vw, 34px)', fontFamily: NUM_FONT, textAlign: 'center', background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 10, padding: '12px clamp(14px, 4vw, 28px)' }}>
                 {tallies.map(([n, label], k) => (
                   <div key={label} style={{ animation: `lampUp .45s ${k * 0.12}s both` }}>
                     <div style={{ fontSize: 'clamp(26px, 6vw, 44px)', fontWeight: 900, color: C.text, lineHeight: 1 }}>{n}</div>
@@ -437,6 +487,30 @@ function ReplayStage({ data, goals = [] }) {
                 ))}
               </div>
             )}
+          </div>
+        ) : null}
+        {/* THE END CARD: the final, both clubs, the brand (on the site and as the video's last frames) */}
+        {done ? (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 4, background: `${C.bg}cc` }}>
+            <div style={{ textAlign: 'center', fontFamily: NUM_FONT }}>
+              <div style={{ fontSize: 12, letterSpacing: 4, color: C.text2, fontWeight: 800 }}>FINAL{events[events.length - 1]?.pt === 'OT' ? ' / OT' : ''}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(12px, 3vw, 28px)', marginTop: 10 }}>
+                {[['away', as], ['home', hs]].map(([k, sc], i) => (
+                  <span key={k} style={{ display: 'flex', alignItems: 'center', gap: 10, flexDirection: i ? 'row-reverse' : 'row' }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={nhlLogo(data[k].abbrev, true)} alt="" width={60} height={60} />
+                    <b style={{ fontSize: 'clamp(30px, 7vw, 56px)', color: INK[k] }}>{data[k].abbrev}</b>
+                    <b style={{ fontSize: 'clamp(30px, 7vw, 56px)', color: C.text }}>{sc}</b>
+                  </span>
+                ))}
+              </div>
+              <div style={{ fontSize: 12, color: C.text2, marginTop: 12, letterSpacing: 2 }}>{data.date || ''} · REPLAY · DASH NETWORK · LAMP</div>
+            </div>
+          </div>
+        ) : null}
+        {rec ? (
+          <div style={{ position: 'absolute', right: 10, bottom: 10, zIndex: 5, fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, letterSpacing: 2, color: C.text2, pointerEvents: 'none' }}>
+            DASH NETWORK · <span style={{ color: C.ice }}>LAMP</span> · @CalledItHR
           </div>
         ) : null}
         {/* THE SCORE BUG: both clubs, the score after the last event shown, the period and the clock */}
@@ -490,9 +564,9 @@ function ReplayStage({ data, goals = [] }) {
             fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, color: cur?.kind === 'goal' ? C.text : C.text2, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{words}</span>
         </div>
       </div>
-      <input type="range" min={0} max={events.length - 1} value={Math.max(0, now.i)} aria-label="Jump through the game"
-        onChange={(e) => api.current.seek?.(gameSec(events[Number(e.target.value)]))} style={{ width: '100%', minHeight: 44, accentColor: C.ice }} />
-      <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, lineHeight: 1.5 }}>
+      {rec ? null : <input type="range" min={0} max={events.length - 1} value={Math.max(0, now.i)} aria-label="Jump through the game"
+        onChange={(e) => api.current.seek?.(gameSec(events[Number(e.target.value)]))} style={{ width: '100%', minHeight: 44, accentColor: C.ice }} />}
+      <div style={{ display: rec ? 'none' : 'block', fontSize: 11, color: C.text3, fontFamily: NUM_FONT, lineHeight: 1.5 }}>
         REPLAY · {events.length} events from the NHL&apos;s play-by-play: every disc is a real event, where and when it happened. The puck&apos;s path between events is drawn.
         {' '}<b style={{ color: INK.away }}>{data.away.abbrev}</b> · <b style={{ color: INK.home }}>{data.home.abbrev}</b>
       </div>
