@@ -9,7 +9,7 @@ import { requestLiveRefresh, useLiveRefreshState } from '../lib/liveRefresh'
 
 const ageText = (s) => (s < 60 ? `${s}s ago` : s < 3600 ? `${Math.floor(s / 60)}m ago` : `${Math.floor(s / 3600)}h ago`)
 
-export default function RefreshStamp({ live = false, compact = false, style = null, className = undefined }) {
+export default function RefreshStamp({ live = false, compact = false, inline = false, style = null, className = undefined }) {
   const { C, NUM_FONT, accent } = useSportTheme()
   const { at, pulling } = useLiveRefreshState()
   const [, tick] = useState(0)
@@ -18,6 +18,20 @@ export default function RefreshStamp({ live = false, compact = false, style = nu
   const age = Math.max(0, Math.round((Date.now() - at) / 1000))
   const old = age > (live ? 300 : 1800)
   const dot = live ? (old ? C.amber || accent : C.green) : C.text3
+  // INLINE (2026-10-21 dead-space pass): the stamp at the end of the page's one line ("2m ago ↻"), not a 44px row of its own.
+  // The button keeps a 44px tap box; the negative margin keeps it from making the line taller.
+  if (inline) {
+    return (
+      <span className={className} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, fontFamily: NUM_FONT, fontSize: 11, color: old && live ? C.text2 : C.text3, ...style }}>
+        <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: 999, background: dot, boxShadow: live && !old ? `0 0 6px ${dot}` : 'none' }} />
+        <span style={{ whiteSpace: 'nowrap' }}>{pulling ? 'pulling…' : ageText(age)}</span>
+        <button type="button" onClick={() => requestLiveRefresh('tap')} disabled={pulling}
+          title="Pull the live scores, ledgers and boards on this page again now" aria-label={`Refresh live data, updated ${ageText(age)}`}
+          style={{ minWidth: 44, minHeight: 44, margin: '-14px 0 -14px -10px', padding: 0, border: 'none', background: 'transparent', cursor: pulling ? 'default' : 'pointer',
+            color: old && live ? accent : C.text2, fontSize: 15, fontWeight: 800, opacity: pulling ? 0.6 : 1 }}>↻</button>
+      </span>
+    )
+  }
   return (
     <div className={className} style={{ display: 'flex', gap: 8, alignItems: 'center', fontFamily: NUM_FONT, fontSize: 11, color: C.text3, minWidth: 0, ...style }}>
       {!compact ? <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: 999, background: dot, boxShadow: live && !old ? `0 0 6px ${dot}` : 'none', flexShrink: 0 }} /> : null}

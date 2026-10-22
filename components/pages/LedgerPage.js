@@ -14,7 +14,9 @@ export default function LedgerPage({ head, headNode = null, picker = null, tonig
   const header = frame?.header && !frame.header.$$typeof && frame.header.title ? <LedgerHead {...frame.header} /> : frame?.header || null
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap }}>
-      {headNode || (head ? <PageHeader {...head} /> : null)}
+      {/* inside The Ledger (components/pages/LedgerShell.js already says THE LEDGER over its tabs): no second eyebrow and title,
+          just the day line and the page's own stats (2026-10-21 dead-space pass: ~60px on a phone) */}
+      {headNode || (head ? <PageHeader {...head} eyebrow={null} title={null} style={{ margin: '0 0 2px', ...(head.style || null) }} /> : null)}
       {picker}
       {tonight}
       {lead}
