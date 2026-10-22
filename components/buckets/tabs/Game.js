@@ -1,4 +1,5 @@
 'use client'
+import BlowoutGains from '../BlowoutGains'
 import { Fragment, useMemo } from 'react'
 import TeamMark from '../../TeamMark'
 import GameHead from '../../game/GameHead'
@@ -77,6 +78,7 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
     attack: () => <BucketsAttack date={gameDay(data.date)} away={away.abbrev} home={home.abbrev} onOpenPlayer={onOpenPlayer} />,
     defpos: () => <DefPosGame date={gameDay(data.date)} away={away.abbrev} home={home.abbrev} onOpenTeam={onOpenTeam} />,
     ourline: () => <GameOurLine id={id} date={gameDay(data.date)} onOpenTeam={onOpenTeam} onOpenPlayer={onOpenPlayer} />,
+    blowout: () => <BlowoutGains date={gameDay(data.date)} gameId={id} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />,
     clubs: () => <NbaH2H a={away.abbrev} b={home.abbrev} onOpenTeam={onOpenTeam} />,
     ledger: () => <GameLedgerLine sport="nba" gameId={id} day={gameDay(data.date)} />,
     writeup: () => <NbaWriteupBlock gameId={id} date={gameDay(data.date)} onOpenPlayer={onOpenPlayer} />,
