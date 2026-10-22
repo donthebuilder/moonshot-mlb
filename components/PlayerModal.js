@@ -24,7 +24,6 @@ import {
   roleColor as verdictRoleColor,
 } from '../lib/verdict'
 import { quoteFor, fmtOdds } from '../lib/odds'
-import OddsTimeline from './OddsTimeline'
 import VerdictHero from './VerdictHero'
 import CardShell from './CardShell'
 import { TabBtn, Navigator } from './card/CardNav'
@@ -882,7 +881,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
           {!apiOnly && (cardLocked
             ? (nonMember ? <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ margin: '4px 0 10px' }} /> : null)
             : <Checklist rows={checklist(p)} />)}
-          {!apiOnly && !cardLocked && <OddsTimeline quote={heroQuote} marketLabel={heroRole === 'WATCH' ? 'HR' : heroRole} />}
+          {/* NO PRICE TIMELINE (2026-10-21, Donovan: "remove the price timeline inside of the player model ... remove it"; #207) */}
           </div>
           </div>
 

@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { SportTheme } from '../../SportTheme'
 // THE SHARED PLAYER MODEL (components/player/): the verdict first, then ONE row of his numbers; BUCKETS' words in nbaAdapter.js
 import BucketsSlipAdd from '../BucketsSlipAdd'
-import BucketsPriceHistory from '../BucketsPriceHistory'
 import VerdictBlock from '../../player/VerdictBlock'
 import StatRow from '../../player/StatRow'
 import ScrollHint from '../../player/ScrollHint'
@@ -307,7 +306,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
             )}
             <InTheLedger sport="nba" id={pid} name={card.name} jersey={card.jersey} birthDate={card.birthDate} next={next} date={dateNow} />
             <HisNumbers name={card.name} jersey={card.jersey} birthDate={card.birthDate} next={next} nextWord="point" date={dateNow} theme={C} accent={C.purple} numFont={NUM_FONT} />
-            <BucketsPriceHistory id={pid} />
+            {/* NO PRICE TIMELINE (2026-10-21, Donovan: "remove the price timeline inside of the player model ... remove it") */}
           </>
         )}
 
