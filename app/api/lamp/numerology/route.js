@@ -16,7 +16,8 @@ export async function GET(request) {
   const date = new URL(request.url).searchParams.get('date') || await slateNight('nhl')
   if (!validDate(date)) return bad('date must be a real YYYY-MM-DD day')
   try {
-    return ok({ ...(await readNumerology(date)), fetchedAt: new Date().toISOString() }, 300)
+    // the page's read: a game with no lineup yet shows its rosters (marked), as BUCKETS does; the record never does
+    return ok({ ...(await readNumerology(date, { rosterPreview: true })), fetchedAt: new Date().toISOString() }, 300)
   } catch (e) {
     return delayed(`numerology ${date}`, e)
   }
