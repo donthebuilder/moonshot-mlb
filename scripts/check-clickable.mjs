@@ -9,6 +9,7 @@
 // any, unless --report. The names come from the data, never guessed; a name
 // inside a sentence is not counted (the plan says so).
 import { createRequire } from 'node:module'
+import { MAC_BRAVE, EXTRA_PATHS, findBrowser } from './_browser.mjs'
 const req = createRequire(import.meta.url)
 const { chromium } = req('playwright-core')
 
@@ -36,7 +37,7 @@ for (const p of nhl?.players || []) { if (p?.name) names.add(p.name); if (p?.tea
 for (const p of nba?.players || []) { if (p?.name) names.add(p.name); if (p?.team) teams.add(p.team) }
 console.log(`known: ${names.size} players, ${teams.size} team codes (MLB slate, NFL week, NHL rosters${nba ? ', NBA directory' : ''})`)
 
-const browser = await chromium.launch({ executablePath: '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser' })
+const browser = await chromium.launch({ executablePath: findBrowser([arg('--browser'), MAC_BRAVE, ...EXTRA_PATHS]) })
 let bad = 0
 const table = []
 for (const path of pages) {

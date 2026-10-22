@@ -12,6 +12,7 @@
 //     --page "/app#sport=mlb&p=547180" --tab "Spray" --toggle "Stadium" [--width 390] [--full]
 import { createRequire } from 'node:module'
 import { existsSync, mkdirSync } from 'node:fs'
+import { MAC_CHROME, MAC_BRAVE, EXTRA_PATHS } from './_browser.mjs'
 const req = createRequire(`${process.cwd()}/package.json`)
 const { chromium } = req('playwright-core')
 
@@ -25,7 +26,7 @@ const WIDTH = Number(arg('--width', '1280'))
 const MIN = Number(arg('--min', '0.15'))
 const FIELD = arg('--field', 'baseball')
 const OUT = arg('--out', 'mobile-report/3d')
-const BROWSERS = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser', '/usr/bin/google-chrome', '/usr/bin/chromium']
+const BROWSERS = [MAC_CHROME, MAC_BRAVE, ...EXTRA_PATHS, '/usr/bin/google-chrome', '/usr/bin/chromium']
 const executablePath = BROWSERS.find((p) => existsSync(p))
 if (!executablePath) { console.error('No Chrome/Brave found'); process.exit(2) }
 if (!existsSync(OUT)) mkdirSync(OUT, { recursive: true })
