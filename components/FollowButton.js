@@ -19,10 +19,12 @@
 
 import { useSportTheme } from './SportTheme'
 import { alpha } from '../lib/scales'
+import { flatChip, FLAT_CHIP_CLASS } from '../lib/chips'
 import { useFollowing } from '../lib/dash/follow'
 import { useDashAccount } from '../lib/dash/sync'
 
-export default function FollowButton({ sport = 'mlb', id, name, team, position, compact = false }) {
+// cell: the button fills a grid cell and wears the site chip (the even watch / slip row on the player cards, 2026-10-22)
+export default function FollowButton({ sport = 'mlb', id, name, team, position, compact = false, cell = false }) {
   const { following, toggle } = useFollowing(sport)
   // TUDDY / LAMP cards: the sport's cool accent (C.cyan on every theme).
   const { C, NUM_FONT, themed } = useSportTheme()
@@ -32,6 +34,14 @@ export default function FollowButton({ sport = 'mlb', id, name, team, position, 
   const on = following(id)
   const where = account.signedIn ? 'your account' : 'this device'
 
+  if (cell) {
+    return (
+      <button type="button" onClick={() => toggle({ id, name, team, position, sport })} aria-pressed={on}
+        title={on ? `${name || 'He'} is on your watchlist — saved to ${where}.` : `Watch ${name || 'him'} for his next game — saved to ${where}.`}
+        className={FLAT_CHIP_CLASS} style={{ ...flatChip(on, C.cyan, C, NUM_FONT), justifyContent: 'center', minWidth: 0 }}
+      >{on ? '★ Watching' : '☆ Watch'}</button>
+    )
+  }
   return (
     <button
       type="button"
