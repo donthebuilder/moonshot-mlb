@@ -19,6 +19,8 @@ import { eventWords } from '../../lib/nhl/events'
 import { nhlLogo } from '../../lib/nhl/teams'
 import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 import { ChartEmpty } from '../charts'
+import CallStatusBadge from '../CallStatusBadge'
+import { ordinal } from '../../lib/format'
 
 // the two clubs: the product's accent and the rink's own gold (two colours you can tell apart, Donovan 2026-10-22)
 const INK = { away: C.ice, home: RINK.kick }
@@ -26,6 +28,7 @@ const GAME_S = 30          // game seconds per replay second at 1x: a 60-minute 
 const SPEEDS = [[1, '1x'], [4, '4x']]
 const SHOW_MS = 1400       // how long a player's disc stays after his event (real time)
 const GOAL_HOLD_MS = 2600  // the replay holds this long on a goal (the clock stops on one)
+const INTRO_MS = 5200      // THE OPEN: a video-game fly-in, then the data lights up, then the puck drops
 const PERIOD_S = 1200
 const gameSec = (e) => (e.period - 1) * PERIOD_S + e.t
 // the box: the rink is 200 x 85 ft, so a wide screen gets a wide box (no empty band above and below); a phone a taller one
@@ -78,10 +81,10 @@ export default function GameReplay({ game }) {
   if (err) return <ChartEmpty theme={C}>The replay is waiting on the league feed ({err}).</ChartEmpty>
   if (!data) return <ChartEmpty theme={C}>Loading the game&apos;s events…</ChartEmpty>
   if (!data.events?.length) return <ChartEmpty theme={C}>No events on the ice yet. The replay starts at puck drop.</ChartEmpty>
-  return <ReplayStage data={data} />
+  return <ReplayStage data={data} goals={game?.goals || []} />
 }
 
-function ReplayStage({ data }) {
+function ReplayStage({ data, goals = [] }) {
   const mount = useRef(null)
   const api = useRef({})
   const [ok, setOk] = useState(true)
@@ -89,9 +92,21 @@ function ReplayStage({ data }) {
   const [speed, setSpeed] = useState(1)
   const speedRef = useRef(speed); speedRef.current = speed
   const [now, setNow] = useState({ i: -1, score: [0, 0] })
+  const [intro, setIntro] = useState(null)   // the open: 'title' (the fly-in), 'data' (the numbers light up), or null
   const events = data.events
   const total = useMemo(() => gameSec(events[events.length - 1]) + 1, [events])
   const side = (abbrev) => (abbrev === data.home.abbrev ? 'home' : 'away')
+  // the goal's label (called / board / off) from the game's goals (lamp_goal_feed via /api/lamp/game): same scorer, period, within 10 s
+  // the open's numbers: counted from the events, nothing else
+  const tallies = useMemo(() => {
+    const n = (k) => events.filter((e) => k.includes(e.kind)).length
+    return [[events.length, 'EVENTS'], [n(['sog', 'goal']), 'SHOTS ON GOAL'], [n(['hit']), 'HITS']]
+  }, [events])
+  const goalLabel = (e) => {
+    const secs = (mmss) => { const m = /^(\d+):(\d{2})$/.exec(String(mmss || '')); return m ? Number(m[1]) * 60 + Number(m[2]) : null }
+    const g = goals.find((x) => String(x.scorer?.id) === String(e.who) && Number(x.period) === e.period && Math.abs((secs(x.time) ?? -99) - e.t) <= 10)
+    return g?.label || null
+  }
 
   useEffect(() => {
     const el = mount.current
@@ -100,7 +115,7 @@ function ReplayStage({ data }) {
     const W = el.clientWidth || 640, H = boxH(W)
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(C.bg)
-    buildRink(scene, { tracking: { floor: new THREE.Color(C.bg3).multiplyScalar(1.45), line: C.text } })
+    const rink = buildRink(scene, { tracking: { floor: new THREE.Color(C.bg3).multiplyScalar(1.6), line: C.text, mark: '/icon-512.png' } })
     const camera = new THREE.PerspectiveCamera(34, W / H, 1, 2000)
     const renderer = new THREE.WebGLRenderer({ antialias: true })
     renderer.setSize(W, H); renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1))
@@ -119,12 +134,58 @@ function ReplayStage({ data }) {
     // the puck, its trail, the marks
     const puck = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.45, 24), new THREE.MeshBasicMaterial({ color: new THREE.Color(C.text) }))
     puck.position.y = 0.4; puck.visible = false; scene.add(puck)
-    // the puck's drawn path: one faint line from the last event's spot to where the puck is now (never a long history)
-    const passGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()])
-    const pass = new THREE.Line(passGeo, new THREE.LineDashedMaterial({ color: new THREE.Color(C.text), transparent: true, opacity: 0.4, dashSize: 1.6, gapSize: 1.2 }))
-    pass.visible = false; scene.add(pass)
-    const setPass = (a, b) => { const pa = passGeo.attributes.position; pa.setXYZ(0, a.x, 0.3, a.z); pa.setXYZ(1, b.x, 0.3, b.z); pa.needsUpdate = true; pass.computeLineDistances() }
     const marks = new THREE.Group(); scene.add(marks)
+    // THE TRACE: the play so far, as one glowing line -- the last event's spot, the one before it (when play carried on
+    // between them) and the puck, brightest at the puck. It follows the play, never a frame history, so 4x stays clean.
+    const tailGeo = new THREE.BufferGeometry()
+    const tailPos = new Float32Array(3 * 3), tailCol = new Float32Array(3 * 3)
+    tailGeo.setAttribute('position', new THREE.BufferAttribute(tailPos, 3)); tailGeo.setAttribute('color', new THREE.BufferAttribute(tailCol, 3))
+    const tail = new THREE.Line(tailGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.95 }))
+    scene.add(tail)
+    const tailInk = new THREE.Color(C.ice)
+    const resetTail = () => { tailGeo.setDrawRange(0, 0) }
+    const setTail = (pts) => {
+      pts.forEach((v, k) => { tailPos[k * 3] = v.x; tailPos[k * 3 + 1] = 0.35; tailPos[k * 3 + 2] = v.z; const f = (k + 1) / pts.length; tailCol[k * 3] = tailInk.r * f; tailCol[k * 3 + 1] = tailInk.g * f; tailCol[k * 3 + 2] = tailInk.b * f })
+      tailGeo.setDrawRange(0, pts.length); tailGeo.attributes.position.needsUpdate = true; tailGeo.attributes.color.needsUpdate = true
+    }
+    // THE SPRAY: a hit or a hard stop throws a little ice -- a few white flecks that fly low and fade (one Points object reused)
+    const SPRAY = 160
+    const sprayPos = new Float32Array(SPRAY * 3), sprayVel = new Float32Array(SPRAY * 3), sprayLife = new Float32Array(SPRAY)
+    const sprayGeo = new THREE.BufferGeometry(); sprayGeo.setAttribute('position', new THREE.BufferAttribute(sprayPos, 3))
+    const spray = new THREE.Points(sprayGeo, new THREE.PointsMaterial({ color: new THREE.Color(C.text), size: 0.55, transparent: true, opacity: 0.85, depthWrite: false }))
+    scene.add(spray)
+    let sprayNext = 0
+    for (let k = 0; k < SPRAY; k += 1) sprayPos[k * 3 + 1] = -10
+    const kick = (x, y, n = 18, power = 1) => {
+      const at0 = rinkPoint(x, y, 0.3)
+      for (let j = 0; j < n; j += 1) {
+        const k = sprayNext; sprayNext = (sprayNext + 1) % SPRAY
+        const ang = Math.random() * Math.PI * 2, sp = (6 + Math.random() * 14) * power
+        sprayPos[k * 3] = at0.x; sprayPos[k * 3 + 1] = 0.3; sprayPos[k * 3 + 2] = at0.z
+        sprayVel[k * 3] = Math.cos(ang) * sp; sprayVel[k * 3 + 1] = 3 + Math.random() * 5 * power; sprayVel[k * 3 + 2] = Math.sin(ang) * sp
+        sprayLife[k] = 0.45 + Math.random() * 0.35
+      }
+    }
+    const stepSpray = (dt) => {
+      for (let k = 0; k < SPRAY; k += 1) {
+        if (sprayLife[k] <= 0) { sprayPos[k * 3 + 1] = -10; continue }
+        sprayLife[k] -= dt
+        sprayPos[k * 3] += sprayVel[k * 3] * dt; sprayPos[k * 3 + 2] += sprayVel[k * 3 + 2] * dt
+        sprayVel[k * 3 + 1] -= 30 * dt; sprayPos[k * 3 + 1] = Math.max(0.2, sprayPos[k * 3 + 1] + sprayVel[k * 3 + 1] * dt)
+        sprayVel[k * 3] *= 0.92; sprayVel[k * 3 + 2] *= 0.92
+      }
+      sprayGeo.attributes.position.needsUpdate = true
+    }
+    // THE GOAL: the net's mesh bulges back and settles; a red light washes the crease
+    let ripple = null
+    const rippleNet = (sx, t) => { const n = rink.nets?.[sx]; if (n?.userData.mesh) ripple = { mesh: n.userData.mesh, born: t } }
+    const stepRipple = (t) => {
+      if (!ripple) return
+      const age = (t - ripple.born) / 900
+      if (age >= 1) { ripple.mesh.scale.set(1, 1, 1); ripple = null; return }
+      const bulge = 1 + Math.sin(age * Math.PI) * 0.35 * (1 - age)
+      ripple.mesh.scale.set(bulge, 1, 1 + (bulge - 1) * 0.3)
+    }
     const live = []   // { obj, born, life, kind }
     const shotLine = (e, color) => {
       const from = rinkPoint(e.x, e.y, 0.3), to = rinkPoint(Math.sign(e.x || 1) * GOAL_X, e.kind === 'miss' ? (e.y > 0 ? 4.5 : -4.5) : 0, e.kind === 'goal' ? 2 : 0.6)
@@ -144,7 +205,9 @@ function ReplayStage({ data }) {
       if (e.kind === 'hit' && e.vs) { const v = discSprite(otherInk, data.players?.[e.vs]?.num); v.position.copy(rinkPoint(e.x + 3, e.y - 2, 3.2)); add(v, SHOW_MS, 'disc') }
       if (e.kind === 'faceoff') add(pulse(e.x, e.y, C.text, 2), 700, 'pulse')
       if (e.kind === 'sog' || e.kind === 'miss' || e.kind === 'goal') add(shotLine(e, ink), e.kind === 'goal' ? 2600 : 1100, 'line')
-      if (e.kind === 'goal') { const p = pulse(Math.sign(e.x || 1) * GOAL_X, 0, C.lamp, 3); add(p, 1600, 'goal') }
+      if (e.kind === 'goal') { const sx = Math.sign(e.x || 1), p = pulse(sx * GOAL_X, 0, C.lamp, 3); add(p, 1600, 'goal'); rippleNet(sx, performance.now()); kick(sx * (GOAL_X - 2), 0, 26, 1.3) }
+      if (e.kind === 'hit') kick(e.x, e.y, 22, 1.1)
+      if (e.kind === 'block' || e.kind === 'takeaway') kick(e.x, e.y, 10, 0.7)
       if (e.kind === 'hit' || e.kind === 'takeaway' || e.kind === 'giveaway' || e.kind === 'block') add(pulse(e.x, e.y, ink, 1.6), 600, 'pulse')
     }
     const fade = (t) => {
@@ -165,10 +228,33 @@ function ReplayStage({ data }) {
       gs = Math.max(0, Math.min(total, g)); idx = -1
       while (idx + 1 < events.length && gameSec(events[idx + 1]) <= gs) idx += 1
       for (const m of live) { marks.remove(m.obj) } live.length = 0
+      resetTail()
       setNow({ i: idx, score: idx >= 0 ? events[idx].score : [0, 0] })
+    }
+    // THE OPEN (Donovan 2026-10-22: "a video game first and then next gen stats ... welcome to the world ... boom"): the
+    // camera comes in low behind one net, sweeps round the rink and settles on the broadcast angle; the title, then the
+    // game's numbers, ride on top; then the puck drops at centre ice and play starts.
+    let introAt = null, introDone = false, introPhase = null
+    const flight = new THREE.CatmullRomCurve3([[-150, 14, 26], [-112, 34, 92], [-20, 70, 150], [0, 128, 92]].map((v) => new THREE.Vector3(...v)))
+    const endIntro = (t) => {
+      introAt = null; introDone = true; controls.enabled = true; frame(); setIntro(null)
+      kick(0, 0, 30, 1.2); add(pulse(0, 0, C.text, 2), 900, 'pulse')
+      playingNow = true; last = t
+    }
+    const stepIntro = (t) => {
+      if (introAt == null) return
+      const u = Math.min(1, (t - introAt) / INTRO_MS), e = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2
+      const pull = Math.max(1, 2.2 / camera.aspect)
+      const p = flight.getPoint(Math.min(1, e / 0.82))
+      if (e >= 0.82) p.lerp(new THREE.Vector3(0, 128 * pull, 92 * pull), (e - 0.82) / 0.18)
+      camera.position.copy(p); camera.lookAt(0, 0, 0)
+      const ph = u < 0.55 ? 'title' : 'data'
+      if (ph !== introPhase) { introPhase = ph; setIntro(ph) }
+      if (u >= 1) endIntro(t)
     }
     const tick = () => {
       const t = performance.now(), dt = Math.min(0.1, (t - last) / 1000); last = t
+      stepIntro(t)
       if (playingNow && t >= holdUntil) {
         gs += dt * GAME_S * speedRef.current
         let moved = false
@@ -190,10 +276,11 @@ function ReplayStage({ data }) {
           p = from.clone().lerp(at(idx + 1), f)
         }
         puck.position.set(p.x, 0.4, p.z)
-        pass.visible = p.distanceTo(from) > 0.5
-        if (pass.visible) setPass(from, p)
+        const prev = idx > 0 && !cur.fresh ? at(idx - 1) : null
+        if (p.distanceTo(from) > 0.5 || prev) setTail([...(prev ? [prev] : []), from, p]); else resetTail()
       }
-      fade(t); controls.update(); look.render(); raf = requestAnimationFrame(tick)
+      stepSpray(dt); stepRipple(t)
+      fade(t); if (introAt == null) controls.update(); look.render(); raf = requestAnimationFrame(tick)
     }
     let raf = 0, onScreen = true
     const io = new IntersectionObserver(([e]) => { onScreen = e.isIntersecting; cancelAnimationFrame(raf); if (onScreen && !document.hidden) { last = performance.now(); raf = requestAnimationFrame(tick) } })
@@ -202,8 +289,13 @@ function ReplayStage({ data }) {
     document.addEventListener('visibilitychange', onVis)
     raf = requestAnimationFrame(tick)
     api.current = {
-      play: () => { if (gs >= total) seek(0); playingNow = true; last = performance.now() },
-      pause: () => { playingNow = false },
+      play: () => {
+        if (gs >= total) seek(0)
+        if (!introDone && gs === 0) { introAt = performance.now(); introPhase = null; controls.enabled = false; return }
+        playingNow = true; last = performance.now()
+      },
+      skipIntro: () => { if (introAt != null) endIntro(performance.now()) },
+      pause: () => { playingNow = false; if (introAt != null) { introAt = null; introDone = true; controls.enabled = true; frame(); setIntro(null) } },
       seek,
       nextGoal: () => { const n = events.findIndex((e, i) => i > idx && e.kind === 'goal'); if (n >= 0) seek(gameSec(events[n]) - 4) },
     }
@@ -213,7 +305,7 @@ function ReplayStage({ data }) {
     return () => {
       cancelAnimationFrame(raf); io.disconnect(); document.removeEventListener('visibilitychange', onVis); if (ro) ro.disconnect()
       for (const m of live) { m.obj.geometry?.dispose?.(); m.obj.material?.dispose?.() }
-      puck.geometry.dispose(); passGeo.dispose()
+      puck.geometry.dispose(); tailGeo.dispose(); sprayGeo.dispose()
       controls.dispose(); look.dispose?.(); renderer.dispose(); if (renderer.domElement.parentNode === el) el.removeChild(renderer.domElement)
       api.current = {}
     }
@@ -237,6 +329,7 @@ function ReplayStage({ data }) {
       <div role="group" aria-label="Replay controls" style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
         <button type="button" className={FLAT_CHIP_CLASS} aria-pressed={playing} style={flatChip(playing, C.ice, C, NUM_FONT)}
           onClick={() => { if (playing) { api.current.pause?.(); setPlaying(false) } else { api.current.play?.(); setPlaying(true) } }}>{playing ? '❚❚ Pause' : '▶ Play the game'}</button>
+        {intro ? <button type="button" className={FLAT_CHIP_CLASS} style={flatChip(false, C.ice, C, NUM_FONT)} onClick={() => api.current.skipIntro?.()}>Skip intro</button> : null}
         {SPEEDS.map(([v, label]) => (
           <button key={v} type="button" className={FLAT_CHIP_CLASS} aria-pressed={speed === v} style={flatChip(speed === v, C.ice, C, NUM_FONT)} onClick={() => setSpeed(v)}>{label}</button>
         ))}
@@ -244,30 +337,84 @@ function ReplayStage({ data }) {
       </div>
       <div style={{ position: 'relative' }}>
         <div ref={mount} style={{ width: '100%', minHeight: 260, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }} />
+        {/* THE OPEN'S CARDS: the title while the camera flies in, then the game's numbers (counted from the events) */}
+        {intro ? (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 3 }}>
+            <style>{'@keyframes lampInL{from{transform:translateX(-60px);opacity:0}to{transform:none;opacity:1}}@keyframes lampInR{from{transform:translateX(60px);opacity:0}to{transform:none;opacity:1}}@keyframes lampUp{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}'}</style>
+            {intro === 'title' ? (
+              <div style={{ textAlign: 'center', fontFamily: NUM_FONT }}>
+                <div style={{ fontSize: 11, letterSpacing: 4, color: C.text2, fontWeight: 800, animation: 'lampUp .5s ease-out both' }}>DASH NETWORK · LAMP</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(10px, 3vw, 26px)', marginTop: 10 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, animation: 'lampInL .55s cubic-bezier(.2,.9,.2,1) both' }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={nhlLogo(data.away.abbrev, true)} alt="" width={56} height={56} />
+                    <b style={{ fontSize: 'clamp(26px, 6vw, 48px)', color: INK.away, letterSpacing: 2 }}>{data.away.abbrev}</b>
+                  </span>
+                  <span style={{ fontSize: 18, color: C.text3, fontWeight: 900, animation: 'lampUp .5s .25s both' }}>@</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, animation: 'lampInR .55s cubic-bezier(.2,.9,.2,1) both' }}>
+                    <b style={{ fontSize: 'clamp(26px, 6vw, 48px)', color: INK.home, letterSpacing: 2 }}>{data.home.abbrev}</b>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={nhlLogo(data.home.abbrev, true)} alt="" width={56} height={56} />
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, color: C.text2, marginTop: 10, letterSpacing: 2, animation: 'lampUp .5s .35s both' }}>{data.date || ''} · REPLAY</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 'clamp(14px, 4vw, 34px)', fontFamily: NUM_FONT, textAlign: 'center' }}>
+                {tallies.map(([n, label], k) => (
+                  <div key={label} style={{ animation: `lampUp .45s ${k * 0.12}s both` }}>
+                    <div style={{ fontSize: 'clamp(26px, 6vw, 44px)', fontWeight: 900, color: C.text, lineHeight: 1 }}>{n}</div>
+                    <div style={{ fontSize: 11, color: C.ice, letterSpacing: 2, fontWeight: 800, marginTop: 4 }}>{label}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
         {/* THE SCORE BUG: both clubs, the score after the last event shown, the period and the clock */}
-        <div style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 10, background: C.bg2,
+        <div style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', display: intro ? 'none' : 'flex', alignItems: 'center', gap: 10, background: C.bg2,
           border: `1px solid ${C.border2}`, borderRadius: 8, padding: '4px 10px', fontFamily: NUM_FONT, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
           {bugTeam(data.away, as, INK.away)}
           <span style={{ fontSize: 11, color: C.text2, fontWeight: 700, minWidth: 64, textAlign: 'center' }}>{cur ? clockText(cur, data.gameType) : 'P1 20:00'}</span>
           {bugTeam(data.home, hs, INK.home)}
         </div>
-        {/* A GOAL: the scorer's face and name, big, for as long as the goal is the last thing that happened */}
-        {cur?.kind === 'goal' ? (
-          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'none',
-            background: C.bg2, border: `1px solid ${curInk}`, borderRadius: 10, padding: '8px 14px 8px 8px', fontFamily: NUM_FONT }}>
-            {data.players?.[cur.who]?.face ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={data.players[cur.who].face} alt="" width={52} height={52} style={{ display: 'block', borderRadius: '50%', background: C.bg3, border: `2px solid ${curInk}` }} />
-            ) : null}
-            <div>
-              <div style={{ fontSize: 22, fontWeight: 900, color: C.lamp, letterSpacing: 2, lineHeight: 1 }}>GOAL</div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginTop: 3 }}>{data.players?.[cur.who]?.name || ''}</div>
-              <div style={{ fontSize: 11, color: C.text2, marginTop: 1 }}>{data.away.abbrev} {as} · {data.home.abbrev} {hs}</div>
+        {/* THE MOMENT CARD: a goal, held while the clock is stopped -- the scorer's face, his goal number this season, the shot
+            (type and distance from the feed's spot), the helpers, the score; and CALLED IT when our board called him (the goal's
+            label from lamp_goal_feed, the same one the scores page shows; stamped only once the game is final) */}
+        {cur?.kind === 'goal' ? (() => {
+          const pl = data.players?.[cur.who] || {}
+          const dist = Math.round(Math.hypot(GOAL_X - Math.abs(cur.x), cur.y))
+          const helpers = [cur.a1, cur.a2].map((id) => data.players?.[id]?.name).filter(Boolean)
+          const label = goalLabel(cur)
+          const called = label === 'called' && data.state === 'final'
+          return (
+            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', pointerEvents: 'none', width: 'min(92%, 360px)',
+              background: C.bg2, border: `1px solid ${curInk}`, borderRadius: 12, padding: 12, fontFamily: NUM_FONT, boxShadow: `0 10px 30px ${C.bg}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                {pl.face ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={pl.face} alt="" width={54} height={54} style={{ display: 'block', borderRadius: '50%', background: C.bg3, border: `2px solid ${curInk}`, flex: '0 0 auto' }} />
+                ) : null}
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: C.lamp, letterSpacing: 3, lineHeight: 1 }}>GOAL</div>
+                  <div style={{ fontSize: 15, fontWeight: 900, color: C.text, marginTop: 4 }}>{pl.name || ''}{pl.num != null ? <span style={{ color: curInk }}> #{pl.num}</span> : null}</div>
+                  <div style={{ fontSize: 11.5, color: C.text2, marginTop: 2 }}>{[cur.total ? `${ordinal(cur.total)} goal this season` : null, cur.shotType, Number.isFinite(dist) ? `${dist} ft` : null].filter(Boolean).join(' · ')}</div>
+                  {helpers.length ? <div style={{ fontSize: 12, color: C.text3, marginTop: 1 }}>from {helpers.join(', ')}</div> : null}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, borderTop: `1px solid ${C.border}`, paddingTop: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{data.away.abbrev} {as} · {data.home.abbrev} {hs}</span>
+                <span style={{ fontSize: 11, color: C.text3 }}>{clockText(cur, data.gameType)}</span>
+              </div>
+              {called ? (
+                <div aria-label="Called it" style={{ position: 'absolute', top: -14, right: -8, transform: 'rotate(8deg)', border: `3px solid ${C.ice}`, color: C.ice, background: C.bg,
+                  padding: '3px 10px', fontSize: 16, fontWeight: 900, letterSpacing: 3, borderRadius: 4 }}>CALLED IT</div>
+              ) : label === 'board' ? <div style={{ marginTop: 8 }}><CallStatusBadge status="board" theme={C} numFont={NUM_FONT} /></div> : null}
             </div>
-          </div>
-        ) : null}
+          )
+        })() : null}
         {/* THE TICKER: the last event in a few words, in the colour of the club that did it */}
-        <div aria-live="polite" style={{ position: 'absolute', left: 8, right: 8, bottom: 8, display: 'flex', alignItems: 'center', gap: 8, pointerEvents: 'none' }}>
+        <div aria-live="polite" style={{ position: 'absolute', left: 8, right: 8, bottom: 8, display: intro ? 'none' : 'flex', alignItems: 'center', gap: 8, pointerEvents: 'none' }}>
           <span style={{ background: C.bg2, border: `1px solid ${C.border2}`, borderLeft: `3px solid ${curInk}`, borderRadius: 6, padding: '4px 8px',
             fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, color: cur?.kind === 'goal' ? C.text : C.text2, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{words}</span>
         </div>
