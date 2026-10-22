@@ -11,11 +11,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { C, NUM_FONT, RINK } from '../../lib/nhl/theme'
-import { buildRink, rinkPoint, GOAL_X } from '../../lib/rinkWorld'
+import { buildRink, rinkPoint, roundedRect, GOAL_X, RINK_L, RINK_W, RINK_R, BLUE_X } from '../../lib/rinkWorld'
 import { makeComposer, isCoarse } from '../../lib/stadiumLook'
 import { webglOk } from '../../lib/webglOk'
 import { lookParam } from '../../lib/three/look'
-import { eventWords } from '../../lib/nhl/events'
+import { eventWords, powerPlayAt, penaltyStretches } from '../../lib/nhl/events'
 import { nhlLogo } from '../../lib/nhl/teams'
 import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 import { ChartEmpty } from '../charts'
@@ -93,10 +93,20 @@ function ReplayStage({ data, goals = [] }) {
   const speedRef = useRef(speed); speedRef.current = speed
   const [now, setNow] = useState({ i: -1, score: [0, 0] })
   const [intro, setIntro] = useState(null)   // the open: 'title' (the fly-in), 'data' (the numbers light up), or null
+  const [gsUi, setGsUi] = useState(0)        // the game clock as the replay runs (the score bug ticks between events)
   const events = data.events
   const total = useMemo(() => gameSec(events[events.length - 1]) + 1, [events])
   const side = (abbrev) => (abbrev === data.home.abbrev ? 'home' : 'away')
   // the goal's label (called / board / off) from the game's goals (lamp_goal_feed via /api/lamp/game): same scorer, period, within 10 s
+  // THE POWER PLAY (Donovan 2026-10-22, yes): who is a man up comes from each event's strength code; who sits in the box,
+  // and for how long, from the penalties (a minor ends early on a power-play goal). Which end a club attacks in a period:
+  // the side most of its shots that period went at.
+  const penalties = useMemo(() => penaltyStretches(events, PERIOD_S), [events])
+  const attackSign = useMemo(() => {
+    const sum = {}
+    for (const e of events) if (['sog', 'goal', 'miss'].includes(e.kind) && e.team) { const k = `${e.period}|${e.team}`; sum[k] = (sum[k] || 0) + Math.sign(e.x) }
+    return (period, team) => Math.sign(sum[`${period}|${team}`] || 0) || 1
+  }, [events])
   // the open's numbers: counted from the events, nothing else
   const tallies = useMemo(() => {
     const n = (k) => events.filter((e) => k.includes(e.kind)).length
@@ -221,8 +231,55 @@ function ReplayStage({ data, goals = [] }) {
       }
     }
 
+    // THE POWER PLAY ON THE ICE: the man-up club's attacking zone (blue line to the end boards) breathes in its colour
+    const zoneShape = (sx) => {
+      const a = RINK_L / 2, b = RINK_W / 2
+      const pts = roundedRect(a, b, RINK_R).getPoints(160).filter((p) => p.x * sx >= BLUE_X)
+      pts.sort((p, q) => Math.atan2(p.y, p.x * sx) - Math.atan2(q.y, q.x * sx))
+      const sh = new THREE.Shape(); sh.moveTo(sx * BLUE_X, -b); for (const p of pts) sh.lineTo(p.x, p.y); sh.lineTo(sx * BLUE_X, b); sh.closePath()
+      return sh
+    }
+    const ppZones = {}
+    for (const sx of [-1, 1]) {
+      const m = new THREE.Mesh(new THREE.ShapeGeometry(zoneShape(sx), 32), new THREE.MeshBasicMaterial({ color: new THREE.Color(C.ice), transparent: true, opacity: 0, depthWrite: false }))
+      m.rotation.x = -Math.PI / 2; m.position.y = 0.02; m.visible = false; scene.add(m); ppZones[sx] = m
+    }
+    // THE PENALTY BOXES: two boxes off the far boards at centre ice, the away club's on the left; a player in the box sits
+    // there as his disc, the box lit in his club's colour, for as long as his penalty runs
+    const boxAt = { away: -9, home: 9 }, BOX_Y = RINK_W / 2 + 5.5
+    const boxFill = {}
+    for (const sideKey of ['away', 'home']) {
+      const x0 = boxAt[sideKey]
+      const pts = [[-6, -2.4], [6, -2.4], [6, 2.4], [-6, 2.4]].map(([dx, dy]) => rinkPoint(x0 + dx, BOX_Y + dy, 0.1))
+      scene.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: new THREE.Color(INK[sideKey]), transparent: true, opacity: 0.6 })))
+      const f = new THREE.Mesh(new THREE.PlaneGeometry(12, 4.8), new THREE.MeshBasicMaterial({ color: new THREE.Color(INK[sideKey]), transparent: true, opacity: 0, depthWrite: false }))
+      f.rotation.x = -Math.PI / 2; f.position.copy(rinkPoint(x0, BOX_Y, 0.08)); scene.add(f); boxFill[sideKey] = f
+    }
+    const boxed = new Map()   // penalty index -> disc sprite
+    const stepBox = (g, t) => {
+      const lit = { away: 0, home: 0 }
+      penalties.forEach((p, k) => {
+        const on = g >= p.start && g < p.end
+        const sideKey = side(p.team)
+        if (on) {
+          lit[sideKey] += 1
+          if (!boxed.has(k)) { const d = discSprite(INK[sideKey], data.players?.[p.who]?.num); d.scale.set(4.2, 4.2, 1); scene.add(d); boxed.set(k, d) }
+          const n = [...boxed.keys()].filter((j) => side(penalties[j].team) === sideKey).indexOf(k)
+          boxed.get(k).position.copy(rinkPoint(boxAt[sideKey] - 3 + n * 4.5, BOX_Y, 2.6))
+        } else if (boxed.has(k)) { const d = boxed.get(k); scene.remove(d); d.material.dispose(); boxed.delete(k) }
+      })
+      for (const sideKey of ['away', 'home']) boxFill[sideKey].material.opacity = lit[sideKey] ? 0.28 : 0
+      // the man advantage: from the strength code of the last event shown
+      const cur = idx >= 0 ? events[idx] : null, pp = powerPlayAt(cur)
+      for (const sx of [-1, 1]) ppZones[sx].visible = false
+      if (pp && cur) {
+        const sx = attackSign(cur.period, data[pp].abbrev), z = ppZones[sx]
+        z.visible = true; z.material.color.set(INK[pp]); z.material.opacity = 0.04 + 0.035 * (0.5 + 0.5 * Math.sin(t / 380))
+      }
+    }
+
     // THE CLOCK: replay time -> game seconds; the puck between event i and i+1 (unless play restarted before i+1)
-    let gs = 0, last = performance.now(), idx = -1, playingNow = false, holdUntil = 0
+    let gs = 0, last = performance.now(), idx = -1, playingNow = false, holdUntil = 0, uiAt = 0
     const at = (i) => rinkPoint(events[i].x, events[i].y, 0.4)
     const seek = (g) => {
       gs = Math.max(0, Math.min(total, g)); idx = -1
@@ -279,7 +336,8 @@ function ReplayStage({ data, goals = [] }) {
         const prev = idx > 0 && !cur.fresh ? at(idx - 1) : null
         if (p.distanceTo(from) > 0.5 || prev) setTail([...(prev ? [prev] : []), from, p]); else resetTail()
       }
-      stepSpray(dt); stepRipple(t)
+      stepSpray(dt); stepRipple(t); stepBox(gs, t)
+      if (t - uiAt > 200) { uiAt = t; setGsUi(gs) }
       fade(t); if (introAt == null) controls.update(); look.render(); raf = requestAnimationFrame(tick)
     }
     let raf = 0, onScreen = true
@@ -305,7 +363,7 @@ function ReplayStage({ data, goals = [] }) {
     return () => {
       cancelAnimationFrame(raf); io.disconnect(); document.removeEventListener('visibilitychange', onVis); if (ro) ro.disconnect()
       for (const m of live) { m.obj.geometry?.dispose?.(); m.obj.material?.dispose?.() }
-      puck.geometry.dispose(); tailGeo.dispose(); sprayGeo.dispose()
+      puck.geometry.dispose(); tailGeo.dispose(); sprayGeo.dispose(); for (const d of boxed.values()) d.material.dispose()
       controls.dispose(); look.dispose?.(); renderer.dispose(); if (renderer.domElement.parentNode === el) el.removeChild(renderer.domElement)
       api.current = {}
     }
@@ -314,6 +372,16 @@ function ReplayStage({ data, goals = [] }) {
   if (!ok) return <ChartEmpty theme={C}>This device can&apos;t draw WebGL, so the replay isn&apos;t available here.</ChartEmpty>
   const cur = now.i >= 0 ? events[now.i] : null
   const [as, hs] = now.score
+  // the score bug's running clock (between events) and the power play: the man-up club, and the time left on the
+  // earliest-ending penalty against the other club
+  const runClock = cur ? (() => { const per = Math.min(cur.period, Math.floor(gsUi / PERIOD_S) + 1); return { ...cur, period: per, t: Math.max(cur.t, Math.min(PERIOD_S, Math.round(gsUi - (per - 1) * PERIOD_S))) } })() : null
+  const ppNow = (() => {
+    const pp = powerPlayAt(cur)
+    if (!pp) return null
+    const short = pp === 'home' ? data.away.abbrev : data.home.abbrev
+    const lefts = penalties.filter((p) => p.team === short && gsUi >= p.start && gsUi < p.end).map((p) => Math.ceil(p.end - gsUi))
+    return { side: pp, left: lefts.length ? Math.min(...lefts) : null }
+  })()
   const words = cur ? eventWords(cur, data.players) : 'Press play: the game, event by event'
   const curInk = cur ? INK[side(cur.team)] : C.text3
   const bugTeam = (t, s, ink) => (
@@ -375,7 +443,10 @@ function ReplayStage({ data, goals = [] }) {
         <div style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', display: intro ? 'none' : 'flex', alignItems: 'center', gap: 10, background: C.bg2,
           border: `1px solid ${C.border2}`, borderRadius: 8, padding: '4px 10px', fontFamily: NUM_FONT, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
           {bugTeam(data.away, as, INK.away)}
-          <span style={{ fontSize: 11, color: C.text2, fontWeight: 700, minWidth: 64, textAlign: 'center' }}>{cur ? clockText(cur, data.gameType) : 'P1 20:00'}</span>
+          <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 64 }}>
+            <span style={{ fontSize: 11, color: C.text2, fontWeight: 700 }}>{cur ? clockText(runClock, data.gameType) : 'P1 20:00'}</span>
+            {ppNow ? <span style={{ fontSize: 10, fontWeight: 900, color: C.bg, background: INK[ppNow.side], borderRadius: 3, padding: '0 5px', marginTop: 2, letterSpacing: 1 }}>PP {data[ppNow.side].abbrev}{ppNow.left != null ? ` ${Math.floor(ppNow.left / 60)}:${String(ppNow.left % 60).padStart(2, '0')}` : ''}</span> : null}
+          </span>
           {bugTeam(data.home, hs, INK.home)}
         </div>
         {/* THE MOMENT CARD: a goal, held while the clock is stopped -- the scorer's face, his goal number this season, the shot

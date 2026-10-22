@@ -1,7 +1,7 @@
 // THE GAME'S EVENT TRAIL, CHECKED (2026-10-22). lib/nhl/events.js eventsFromPlayByPlay + eventWords on a small TEST
 // play-by-play (made up for this check, labelled TEST; the shape is the league's gamecenter/{id}/play-by-play).
 //   node --no-warnings --import ./scripts/_esm-resolve.mjs scripts/check-nhl-events.mjs
-const { eventsFromPlayByPlay, eventWords } = await import('../lib/nhl/events.js')
+const { eventsFromPlayByPlay, eventWords, powerPlayAt, penaltyStretches } = await import('../lib/nhl/events.js')
 let bad = 0, n = 0
 const ok = (c, m) => { n += 1; if (!c) { bad += 1; console.log('FAIL ' + m) } }
 const per = (number, periodType = 'REG') => ({ number, periodType })
@@ -42,5 +42,20 @@ ok(g.events[5].pt === 'OT' && g.events[5].period === 4, 'overtime kept, with its
 ok(eventWords(g.events[1], g.players) === 'HIT · Home on Away', `hit words (${eventWords(g.events[1], g.players)})`)
 ok(eventWords(g.events[3], g.players) === 'GOAL · Away', `goal words (${eventWords(g.events[3], g.players)})`)
 ok(eventWords(g.events[2], g.players) === 'BLOCKED · Away, by Home', `block words (${eventWords(g.events[2], g.players)})`)
+// THE POWER PLAY (TEST DATA)
+ok(powerPlayAt({ sit: '1451' }) === 'home' && powerPlayAt({ sit: '1541' }) === 'away' && powerPlayAt({ sit: '1551' }) === null, 'strength code: who is a man up')
+ok(powerPlayAt({ sit: '0651' }) === null, "a pulled goalie's extra attacker is not a power play")
+ok(powerPlayAt({ sit: null }) === null && powerPlayAt(null) === null, 'no code: no power play')
+const pen = [
+  { kind: 'penalty', period: 1, t: 100, team: 'AAA', who: 1, dur: 2 },
+  { kind: 'goal', period: 1, t: 160, team: 'HHH' },
+  { kind: 'penalty', period: 1, t: 1150, team: 'HHH', who: 2, dur: 2 },
+  { kind: 'penalty', period: 2, t: 10, team: 'AAA', who: 3, dur: 5 },
+  { kind: 'goal', period: 2, t: 30, team: 'HHH' },
+]
+const st = penaltyStretches(pen)
+ok(st[0].start === 100 && st[0].end === 160, 'a minor ends early on the power-play goal')
+ok(st[1].start === 1150 && st[1].end === 1270, 'a minor runs across the period break in game time')
+ok(st[2].end === 1210 + 300, 'a major runs its full five minutes, goal or not')
 console.log(`${n - bad}/${n} checks ${bad ? 'FAILED' : 'pass'}`)
 process.exit(bad ? 1 : 0)
