@@ -1,4 +1,5 @@
 'use client'
+import dynamic from 'next/dynamic'
 import { hashParams, writeHash } from '../../lib/urlState'
 import { takeTarget } from '../../lib/openTarget'
 import { useMemo, useState, useRef, useEffect, Fragment } from 'react'
@@ -37,6 +38,8 @@ import { nameKey } from '../../lib/injuries/lookup'
 import GameLedgerLine from '../ledger/GameLedgerLine'
 import GameTotalLine, { totalRowFor, useGameTotals } from '../GameTotalLine'
 import GameSimPanel from '../GameSimPanel'
+// PREPLAY's stage carries three.js: loaded only when a game's simulator section mounts, and it draws nothing without ?look=tracking
+const PreplayPark = dynamic(() => import('../moonshot/PreplayPark'), { ssr: false })
 import LineupSlotMatchup from '../LineupSlotMatchup'
 import PairTray from '../PairTray'
 import MobileFold, { useIsPhone } from '../MobileFold'
@@ -1686,6 +1689,8 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                             lineups, because it needs both cards posted to
                             mean anything. */}
                         <div id={`gp-sim-${g.game_pk}`} style={{ borderTop: `1px solid ${C.border}`, marginTop: 14, paddingTop: 12 }}>
+                          {/* PREPLAY (2026-10-22): one of the simulator's runs, played on the DASH ballpark. Renders only behind ?look=tracking. */}
+                          <PreplayPark game={g} />
                           <GameSimPanel game={g} onPlayerClick={onPlayerClick} />
                         </div>
                             </>
