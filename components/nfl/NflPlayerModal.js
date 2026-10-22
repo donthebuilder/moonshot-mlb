@@ -14,7 +14,6 @@ import { C, NUM_FONT, MARKETS, MARKET_SHORT, gradeFor } from '../../lib/nfl/them
 import { STAT_KEY } from './HitRate'
 import SlipAdd from '../SlipAdd'
 import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
-import PriceHistory from '../PriceHistory'
 import PlayerNotes from '../PlayerNotes'
 import HisNumbers from '../HisNumbers'
 import InTheLedger from '../ledger/InTheLedger'
@@ -526,7 +525,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         {/* THE PRICE: the line for the market on screen, the best book, the break-even. */}
         {(() => {
           const q = cardLocked ? null : quoteFor(odds, player, market)
-          if (!q) return cardLocked ? null : <PriceHistory quote={null} marketLabel={spec?.short || market} theme={C} numFont={NUM_FONT} />
+          if (!q) return null
           return (<>
             <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', margin: '4px 0 6px', fontSize: 12, color: C.text2, fontFamily: NUM_FONT }}>
               <b style={{ color: C.text3, fontSize: 11, letterSpacing: '.08em' }}>PRICE</b>
@@ -537,8 +536,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
               {q.matches !== false && <LineMoveChip quote={q} theme={C} numFont={NUM_FONT} />}
               {!q.matches && <span style={{ color: C.yellow }}>a different line from the bar</span>}
             </div>
-            {/* MOONSHOT's price timeline (components/OddsTimeline.js), the book's opening price to now */}
-            <PriceHistory quote={q.matches !== false ? q : null} marketLabel={spec?.short || market} theme={C} numFont={NUM_FONT} />
+            {/* NO PRICE TIMELINE (2026-10-21, Donovan: "remove the price timeline inside of the player model ... remove it") */}
           </>)
         })()}
       </>}

@@ -100,7 +100,7 @@ function restrictTo(m, dates, spec) {
 
 // season: 'this' | 'last' | 'both' asks the shot map for that season (null = the page's own default);
 // onlyDates: a Set of game days the drawn shots are limited to; startWin / startView: what it opens on.
-export default function ShotPanel({ sel, who = 'He', height = 300, venue = null, opp = null, season: seasonProp = null, seasonSwitch = false, onlyDates = null, startWin = 'last10', startView = 'zones', compact = false, urlKey = null }) {
+export default function ShotPanel({ sel, who = 'He', height = 300, venue = null, opp = null, season: seasonProp = null, seasonSwitch = false, onlyDates = null, startWin = 'last10', startView = 'zones', compact = false, urlKey = null, top = null }) {
   // THE SEASON SWITCH (2026-10-10): where the page has no toggle of its own (Shot map tab, Matchups), the panel
   // carries one -- THIS SEASON (the default) / LAST SEASON / BOTH. Pages with a toggle pass `season` instead.
   const [localSeason, setLocalSeason] = useState('this')
@@ -215,6 +215,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
   )
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {!(data?.season && m) && top}
       <DelayedBanner error={error} what="the shot map" />
       {loading && !data ? <ChartEmpty theme={C}>Loading the shot map…</ChartEmpty> : null}
       {data && !data.season ? (
@@ -258,6 +259,31 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
               to 3-D it's as simple as pressing a button"): the same filtered
               shots drawn flat or in the building, in the same place; the
               readout and its tap-a-shot card stay under either. */}
+          {/* THE CONTROLS, ON THE MAP (2026-10-21, Donovan: "I don't like that it is under ... make the filter on the shot map"): the
+              page's own switch (`top`, e.g. Matchups' which-club toggle), the window and season, and the filters sit right above the
+              chart they cut; type / strength / period / hardest stay behind Filters */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {top}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              {!onlyDates && <Pills ariaLabel="Shot window" value={win} onChange={setWin} options={WINDOWS} />}
+              {seasonSwitch && <Pills ariaLabel="Shot map season" value={localSeason} onChange={setLocalSeason} options={SEASONS} />}
+              <span data-shot-season={data.season} style={{ color: data.fallback ? C.amber : C.text2, font: `800 11px/1.3 ${NUM_FONT}`, letterSpacing: '.06em' }}>{stampLine(data, m)}</span>
+            </div>
+            {recent.length > 0 && recent[0].length > 3 && (
+              <FiltersSheet onReset={() => { clearAll() }} groups={[
+                { key: 'res', label: 'Show', value: res, defaultValue: 'ALL', onChange: (k) => { setRes(k); setPicked(null) },
+                  options: RES.map(([k, label]) => ({ value: k, label, n: k === 'ALL' ? null : countIn('res', (sh) => sh[2] === k), title: k === 'ALL' ? 'Every drawn attempt' : `Only ${label.toLowerCase()} attempts` })) },
+                { key: 'type', label: 'Type', value: type, defaultValue: 'ALL', onChange: (k) => { setType(k); setPicked(null) },
+                  options: [['ALL', 'All'], ...types.map((t) => [t, t])].map(([k, label]) => ({ value: k, label, n: k === 'ALL' ? null : countIn('type', (sh) => sh[3] === k), title: k === 'ALL' ? 'Every shot type' : `Only ${label} shots (a block has no type)` })) },
+                { key: 'str', label: 'Strength', value: str, defaultValue: 'ALL', onChange: (k) => { setStr(k); setPicked(null) },
+                  options: STR.map(([k, label]) => ({ value: k, label, n: k === 'ALL' ? null : countIn('str', (sh) => sh[4] === k), title: k === 'ALL' ? 'Every strength' : `Only ${label === 'PP' ? 'power-play' : label === 'SH' ? 'shorthanded' : 'even-strength'} attempts` })) },
+                { key: 'per', label: 'Period', value: per, defaultValue: 'ALL', onChange: (k) => { setPer(k); setPicked(null) },
+                  options: PER.map(([k, label]) => ({ value: k, label, n: k === 'ALL' ? null : countIn('per', (sh) => perOf(sh) === k), title: k === 'ALL' ? 'Every period' : `Only the ${label} ${k === 'OT' ? '(overtime)' : 'period'}` })) },
+                ...(hardN > 0 ? [{ key: 'hard', label: 'Shot speed', value: hardOnly ? '1' : '', defaultValue: '', onChange: (k) => { setHardOnly(Boolean(k)); setPicked(null) },
+                  options: [{ value: '', label: 'All' }, { value: '1', label: '⚡ Hardest 10', n: hardN, title: `His ten hardest shots this season (measured) -- ${hardN} of them are on this map` }] }] : []),
+              ]} />
+            )}
+          </div>
           {arena && gl && (
             <RinkArena shots={view === 'zones' || view === 'dots' || view === 'goalie' ? shots : NO_SHOTS} goalieRead={view === 'goalie' ? goalieRead : null} onPickZone={(z) => setPicked({ zone: z })} map={m} league={data.league} slot={data.slot} gridSpec={data.gridSpec} view={view === 'zones' ? 'dots' : view}
               speed={speed} hardest={hardest} stats={stats} dockChips={dockChips} onClearAll={clearAll} totalShots={recent.length} slotPct={slotStat?.v ? parseInt(slotStat.v, 10) : null}
@@ -397,29 +423,6 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
             </div>
             </div>
           </FlatStage>
-          {/* THE CONTROLS, under the chart: the window and the result stay in sight (44px), type / strength /
-              period / hardest sit behind MORE */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              {!onlyDates && <Pills ariaLabel="Shot window" value={win} onChange={setWin} options={WINDOWS} />}
-              {seasonSwitch && <Pills ariaLabel="Shot map season" value={localSeason} onChange={setLocalSeason} options={SEASONS} />}
-              <span data-shot-season={data.season} style={{ color: data.fallback ? C.amber : C.text2, font: `800 11px/1.3 ${NUM_FONT}`, letterSpacing: '.06em' }}>{stampLine(data, m)}</span>
-            </div>
-            {recent.length > 0 && recent[0].length > 3 && (
-              <FiltersSheet onReset={() => { clearAll() }} groups={[
-                { key: 'res', label: 'Show', value: res, defaultValue: 'ALL', onChange: (k) => { setRes(k); setPicked(null) },
-                  options: RES.map(([k, label]) => ({ value: k, label, n: k === 'ALL' ? null : countIn('res', (sh) => sh[2] === k), title: k === 'ALL' ? 'Every drawn attempt' : `Only ${label.toLowerCase()} attempts` })) },
-                { key: 'type', label: 'Type', value: type, defaultValue: 'ALL', onChange: (k) => { setType(k); setPicked(null) },
-                  options: [['ALL', 'All'], ...types.map((t) => [t, t])].map(([k, label]) => ({ value: k, label, n: k === 'ALL' ? null : countIn('type', (sh) => sh[3] === k), title: k === 'ALL' ? 'Every shot type' : `Only ${label} shots (a block has no type)` })) },
-                { key: 'str', label: 'Strength', value: str, defaultValue: 'ALL', onChange: (k) => { setStr(k); setPicked(null) },
-                  options: STR.map(([k, label]) => ({ value: k, label, n: k === 'ALL' ? null : countIn('str', (sh) => sh[4] === k), title: k === 'ALL' ? 'Every strength' : `Only ${label === 'PP' ? 'power-play' : label === 'SH' ? 'shorthanded' : 'even-strength'} attempts` })) },
-                { key: 'per', label: 'Period', value: per, defaultValue: 'ALL', onChange: (k) => { setPer(k); setPicked(null) },
-                  options: PER.map(([k, label]) => ({ value: k, label, n: k === 'ALL' ? null : countIn('per', (sh) => perOf(sh) === k), title: k === 'ALL' ? 'Every period' : `Only the ${label} ${k === 'OT' ? '(overtime)' : 'period'}` })) },
-                ...(hardN > 0 ? [{ key: 'hard', label: 'Shot speed', value: hardOnly ? '1' : '', defaultValue: '', onChange: (k) => { setHardOnly(Boolean(k)); setPicked(null) },
-                  options: [{ value: '', label: 'All' }, { value: '1', label: '⚡ Hardest 10', n: hardN, title: `His ten hardest shots this season (measured) -- ${hardN} of them are on this map` }] }] : []),
-              ]} />
-            )}
-          </div>
           <StatStrip stats={stats} theme={C} numFont={NUM_FONT} label="The shown shots, in numbers" />
           {!onlyDates && !compact && <FactLines theme={C} lines={depthLines(m, who, Boolean(sel?.against))} />}
         </>

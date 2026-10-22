@@ -8,8 +8,8 @@ import LampTable from '../LampTable'
 import ShotPanel from '../ShotPanel'
 import GoalieWeakSpots from '../GoalieWeakSpots'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
-import { DelayedBanner, Loading, EmptyState, PlayerMark } from '../ui'
-import { MatchupTitle, SubLabel, BarList, FactLines } from '../../matchup/MatchupParts'
+import { DelayedBanner, Loading, EmptyState, PlayerMark, Pills } from '../ui'
+import { MatchupTitle, SubLabel, FactLines } from '../../matchup/MatchupParts'
 import { arenaOf } from '../../../lib/nhl/arenas'
 import { nhlMugLatest } from '../../../lib/nhl/format'
 
@@ -52,8 +52,6 @@ function useGoalies(team) {
 }
 
 // PP% lives in 0-35%, PK% in 65-95%: each bar is drawn on its own honest range.
-const ppScale = (v) => (v == null ? 0 : (v / 0.35) * 100)
-const pkScale = (v) => (v == null ? 0 : ((v - 0.65) / 0.3) * 100)
 const Kicker = ({ children }) => <SubLabel theme={C} numFont={NUM_FONT}>{children}</SubLabel>
 
 function Detail({ row, league, date = null, onOpenPlayer, onOpenTeam = null }) {
@@ -69,16 +67,16 @@ function Detail({ row, league, date = null, onOpenPlayer, onOpenTeam = null }) {
           pieces MOONSHOT's and TUDDY's matchup details are built from. */}
       <MatchupTitle logo={{ sport: 'nhl', abbr: row.def }} name={`${row.def} defense`} meta={`${row.home ? 'vs' : '@'} ${row.opp} · tap another row above to switch`} theme={C} numFont={NUM_FONT} />
 
+      {/* SPECIAL TEAMS, ONE LINE (2026-10-21, Donovan: "the matchup page got the bar charts, I don't like it"): the same four numbers
+          the two bars drew, as words and numbers */}
       <div>
         <Kicker>POWER PLAY vs PENALTY KILL</Kicker>
-        <p style={{ margin: '0 0 8px', fontSize: 12.5, color: C.text2, lineHeight: 1.5 }}>
-          <Tap onClick={onOpenTeam ? () => onOpenTeam(row.opp) : null}><SiteTeamMark sport="nhl" abbr={row.opp} variant="logo" px={16} style={{ verticalAlign: '-3px', marginRight: 4 }} /><b style={{ color: C.text }}>{nhlNickname(row.opp)}</b></Tap> power play ({pct(row.oppPp)}, {ord(row.oppPpRank)}) against <Tap onClick={onOpenTeam ? () => onOpenTeam(row.def) : null}><SiteTeamMark sport="nhl" abbr={row.def} variant="logo" px={16} style={{ verticalAlign: '-3px', marginRight: 4 }} /><b style={{ color: C.text }}>{nhlNickname(row.def)}</b></Tap> penalty kill ({pct(row.pk)}, {ord(row.pkRank)}){edge ? `: ${edge}.` : '.'}
+        <p style={{ margin: 0, fontSize: 12.5, color: C.text2, lineHeight: 1.55 }}>
+          <Tap onClick={onOpenTeam ? () => onOpenTeam(row.opp) : null}><SiteTeamMark sport="nhl" abbr={row.opp} variant="logo" px={16} style={{ verticalAlign: '-3px', marginRight: 4 }} /><b style={{ color: C.text }}>{nhlNickname(row.opp)}</b></Tap> PP <b style={{ color: C.text, fontFamily: NUM_FONT }}>{pct(row.oppPp)}</b> {ord(row.oppPpRank)}
+          {' vs '}<Tap onClick={onOpenTeam ? () => onOpenTeam(row.def) : null}><SiteTeamMark sport="nhl" abbr={row.def} variant="logo" px={16} style={{ verticalAlign: '-3px', marginRight: 4 }} /><b style={{ color: C.text }}>{nhlNickname(row.def)}</b></Tap> PK <b style={{ color: C.text, fontFamily: NUM_FONT }}>{pct(row.pk)}</b> {ord(row.pkRank)}
+          {league.pp != null && league.pk != null ? <span style={{ color: C.text3 }}> · league {pct(league.pp)} / {pct(league.pk)}</span> : null}
+          {edge ? <>. <b style={{ color: C.ice }}>{edge[0].toUpperCase() + edge.slice(1)}.</b></> : '.'}
         </p>
-        <BarList theme={C} numFont={NUM_FONT} accent={C.ice} labelWidth={120} items={[
-          { key: 'pp', label: `${row.opp} power play`, pct: ppScale(row.oppPp), text: pct(row.oppPp), tick: league.pp != null ? ppScale(league.pp) : null },
-          { key: 'pk', label: `${row.def} penalty kill`, pct: pkScale(row.pk), text: pct(row.pk), tick: league.pk != null ? pkScale(league.pk) : null },
-        ]} />
-        <div style={{ marginTop: -8, fontSize: 11, color: C.text3 }}>The white tick is the league average.</div>
       </div>
 
       <div>
@@ -113,17 +111,30 @@ function Detail({ row, league, date = null, onOpenPlayer, onOpenTeam = null }) {
         ) : <div style={{ fontSize: 12, color: C.text3 }}>Neither of this game&apos;s called skaters plays for {row.opp}.</div>}
       </div>
 
-      <div>
-        <Kicker>WHERE {row.def} ALLOWS SHOTS FROM</Kicker>
-        <ShotPanel sel={{ against: row.def }} who={row.def} height={440} seasonSwitch venue={arenaOf(row.home ? row.def : row.opp)?.name} />
-        <div style={{ marginTop: 4, fontSize: 11, color: C.text3 }}>Every attempt the other club took in {row.def}&apos;s games, drawn on one attacking half.</div>
-      </div>
-
-      <div>
-        <Kicker>WHERE {row.opp} SHOOTS FROM</Kicker>
-        <ShotPanel sel={{ team: row.opp }} who={row.opp} height={440} seasonSwitch venue={arenaOf(row.home ? row.def : row.opp)?.name} opp={row.def} />
-      </div>
+      {/* ONE SHOT MAP, BOTH CLUBS (2026-10-21, Donovan: "combine both ... shot charts together so that way it's easily filterable for
+          each team"): where this defense allows shots from, or where tonight's opponent shoots from, one toggle on the map */}
+      <MatchupShots row={row} />
     </section>
+  )
+}
+
+function MatchupShots({ row }) {
+  const [side, setSide] = useState('def')
+  const venue = arenaOf(row.home ? row.def : row.opp)?.name
+  const toggle = (
+    <Pills ariaLabel="Which club's shots" value={side} onChange={setSide} options={[
+      { key: 'def', text: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><SiteTeamMark sport="nhl" abbr={row.def} variant="logo" px={16} />{row.def} ALLOWS</span> },
+      { key: 'opp', text: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><SiteTeamMark sport="nhl" abbr={row.opp} variant="logo" px={16} />{row.opp} SHOOTS</span> },
+    ]} />
+  )
+  return (
+    <div>
+      <Kicker>THE SHOT MAP · {side === 'def' ? `WHERE ${row.def} ALLOWS SHOTS FROM` : `WHERE ${row.opp} SHOOTS FROM`}</Kicker>
+      {side === 'def'
+        ? <ShotPanel key={`def-${row.def}`} sel={{ against: row.def }} who={row.def} height={440} seasonSwitch venue={venue} top={toggle} />
+        : <ShotPanel key={`opp-${row.opp}`} sel={{ team: row.opp }} who={row.opp} height={440} seasonSwitch venue={venue} opp={row.def} top={toggle} />}
+      {side === 'def' && <div style={{ marginTop: 4, fontSize: 11, color: C.text3 }}>Every attempt the other club took in {row.def}&apos;s games, drawn on one attacking half.</div>}
+    </div>
   )
 }
 
