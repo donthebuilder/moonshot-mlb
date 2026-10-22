@@ -13,11 +13,14 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 export async function GET(request) {
-  const date = new URL(request.url).searchParams.get('date') || await slateNight('nhl')
+  const q = new URL(request.url).searchParams
+  const date = q.get('date') || await slateNight('nhl')
   if (!validDate(date)) return bad('date must be a real YYYY-MM-DD day')
   try {
-    // the page's read: a game with no lineup yet shows its rosters (marked), as BUCKETS does; the record never does
-    return ok({ ...(await readNumerology(date, { rosterPreview: true })), fetchedAt: new Date().toISOString() }, 300)
+    // ?preview=1 is the Numerology page's read: a game with no lineup yet shows its rosters (marked there), as BUCKETS does. Home and
+    // the Ledger read without it -- dressed skaters only, as before -- because they don't mark a roster row (PR review 2026-10-21:
+    // scratched / IR men were in Home's aligned list, unmarked). The record never previews.
+    return ok({ ...(await readNumerology(date, { rosterPreview: q.get('preview') === '1' })), fetchedAt: new Date().toISOString() }, 300)
   } catch (e) {
     return delayed(`numerology ${date}`, e)
   }

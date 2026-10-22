@@ -90,12 +90,14 @@ function StoryChips({ stories, C, NUM_FONT, accent }) {
   )
 }
 
-function useStoriesByPlayer(sport) {
+// `date`: the night the page shows (LAMP / BUCKETS Props have a day pager) -- without it another night's cards wore tonight's
+// stories (PR review 2026-10-21)
+function useStoriesByPlayer(sport, date = null) {
   const [by, setBy] = useState(null)
   useEffect(() => {
     if (!sport) return undefined
     let alive = true
-    fetch(`/api/stories?sport=${encodeURIComponent(sport)}`).then((x) => (x.ok ? x.json() : null)).then((j) => {
+    fetch(`/api/stories?sport=${encodeURIComponent(sport)}${date ? `&date=${encodeURIComponent(date)}` : ''}`).then((x) => (x.ok ? x.json() : null)).then((j) => {
       if (!alive || !j) return
       const m = new Map()
       for (const s of j.stories || []) {
@@ -108,7 +110,7 @@ function useStoriesByPlayer(sport) {
       setBy(m)
     }).catch(() => {})
     return () => { alive = false }
-  }, [sport])
+  }, [sport, date])
   return by
 }
 
@@ -175,7 +177,7 @@ export default function PropCards({
   a: aIn, rows: rawRows = [], onOpen, onWatch, watchIds, compare = null,
   // find: { nameOf(r), teamOf(r), placeholder } turns on the search box + Filter button (MOONSHOT's Controls row).
   // compareOf(pool): the sport's Compare-two fold, fed ONLY the rows a non-member may see named. hero: the stat strip.
-  find = null, compareOf = null, hero = false,
+  find = null, compareOf = null, hero = false, date = null,
   theme = MLB_C, numFont = MLB_NUM, accent = MLB_C.orange, accentWash = 'rgba(249,115,22,.14)',
 }) {
   const C = theme
@@ -214,7 +216,7 @@ export default function PropCards({
   const [sortBy, setSortBy] = useState('score')
   // THE SLIP: ONE store per sport (lib/slip/store.js), the same slip the floating slip bar (components/Slip.js) and every player page add to.
   const sport = aIn.sportKey
-  const storiesBy = useStoriesByPlayer(sport)
+  const storiesBy = useStoriesByPlayer(sport, date)
   const { legs: slip, toggle: toggleLeg, remove: removeLeg, clear: clearSlip, addMany } = useSlip(sport)
   const slipKeyOf = (r, k) => `${a.keyOf(r)}|${k}`
   // PAIRING HELP ON THE SLIP (the deleted Parlay Builder's useful parts, lib/slipPairs.js): only a product whose

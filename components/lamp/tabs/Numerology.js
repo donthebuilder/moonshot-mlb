@@ -51,7 +51,7 @@ const WORDS = {
 const scoreOf = lampScoreOf
 
 export default function Numerology({ date = null, onOpenPlayer }) {
-  const { data, error, loading } = useLampNumerology(date)
+  const { data, error, loading } = useLampNumerology(date, { preview: true })
   const { data: board } = useLampBoardOnce(data?.date || date)
   const phone = useIsPhone()
 

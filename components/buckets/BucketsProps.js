@@ -117,7 +117,7 @@ export default function BucketsProps({ date = null, onOpenPlayer }) {
   const a = useMemo(() => bucketsAdapter(startOf, odds), [startOf, odds])
   if (!rows.length) return null
   return (
-    <PropCards a={a} rows={rows} onOpen={(r) => onOpenPlayer?.(r.id)}
+    <PropCards a={a} rows={rows} date={date} onOpen={(r) => onOpenPlayer?.(r.id)}
       onWatch={(r) => following.toggle({ id: r.id, name: r.name, team: r.team, position: r.pos })}
       watchIds={following.ids}
       // LAMP's Props, piece for piece (2026-10-20 style audit: "buckets doesnt feel shared"): the stat strip, search + Filter, and Compare

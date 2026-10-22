@@ -80,12 +80,13 @@ export default function AlignFilters({ ctl, AXIS_META = {}, todayRoot, theme: C,
   // in ALL SPORTS each sport has its own number (shown on its chip), so no one number is outlined
   const outline = all ? null : todayRoot
   const numberRow = (
-      <div role="group" aria-label="Everyone carrying a number" style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '11px 0', margin: '0 0 -11px', scrollbarWidth: 'none', alignItems: 'center' }}>
+      // 36px chips 8px apart: each chip's 44px tap box ends where the next begins (they overlapped by 8px at 30 + 6; PR review 10-21)
+      <div role="group" aria-label="Everyone carrying a number" style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '11px 0', margin: '0 0 -11px', scrollbarWidth: 'none', alignItems: 'center' }}>
         <span style={{ flex: '0 0 auto', fontSize: 10, fontWeight: 800, letterSpacing: '.08em', color: C.text3, fontFamily: numFont }}>NUMBER</span>
         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((r) => (
           <button key={r} type="button" className={FLAT_CHIP_CLASS} aria-pressed={root === r} onClick={() => setF('root', root === r ? '' : String(r))}
             title={r === Number(outline) ? `${r}: tonight's number` : `Everyone carrying ${r}`}
-            style={{ ...chip(root === r), minWidth: 30, justifyContent: 'center', ...(r === Number(outline) && root !== r ? { borderColor: accent, color: C.text } : null) }}>{r}</button>
+            style={{ ...chip(root === r), minWidth: 36, justifyContent: 'center', ...(r === Number(outline) && root !== r ? { borderColor: accent, color: C.text } : null) }}>{r}</button>
         ))}
         <span style={{ flex: '0 0 auto', fontSize: 10, color: C.text3 }}>{outline ? <>outlined = tonight&apos;s</> : null}</span>
       </div>
