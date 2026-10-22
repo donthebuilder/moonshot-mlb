@@ -1,4 +1,5 @@
 'use client'
+import { flatChip } from '../../lib/chips'
 import { useEffect, useMemo, useState } from 'react'
 import { C as MLB_C, NUM_FONT as MLB_NUM, TYPE } from '../../lib/theme'
 import { nameOf, teamOf, oppOf, n, clean } from '../../lib/player'
@@ -174,7 +175,8 @@ function useOddsPayload(sport, want) {
 export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick, initialView = 'board', sport = 'mlb', theme = null, numFont = null, Table = DenseTable, startedOf = null }) {
   const A = oddsAdapter(sport)
   const C = theme || MLB_C
-  const tapCls = theme ? 'fp-themed' : undefined   // TUDDY / LAMP pass their theme: their pills and search are 44px on a touch screen (.fp-themed); MOONSHOT's stay 32
+  const tapCls = 'tap-box'   // 10-22 chip audit: every product's toggles are the small oval chip; the 44px thumb target is .tap-box's invisible ::after
+  const inputCls = theme ? 'fp-themed' : undefined   // the search box stays 44px tall on a touch screen in TUDDY / LAMP
   const NUM_FONT = numFont || MLB_NUM
   const MARKETS = A.markets
   const MK = Object.fromEntries(MARKETS.map((m) => [m.key, m]))
@@ -463,12 +465,8 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
   const offCount = rows.filter((x) => Number.isFinite(x.line) && Math.abs(x.line - live.std) > 1e-9).length
   const plusCount = rows.filter((x) => x.over > 0).length
 
-  const pill = (on, col = C.orange) => ({
-    padding: '8px 12px', fontSize: TYPE.body, fontWeight: 700, cursor: 'pointer', borderRadius: 999,
-    border: `1px solid ${on ? col : C.border}`,
-    background: on ? `${col}22` : 'transparent',
-    color: on ? col : C.text3, whiteSpace: 'nowrap',
-  })
+  // the site's one chip (lib/chips.js flatChip, the oval; 10-22 chip audit), in the toggle's own colour
+  const pill = (on, col = C.orange) => flatChip(on, col, C, NUM_FONT)
 
   // Jump from a sentence into the board that proves it. A named call the
   // reader can't go verify is an assertion; one click away it's a claim with
@@ -1038,7 +1036,7 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
           title="Hide frozen quotes — games already under way. What's left is still bettable.">
           ⏱ Still bettable
         </button>
-        <input className={tapCls} value={q} onChange={(e) => setQ(e.target.value)} placeholder="player or team" aria-label="Search the board"
+        <input className={inputCls} value={q} onChange={(e) => setQ(e.target.value)} placeholder="player or team" aria-label="Search the board"
           style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, padding: '4px 9px', borderRadius: 999, border: `1px solid ${q ? C.orange : C.border}`, background: 'transparent', color: C.text, minWidth: 120, outline: 'none' }} />
         <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginLeft: 'auto' }}>
           {shown.length} of {rows.length} shown

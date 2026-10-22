@@ -15,6 +15,7 @@
 // THE SUB-TAB IS IN THE ADDRESS (`lv=`, lib/ledger/views.js): a refresh or a shared link reopens it,
 // choosing one pushes an entry so Back steps back through them, and an old key (#tab=calledledger,
 // setTab('results')) lands on the right one. Phone first: four 44px targets across one row.
+import { flatChip, CHIP_MARK } from '../../lib/chips'
 import { useCallback, useEffect, useState } from 'react'
 import { useSportTheme } from '../SportTheme'
 import ErrorBoundary from '../ErrorBoundary'
@@ -64,13 +65,8 @@ export default function LedgerShell({ sport, bodies = {}, date = null }) {
 
   const active = tabOfView(view)
   const body = bodies[view] || bodies[active]
-  const pill = (on) => ({
-    minHeight: 44, minWidth: 0, padding: '0 4px', borderRadius: 10, cursor: 'pointer',
-    border: `1px solid ${on ? `${accent}99` : C.border}`,
-    background: on ? `${accent}22` : 'rgba(255,255,255,.035)',
-    color: on ? accent : C.text2,
-    font: `800 11px/1.2 ${NUM_FONT}`, letterSpacing: '.06em', textTransform: 'uppercase', whiteSpace: 'nowrap',
-  })
+  // the site's one chip (lib/chips.js flatChip, the oval; 10-22 chip audit); --chip gives it the 44px tap on a phone
+  const pill = (on) => ({ ...flatChip(on, accent, C, NUM_FONT), ...CHIP_MARK, justifyContent: 'center', minWidth: 0 })
 
   return (
     <div data-ledger-shell={sport}>

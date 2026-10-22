@@ -7,6 +7,7 @@
 // player, this week (they ride the address: bv= bs= br= bp= bw=). Tap a card to open the sheet (flip to the stat table, save, links to the player and the game).
 // NEW = a card not seen on an earlier visit (localStorage, works signed out; the first visit marks nothing NEW). Nothing is invented: an empty binder says how to collect and
 // names three real players from today's board. Phone first: the first screen is the strip and the LEGEND / ELITE tiles; long sections preview two rows and say "+N more".
+import { flatChip, CHIP_MARK } from '../../lib/chips'
 import { useEffect, useMemo, useState } from 'react'
 import PageHeader from '../PageHeader'
 import AlertsEntry from '../AlertsEntry'
@@ -98,7 +99,7 @@ export default function Binder({ sport = 'mlb', board = [] }) {
   }, [loading, error, loaded, seenAtOpen])
 
   const active = [sportRaw ? 1 : 0, rar ? 1 : 0, playerF ? 1 : 0, week ? 1 : 0].reduce((a, b) => a + b, 0)
-  const chip = (on) => ({ minHeight: 44, padding: '0 14px', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap', border: `1px solid ${on ? accent : C.border}`, background: on ? `color-mix(in srgb, ${accent} 14%, transparent)` : C.bg2, color: on ? accent : C.text2, font: `800 12px/1 ${NUM_FONT}`, letterSpacing: '.05em' })
+  const chip = (on) => ({ ...flatChip(on, accent, C, NUM_FONT), ...CHIP_MARK, justifyContent: 'center' })   // the site's one chip (10-22); --chip gives the 44px tap
   const clearAll = () => { setSportF(''); setRarity(''); setPlayer(''); setWeek('') }
 
   const empty = !loading && !error && mine.length === 0

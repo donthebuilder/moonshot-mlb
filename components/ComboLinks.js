@@ -1,4 +1,5 @@
 'use client'
+import { FLAT_CHIP_CLASS, flatChip } from '../lib/chips'
 import { C, NUM_FONT } from '../lib/theme'
 import { hashParams } from '../lib/urlState'
 
@@ -27,10 +28,7 @@ export default function ComboLinks({ here }) {
         // rest of the address; the href stays for a no-script open.
         <a key={k} href={`#tab=${k}`} title={title}
           onClick={(e) => { e.preventDefault(); const h = hashParams(); h.set('tab', k); window.location.hash = h.toString() }}
-          style={{
-          fontSize: 9.5, fontWeight: 800, color: C.orange, textDecoration: 'none',
-          border: `1px solid ${C.border2}`, borderRadius: 999, padding: '2px 9px', background: 'transparent',
-        }}>{label} →</a>
+          className={FLAT_CHIP_CLASS} style={{ ...flatChip(false, C.orange, C, NUM_FONT), color: C.orange, textDecoration: 'none' }}>{label} →</a>
       ))}
     </div>
   )

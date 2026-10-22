@@ -1,4 +1,5 @@
 'use client'
+import { FLAT_CHIP_CLASS, flatChip } from '../../../lib/chips'
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampSchedule } from '../../../lib/nhl/useLamp'
@@ -86,10 +87,7 @@ export default function Schedule({ onOpenGame, date = null, setDate = () => {} }
 
 function NavBtn({ children, onClick, disabled, strong = false }) {
   return (
-    <button type="button" onClick={onClick} disabled={disabled} style={{
-      minHeight: 44, padding: '0 12px', borderRadius: 8, cursor: disabled ? 'default' : 'pointer',
-      border: `1px solid ${strong ? C.ice : C.border2}`, background: strong ? `${C.ice}14` : C.bg2,
-      color: strong ? C.ice : C.text2, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.04em', opacity: disabled ? .5 : 1,
-    }}>{children}</button>
+    // a pager is the site's one chip (lib/chips.js flatChip, 10-22); 44px to the thumb through .tap-box
+    <button type="button" className={FLAT_CHIP_CLASS} onClick={onClick} disabled={disabled} style={flatChip(strong, C.ice, C, NUM_FONT, { disabled })}>{children}</button>
   )
 }
