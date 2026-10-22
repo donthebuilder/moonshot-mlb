@@ -1,4 +1,5 @@
 'use client'
+import { FLAT_CHIP_CLASS, flatChip } from '../../lib/chips'
 import { useEffect, useState } from 'react'
 import { nameOf, teamOf, oppOf } from '../../lib/player'
 import { useSportTheme } from '../SportTheme'
@@ -13,16 +14,10 @@ import { useSportTheme } from '../SportTheme'
 const mlbIdOf = (x) => Number(x?.player_id ?? x?.id)
 
 export function TabBtn({ active, onClick, children, tall = false }) {
-  const { C, accent } = useSportTheme()
+  const { C, NUM_FONT, accent } = useSportTheme()
   return (
-    <button onClick={onClick} style={{
-      padding: '5px 13px', fontSize: 11, fontWeight: 700, cursor: 'pointer', borderRadius: 999,
-      ...(tall ? { minHeight: 44, fontSize: 12 } : null),
-      border: `1px solid ${active ? accent : C.border}`,
-      background: active ? `${accent}22` : 'transparent',
-      color: active ? accent : C.text3,
-      whiteSpace: 'nowrap',
-    }}>{children}</button>
+    // 10-22 chip audit: the site's one chip (lib/chips.js flatChip); `tall` only kept for callers, the 44px tap is .tap-box's
+    <button type="button" className={FLAT_CHIP_CLASS} onClick={onClick} aria-pressed={active} style={flatChip(active, accent, C, NUM_FONT)}>{children}</button>
   )
 }
 

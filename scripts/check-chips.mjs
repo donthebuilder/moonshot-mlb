@@ -4,11 +4,11 @@
 // Loads every page check-mobile loads (or --pages) at 390x844 and measures every CHIP: a button / [role=button] / link drawn as a
 // small bordered or filled box with a short label (not a name link, not a table header, not the bottom bar). Each chip gets a
 // family: shape (square = radius <= 4, pill = radius >= half its height, rounded between), height, font size / weight, capitals.
-// THE STANDARD is lib/chips.js flatChip: square, 18-26px tall, 10px, capitals.
+// THE STANDARD is lib/chips.js flatChip: an oval (pill), 18-26px tall, 10px, capitals (shape picked 10-22 to match the X cards).
 //
 //   node scripts/check-chips.mjs --base http://localhost:3000            every page, report in chip-report/
 //   node scripts/check-chips.mjs --base ... --pages "/app#sport=nba&tab=board"
-//   node scripts/check-chips.mjs --base ... --max-off 400                fail when more than 400 chips are off the standard
+//   node scripts/check-chips.mjs --base ... --max-off 400                fail when more than 400 choice chips are off the standard
 //
 // --max-off is the ratchet for the push gate: the number may only go down (write the new count in the commit).
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs'
@@ -44,17 +44,19 @@ function measure() {
   const vis = (el) => { const s = getComputedStyle(el); if (s.visibility === 'hidden' || s.display === 'none' || Number(s.opacity) === 0) return false; const r = el.getBoundingClientRect(); return r.width > 1 && r.height > 1 }
   const where = (el) => { for (let a = el.parentElement; a; a = a.parentElement) { const l = a.getAttribute && (a.getAttribute('aria-label') || (a.tagName === 'SECTION' && a.querySelector('div')?.textContent?.slice(0, 30))); if (l) return String(l).slice(0, 40) } return '' }
   for (const el of document.querySelectorAll('button, [role=button], a[href]')) {
-    if (!vis(el) || el.classList.contains('tap-link') || el.closest('th, nav, .mobile-tabbar, [class*="tabbar"]')) continue
+    if (!vis(el) || el.classList.contains('tap-link') || el.closest('th, nav, .skip-link, .mobile-tabbar, [class*="tabbar"]')) continue
     const text = (el.innerText || '').trim().replace(/\s+/g, ' ')
     if (!text || text.length > 28) continue
     const r = el.getBoundingClientRect()
     if (r.height < 14 || r.height > 48 || r.width > 260) continue
-    const s = getComputedStyle(el)
-    const bordered = parseFloat(s.borderTopWidth) > 0 && s.borderTopStyle !== 'none' && !/rgba\(\d+, \d+, \d+, 0\)/.test(s.borderTopColor)
-    const filled = s.backgroundColor && !/rgba\(\d+, \d+, \d+, 0\)|transparent/.test(s.backgroundColor)
-    if (!bordered && !filled) continue
+    const drawn = (x) => { const t = getComputedStyle(x); return (parseFloat(t.borderTopWidth) > 0 && t.borderTopStyle !== 'none' && !/rgba\(\d+, \d+, \d+, 0\)/.test(t.borderTopColor)) || (t.backgroundColor && !/rgba\(\d+, \d+, \d+, 0\)|transparent/.test(t.backgroundColor)) }
+    // a 44px target that draws nothing around one drawn chip (components/Filters.js FilterPill): measure the chip you see
+    let box = el
+    if (!drawn(el) && el.children.length === 1 && drawn(el.children[0])) box = el.children[0]
+    if (!drawn(box)) continue
+    const s = getComputedStyle(box)
     const rad = parseFloat(s.borderTopLeftRadius) || 0
-    const h = Math.round(r.height)
+    const h = Math.round(box.getBoundingClientRect().height)
     const shape = rad <= 4 ? 'square' : rad >= h / 2 - 1 ? 'pill' : 'rounded'
     const caps = s.textTransform === 'uppercase' || (text === text.toUpperCase() && /[A-Z]/.test(text))
     out.push({ text: text.slice(0, 24), where: where(el), shape, h, fs: parseFloat(s.fontSize), fw: Number(s.fontWeight), caps })
@@ -62,7 +64,10 @@ function measure() {
   return out
 }
 
-const standard = (c) => c.shape === 'square' && c.h >= 18 && c.h <= 26 && c.fs === 10 && c.caps
+const standard = (c) => c.shape === 'pill' && c.h >= 18 && c.h <= 26 && c.fs === 10 && c.caps
+// a stat tile (a big number in a strip, 15px+ and 30px+ tall) and an icon button (one or two glyphs) are not choice chips: listed, not
+// counted in the ratchet (their own standard is a later batch)
+const isChoice = (c) => !(c.fs >= 15 && c.h >= 30) && [...c.text].length > 2
 const family = (c) => `${c.shape} · ${Math.round(c.h / 4) * 4}px tall · ${c.fs}px ${c.fw >= 700 ? 'bold' : 'regular'}${c.caps ? ' CAPS' : ''}`
 
 const list = await routes()
@@ -87,8 +92,9 @@ await browser.close()
 
 const fams = new Map()
 for (const c of chips) { const f = family(c); const x = fams.get(f) || { n: 0, std: standard(c), ex: [], pages: new Set() }; x.n += 1; x.pages.add(c.path); if (x.ex.length < 4) x.ex.push(`"${c.text}"${c.where ? ` in ${c.where}` : ''} (${c.path})`); fams.set(f, x) }
-const off = chips.filter((c) => !standard(c)).length
-const lines = [`# Chip audit · ${new Date().toISOString().slice(0, 16)} · ${list.length} pages at 390`, '', `${chips.length} chips · ${chips.length - off} on the standard (lib/chips.js flatChip) · **${off} off it** · ${fams.size} looks`, '']
+const off = chips.filter((c) => isChoice(c) && !standard(c)).length
+const choice = chips.filter(isChoice).length
+const lines = [`# Chip audit · ${new Date().toISOString().slice(0, 16)} · ${list.length} pages at 390`, '', `${choice} choice chips · ${choice - off} on the standard (lib/chips.js flatChip) · **${off} off it** · (${chips.length - choice} stat tiles and icon buttons listed, not counted) · ${fams.size} looks`, '']
 for (const [f, x] of [...fams].sort((a, b) => b[1].n - a[1].n)) lines.push(`- ${x.std ? '✅' : '❌'} **${f}** — ${x.n} on ${x.pages.size} pages · e.g. ${x.ex.join('; ')}`)
 mkdirSync(OUT, { recursive: true })
 writeFileSync(`${OUT}/index.md`, lines.join('\n') + '\n')

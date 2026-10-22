@@ -38,6 +38,7 @@ import PlayerNameCell, { PC_GEOM } from './PlayerNameCell'
 import { RankMoveCell } from '../RankMove'
 import InjuryChip from '../injuries/InjuryChip'
 import { ShowMoreButton } from '../ListPreview'
+import { flatChip } from '../../lib/chips'
 import { InfoDot, ExplainBanner, explainFor, explainFrom } from '../Explain'
 import { ANSWERS } from '../../lib/scoreAnswers'
 import { cellMark, SPOT_MARK } from '../../lib/spotlight'
@@ -915,9 +916,9 @@ export function renderV2(ctx) {
           )}
         </div>
         <button type="button" className="tap-box" onClick={() => setAdding(!adding)} title={TIER_HELP} aria-pressed={adding}
-          style={{ fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, cursor: 'pointer', border: `1px solid ${adding ? ac : C.border}`, background: 'transparent', color: adding ? ac : C.text3, borderRadius: 999, padding: '5px 12px', marginTop: 6, whiteSpace: 'nowrap' }}>{'\uff0b'} Tiers</button>
+          style={{ ...flatChip(adding, ac, C, NUM_FONT), marginTop: 6 }}>{'\uff0b'} Tiers</button>
         <button type="button" className="tap-box" onClick={exportCsv} title="Download this table — current sort, raw values — as a CSV cheat sheet"
-          style={{ fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, cursor: 'pointer', border: `1px solid ${C.border}`, background: 'transparent', color: C.text3, borderRadius: 999, padding: '5px 12px', marginTop: 6 }}>⬇ CSV</button>
+          style={{ ...flatChip(false, ac, C, NUM_FONT), marginTop: 6 }}>⬇ CSV</button>
       </div>}
     </div>
   )

@@ -1,4 +1,5 @@
 'use client'
+import { flatChip, chipSelect, chipCaret } from '../lib/chips'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { teamOf, nameOf } from '../lib/player'
@@ -136,25 +137,19 @@ export default function Controls({ query, setQuery, team, setTeam, game = '', se
         )}
       </div>
 
-      <button type="button" className="dash-find-btn" onClick={() => setFilterOpen((v) => !v)} aria-expanded={filterOpen}
+      <button type="button" className="dash-find-btn tap-box" onClick={() => setFilterOpen((v) => !v)} aria-expanded={filterOpen}
         aria-label={activeFilters ? `Filter: ${activeFilters} active` : 'Filter by team or game'}
-        style={{
-          alignItems: 'center', gap: 6, minHeight: 44, minWidth: 44, padding: '0 14px', borderRadius: 999, cursor: 'pointer',
-          fontSize: 12, fontWeight: 800, fontFamily: NUM_FONT,
-          border: `1px solid ${activeFilters || filterOpen ? 'rgba(249,115,22,.55)' : C.border2}`,
-          background: activeFilters || filterOpen ? 'rgba(249,115,22,.14)' : C.bg3,
-          color: activeFilters || filterOpen ? C.orange : C.text2,
-        }}>
+        style={{ ...flatChip(!!(activeFilters || filterOpen), C.orange, C, NUM_FONT), alignSelf: 'center' }}>
         <span aria-hidden="true">⚙</span>Filter{activeFilters ? ` · ${activeFilters}` : ''}
       </button>
 
       <div className="dash-controls-more">
       {/* team dropdown */}
-      <div style={{ position: 'relative', minWidth: 0 }}>
+      <div style={{ position: 'relative', minWidth: 0, display: 'inline-flex', alignSelf: 'center' }}>
         <select
           value={team}
           onChange={(e) => setTeam(e.target.value)}
-          className="moon-select"
+          className="moon-select tap-box"
           // A title attribute is not a label: it never reaches a touch device,
           // it is not announced as the control's name, and axe flags it as the
           // only label precisely because it looks like one to a sighted mouse
@@ -162,35 +157,14 @@ export default function Controls({ query, setQuery, team, setTeam, game = '', se
           // on hover and it changes with state -- and the name is now real.
           aria-label="Filter every board to one team"
           title={filtering ? `Showing ${team} only — pick "All teams" to release` : 'Filter every board to one team'}
-          style={{
-            appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',
-            background: filtering
-              ? 'linear-gradient(135deg, rgba(249,115,22,.16), rgba(249,115,22,.05))'
-              : C.bg3,
-            border: `1px solid ${filtering ? 'rgba(249,115,22,.55)' : C.border2}`,
-            color: filtering ? C.orange : C.text,
-            fontWeight: filtering ? 800 : 500,
-            borderRadius: 999,
-            padding: '9px 30px 9px 14px',
-            fontSize: 12,
-            fontFamily: NUM_FONT,
-            outline: 'none',
-            width: '100%',
-            minWidth: 0,
-            boxSizing: 'border-box',
-            cursor: 'pointer',
-            transition: 'border-color .15s, background .15s',
-          }}
+          style={chipSelect(filtering, C.orange, C, NUM_FONT)}
         >
           <option value="">⚾ All teams</option>
           {teams.map((t) => (
             <option key={t} value={t}>{t}</option>
           ))}
         </select>
-        <span style={{
-          position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-          fontSize: 10, color: filtering ? C.orange : C.text3, pointerEvents: 'none',
-        }}>▾</span>
+        <span style={chipCaret(filtering, C.orange, C)}>▾</span>
       </div>
 
       {setGame ? <TopSelect value={game} onChange={setGame} options={games} allLabel="All games" ariaLabel="Filter every board to one game" accent={C.orange} /> : null}
@@ -207,10 +181,8 @@ export default function Controls({ query, setQuery, team, setTeam, game = '', se
           .dash-controls.dash-controls > :first-child { flex: 1 1 0; min-width: 0; }
           .dash-controls .moon-search { min-height: 44px; }
           .dash-controls .dash-find-btn { display: inline-flex; flex: none; }
-          .dash-controls .dash-controls-more { display: none; flex: 1 1 100%; flex-wrap: wrap; gap: 8px; }
+          .dash-controls .dash-controls-more { display: none; flex: 1 1 100%; flex-wrap: wrap; gap: 8px; align-items: center; }
           .dash-controls.open .dash-controls-more { display: flex; }
-          .dash-controls .dash-controls-more > * { flex: 1 1 120px; }
-          .dash-controls .dash-controls-more .moon-select { min-height: 44px; }
         }
       `}</style>
     </div>

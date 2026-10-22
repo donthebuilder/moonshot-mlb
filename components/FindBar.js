@@ -1,6 +1,7 @@
 'use client'
 import { useRef, useState } from 'react'
 import { useSportTheme } from './SportTheme'
+import { FLAT_CHIP_CLASS, flatChip } from '../lib/chips'
 
 // ══ THE SITE'S FIND / FILTER ROW, ONE COMPONENT (2026-10-21, Donovan: "we need to build upon our site filters and get a
 // harness on that and build that component as well so that way it's shared across everything") ════════════════════════
@@ -17,11 +18,9 @@ const FIND_CSS = `
   .pf-row .pf-search-wrap { flex: 1 1 0; min-width: 0; position: relative; }
   .pf-row .pf-search { min-height: 44px; }
   .pf-row .pf-search::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
-  .pf-row .pf-btn { flex: none; display: inline-flex; }
-  .pf-row .pf-more { display: none; flex: 1 1 100%; flex-wrap: wrap; gap: 8px; }
+  .pf-row .pf-btn { flex: none; align-self: center; }
+  .pf-row .pf-more { display: none; flex: 1 1 100%; flex-direction: column; gap: 10px; }
   .pf-row.open .pf-more { display: flex; }
-  .pf-row .pf-more > * { flex: 1 1 120px; }
-  .pf-row .pf-select { min-height: 44px; }
 `
 
 const isOn = (f) => (f.all != null ? f.value !== '' && f.value != null : f.value !== (f.options?.[0]?.key ?? ''))
@@ -36,20 +35,15 @@ export default function FindBar({
   const accent = accentIn || theme.accent
   const inputRef = useRef(null)
   const [open, setOpen] = useState(false)
-  const wash = (p) => `color-mix(in srgb, ${accent} ${p}%, transparent)`
+  const wash = (p) => `color-mix(in srgb, ${accent} ${p}%, transparent)`   // the search box's lit edge
   const shownFilters = filters.filter((f) => (f.options || []).length > 0)
   const active = shownFilters.filter(isOn).length + toggles.filter((t) => t.on).length
   const lit = active > 0 || open
   const words = [...shownFilters.map((f) => f.label), ...toggles.map((t) => t.label)].join(', ').toLowerCase()
-  const sel = (on) => ({
-    appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',
-    background: on ? `linear-gradient(135deg, ${wash(16)}, ${wash(5)})` : C.bg3,
-    border: `1px solid ${on ? wash(55) : C.border2}`,
-    color: on ? accent : C.text, fontWeight: on ? 800 : 500,
-    borderRadius: 999, padding: '9px 30px 9px 14px', fontSize: 12, fontFamily: NUM_FONT,
-    outline: 'none', width: '100%', minWidth: 0, boxSizing: 'border-box', cursor: 'pointer',
-  })
-  const caret = (on) => ({ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 10, color: on ? accent : C.text3, pointerEvents: 'none' })
+  // every control is the site's one chip (lib/chips.js flatChip, the small oval; 10-22 chip audit). A filter with a few choices
+  // opens as a row of chips; a long list (30 clubs) stays a dropdown drawn as a chip.
+  const chip = (on) => flatChip(on, accent, C, NUM_FONT)
+  const CHIP_MAX = 8
   return (
     <div className={`pf-row${open ? ' open' : ''}`} style={style || undefined}>
       <div className="pf-search-wrap">
@@ -69,33 +63,41 @@ export default function FindBar({
         ) : null}
       </div>
       {(shownFilters.length > 0 || toggles.length > 0) && (
-        <button type="button" className="pf-btn" onClick={() => setOpen((v) => !v)} aria-expanded={open}
-          aria-label={active ? `Filter: ${active} active` : `Filter by ${words}`}
-          style={{
-            alignItems: 'center', gap: 6, minHeight: 44, minWidth: 44, padding: '0 14px', borderRadius: 999, cursor: 'pointer',
-            fontSize: 12, fontWeight: 800, fontFamily: NUM_FONT,
-            border: `1px solid ${lit ? wash(55) : C.border2}`, background: lit ? wash(14) : C.bg3, color: lit ? accent : C.text2,
-          }}>
+        <button type="button" className={`pf-btn ${FLAT_CHIP_CLASS}`} onClick={() => setOpen((v) => !v)} aria-expanded={open}
+          aria-label={active ? `Filter: ${active} active` : `Filter by ${words}`} style={chip(lit)}>
           <span aria-hidden="true">⚙</span>Filter{active ? ` · ${active}` : ''}
         </button>
       )}
       <div className="pf-more">
-        {shownFilters.map((f) => (
-          <div key={f.key} style={{ position: 'relative', minWidth: 0 }}>
-            <select className="pf-select" value={f.value} onChange={(e) => f.onChange(e.target.value)} aria-label={f.aria || `Filter by ${String(f.label).toLowerCase()}`} style={sel(isOn(f))}>
-              {f.all != null ? <option value="">{f.all}</option> : null}
-              {f.options.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
-            </select>
-            <span aria-hidden="true" style={caret(isOn(f))}>▾</span>
+        {shownFilters.map((f) => {
+          const opts = [...(f.all != null ? [{ key: '', label: f.all }] : []), ...f.options]
+          const label = <span style={{ color: C.text3, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.08em', textTransform: 'uppercase' }}>{f.label}</span>
+          if (opts.length <= CHIP_MAX) {
+            return (
+              <div key={f.key} role="group" aria-label={f.aria || `Filter by ${String(f.label).toLowerCase()}`} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                {label}
+                {opts.map((o) => <button key={o.key} type="button" className={FLAT_CHIP_CLASS} aria-pressed={f.value === o.key} onClick={() => f.onChange(o.key)} style={chip(f.value === o.key)}>{o.label}</button>)}
+              </div>
+            )
+          }
+          return (
+            <div key={f.key} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              {label}
+              <span style={{ position: 'relative', display: 'inline-flex' }}>
+                <select className={FLAT_CHIP_CLASS} value={f.value} onChange={(e) => f.onChange(e.target.value)} aria-label={f.aria || `Filter by ${String(f.label).toLowerCase()}`}
+                  style={{ ...chip(isOn(f)), appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', paddingRight: 22, outline: 'none' }}>
+                  {opts.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+                </select>
+                <span aria-hidden="true" style={{ position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)', fontSize: 9, color: isOn(f) ? accent : C.text3, pointerEvents: 'none' }}>▾</span>
+              </span>
+            </div>
+          )
+        })}
+        {toggles.length > 0 && (
+          <div role="group" aria-label="Show only" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {toggles.map((t) => <button key={t.key} type="button" className={FLAT_CHIP_CLASS} onClick={() => t.onChange(!t.on)} aria-pressed={t.on} title={t.title} style={chip(t.on)}>{t.label}</button>)}
           </div>
-        ))}
-        {toggles.map((t) => (
-          <button key={t.key} type="button" onClick={() => t.onChange(!t.on)} aria-pressed={t.on} title={t.title}
-            style={{ minHeight: 44, padding: '0 14px', borderRadius: 999, cursor: 'pointer', fontFamily: NUM_FONT, fontSize: 12, fontWeight: t.on ? 800 : 600,
-              border: `1px solid ${t.on ? wash(55) : C.border2}`, background: t.on ? `linear-gradient(135deg, ${wash(16)}, ${wash(5)})` : C.bg3, color: t.on ? accent : C.text }}>
-            {t.label}
-          </button>
-        ))}
+        )}
       </div>
       <style>{FIND_CSS}</style>
     </div>
