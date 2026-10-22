@@ -1,6 +1,8 @@
 'use client'
 import { useMemo, useState } from 'react'
 import PropBars from '../player/PropBars'
+import SplitChips from '../player/SplitChips'
+import { tagGames, barChips, applyChips, marginOf, chipKey } from '../../lib/barFilters'
 import { C, NUM_FONT } from '../../lib/nba/theme'
 import { tensIn } from '../../lib/nba/ddtd'
 import { useBucketsDefPos } from '../../lib/nba/useBuckets'
@@ -15,7 +17,8 @@ import { Kicker, Pills, fmtTip, gameDay } from './ui'
 // preseason is camp minutes. Under each bar: his minutes (stats first). Hollow bar = the chance behind the result in the
 // same unit (3PA behind 3PM now; potential assists / rebound chances wait on the bot, BOT-DATA-REQUESTS.md "NBA chances").
 // R:N = the opponent's rank of 30 at giving the stat up to his position (G/F/C, buckets_defpos season table, only when it
-// is the log's own season); lit = a top-10 giver, and the D pills keep only those games.
+// is the log's own season); lit = a top-10 giver. The split chips (components/player/SplitChips + lib/barFilters, shared)
+// filter his games first; the window chips then count the newest N of what is left.
 const MARKETS = [
   { k: 'pts', label: 'PTS', lines: [10, 15, 20, 25, 30], first: 15, val: (g) => g.pts, rank: 'pts' },
   { k: 'reb', label: 'REB', lines: [4, 6, 8, 10], first: 6, val: (g) => g.reb, rank: 'reb' },
@@ -27,7 +30,6 @@ const MARKETS = [
 ]
 const WINDOWS = [['L5', 5], ['L10', 10], ['L20', 20], ['Season', Infinity]]
 const SOFT = 10
-const D_OPTS = [{ key: 'all', text: 'Every D' }, { key: 'soft', text: `Top-${SOFT} givers` }, { key: 'tough', text: `Bottom ${SOFT}` }]
 const md = (iso) => { try { return new Date(`${gameDay(iso)}T12:00:00Z`).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', timeZone: 'UTC' }) } catch { return '' } }
 const pct = (ok, n) => (n ? Math.round((100 * ok) / n) : null)
 
@@ -35,7 +37,7 @@ export default function PlayerBars({ log = [], logSeason = '', pos = '', nextGam
   const [k, setK] = useState('pts')
   const [lines, setLines] = useState({})
   const [win, setWin] = useState('L10')
-  const [dv, setDv] = useState('all')
+  const [picked, setPicked] = useState({})
   const { data: dp } = useBucketsDefPos(null)
   const m = MARKETS.find((x) => x.k === k)
   const line = lines[k] ?? m.first
@@ -45,14 +47,18 @@ export default function PlayerBars({ log = [], logSeason = '', pos = '', nextGam
   const rankOf = (mk, abbrev) => (table && mk.rank ? table[abbrev]?.r?.[mk.rank] ?? null : null)
   const cleared = (mk, ln, g) => { const v = mk.val(g); return v != null && v >= ln }
 
-  // the window's games for a market, newest last; 'H2H' = his games against tonight's club
-  const windowGames = (w) => (w === 'H2H' ? games.filter((g) => nextGame && g.opp === nextGame.opp) : games.slice(-(WINDOWS.find(([x]) => x === w)?.[1] ?? 10)))
+  // THE FILTERS first (lib/barFilters: home/away, won/lost, B2B/rested, close/blowout, minutes, soft/tough D, playoffs),
+  // then the window takes the newest N of what is left -- "L10" with Away picked = his last 10 road games
   const ranked = games.some((g) => rankOf(m, g.opp) != null)
-  const d = ranked ? dv : 'all'
-  const inD = (g) => { const rk = rankOf(m, g.opp); return d === 'all' || (d === 'soft' ? rk != null && rk <= SOFT : rk != null && rk > 30 - SOFT) }
+  const chips = barChips({ soft: SOFT, hasRank: ranked, hasPlayoff: games.some((g) => g.seasonType === 3) })
+  const kept = (mk) => applyChips(tagGames(games, { day: (g) => gameDay(g.date), home: (g) => (g.atVs === '@' ? false : g.atVs ? true : null),
+    win: (g) => (g.result === 'W' ? true : g.result === 'L' ? false : null), min: (g) => g.min, margin: (g) => marginOf(g.score),
+    rank: (g) => rankOf(mk, g.opp), playoff: (g) => g.seasonType === 3 }), chips, picked).map((t) => t.g)
+  const windowGames = (w, mk = m) => { const xs = kept(mk); return w === 'H2H' ? xs.filter((g) => nextGame && g.opp === nextGame.opp) : xs.slice(-(WINDOWS.find(([x]) => x === w)?.[1] ?? 10)) }
+  const picks = chips.filter((c) => picked[c.group] === c.key).map((c) => c.text)
   const rate = (mk, ln, list) => { const xs = list.filter((g) => mk.val(g) != null); const ok = xs.filter((g) => cleared(mk, ln, g)).length; return { ok, n: xs.length } }
 
-  const shown = windowGames(win).filter(inD)
+  const shown = windowGames(win)
   const bars = shown.map((g) => {
     const v = m.val(g), rk = rankOf(m, g.opp), c = m.chance ? m.chance(g) : null
     return { key: g.id, v, c, rk, soft: rk != null && rk <= SOFT, on: cleared(m, line, g), top: md(g.date), bot: <>{g.atVs === '@' ? '@' : ''}<Tap onClick={onOpenTeam && g.opp ? () => onOpenTeam(g.opp) : null}>{g.opp || ''}</Tap></>, sub: g.min != null ? `${g.min}m` : '',
@@ -65,7 +71,7 @@ export default function PlayerBars({ log = [], logSeason = '', pos = '', nextGam
       <Kicker>THE BARS · {logSeason}</Kicker>
       {/* market chips with his hit rate at that market's line in the window you picked */}
       <Pills ariaLabel="Market" value={k} onChange={setK} options={MARKETS.map((x) => {
-        const r = rate(x, lines[x.k] ?? x.first, windowGames(win).filter(inD))
+        const r = rate(x, lines[x.k] ?? x.first, windowGames(win, x))
         return { key: x.k, text: `${x.label} ${r.n ? `${pct(r.ok, r.n)}%` : '—'}` }
       })} />
       {m.lines.length > 1 && (
@@ -74,15 +80,18 @@ export default function PlayerBars({ log = [], logSeason = '', pos = '', nextGam
           <Pills ariaLabel={`${m.label} line`} value={line} onChange={(l) => setLines((st) => ({ ...st, [k]: l }))} options={m.lines.map((l) => ({ key: l, text: `${l}+` }))} />
         </div>
       )}
+      <div style={{ marginTop: 8 }}>
+        <SplitChips chips={chips} picked={picked} onChange={setPicked} C={C} NUM_FONT={NUM_FONT} accent={C.purple} />
+      </div>
       <div style={{ marginTop: 10 }}>
         {bars.length
           ? <PropBars games={bars} line={line} C={C} NUM_FONT={NUM_FONT} accent={C.purple} />
-          : <p style={{ margin: 0, fontSize: 12, color: C.text3 }}>{win === 'H2H' ? `No games against ${nextGame?.opp} in this log.` : 'No games against these defences yet.'}</p>}
+          : <p style={{ margin: 0, fontSize: 12, color: C.text3 }}>{win === 'H2H' ? `No games against ${nextGame?.opp} in this log.` : `No ${picks.join(' · ').toLowerCase()} games in this log.`}</p>}
       </div>
       {/* window chips: how often he cleared this line, each window */}
       <div role="group" aria-label="Window" style={{ display: 'grid', gridTemplateColumns: `repeat(${winOpts.length}, minmax(0, 1fr))`, gap: 4, marginTop: 8 }}>
         {winOpts.map((w) => {
-          const r = rate(m, line, windowGames(w).filter(inD)), on = w === win
+          const r = rate(m, line, windowGames(w)), on = w === win
           return (
             <button key={w} type="button" onClick={() => setWin(w)} aria-pressed={on}
               style={{ minHeight: 44, borderRadius: 8, border: `1px solid ${on ? C.purple : C.border}`, background: on ? C.bg3 : 'transparent', color: C.text, font: `700 11px/1.2 ${NUM_FONT}`, padding: '4px 2px', cursor: 'pointer' }}>
@@ -93,9 +102,9 @@ export default function PlayerBars({ log = [], logSeason = '', pos = '', nextGam
           )
         })}
       </div>
-      {ranked ? <div style={{ marginTop: 8 }}><Pills ariaLabel="Opponent defence" value={d} onChange={setDv} options={D_OPTS} /></div> : null}
       <p style={{ margin: '8px 0 0', fontSize: 11, color: C.text3, lineHeight: 1.4 }}>
         Lit = cleared {line}+ · under each bar: his minutes{m.chance ? ' · hollow = 3PA' : ''}{ranked ? ` · R = how much that club gives up to ${POS_WORD[p]?.toLowerCase()}, of 30` : ''}
+        <br />{chipKey({ soft: SOFT, hasRank: ranked })}
       </p>
       {nextGame ? (
         <p style={{ margin: '6px 0 0', fontSize: 12, color: C.text2 }}>NEXT: {nextGame.home ? 'vs' : '@'} <Tap onClick={onOpenTeam ? () => onOpenTeam(nextGame.opp) : null}><b style={{ color: C.text }}>{nextGame.opp}</b></Tap>, {fmtTip(nextGame.start)}</p>
