@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { thresholdRates, lastSeasonRates, staffQuality, teamAbbrs, starterHands, streakRuns, MARKETS } from '../lib/gamelogs'
 import StreakRibbon, { StreakLine } from './StreakRibbon'
-import ValueBars from './ValueBars'
+import PropBars, { TeamTap } from './player/PropBars'
 import { gridQuote, fairOdds, fmtOdds } from '../lib/odds'
 import { verdictInk, verdictWash } from '../lib/scales'
 import FiltersSheet from './player/FiltersSheet'
@@ -384,7 +384,7 @@ export default function ThresholdGrid({ playerId, odds }) {
   patterns.sort((a, b) => b.strength - a.strength)
   const topPatterns = patterns.slice(0, 4)
 
-  // the chart (bars, line, average, streak band) is components/ValueBars.js (2026-10-05, shared with TUDDY)
+  // the chart (bars, line, average, run band) is components/player/PropBars.js (2026-10-22, shared by every sport)
 
   const chip = (on) => flatChip(on, C.orange, C, NUM_FONT)   // the site's flat square chip (2026-10-21, chips batch)
 
@@ -517,45 +517,7 @@ export default function ThresholdGrid({ playerId, odds }) {
               : `Each cell is the share of his games that cleared the bar, with the count under it. A cell glows at 60% or more, is washed at 40-59, and fades below 25. A window on fewer than 3 games is grey and makes no claim. ${new Date().getFullYear() - 1} = all of last season. STK = current streak (🔥 at ${STREAK_AT}+ clears). PRICE = what the book pays. TRUE = the price his own rate deserves (longer than TRUE is value, shorter is not). @3+ = the book is on a different number.`} />
         </div>
 
-        {/* ══ PATTERNS ══ */}
-        <div style={{ marginTop: 13, paddingTop: 11, borderTop: `1px dashed ${C.border2}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 7, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 12.5, fontWeight: 900 }}>🧭 What repeats</span>
-            <Brief text={`on ${dynLabel}`} label="What repeats"
-              help="What actually repeats in his log at this bar. A pattern shows only when the gap is 25+ points on a real sample (the counts are printed on each card), ranked by strength, at most four. When nothing shows, his rate holds across venue, opponent quality and recent form; stability is a finding too." />
-          </div>
-          {topPatterns.length ? (
-            <div style={{ display: 'grid', gap: 6, gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
-              {topPatterns.map((pt, i) => (
-                <div key={i} style={{
-                  background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`,
-                  borderRadius: 9, padding: '7px 11px',
-                }}>
-                  <div style={{ fontSize: 12, fontWeight: 800 }}>{pt.icon} {pt.claim}{pt.help ? <HelpTip label={pt.claim} text={pt.help} /> : null}</div>
-                  <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>{pt.detail}</div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.5 }}>
-              No strong pattern on {dynLabel}: his rate holds.
-            </div>
-          )}
-          {/* THE RUN, IN THIS SECTION (2026-08-23). The cards above CLAIM a
-              shape; this shows it. Same ribbon the ⚡ lens draws, on the
-              active market and line, so "runs in tears" is a picture and not
-              an adjective. */}
-          {runsAll && (
-            <div style={{ marginTop: 9 }}>
-              <StreakLine streak={runsAll} label={dynLabel} />
-              <div style={{ marginTop: 6 }}>
-                <StreakRibbon streak={runsAll} label={dynLabel} height={12} max={44} showEnds={false} />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ══ CHART + FILTERS ══ */}
+        {/* ══ CHART + FILTERS ══ (2026-10-22: right under the matrix; What repeats follows) */}
         <div style={{ marginTop: 13, paddingTop: 11, borderTop: `1px dashed ${C.border2}` }}>
           {/* ONE FILTERS BUTTON (2026-10-08, Donovan: five rows of big pills -> behind one button). Active ones show as small
               removable chips; the sheet scrolls on a phone with 44px targets. Same state, same handlers as before. */}
@@ -621,15 +583,19 @@ export default function ThresholdGrid({ playerId, odds }) {
             </div>
           )}
 
+          {/* THE BARS: the shared chart every sport's card draws (components/player/PropBars.js, BUCKETS' PropFinder-style
+              bars), oldest left: lit = cleared, the line across, his average dashed, the run band under, date and club
+              under each bar, R = how soft that club's staff is (1 = softest of 30, lit in the top 10). Tap one to pin it. */}
           {filteredLog.length > 0 && (
-            <ValueBars numFont={NUM_FONT} thr={thr} selected={selGame} onSelect={setSelGame}
+            <PropBars C={C} NUM_FONT={NUM_FONT} accent={C.orange} line={thr} selected={selGame} onSelect={setSelGame}
               games={[...filteredLog].reverse().map((g, gi) => {
                 const val = valFor(g)
                 const q = staff?.[g.oppId]
                 const ab2 = abbrs?.[g.oppId] || g.opp
-                const oppNote = q ? ` · ${ab2} staff: OPS-against ${q.ops.toFixed(3)}, #${q.rank}/30 toughest` : ''
-                return { key: `${g.date}${gi}`, val, title: `${g.date} ${g.home ? 'vs' : '@'} ${ab2} — ${val} (${g.h}H ${g.tb}TB ${g.hr}HR)${oppNote}`,
-                  strip: q ? `rgba(249,115,22,${(0.18 + q.soft * 0.72).toFixed(2)})` : null }
+                const rk = q?.rank != null ? 31 - q.rank : null
+                return { key: `${g.date}${gi}`, v: val, on: val >= thr, rk, soft: rk != null && rk <= 10,
+                  top: g.date, bot: <>{g.home ? '' : '@'}<TeamTap sport="mlb" code={ab2} /></>, sub: g.pa ? `${g.pa} PA` : '',
+                  title: `${g.date} ${g.home ? 'vs' : '@'} ${ab2} — ${val} (${g.h}H ${g.tb}TB ${g.hr}HR)${q ? ` · ${ab2} staff: OPS-against ${q.ops.toFixed(3)}, #${q.rank}/30 toughest` : ''}` }
               })} />
           )}
 
@@ -660,9 +626,44 @@ export default function ThresholdGrid({ playerId, odds }) {
 
           <div style={{ marginTop: 6 }}>
             <Brief text={`${filteredLog.length} games of ${dynLabel}, newest right. Tap a bar to pin it.`} label="Reading the chart"
-              help={`Bar height is the count. Warm bars clear the ${thr - 0.5} line (the white rule); the dashed orange rule is his average${staff ? '; the strip under each bar is the opposing staff, brighter = softer arms' : ''}. The band along the bottom is the streak: one unbroken segment per run, warm where he kept clearing and cool where he kept missing, with the length on any run of three or more.`} />
+              help={`Bar height is the count. Lit bars cleared ${thr}+ (the orange line); the dashed line is his average. R over a bar is how soft that club's pitching staff was (1 = softest of 30, lit in the softest 10). The band under the bars is the streak: one segment per run, lit where he kept clearing, with the length on any run of three or more. Under each bar: the date, the club (@ = on the road) and his plate appearances.`} />
           </div>
         </div>
+        {/* ══ PATTERNS ══ */}
+        <div style={{ marginTop: 13, paddingTop: 11, borderTop: `1px dashed ${C.border2}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 7, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12.5, fontWeight: 900 }}>🧭 What repeats</span>
+            <Brief text={`on ${dynLabel}`} label="What repeats"
+              help="What actually repeats in his log at this bar. A pattern shows only when the gap is 25+ points on a real sample (the counts are printed on each card), ranked by strength, at most four. When nothing shows, his rate holds across venue, opponent quality and recent form; stability is a finding too." />
+          </div>
+          {topPatterns.length ? (
+            <div style={{ display: 'grid', gap: 6, gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
+              {topPatterns.map((pt, i) => (
+                <div key={i} style={{
+                  background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`,
+                  borderRadius: 9, padding: '7px 11px',
+                }}>
+                  <div style={{ fontSize: 12, fontWeight: 800 }}>{pt.icon} {pt.claim}{pt.help ? <HelpTip label={pt.claim} text={pt.help} /> : null}</div>
+                  <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>{pt.detail}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.5 }}>
+              No strong pattern on {dynLabel}: his rate holds.
+            </div>
+          )}
+          {/* THE RUN, IN THIS SECTION (2026-08-23). The cards above CLAIM a
+              shape; this shows it. Same ribbon the ⚡ lens draws, on the
+              active market and line, so "runs in tears" is a picture and not
+              an adjective. */}
+          {runsAll && (
+            <div style={{ marginTop: 9 }}>
+              <StreakLine streak={runsAll} label={dynLabel} />
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   )

@@ -1,8 +1,8 @@
 'use client'
 import { useMemo, useState } from 'react'
-import { C, NUM_FONT, BARS } from '../../lib/nfl/theme'
+import { C, NUM_FONT } from '../../lib/nfl/theme'
 import HitRate, { PRESETS } from './HitRate'
-import ValueBars from '../ValueBars'
+import PropBars from '../player/PropBars'
 // THE SHARED PLAYER MODEL's props heat (components/player/): a cell at 60%+ glows in TUDDY's accent, a run of 3+ wears a flame,
 // the wide grid says it scrolls, and the long caption folds behind a (?).
 import { STREAK_AT, GLOW_AT } from '../player/heat'
@@ -46,8 +46,6 @@ const WINDOWS = [['L5', 5], ['L10', 10], ['L20', 20], ['All', 9999]]
 // four games is a flat grey slab that makes no claim. Every cell prints its sample, `4/5`, so the size of the sample is
 // never a colour.
 const THIN = 4
-// the look the bars wear (lib/nfl/theme BARS + the page's inks)
-const LOOK = { clear: BARS.clear, miss: BARS.miss, missInk: BARS.missInk, rule: BARS.rule, ink: C.text, ink2: C.text2, bg: C.bg }
 
 export default function PropsGrid({ log, market: initialMarket, defaultBar, scores }) {
   const [mkt, setMkt] = useState(initialMarket || 'REC')
@@ -160,14 +158,16 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
       )}
 
       {/* THE BARS (2026-10-05, Donovan: "not showing all the bars like on mlb"): MOONSHOT's value
-          chart (components/ValueBars) for the active market and line, over the window the matrix is
+          chart (now the shared components/player/PropBars, 2026-10-22) for the active market and line, over the window the matrix is
           sorted by (L10 until a header is tapped) -- one bar a game, oldest left, warm over the line,
           the dashed rule his average, the streak band under it. Tap a bar for that game's line. */}
       {(() => {
         const span = WINDOWS[sort?.w ?? 1]
         const seg = (log || []).slice(-span[1])
         const thr = lineFor(active) + 0.5
-        const games = seg.map((g, i) => ({ key: `${g.s}-${g.w}-${i}`, val: Number(g[active[2]]) || 0, opp: g.opp || null, week: g.w ?? null, season: g.s ?? null,
+        // the shared bar chart (components/player/PropBars.js, every sport's card): week and club under each bar
+        const games = seg.map((g, i) => ({ key: `${g.s}-${g.w}-${i}`, v: Number(g[active[2]]) || 0, on: (Number(g[active[2]]) || 0) >= thr,
+          top: g.w != null ? `wk ${g.w}` : '', bot: g.opp || '', sub: g.s && String(g.s) !== String(seg[seg.length - 1]?.s) ? `'${String(g.s).slice(-2)}` : '',
           title: `${g.w != null ? `wk ${g.w}` : ''}${g.s ? ` '${String(g.s).slice(-2)}` : ''}${g.opp ? ` ${g.opp}` : ''} — ${Number(g[active[2]]) || 0} ${active[1].toLowerCase()}`, g }))
         const p = games.find((x) => x.key === pin)
         if (!games.length) return null
@@ -178,7 +178,7 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
             <div style={{ fontSize: 12, color: C.text2, fontFamily: NUM_FONT, margin: '12px 0 8px' }}>
               {span[0] === 'All' ? `All ${games.length}` : `Last ${games.length}`} games · newest on the right
             </div>
-            <ValueBars variant="broadcast" look={LOOK} sport="nfl" games={games} thr={thr} numFont={NUM_FONT} selected={pin} onSelect={setPin} />
+            <PropBars games={games} line={thr} C={C} NUM_FONT={NUM_FONT} accent={C.green} selected={pin} onSelect={setPin} />
             {p && (
               <div style={{ marginTop: 8, padding: '8px 12px', borderRadius: 10, fontSize: 13, fontFamily: NUM_FONT, color: C.text2, background: 'rgba(255,255,255,.04)', border: `1px solid ${C.border}`, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
                 <b style={{ color: C.text }}>{p.title.split(' — ')[0]}</b>
