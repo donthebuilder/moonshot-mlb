@@ -16,6 +16,8 @@ import { digestGradedNight } from '../lib/ledgerArchive'
 import { useMlbStatusNight } from '../lib/useMlbStatus'
 import { buildHeadlines, useLiveScores, scoreOrder } from '../lib/headlines'
 import TickerPill from './TickerPill'
+import { useMlbPhase } from '../lib/mlb/usePhase'
+import { offseasonItems } from '../lib/mlb/offseasonTicker'
 import Ticker from './Ticker'
 import DateMode from './DateMode'
 import SettingsSheet, { SheetLabel, SheetRow } from './SettingsSheet'
@@ -150,6 +152,8 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
   const live = useLiveScores({ nfl: false, nhl: false })
   const isLive = live.items.some((i) => i.live) || (stats?.actual ?? 0) > 0
   const heads = useMemo(() => buildHeadlines({ players, results, isLive, headline: null, airRanked: [] }), [players, results, isLive])
+  // THE OFFSEASON (2026-10-21, KNOWN-ISSUES #18): lib/mlb/offseasonTicker.js. null in any other state, and the strip is as before.
+  const offItems = offseasonItems(useMlbPhase(), { muted: C.text3 })
   if (!stats) return <span style={{ fontSize:9.5, color:C.text3, fontFamily:NUM_FONT }}>loading the slate…</span>
 
   const expectedDate = mode === 'tomorrow'
@@ -247,7 +251,7 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
   // surfaces across the site, where it isn't in the way of anything.
   return (
     // the shell is components/Ticker.js (R9 #4); MOONSHOT's class and margin unchanged
-    <Ticker className="hdr-scorebug" style={{ marginTop: 5 }} items={items}
+    <Ticker className="hdr-scorebug" style={{ marginTop: 5 }} items={offItems ? [...offItems, ...items.filter((it) => it.sport || it.kind)] /* the word + fall ball, then any real scores; no last-slate pills */ : items}
       render={(it, echo) => <Pill key={echo ? `${it.k}-echo` : it.k} it={it} echo={echo || undefined} />} />
   )
 }
