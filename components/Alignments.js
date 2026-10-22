@@ -10,6 +10,12 @@ import LaneTable from './numerology/LaneTable'
 import DayNumbers from './numerology/DayNumbers'
 import PageHeader from './PageHeader'
 import { fromMlb } from '../lib/numerology/adapters'
+import { Empty } from './ui'
+import { etToday } from '../lib/freshness'
+import { mlbSlateState } from '../lib/mlbSlateState'
+import { mlbNextGames } from '../lib/mlbNext'
+import { useMlbPhase } from '../lib/mlb/usePhase'
+import { numerologyDay } from '../lib/numerology/mlbDay'
 import {
   usePeople, slateAlignments, AXIS_META, alignedWith,
   shiftDateKey, dateDigitRoot,
@@ -106,6 +112,30 @@ export default function Alignments({ players = [], watchIds = null, slateDate = 
     date: todayKey,
     items: players.map((p) => ({ id: p.player_id ?? p.id, name: nameOf(p), team: teamOf(p), a: fromMlb(p, people?.get(mlbId(p))), score: p.hr_score })),
   }), [players, people, loaded, todayKey])   // eslint-disable-line react-hooks/exhaustive-deps
+  // A SLATE FROM AN EARLIER DAY IS NOT TONIGHT (2026-10-21, KNOWN-ISSUES): lib/numerology/mlbDay.js. Two public statsapi
+  // reads, only while the slate on screen is from an earlier Eastern day; nothing else changes on a game day.
+  const etDay = etToday()
+  const slatePast = Boolean(slateDate) && slateDate < etDay
+  const [slateOver, setSlateOver] = useState(null)
+  const [next, setNext] = useState(undefined)
+  const phase = useMlbPhase()
+  useEffect(() => {
+    if (!slatePast) { setSlateOver(null); setNext(undefined); return undefined }
+    let alive = true
+    mlbSlateState(slateDate).then((s) => { if (alive) setSlateOver(s ? s.over : null) })
+    mlbNextGames(etDay).then((n) => { if (alive) setNext(n ?? null) })
+    return () => { alive = false }
+  }, [slatePast, slateDate, etDay])
+  const off = numerologyDay({ slateDate, today: etDay, slateOver, next, phase })
+  if (off) {
+    return (
+      <div style={{ display: 'grid', gap: 10 }}>
+        <PageHeader title="🔮 Numerology" sub="For fun: numbers that line up. Not part of any score." />
+        <Empty title={off.title} note={off.note} tone={C.orange} />
+        {off.numbersDate ? <TonightsNumbers date={off.numbersDate} theme={C} numFont={NUM_FONT} accent={C.orange} label={off.numbersLabel} /> : null}
+      </div>
+    )
+  }
   return (
     <AlignmentsView
       model={model} tonight={tonight} todayKey={todayKey} todayRoot={todayRoot}
