@@ -66,7 +66,7 @@ export function GameFilterRail({ value, onChange, counts, opts = BASE_GAME_FILTE
 export function SlateStrip({ sport, isPhone, rememberKey, accent, theme, open = null, cards, activeId, onSelect, legend }) {
   return (
     <StripFold isPhone={isPhone} count={cards.length} rememberKey={rememberKey} accent={accent}
-      summary={open ? <>reading <MatchLogos sport={sport} away={open.away} home={open.home} px={14} gap={3} /></> : 'tap to pick one'}>
+      summary={open ? null : 'tap to pick one'}>
       <div style={{ marginBottom: 16 }}>
         <style>{'@keyframes gsLivePulse{0%,100%{opacity:1}50%{opacity:.3}}'}</style>
         <Rail itemMin={296} gap={8} wheelScroll={false}>   {/* 296 (was 264): a wider card is a shorter one (10-19) */}
@@ -78,11 +78,13 @@ export function SlateStrip({ sport, isPhone, rememberKey, accent, theme, open = 
   )
 }
 
-export function StripFold({ isPhone, count, summary, rememberKey = 'moonshot_games_fold_v1', accent = C.orange, children }) {
+// SAID ONCE (layout sweep, 2026-10-22, Donovan: "repeated data of the line before"): the fold's title no longer carries the
+// game count (the lit All / Live / Upcoming / Final chip right above it says it) or "reading NYM @ WSH" (the lit card in the
+// strip, the lit chip in the phone's game switcher and the open game's own header all say it). `count` is accepted and unused.
+export function StripFold({ isPhone, count: _count, summary, rememberKey = 'moonshot_games_fold_v1', accent = C.orange, children }) {
   return (
     <MobileFold
       title="🏟 All games"
-      count={count}
       summary={summary}
       maxWidth={760}
       always

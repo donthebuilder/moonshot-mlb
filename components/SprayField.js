@@ -415,6 +415,16 @@ const liveColor = (b) => (liveIsHR(b) ? RESULT_COLORS().home_run
 export default function SprayField({
   player, height = 340, slateMode, liveOnly = false,
   liveBalls = null, liveFocusId = null, liveLabel = '',
+  // THE BLEND (2026-10-22, the player card): the spray chart's filters drive the EV log too.
+  //   onShown(rows)  every time the filtered set changes, the raw ball rows it is drawing (the EV log tables them)
+  //   preset 'hr'    Donovan's own HR setup on the way in: last 10 games, the starter's top 3 pitches, hard-hit only
+  //                  ("last 10 games, top 3 pitches and hard hit ... what I look at when I'm looking for HRs")
+  //   moreFilters    arm / side / distance / contact sit behind one "More filters" chip
+  onShown = null, preset = null, moreFilters = false,
+  // LINKED (2026-10-22, KNOWN-ISSUES #35): a tapped / clicked ball goes out as its raw row (hover stays local, so the log
+  // doesn't reshuffle while the cursor crosses the chart), and a ball picked
+  // in the EV log beside it comes in the same way (lights its dot and flies it). Same object both ways, no key to drift.
+  pickedBall = null, onPickBall = null,
 }) {
   const [data, setData] = useState(null)
   const [state, setState] = useState('idle')
@@ -435,6 +445,7 @@ export default function SprayField({
   // empty state — but only if he hasn't touched the picker himself.
   const [range, setRange] = useState('g5')
   const rangeTouched = useRef(false)
+  const userRange = useRef(false)   // he picked a window himself: the HR preset never overrides it
   const [bbPick, setBbPick] = useState(null)   // null = all batted-ball types
   const [armPick, setArmPick] = useState('ALL')  // ALL | L | R — pitcher hand
   const [sidePick, setSidePick] = useState('ALL') // ALL | pull | center | oppo
@@ -482,6 +493,8 @@ export default function SprayField({
     let alive = true
     setState('loading'); setData(null); setPicked(null); setOnly('all')
     setRange('all'); setBbPick(null)
+    // a refetch (a new man, or the slate mode landing after mount) clears the filters, so the openers apply again
+    mixApplied.current = null; presetApplied.current = null
     // OFF-SLATE PLAYERS (2026-08-28): a QuickSearch result has no slate
     // detail file — it was never on tonight's board — so asking for
     // detailUrl() would just be a guaranteed 404. archiveDetailUrl() is the
@@ -564,6 +577,7 @@ export default function SprayField({
       far400: !!h?.is_400_plus,
       pullAir: !!h?.is_pull_air,
       event,
+      _raw: h,   // the source row, for the EV log beside it (onShown)
     }
   }).filter(Boolean), [data])
 
@@ -658,14 +672,29 @@ export default function SprayField({
   // the selection straight back to the mix, so the button looked dead and
   // the chart flickered. The default now applies ONCE per player; after
   // that, null means all and stays meaning all.
+  // the starter's top 3 pitches to this side, by how often he throws them (only the ones this hitter has put in play)
+  const top3 = useMemo(
+    () => pitches.filter((p) => p.tonight > 0).sort((a, b) => b.tonight - a.tonight).slice(0, 3).map((p) => p.k),
+    [pitches],
+  )
   const mixApplied = useRef(null)
   useEffect(() => {
     if (state !== 'done' || mixApplied.current === pid) return
-    if (matchable.length) {
-      setPicked(new Set(matchable))
+    const first = preset === 'hr' && top3.length ? top3 : matchable
+    if (first.length) {
+      setPicked(new Set(first))
       mixApplied.current = pid
     }
-  }, [state, matchable, pid])
+  }, [state, matchable, top3, pid, preset])
+  // the rest of the HR preset, once per hitter: last 10 games, hard-hit balls
+  const presetApplied = useRef(null)
+  useEffect(() => {
+    if (preset !== 'hr' || state !== 'done' || presetApplied.current === pid) return
+    presetApplied.current = pid
+    // marked as chosen so the 3D's own opening shot (last 5) and the thin-window widen leave his L10 alone
+    if (!userRange.current) { rangeTouched.current = true; setRange('g10') }
+    setOnly('hard')
+  }, [preset, state, pid])
 
   // Result classes. The old version called every non-XBH ball an "Out", which
   // labelled 4,311 singles across the slate as outs. Group on `event`.
@@ -733,9 +762,26 @@ export default function SprayField({
     return okClass && okPitch && okBB && okArm && okSide && okDeep
   }), [inRange, only, picked, bbPick, armPick, sidePick, deepPick])
 
+  // hand the filtered balls to the EV log (the blend); a new set only when the filters or the data change
+  // a ball picked in the EV log: light its dot and fly it (the hover ring and flight are the same as a tap on the dot)
+  useEffect(() => {
+    if (!pickedBall) return
+    const i = shown.findIndex((h) => h._raw === pickedBall)
+    if (i >= 0 && i !== hover) { setHover(i); setHoverNonce((v) => v + 1) }
+  }, [pickedBall])   // eslint-disable-line react-hooks/exhaustive-deps
+  // (only once the balls have landed: an empty set while loading would read as "nothing under these filters")
+  useEffect(() => { if (onShown && (state === 'done' || state === 'error')) onShown(shown.map((h) => h._raw)) }, [shown, state])   // eslint-disable-line react-hooks/exhaustive-deps
+  const [showMore, setShowMore] = useState(!moreFilters)
+  // #37: with the rare filters folded, the pitch row keeps the starter's pitches (dotted), the top 3 and anything picked;
+  // pitches he won't see tonight wait behind "+ More filters" (a phone wrapped them to 3-4 rows)
+  const foldPitch = (p) => moreFilters && !showMore && matchable.length > 0 && !(p.tonight > 0) && !top3.includes(p.k) && !(picked && picked.has(p.k))
+  const foldedN = pitches.filter(foldPitch).length
+  const moreOn = (armPick !== 'ALL' ? 1 : 0) + (sidePick !== 'ALL' ? 1 : 0) + (deepPick !== 'ALL' ? 1 : 0) + (bbPick && bbPick.size ? 1 : 0)
+
   // Tonight's balls, through the same transform as the season ones.
   // res/deepFly stamped here once (Pass 3) so the filter rows below and the
   // counts on their chips all read the same precomputed answer.
+
   const liveHits = useMemo(() => (Array.isArray(liveBalls) ? liveBalls : []).map((b) => {
     const p = toPolar({ hc_x: b?.cx, hc_y: b?.cy })
     if (!p) return null
@@ -1148,7 +1194,7 @@ export default function SprayField({
           return (
             <button
               key={r.key}
-              onClick={() => { rangeTouched.current = true; setRange(r.key) }}
+              onClick={() => { rangeTouched.current = true; userRange.current = true; setRange(r.key) }}
               title={r.games ? `His last ${r.games} games with a tracked batted ball` : `All ${gameDates.length} games on file`}
               style={{
                 ...chipBtn(range === r.key, C.orange),
@@ -1275,7 +1321,7 @@ export default function SprayField({
           per batted ball. Every count beside a chip is over the balls
           currently in the window, so a chip can never describe a wider
           sample than the field is drawing. */}
-      {!liveOnly && (
+      {!liveOnly && showMore && (
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 7, alignItems: 'center' }}>
         <ChipGroup first label="Arm" value={armPick} onChange={setArmPick} color={C.orange}
           options={[['ALL', 'All'], ['L', 'vs LHP'], ['R', 'vs RHP']].map(([k, label]) => ({
@@ -1415,6 +1461,13 @@ export default function SprayField({
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 7, alignItems: 'center' }}>
           <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Pitch</span>
           <button onClick={() => setPicked(null)} style={chipBtn(allPicked, C.orange)}>All</button>
+          {top3.length > 0 && (
+            <button
+              onClick={() => setPicked(new Set(top3))}
+              title={`${pitcherName || "Tonight's starter"}'s three most-thrown pitches${tonight.side ? ` to ${tonight.side === 'lhb' ? 'left' : 'right'}-handed bats` : ''}: ${top3.join(', ')}`}
+              style={chipBtn(!!picked && picked.size === top3.length && top3.every((k) => picked.has(k)), C.orange)}
+            >★ Top 3</button>
+          )}
           {matchable.length > 0 && (
             <button
               onClick={() => setPicked(new Set(matchable))}
@@ -1424,7 +1477,7 @@ export default function SprayField({
               ⌖ Match {pitcherName ? pitcherName.split(' ').slice(-1)[0] : 'starter'} mix
             </button>
           )}
-          {pitches.map((p) => {
+          {pitches.filter((p) => !foldPitch(p)).map((p) => {
             const on = !!picked && picked.has(p.k)
             return (
               <button
@@ -1450,7 +1503,16 @@ export default function SprayField({
       {/* Batted-ball type. Ground balls are 43% of a typical hitter's tracked
           balls and tell you nothing about power, so being able to drop them is
           the difference between a spray chart and a fielding chart. */}
-      {!liveOnly && (
+      {!liveOnly && moreFilters && (
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 7 }}>
+          <button type="button" onClick={() => setShowMore((v) => !v)} aria-expanded={showMore} style={chipBtn(showMore || moreOn > 0, C.orange)}>
+            {showMore ? '− Fewer filters' : `+ More filters${moreOn ? ` · ${moreOn} on` : ''}`}
+          </button>
+          <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>arm, side, distance, contact{foldedN ? `, ${foldedN} more pitch${foldedN === 1 ? '' : 'es'}` : ''}</span>
+        </div>
+      )}
+
+      {!liveOnly && showMore && (
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 7, alignItems: 'center' }}>
         <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Contact</span>
         <button onClick={() => setBbPick(null)} style={{ ...chipBtn(!bbPick, C.orange), padding: '2px 8px', fontSize: 9.5 }}>All</button>
@@ -1479,7 +1541,7 @@ export default function SprayField({
       </div>
       )}
 
-      {!liveOnly && matchable.length > 0 && (
+      {!liveOnly && showMore && matchable.length > 0 && (
         <MoreNote label="What the dotted chips are"><div style={{ fontSize: 9.5, color: C.text3, marginBottom: 7, lineHeight: 1.5 }}>
           Dotted chips are pitches {pitcherName || "tonight's starter"} actually throws
           {tonight.side ? ` to ${tonight.side === 'lhb' ? 'left' : 'right'}-handed bats` : ''}
@@ -1847,7 +1909,7 @@ export default function SprayField({
                      and cancel out) is what makes tap-1 open, tap-2-same-dot
                      close, and tap-a-different-dot switch directly. Same fix as
                      ZoneMap.js's Phase 6 pass. */
-                  onClick={() => setHover(on ? null : i)}
+                  onClick={() => { setHover(on ? null : i); onPickBall?.(on ? null : h._raw) }}
                   style={{ cursor: 'crosshair' }}
                 />
               </g>

@@ -228,10 +228,10 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
       {view === 'called' && !OWN_MODEL_MARKETS.has(market)
         ? <Picks picks={picks} results={results} data={data} matchup={matchup} onPlayerClick={onPlayerClick} odds={odds} oddsStatus={oddsStatus} logs={logs} market={market} hideMarketPicker top={top} />
         : OWN_MODEL_MARKETS.has(market)
-          ? <TwoTouchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} oddsStatus={oddsStatus} top={top} showOpts={!phone || opts} viewCtl={viewCtl} />
+          ? <TwoTouchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} oddsStatus={oddsStatus} top={top} showOpts={!phone || opts} viewCtl={viewCtl} liveSnap={liveSnap} />
           : market === 'TD'
           ? <Touchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} oddsStatus={oddsStatus} logs={logs} top={top} results={results} liveSnap={liveSnap} statusOf={tdStatus.statusOf} showOpts={!phone || opts} viewCtl={viewCtl} />
-          : <Boards data={data} logs={logs} matchup={matchup} onPlayerClick={onPlayerClick} odds={odds} oddsStatus={oddsStatus} market={market} hideMarketPicker top={top} showOpts={!phone || opts} viewCtl={viewCtl} />}
+          : <Boards data={data} logs={logs} matchup={matchup} onPlayerClick={onPlayerClick} odds={odds} oddsStatus={oddsStatus} market={market} hideMarketPicker top={top} showOpts={!phone || opts} viewCtl={viewCtl} liveSnap={liveSnap} statusOf={tdStatus.statusOf} />}
       {view === 'board' && <NotScoredTable rows={unscored} columns={NOT_SCORED_COLUMNS} Table={NflTable} theme={C} teamMark="nfl"
         faceOf={(r) => ({ sport: 'nfl', espnId: r._raw?.espn_id, team: r.team, name: r.name })}
         onOpen={onPlayerClick ? (r) => onPlayerClick(r._raw, market) : null} />}

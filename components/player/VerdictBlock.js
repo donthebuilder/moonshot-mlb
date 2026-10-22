@@ -7,6 +7,7 @@ import { alpha } from '../../lib/scales'
 import { BRAND } from '../../lib/routes'
 import { explain as tapExplain } from '../../lib/explain'
 import { useCardLock, useMemberState, CardLockLine } from '../MemberGate'
+import { useIsPhone } from '../MobileFold'
 
 // MOONSHOT ON HIM -- THE VERDICT (2026-10-08). `sport` ('mlb' default | 'nfl' | 'nhl' | 'nba') only picks the
 // product's name for the heading (BRAND in lib/routes.js): MOONSHOT / TUDDY / LAMP / BUCKETS ON HIM. Right under the header: the call-status word (from the sport's
@@ -26,6 +27,8 @@ export default function VerdictBlock({
   const label = { fontSize: 11, fontWeight: 900, letterSpacing: '.1em', color: C.text2, fontFamily: NUM_FONT }
   const line = { fontSize: 12, color: C.text2, fontFamily: NUM_FONT, lineHeight: 1.45 }
   const chips = locked ? [] : (signals || []).filter((c) => c?.t)
+  // a phone: smaller chips so the flags sit on one line (Donovan 2026-10-22: "chips of repeated data ... half the screen")
+  const phone = useIsPhone(560)
   const brand = BRAND[sport]?.name || BRAND.mlb.name
   return (
     <section data-pm="verdict" aria-label={`${brand} on him`} style={{ margin: '0 0 8px', minWidth: 0, ...style }}>
@@ -45,19 +48,23 @@ export default function VerdictBlock({
         <WhyLines theme={C} numFont={NUM_FONT} accent={accent} why={(why || []).slice(0, whyMax)} watch={watch} explain={explain} />
       )}
       {offSlate == null && nonMember && <CardLockLine C={C} NUM_FONT={NUM_FONT} />}
-      {recordLine ? <div style={{ ...line, color: C.text3, marginTop: 2 }}>{recordLine}</div> : null}
+      {/* his record and last week on ONE line (2026-10-22: two lines of the same record read as repeated data) */}
+      {recordLine || lastLine ? (
+        <div style={{ ...line, color: C.text3, marginTop: 2 }}>
+          {recordLine && lastLine && typeof recordLine === 'string' ? recordLine.replace(/\.\s*$/, '') : recordLine}{recordLine && lastLine ? ' · ' : null}{lastLine ? <span style={{ color: C.text }}>{lastLine}</span> : null}
+        </div>
+      ) : null}
       {chips.length > 0 && (
         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', margin: '6px 0 0' }}>
           {chips.map((c) => (
             <span key={c.t} {...(c.explain ? { role: 'button', tabIndex: 0, title: c.explain, onClick: () => tapExplain(c.t, c.explain), onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tapExplain(c.t, c.explain) } } } : null)}
               style={c.explain ? { display: 'inline-block', padding: '12px 0', margin: '-12px 0', cursor: 'help' } : { display: 'contents' }}>
-              <span style={{ display: 'inline-block', fontSize: 11, fontWeight: 800, padding: '2px 8px', borderRadius: 3, whiteSpace: 'nowrap', fontFamily: NUM_FONT,
+              <span style={{ display: 'inline-block', fontSize: phone ? 10 : 11, fontWeight: 800, padding: phone ? '2px 6px' : '2px 8px', borderRadius: 3, whiteSpace: 'nowrap', fontFamily: NUM_FONT,
                 color: c.warn ? C.text : C.text2, border: `1px solid ${c.warn ? C.border2 : alpha(accent, 0.35)}`, background: c.warn ? C.glass : alpha(accent, 0.07) }}>{c.t}</span>
             </span>
           ))}
         </div>
       )}
-      {lastLine ? <div style={{ ...line, marginTop: 6, color: C.text }}>{lastLine}</div> : null}
     </section>
   )
 }

@@ -83,9 +83,10 @@ export function Kicker({ children, tone = C.purple }) {
   return <div style={{ color: tone, font: `900 10px/1 ${NUM_FONT}`, letterSpacing: '.14em', margin: '4px 0 8px' }}>{children}</div>
 }
 /** One row of pills (view switches, pagers). 44px tall: a thumb's target. */
-export function Pills({ value, onChange, options, ariaLabel, nowrap = false }) {
+// className 'chip-row': on a phone the row swipes sideways instead of wrapping (components/MobileCSS.js .chip-row)
+export function Pills({ value, onChange, options, ariaLabel, nowrap = false, className }) {
   return (
-    <div role="group" aria-label={ariaLabel} style={{ display: 'flex', gap: 6, flexWrap: nowrap ? 'nowrap' : 'wrap' }}>
+    <div role="group" aria-label={ariaLabel} className={className} style={{ display: 'flex', gap: 6, flexWrap: nowrap ? 'nowrap' : 'wrap' }}>
       {options.map((o) => {
         const on = o.key === value
         return (

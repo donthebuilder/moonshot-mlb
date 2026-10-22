@@ -70,7 +70,7 @@ function TwoCard({ p, rank, watchlist, status, onPlayerClick, weights, base, poo
   )
 }
 
-export default function TwoTouchdowns({ data, matchup, odds, onPlayerClick, oddsStatus, top = null, showOpts = true, viewCtl = null }) {
+export default function TwoTouchdowns({ data, matchup, odds, onPlayerClick, oddsStatus, top = null, showOpts = true, viewCtl = null, liveSnap = null }) {
   const watchlist = useNflWatchlist(data)
   const query = top?.query || ''
   const team = top?.team || 'all'
@@ -148,7 +148,7 @@ export default function TwoTouchdowns({ data, matchup, odds, onPlayerClick, odds
       ) : (
         <>
           {view === 'list'
-            ? <NflBoardList games={data?.games} players={capped} market={MARKET} rankOf={rankOf} rankMv={rankMv} weights={weights} odds={null} phone={phone} onPlayerClick={openFromBoard} statusOf={statusOf} base={base} pool={rows} watchlist={watchlist} />
+            ? <NflBoardList games={data?.games} players={capped} market={MARKET} rankOf={rankOf} rankMv={rankMv} weights={weights} odds={null} phone={phone} onPlayerClick={openFromBoard} statusOf={statusOf} base={base} pool={rows} watchlist={watchlist} liveSnap={liveSnap} />
             : <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
                 {capped.map((p, i) => (
                   <TwoCard key={p.player_id} p={p} place={i} kickoff={kickoffFor(data?.games, p)} rank={rankOf.get(String(p.player_id)) ?? i + 1} status={statusOf(p)} onPlayerClick={openFromBoard} weights={weights} base={base} pool={rows} watchlist={watchlist} rankMove={rankMv.cell(p.player_id)} />
