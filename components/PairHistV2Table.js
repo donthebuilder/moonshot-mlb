@@ -6,7 +6,7 @@ import { fetchJSON } from '../lib/data'
 import { pairHistV2Paths } from '../lib/dataSource'
 import { readPairHistV2, pairHistRows, seasonLabel, coverageLine } from '../lib/pairHistV2'
 import { explain } from '../lib/explain'
-import { inputStyle } from './ui'
+import FindBar from './FindBar'
 import DenseTable from './DenseTable'
 import { LegCell } from './PairBlock'
 
@@ -22,6 +22,8 @@ const short = (p) => {
   return parts.length > 1 ? { ...p, name: `${parts[0][0]}. ${parts.slice(1).join(' ')}`, _orig: p } : { ...p, _orig: p }
 }
 const SHOW = 25   // a long list previews a few rows; "+N more" opens the rest
+const LIFT_BAR = 1.5   // the Lift filter: at least this many times what coincidence gives
+const RECENT_DAYS = 30   // the recent filter
 
 const WORDS = {
   mlb: { unit: 'home run', both: 'Both homered', lead: 'hitters', day: 'day' },
@@ -42,6 +44,11 @@ export default function PairHistV2Table({ sport = 'mlb', onOpenPlayer = null, ac
   const [query, setQuery] = useState('')
   const [sameGame, setSameGame] = useState(false)
   const [limit, setLimit] = useState(SHOW)
+  // THE SITE'S FILTER ROW (2026-10-21, Donovan: "the pairs page beautiful ... we can add filters"): components/FindBar.js
+  const [team, setTeam] = useState('')
+  const [season, setSeason] = useState('')
+  const [liftOn, setLiftOn] = useState(false)
+  const [recentOn, setRecentOn] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -51,7 +58,13 @@ export default function PairHistV2Table({ sport = 'mlb', onOpenPlayer = null, ac
     return () => { alive = false }
   }, [sport])
 
-  const all = useMemo(() => pairHistRows(file, { query, sameGameOnly: sameGame }), [file, query, sameGame])
+  const all = useMemo(() => pairHistRows(file, { query, sameGameOnly: sameGame }).filter((r) => (
+    (!team || r._a?.team === team || r._b?.team === team)
+    && (!season || Number(r[`s${season}`]) > 0)
+    && (!liftOn || (r.lift != null && r.lift >= LIFT_BAR))
+    && (!recentOn || (r.ago != null && r.ago <= RECENT_DAYS))
+  )), [file, query, sameGame, team, season, liftOn, recentOn])
+  const teams = useMemo(() => [...new Set((file?.pairs || []).flatMap((p) => (p?.players || []).map((x) => x?.team)).filter(Boolean))].sort(), [file])
   const rows = useMemo(() => all.slice(0, limit), [all, limit])
   const seasons = file?.seasons_covered || []
 
@@ -117,13 +130,18 @@ export default function PairHistV2Table({ sport = 'mlb', onOpenPlayer = null, ac
     <section id={id}>
       {head}
       <div style={{ fontSize: 12, color: C.text3, fontFamily: NUM_FONT, marginBottom: 8 }}>{coverageLine(file, sport)}</div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '0 0 10px' }}>
-        <input style={{ ...inputStyle(), width: 'auto', flex: '1 1 180px', minWidth: 150, minHeight: 44 }} placeholder={`Search either ${W.lead.slice(0, -1)}…`}
-          aria-label="Search pairs" value={query} onChange={(e) => { setQuery(e.target.value); setLimit(SHOW) }} />
-        <button type="button" onClick={() => { setSameGame((v) => !v); setLimit(SHOW) }} aria-pressed={sameGame}
-          style={{ minHeight: 44, padding: '0 14px', borderRadius: 10, border: `1px solid ${sameGame ? hue : C.border}`, background: sameGame ? hue : C.bg2,
-            color: sameGame ? C.bg : C.text2, font: `700 12px/1 ${NUM_FONT}`, cursor: 'pointer' }}>Same game only</button>
-      </div>
+      {(() => { const reset = (f) => (v) => { f(v); setLimit(SHOW) }; return (
+        <FindBar query={query} setQuery={reset(setQuery)} placeholder={`Search either ${W.lead.slice(0, -1)}…`} searchLabel="Search pairs" accent={hue} style={{ margin: '0 0 10px' }}
+          filters={[
+            { key: 'team', label: 'Team', aria: 'Pairs with a player on this team', value: team, onChange: reset(setTeam), all: 'All teams', options: teams.map((t) => ({ key: t, label: t })) },
+            { key: 'season', label: 'Season', aria: `Pairs who both had a ${W.unit} in this season`, value: season, onChange: reset(setSeason), all: 'Every season', options: seasons.map((y) => ({ key: String(y), label: seasonLabel(sport, y) })) },
+          ]}
+          toggles={[
+            { key: 'same', label: 'Same game only', on: sameGame, onChange: reset(setSameGame), title: `Both had a ${W.unit} in the same game` },
+            { key: 'lift', label: `Lift ${LIFT_BAR}+`, on: liftOn, onChange: reset(setLiftOn), title: `Did it at least ${LIFT_BAR}x as often as coincidence would give` },
+            { key: 'recent', label: `Last ${RECENT_DAYS} days`, on: recentOn, onChange: reset(setRecentOn), title: `Last did it within ${RECENT_DAYS} days of the file` },
+          ]} />
+      ) })()}
       {all.length === 0 ? (
         <div style={{ color: C.text3, fontSize: 12, padding: '10px 0' }}>
           {!file.pairs.length && file.thresholds
