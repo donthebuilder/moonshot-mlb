@@ -84,6 +84,18 @@ const pic = await F.filmPicture({ day: WED, data, receipts, draw: async (m) => {
 ok(pic && drawn.topic.key === 'called' && drawn.n === 1 && drawn.data === data && drawn.dayWord === 'Oct 21', 'the card model: topic, number, data, the day')
 ok(drawn.ex && drawn.faces.length === 3 && drawn.faces.every((f) => f.face && f.dayWord), `the faces (${drawn.faces.length}) and the CALLED example`)
 ok(await F.filmPicture({ day: WED, data, receipts, draw: async () => { throw new Error('boom') }, face: async () => '' }) === null, 'a render that throws: no picture, no throw')
+// 5c. the club logo (2026-10-21, KNOWN-ISSUES #9): a receipt that stored his club gets its mark; an older one (no club) draws as before
+{
+  const withTeam = [{ day: '2026-10-22', payload: { results: [{ sport: 'nhl', player_id: 'T-Logo', name: 'Test Logo', team: 'TST', outcome: 'cashed' }] } }, ...receipts]
+  const asked = []
+  let m = null
+  await F.filmPicture({ day: WED, data, receipts: withTeam, draw: async (x) => { m = x; return Buffer.from('PNG') }, face: async (sport, id) => `data:image/png;base64,${id}`, logo: async (sport, team) => { asked.push(`${sport}:${team}`); return { src: 'data:image/png;base64,TESTLOGO', plate: true } } })
+  ok(asked.join() === 'nhl:TST', `only a stored club is looked up (${asked.join()})`)
+  ok(m.ex.name === 'Test Logo' && m.ex.team === 'TST' && m.ex.logo === 'data:image/png;base64,TESTLOGO' && m.ex.logoPlate === true, 'the CALLED example carries his club and its mark')
+  ok(m.faces.filter((f) => f.name !== 'Test Logo').every((f) => f.team === '' && f.logo === ''), 'an older receipt (no club): no logo, as before')
+  const R = await import('../lib/posts/receipt.js')
+  ok(typeof R.assembleReceipt === 'function' && /\.\.\.\(g\.team \? \{ team: g\.team \} : \{\}\)/.test((await import('node:fs')).readFileSync(new URL('../lib/posts/receipt.js', import.meta.url), 'utf8')), 'the night receipt stores each graded man\'s club')
+}
 F._resetFilmForTests()
 store.length = 0
 const r2 = await F.postFilmRoomOnce(db, { day: '2026-12-02', hooks: '', draw: async () => Buffer.from('PNG'), face: async () => '' })
