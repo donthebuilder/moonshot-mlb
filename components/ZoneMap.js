@@ -104,7 +104,7 @@ function ZoneMatchStrip({ zp, pzp }) {
     <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
       {rows.map((r) => (
         <span key={r.key} title={r.pending ? 'gb/fly per zone publish with the next nightly cache' : `his top-3 ${r.label} zones ∩ the starter's top-3 bleed zones for the same stat`} style={{
-          fontSize: 9, fontFamily: NUM_FONT, borderRadius: 999, padding: '2px 8px',
+          fontSize: 9, fontFamily: NUM_FONT, borderRadius: 999, '--chip': '1', padding: '2px 8px',
           border: `1px solid ${r.zs.length ? r.col + '66' : C.border}`,
           color: r.zs.length ? r.col : C.text3, background: r.zs.length ? r.col + '14' : 'transparent',
         }}>
@@ -347,6 +347,8 @@ const LIVE_KINDS = ['ball', 'called', 'whiff', 'foul', 'inplay']
 //     second is the "where is he spotting it tonight" read. It needs a
 //     specific arm, so it uses the chosen chip or, with none chosen, the one
 //     this hitter last faced.
+// CHIPS ARE FLAT (2026-10-21, chips batch): every pill here was borderRadius 999; now the site's square 3px chip. '--chip'
+// keeps a button's 44px touch target (app/globals.css) and does nothing on a span.
 // State lives in the page (At The Plate), because the pitcher list comes
 // from the game feed and the same chips also drive the arsenal card there.
 function LivePitcherRow({ pitchers, pitcherId, onPitcher, scope, onScope, hitter, dense = false }) {
@@ -355,7 +357,7 @@ function LivePitcherRow({ pitchers, pitcherId, onPitcher, scope, onScope, hitter
   const pad = dense ? '1px 7px' : '2px 9px'
   const chip = (on, col) => ({
     fontSize: fs, fontFamily: NUM_FONT, fontWeight: 800, cursor: 'pointer',
-    borderRadius: 999, padding: pad, whiteSpace: 'nowrap',
+    borderRadius: 999, '--chip': '1', padding: pad, whiteSpace: 'nowrap',
     border: `1px solid ${on ? col : C.border}`,
     background: on ? `${col}1f` : 'transparent',
     color: on ? col : C.text3,
@@ -877,20 +879,20 @@ export default function ZoneMap({
           <span title="On this page the only dots are tonight's pitches to this hitter. The cell colour and the starter's usage percentage stay as background context." style={{
             fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.08em',
             color: C.green, border: '1px solid rgba(74,222,128,.5)', background: 'rgba(74,222,128,.10)',
-            borderRadius: 999, padding: '2px 8px',
+            borderRadius: 999, '--chip': '1', padding: '2px 8px',
           }}>● TONIGHT ONLY {allLive.length}{scopeAll ? ' · VS EVERYONE' : ''}</span>
         )}
         {!liveOnly && hasLive && (
           <span title={`${allLive.length} tracked pitches from tonight's feed, plotted on this same map`} style={{
             fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.08em',
             color: C.green, border: '1px solid rgba(74,222,128,.45)', background: 'rgba(74,222,128,.10)',
-            borderRadius: 999, padding: '2px 8px',
+            borderRadius: 999, '--chip': '1', padding: '2px 8px',
           }}>● LIVE {allLive.length}</span>
         )}
         <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
           {pills.map((s) => (
             <button key={s.key} onClick={() => setStat(s.key)} title={s.hint} style={{
-              padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 9.5,
+              padding: '3px 10px', borderRadius: 999, '--chip': '1', cursor: 'pointer', fontSize: 9.5,
               fontWeight: 700, fontFamily: NUM_FONT,
               border: `1px solid ${stat === s.key ? C.orange : C.border}`,
               background: stat === s.key ? 'rgba(249,115,22,.14)' : 'transparent',
@@ -1009,7 +1011,7 @@ export default function ZoneMap({
                         <button key={s2.key} onClick={() => setStat(s2.key)} title={s2.hint}
                           style={{
                             fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 800,
-                            borderRadius: 999, padding: '1px 7px', cursor: 'pointer',
+                            borderRadius: 999, '--chip': '1', padding: '1px 7px', cursor: 'pointer',
                             border: `1px solid ${stat === s2.key ? C.orange : C.border}`,
                             color: stat === s2.key ? C.orange : C.text3,
                             background: stat === s2.key ? 'rgba(249,115,22,.12)' : 'transparent',
@@ -1023,7 +1025,7 @@ export default function ZoneMap({
                         <button onClick={() => setLiveType(null)}
                           style={{
                             fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 800,
-                            borderRadius: 999, padding: '1px 7px', cursor: 'pointer',
+                            borderRadius: 999, '--chip': '1', padding: '1px 7px', cursor: 'pointer',
                             border: `1px solid ${!liveType ? C.orange : C.border}`,
                             color: !liveType ? C.orange : C.text3,
                             background: !liveType ? 'rgba(249,115,22,.12)' : 'transparent',
@@ -1034,7 +1036,7 @@ export default function ZoneMap({
                             title={LIVE_PITCH_NAMES[t.code] || t.code}
                             style={{
                               fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 800,
-                              borderRadius: 999, padding: '1px 7px', cursor: 'pointer',
+                              borderRadius: 999, '--chip': '1', padding: '1px 7px', cursor: 'pointer',
                               border: `1px solid ${liveType === t.code ? pitchColor(t.code) : C.border}`,
                               color: liveType === t.code ? pitchColor(t.code) : C.text3,
                               background: liveType === t.code ? `${pitchColor(t.code)}1e` : 'transparent',
@@ -1078,7 +1080,7 @@ export default function ZoneMap({
               <span key={pi.code}
                 title={`${pi.code}${pi.usage != null ? ` — ${pi.usage.toFixed(0)}% of tonight's starter's mix` : ''}. His batted balls vs this pitch (tracked window): ${pi.seen}${pi.hr ? `, ${pi.hr} HR` : ''}${pi.avgEv ? `, avg EV ${pi.avgEv.toFixed(1)}` : ''}. No zone-by-pitch split exists in the data — this is his line vs the pitch, not a per-cell map.`}
                 style={{
-                  fontSize: 9, fontFamily: NUM_FONT, borderRadius: 999, padding: '2px 9px',
+                  fontSize: 9, fontFamily: NUM_FONT, borderRadius: 999, '--chip': '1', padding: '2px 9px',
                   border: `1px solid ${col}55`, color: col, background: `${col}12`, whiteSpace: 'nowrap',
                 }}>
                 <b>{pi.code}</b>
@@ -1121,14 +1123,14 @@ export default function ZoneMap({
                 title="Command: one cross per pitch type at the center of tonight's crossings, and the 1σ oval around it — small and near an edge means he is commanding it, wide across the middle means he is losing it. Three of a type before an oval is drawn."
                 style={{
                   fontSize: 9, fontFamily: NUM_FONT, fontWeight: 700, cursor: 'pointer',
-                  borderRadius: 999, padding: '2px 9px',
+                  borderRadius: 999, '--chip': '1', padding: '2px 9px',
                   border: `1px solid ${liveCmd ? C.orange : C.border}`,
                   background: liveCmd ? 'rgba(249,115,22,.12)' : 'transparent',
                   color: liveCmd ? C.orange : C.text3,
                 }}>◎ command</button>
               <button onClick={() => setLiveType(null)} style={{
                 fontSize: 9, fontFamily: NUM_FONT, fontWeight: 700, cursor: 'pointer',
-                borderRadius: 999, padding: '2px 9px',
+                borderRadius: 999, '--chip': '1', padding: '2px 9px',
                 border: `1px solid ${liveType ? C.border : C.border2}`,
                 background: liveType ? 'transparent' : C.glass,
                 color: liveType ? C.text3 : C.text2,
@@ -1143,7 +1145,7 @@ export default function ZoneMap({
                     title={`${LIVE_PITCH_NAMES[t.code] || t.code} · ${t.n} thrown tonight${t.velo != null ? ` · ${t.velo.toFixed(1)} mph avg` : ''}${t.swings ? ` · ${t.whiffs}/${t.swings} whiffs on swings` : ''}`}
                     style={{
                       fontSize: 9, fontFamily: NUM_FONT, fontWeight: 700, cursor: 'pointer',
-                      borderRadius: 999, padding: '2px 9px', whiteSpace: 'nowrap',
+                      borderRadius: 999, '--chip': '1', padding: '2px 9px', whiteSpace: 'nowrap',
                       border: `1px solid ${on ? col : C.border}`,
                       background: on ? `${col}1f` : 'transparent',
                       color: on ? col : C.text2,

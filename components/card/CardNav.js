@@ -3,6 +3,7 @@ import { FLAT_CHIP_CLASS, flatChip } from '../../lib/chips'
 import { useEffect, useState } from 'react'
 import { nameOf, teamOf, oppOf } from '../../lib/player'
 import { useSportTheme } from '../SportTheme'
+import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 
 // THE CARD'S TAB ROW AND PEER ARROWS, SHARED (2026-09-29, player cards step 5).
 // Moved verbatim out of components/PlayerModal.js so TUDDY's card stops

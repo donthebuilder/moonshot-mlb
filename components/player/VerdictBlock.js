@@ -51,7 +51,7 @@ export default function VerdictBlock({
           {chips.map((c) => (
             <span key={c.t} {...(c.explain ? { role: 'button', tabIndex: 0, title: c.explain, onClick: () => tapExplain(c.t, c.explain), onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tapExplain(c.t, c.explain) } } } : null)}
               style={c.explain ? { display: 'inline-block', padding: '12px 0', margin: '-12px 0', cursor: 'help' } : { display: 'contents' }}>
-              <span style={{ display: 'inline-block', fontSize: 11, fontWeight: 800, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap', fontFamily: NUM_FONT,
+              <span style={{ display: 'inline-block', fontSize: 11, fontWeight: 800, padding: '2px 8px', borderRadius: 3, whiteSpace: 'nowrap', fontFamily: NUM_FONT,
                 color: c.warn ? C.text : C.text2, border: `1px solid ${c.warn ? C.border2 : alpha(accent, 0.35)}`, background: c.warn ? C.glass : alpha(accent, 0.07) }}>{c.t}</span>
             </span>
           ))}

@@ -7,7 +7,7 @@ export function BirthdayChip({ birth, on, accent, textColor, font }) {
   const word = birthdayChip(birth, on)
   if (!word) return null
   return (
-    <span style={{ display: 'inline-block', marginLeft: 8, padding: '0 7px', borderRadius: 999, border: `1px solid ${alpha(accent, 0.4)}`, color: textColor || accent, fontSize: 12, fontWeight: 700, lineHeight: '17px', fontFamily: font, whiteSpace: 'nowrap', verticalAlign: 'baseline' }}>{word}</span>
+    <span style={{ display: 'inline-block', marginLeft: 8, padding: '0 7px', borderRadius: 3, border: `1px solid ${alpha(accent, 0.4)}`, color: textColor || accent, fontSize: 12, fontWeight: 700, lineHeight: '17px', fontFamily: font, whiteSpace: 'nowrap', verticalAlign: 'baseline' }}>{word}</span>
   )
 }
 

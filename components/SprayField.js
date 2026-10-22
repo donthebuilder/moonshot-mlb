@@ -1041,7 +1041,7 @@ export default function SprayField({
             // Tonight toggle chip, the hover readout, the footer) are the
             // same state colour, same reasoning, not re-commented each time.
             color: C.green, border: `1px solid ${alpha(C.green, 0.5)}`, background: alpha(C.green, 0.10),
-            borderRadius: 999, padding: '2px 9px',
+            borderRadius: 3, padding: '2px 9px',
           }}>● TONIGHT ONLY</span>
           <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
             {liveN} ball{liveN === 1 ? '' : 's'} in play this game · no season sample on this chart

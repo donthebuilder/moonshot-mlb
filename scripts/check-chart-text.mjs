@@ -12,6 +12,7 @@
 // WARN : a label 8-10px on screen, or stage HTML text under 11px. CLAUDE.md "Readability": numbers >= 10px on a portrait phone.
 import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { MAC_CHROME, MAC_BRAVE, EXTRA_PATHS } from './_browser.mjs'
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d }
 const BASE = arg('--base', 'http://localhost:3108')
@@ -20,7 +21,7 @@ const PAGES = (arg('--pages', '') || '/app#sport=nfl&tab=games,/app#sport=nfl&ta
 const VIEWPORTS = ALL ? [[390, 844], [360, 780], [430, 932]] : [[390, 844]]
 const req = createRequire(import.meta.url)
 const { chromium } = req('playwright-core')
-const exe = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'].find((p) => existsSync(p))
+const exe = [MAC_CHROME, MAC_BRAVE, ...EXTRA_PATHS].find((p) => existsSync(p))
 
 const measure = () => {
   const out = { svg: [], html: [], stages: 0, stagesShut: 0 }

@@ -4,6 +4,7 @@ import { seasonStats } from '../../../../lib/nba/stats'
 import { nbaSeason, seasonLabel } from '../../../../lib/nba/season'
 import { nbaTeam } from '../../../../lib/nba/teams'
 import { ok, bad, bucketsRoute } from '../../../../lib/nba/respond'
+import { jerseyNumber } from '../../../../lib/jersey'
 
 export const dynamic = 'force-dynamic'
 export const GET = bucketsRoute('team', async (q) => {
@@ -18,7 +19,7 @@ export const GET = bucketsRoute('team', async (q) => {
   ])
   const players = roster.map((a) => {
     const s = stats.athletes.get(String(a.id))
-    return { id: String(a.id), name: a.displayName, pos: a.position?.abbreviation || null, jersey: a.jersey || null, age: a.age ?? null, injuries: (a.injuries || []).map((i) => i.status).filter(Boolean),
+    return { id: String(a.id), name: a.displayName, pos: a.position?.abbreviation || null, jersey: jerseyNumber(a.jersey) != null ? String(a.jersey).trim() : null, age: a.age ?? null, injuries: (a.injuries || []).map((i) => i.status).filter(Boolean),
       gp: s?.gp ?? null, min: s?.min ?? null, pts: s?.pts ?? null, reb: s?.reb ?? null, ast: s?.ast ?? null, tpm: s?.tpm ?? null, onStats: Boolean(s) }
   }).sort((a, b) => (b.min ?? -1) - (a.min ?? -1))
   const row = st.flatMap((c) => c.rows).find((r) => r.abbrev === t.abbrev) || null

@@ -7,6 +7,7 @@ import DenseTable from '../DenseTable'
 import ZoneMap from '../ZoneMap'
 import { liveBattedBalls } from '../../lib/livegame'
 import { hardHitLine, evDefaults } from '../../lib/mlb/evView'
+import { flatChip } from '../../lib/chips'
 
 // ⚡ TONIGHT, LIVE (2026-08-06) — his batted balls from the game in progress
 // (or just finished), straight off the MLB live feed. The bot's log below is
@@ -511,18 +512,10 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
   // Restyled 2026-08-05 — the old flat grey squares read as leftover
   // Streamlit chrome next to the rest of the site. Same behaviour, the
   // site's pill language: rounded, tinted active with a soft glow.
-  const seg = (active) => ({
-    padding: '4px 11px', fontSize: 10, fontWeight: 700, cursor: 'pointer', border: 'none',
-    background: active ? 'linear-gradient(135deg, #f97316, #ea6a0a)' : 'transparent',
-    color: active ? '#1a0d02' : C.text2,
-    fontFamily: NUM_FONT, borderRadius: 999,
-    boxShadow: active ? '0 0 10px rgba(249,115,22,.35)' : 'none',
-    transition: 'background .12s',
-  })
-  const groupBox = {
-    display: 'flex', gap: 2, borderRadius: 999, padding: 2,
-    border: `1px solid ${C.border2}`, background: 'rgba(255,255,255,.025)',
-  }
+  // FLAT CHIPS (2026-10-21, chips batch): these were glowing gradient pills, the look the master doc bans ("no glowing,
+  // no gradients"). Now the site's one flat square chip; a group is just chips side by side.
+  const seg = (active) => flatChip(active, C.orange, C, NUM_FONT)
+  const groupBox = { display: 'flex', gap: 4, flexWrap: 'wrap' }
   // Controls grouped and labelled. The row was eleven undifferentiated buttons
   // and two selects with no indication which belonged together — you had to
   // click one to find out what it did.

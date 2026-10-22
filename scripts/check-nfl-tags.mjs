@@ -144,7 +144,9 @@ check(JSON.stringify(slate) === before, 'building tags for the board does not to
 check(statusBefore === ['called', 'board', 'off'].map((s) => `${STATUS_WORD[s]}`).join('|') + JSON.stringify(tdCallStatus({ rank: 1, called: true })), 'the status words and tdCallStatus answer the same before and after tags are built')
 const src = read('lib/nfl/tags.js')
 check(!/callStatus|tdStatus|STATUS_WORD|scoring|\.scores\b|scores\[/.test(src.replace(/\/\/.*$/gm, '')), 'lib/nfl/tags.js reads no score and imports no status module (comments aside)')
-check(/import \{[^}]*\} from '\.\/seasonRule'/.test(src) && (src.match(/^import /gm) || []).length === 1, 'its only import is the season rule')
+// its imports: the season rule, plus the shared ordinal helper (lib/format.js, the site's one ordinal rule); nothing that scores or labels
+const imports = [...src.matchAll(/^import [^\n]* from '([^']+)'/gm)].map((m) => m[1])
+check(imports.includes('./seasonRule') && imports.every((m) => ['./seasonRule', '../format'].includes(m)), `its only imports are the season rule and the shared format helpers (${imports.join(', ')})`)
 
 // ── 8. HOVER MEANS TAP: the chip explains itself on both ────────────────────
 const chip = read('components/nfl/TagChips.js')

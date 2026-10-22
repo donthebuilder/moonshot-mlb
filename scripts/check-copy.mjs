@@ -8,6 +8,7 @@
 //   --json out.json  writes every page's blocks
 import { existsSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { MAC_CHROME, MAC_BRAVE, EXTRA_PATHS } from './_browser.mjs'
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d }
 const BASE = arg('--base', 'http://localhost:3108')
@@ -17,7 +18,7 @@ const JSON_OUT = arg('--json', null)
 const req = createRequire(import.meta.url)
 const { chromium } = req('playwright-core')
 const { MLB_TABS, NFL_TABS, NHL_TABS, NBA_TABS, appHref } = await import('../lib/routes.js')
-const exe = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'].find((p) => existsSync(p))
+const exe = [MAC_CHROME, MAC_BRAVE, ...EXTRA_PATHS].find((p) => existsSync(p))
 
 const PRODUCTS = { mlb: MLB_TABS, nfl: NFL_TABS, nhl: NHL_TABS, nba: NBA_TABS }
 const routes = []

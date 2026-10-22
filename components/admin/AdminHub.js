@@ -3,10 +3,12 @@
 // has passed; it takes `status` (lib/adminHubStatus.js readHubStatus: words and numbers only) and draws it. No client JS: links and one form.
 // Phone first: cards are full-width 64px rows below 420px and a two-column grid above; every target is 44px or more; colours are the page's tokens.
 import { ADMIN_TOOLS } from '../../lib/adminHub.js'
+import { BRAND } from '../../lib/routes'
 import EarlyAccess from './EarlyAccess'
 import { dashSignOut } from '../../app/(front)/actions'
 
-const SPORT_WORD = { nhl: 'NHL · LAMP', nfl: 'NFL · TUDDY', mlb: 'MLB · MOONSHOT' }
+// from the sport registry (lib/routes.js BRAND), so a new Card sport (BUCKETS, 2026-10-20) reads 'NBA · BUCKETS', not 'nba'
+const SPORT_WORD = Object.fromEntries(Object.entries(BRAND).map(([k, b]) => [k, `${b.league} · ${b.name}`]))
 const etTime = (iso) => {
   const t = Date.parse(iso || '')
   return Number.isFinite(t) ? new Date(t).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + ' ET' : 'none yet'

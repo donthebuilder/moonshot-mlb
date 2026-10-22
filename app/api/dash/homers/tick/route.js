@@ -188,6 +188,21 @@ async function slateTick(db, { day, rows = [], live = null, hold = null, firstSt
   }
 }
 
+// THE FIVE (Friday, 2026-10-20, lib/posts/theFive.js; its own step since 2026-10-21, KNOWN-ISSUES #8). It lived inside receiptTick, which
+// never had MLB's rows, so a World Series Friday went out with no MOONSHOT name. Now it takes the same `mlb` THE SLATE gets: the
+// in-season path passes tonight's board when it is usable (its own gate, same as the Slate's), the no-MLB paths pass nothing.
+// Called once per tick from whichever path the tick takes. Never throws.
+async function fiveTick(db, { mlb = undefined } = {}) {
+  try {
+    const clock = phxClock(Date.now())
+    if (!fiveDue(clock)) return 'not-due'
+    return await postFiveOnce(db, { day: clock.day, clock, load: slateLoader(mlb ? { day: clock.day, mlb } : { day: clock.day }), hooks: FEED_WEBHOOKS() })
+  } catch (err) {
+    console.error('[homers] the five threw', err)
+    return `error: ${String(err?.message || err)}`
+  }
+}
+
 // ── THE ONE CLAIM SITE ──────────────────────────────────────────────────────
 //
 // Every once-a-day post claims its (day, kind) row the same way: upsert with
@@ -975,8 +990,7 @@ async function receiptTick(db, { day }) {
     // FILM ROOM (Wednesday, 2026-10-20, lib/posts/filmRoom.js): the free feed channels only, not #called-it (it is an explainer, not a receipt)
     const clock = phxClock(Date.now())
     if (filmRoomDue(clock)) out.film_room = await postFilmRoomOnce(db, { day: clock.day, hooks: FEED_WEBHOOKS() })
-    // THE FIVE (Friday, 2026-10-20, lib/posts/theFive.js): THE SLATE's own reads of the NFL, NHL and NBA boards (MLB's rows are not loaded here), free feed channels
-    if (fiveDue(clock)) out.the_five = await postFiveOnce(db, { day: clock.day, clock, load: slateLoader({ day: clock.day }), hooks: FEED_WEBHOOKS() })
+    // THE FIVE moved out of here (2026-10-21, KNOWN-ISSUES #8): see fiveTick, which the in-season path hands tonight's MLB rows.
     // THE SUNDAY SHEET (2026-10-20, lib/posts/sundaySheet.js): TUDDY's rankings card for that Sunday's games, the NFL free channel
     if (sheetDue(clock)) out.sunday_sheet = await postSheetOnce(db, { day: clock.day, clock, hooks: feedHooks('nfl') })
     // THE NETWORK vs THE BOARD (2026-10-21, lib/posts/networkVsBoard.js): Sunday evening, the week's polls graded, the free feed channels
@@ -1017,7 +1031,8 @@ async function mlbTick(request) {
       // path below calls it itself, so a tick never runs it twice.
       const slateOff = await slateTick(db, { day: easternToday() })
       const receiptOff = await receiptTick(db, { day: easternToday() })   // the night receipt is cross-sport too: a football night ends in the MLB offseason
-      return Response.json({ skipped: 'offseason', season, slate: slateOff, receipt: receiptOff })
+      const fiveOff = await fiveTick(db)
+      return Response.json({ skipped: 'offseason', season, slate: slateOff, receipt: receiptOff, the_five: fiveOff })
     }
   }
 
@@ -1115,7 +1130,8 @@ async function mlbTick(request) {
     // JSON instead of needing a manual repro to find.
     // no baseball today -- the football / hockey / basketball Slate still goes out
     const slateNoMlb = await slateTick(db, { day })
-    return Response.json({ day, skipped: 'no-games', slate: slateNoMlb, receipt: receiptResult, backfill, liveSlate: liveSlateStatus() })
+    const fiveNoMlb = await fiveTick(db)
+    return Response.json({ day, skipped: 'no-games', slate: slateNoMlb, receipt: receiptResult, the_five: fiveNoMlb, backfill, liveSlate: liveSlateStatus() })
   }
   // From here down, `snap` may still be null or empty (fetchLiveSlate down,
   // or genuinely nothing live yet) while `board` carries tonight's games.
@@ -1218,6 +1234,9 @@ async function mlbTick(request) {
   // tonight's (stale date / stale arms / none yet) is a HOLD for the MLB line, then the post goes out without it.
   const slateResult = await slateTick(db, { day, rows: boardUsable ? boardRows() : [], live, hold: boardUsable ? null : (boardHold || 'no-board'), firstStartMs: firstPitch ?? NaN })
   if (!/^(waiting|already-posted|off)/.test(String(slateResult))) console.log(`[homers] slate: ${slateResult}`)
+  // THE FIVE (fiveTick): tonight's MLB rows under the Slate's own gate, so a World Series Friday has a MOONSHOT name
+  const fiveResult = await fiveTick(db, { mlb: { rows: boardUsable ? boardRows() : [], live, hold: boardUsable ? null : (boardHold || 'no-board'), firstStartMs: firstPitch ?? NaN } })
+  if (!/^(not-due|waiting|already-posted|off)/.test(String(fiveResult))) console.log(`[homers] the five: ${fiveResult}`)
 
   // ── 0. THE PREGAME CALL — before anything starts ──────────────────────────
   //

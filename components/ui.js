@@ -1,19 +1,13 @@
 'use client'
 import { C, NUM_FONT } from '../lib/theme'
 import PageHeader from './PageHeader'
+import { flatChip } from '../lib/chips'
 
+// THE SHARED BUTTON IS THE FLAT CHIP (2026-10-21, chips batch; Donovan 2026-10-20: "the very tiny square ones").
+// It was a round 7x11 pill. Every caller (24 files: view switches, filters, "Pull 45 nights") now draws lib/chips.js
+// flatChip with its own colour as the accent. CHIP_MARK keeps the 44px touch target (app/globals.css).
 export function btnStyle(color, active = false) {
-  return {
-    border: `1px solid ${active ? color + '99' : C.border}`,
-    background: active ? `${color}22` : 'rgba(255,255,255,.035)',
-    color: active ? color : C.text2,
-    borderRadius: 999,
-    padding: '7px 11px',
-    fontSize: 11,
-    fontWeight: 800,
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-  }
+  return flatChip(active, color, C, NUM_FONT)
 }
 
 export function chipStyle(color) {
@@ -24,8 +18,8 @@ export function chipStyle(color) {
     border: `1px solid ${color}55`,
     background: `${color}16`,
     color,
-    borderRadius: 999,
-    padding: '3px 8px',
+    borderRadius: 999,   // the site's one chip shape: the oval (10-22, matches the X cards)
+    padding: '3px 7px',
     fontSize: 10,
     fontWeight: 800,
     whiteSpace: 'nowrap',

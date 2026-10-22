@@ -2,6 +2,7 @@
 import { TYPE } from '../../lib/theme'
 import { alpha } from '../../lib/scales'
 import { useSportTheme } from '../SportTheme'
+import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 
 // MOONSHOT'S RESULTS FRAME, IN PARTS (2026-09-30, Donovan: "upgrade the
 // results pages to fit the mlb components for each sport"). The two rows at
@@ -37,14 +38,10 @@ export function ModeBar({ modes, mode, setMode }) {
 }
 
 export function TabBtn({ active, onClick, children }) {
-  const { C, accent } = useSportTheme()
+  // flat and square like every chip (2026-10-21, chips batch); it was a round 999 pill
+  const { C, accent, NUM_FONT } = useSportTheme()
   return (
-    <button onClick={onClick} style={{
-      padding: '5px 12px', fontSize: TYPE.body, fontWeight: 700, borderRadius: 999,
-      border: `1px solid ${active ? accent : C.border}`,
-      background: active ? `${accent}22` : 'rgba(255,255,255,.035)',
-      color: active ? accent : C.text2, cursor: 'pointer', whiteSpace: 'nowrap',
-    }}>{children}</button>
+    <button onClick={onClick} className={FLAT_CHIP_CLASS} style={flatChip(active, accent, C, NUM_FONT)}>{children}</button>
   )
 }
 

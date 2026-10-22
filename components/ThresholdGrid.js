@@ -11,6 +11,7 @@ import Brief from './player/Brief'
 import PropsMatrix, { HeatCells, StreakTd } from './player/PropsMatrix'
 import HelpTip from './HelpTip'
 import { heatCell, STREAK_AT } from './player/heat'
+import { flatChip, FLAT_CHIP_CLASS } from '../lib/chips'
 
 // PROP GRID v5 — PATTERNS, not furniture.
 //
@@ -385,13 +386,7 @@ export default function ThresholdGrid({ playerId, odds }) {
 
   // the chart (bars, line, average, streak band) is components/ValueBars.js (2026-10-05, shared with TUDDY)
 
-  const chip = (on) => ({
-    padding: '2px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 9.5,
-    fontWeight: 700, fontFamily: NUM_FONT,
-    border: `1px solid ${on ? C.orange : C.border}`,
-    background: on ? 'rgba(249,115,22,.14)' : 'transparent',
-    color: on ? C.orange : C.text3,
-  })
+  const chip = (on) => flatChip(on, C.orange, C, NUM_FONT)   // the site's flat square chip (2026-10-21, chips batch)
 
   return (
     <div style={{ marginTop: 14 }}>
@@ -407,7 +402,7 @@ export default function ThresholdGrid({ playerId, odds }) {
           {[['rates', '📊 Rates', 'How often he clears each bar, by window'],
             ['streaks', '⚡ Streaks', 'The same markets as runs: what he is on now, what broke it, his best run and his longest drought'],
           ].map(([k, lbl, tip]) => (
-            <button key={k} onClick={() => setLens(k)} title={tip} aria-pressed={lens === k} style={{ ...chip(lens === k), minHeight: 44, padding: '0 12px', fontSize: 11.5 }}>{lbl}</button>
+            <button key={k} onClick={() => setLens(k)} title={tip} aria-pressed={lens === k} className={FLAT_CHIP_CLASS} style={chip(lens === k)}>{lbl}</button>
           ))}
         </span>
       </div>

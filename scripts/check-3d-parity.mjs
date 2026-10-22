@@ -14,6 +14,7 @@
 //   node scripts/check-3d-parity.mjs --before http://localhost:3124 --after http://localhost:3123
 import { createRequire } from 'node:module'
 import { existsSync, mkdirSync } from 'node:fs'
+import { MAC_CHROME, MAC_BRAVE, EXTRA_PATHS } from './_browser.mjs'
 const req = createRequire(`${process.cwd()}/package.json`)
 const { chromium } = req('playwright-core')
 
@@ -24,7 +25,7 @@ const MAX = Number(arg('--max', '0.005'))
 const OUT = arg('--out', 'mobile-report/3d-parity')
 const PARKS = (arg('--parks', 'Fenway Park,Coors Field,Great American Ball Park')).split(',')
 if (!BEFORE) { console.error('--before <url> required (a server built from origin/main)'); process.exit(2) }
-const BROWSERS = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser', '/usr/bin/google-chrome', '/usr/bin/chromium']
+const BROWSERS = [MAC_CHROME, MAC_BRAVE, ...EXTRA_PATHS, '/usr/bin/google-chrome', '/usr/bin/chromium']
 const executablePath = BROWSERS.find((p) => existsSync(p))
 if (!existsSync(OUT)) mkdirSync(OUT, { recursive: true })
 

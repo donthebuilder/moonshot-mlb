@@ -14,8 +14,9 @@ const SPORTS = [
   ['nhl', '/app#sport=nhl&tab=fullboard', ['GOAL', 'SHOTS 3+', 'POINTS 1+', 'ASSISTS 1+']],
   ['nba', '/app#sport=nba&tab=fullboard', ['PTS 25+', 'REB 10+', 'AST 8+', '3PM 4+', 'PRA 35+', 'DOUBLE-DOUBLE', 'TRIPLE-DOUBLE', 'FIRST BASKET', 'ALL MARKETS']],
 ]
-const BROWSERS = ['/Applications/Brave Browser.app/Contents/MacOS/Brave Browser', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome', '/usr/bin/chromium']
+const BROWSERS = [MAC_BRAVE, MAC_CHROME, ...EXTRA_PATHS, '/usr/bin/google-chrome', '/usr/bin/chromium']
 import fs from 'node:fs'
+import { MAC_CHROME, MAC_BRAVE, EXTRA_PATHS } from './_browser.mjs'
 const exe = BROWSERS.find((p) => fs.existsSync(p))
 const b = await chromium.launch({ executablePath: exe, headless: true })
 const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 })
