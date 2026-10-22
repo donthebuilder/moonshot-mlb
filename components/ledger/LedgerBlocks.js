@@ -1,4 +1,5 @@
 'use client'
+import { flatChip } from '../../lib/chips'
 import { useState } from 'react'
 import Tap from '../Tap'
 import { TeamTap } from '../EntityTap'
@@ -237,8 +238,8 @@ export function NextUpBox({ title, rows = [], about, color = C.orange }) {
               const go = typeof c === 'string' ? null : c.onClick || (exKey ? () => setOpened((o) => (o === exKey ? null : exKey)) : null)
               return (
                 <span key={label} onClick={go || undefined} role={go ? (exKey ? 'button' : 'link') : undefined} title={typeof c === 'string' ? undefined : c.title} aria-expanded={exKey ? opened === exKey : undefined} className={exKey ? 'tap-box' : undefined} style={{
-                  fontSize: 11, fontFamily: NUM_FONT, padding: '1px 5px', whiteSpace: 'nowrap',
-                  borderRadius: 5, border: `1px solid ${color}44`, color, ...(go ? { cursor: 'pointer' } : null),
+                  // the site's one chip size and shape (lib/chips.js flatChip, the oval; 10-22), in the box's colour
+                  ...flatChip(false, color, C, NUM_FONT), border: `1px solid ${color}44`, color, cursor: go ? 'pointer' : 'default',
                 }}>{label}</span>
               )
             })}

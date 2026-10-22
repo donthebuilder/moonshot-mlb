@@ -190,8 +190,6 @@ export default function HeaderShell({ sport, theme = MLB_C, wordmark, onHome, ho
           .hdr-acct { display: none; }
           .hdr-date { display: block; order: 5; flex: none; }
           .hdr-date .date-badge { display: none !important; }
-          .hdr-date .date-mode-switch > div:last-child { padding: 0 !important; gap: 0 !important; }
-          .hdr-date .date-mode-switch button { min-height: 44px; padding: 0 12px !important; font-size: 12px !important; }
           .hdr-ticker-slot { display: block; order: 6; flex: 1 1 0; min-width: 0; }
           .hdr-ticker-slot > * { margin-top: 0 !important; }
           .hdr-ticker-slot .hdr-ticker-track > *:not(.tp-game) { height: 36px !important; }

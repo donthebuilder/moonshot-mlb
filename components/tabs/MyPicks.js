@@ -1,4 +1,5 @@
 'use client'
+import { flatChip, CHIP_MARK } from '../../lib/chips'
 import Tap from '../Tap'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
@@ -1686,9 +1687,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
 
 function btn() {
   return {
-    border: `1px solid ${C.border}`, background: 'rgba(255,255,255,.035)',
-    // 2026-09-14: 5px vertical was a ~26px target on the row's main actions.
-    color: C.text2, borderRadius: 999, padding: '8px 12px',
-    fontSize: 10.5, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap',
+    // the site's one chip (lib/chips.js flatChip, the oval; 10-22); CHIP_MARK gives it the 44px tap on a phone
+    ...flatChip(false, C.orange, C, NUM_FONT), ...CHIP_MARK,
   }
 }
