@@ -290,15 +290,16 @@ button {
 @media (min-width: 1024px) and (hover: hover) and (pointer: fine) { .share-card-btn { min-height: 34px; } }
 @media (max-width: 360px) { .share-card-btn { width: 44px !important; } .share-card-btn .share-card-word { display: none; } }
 
-/* THE MLB PLAYER CARD'S MAIN GRID (2026-10-21, the portal; components/PlayerModal.js). Phone: one column, spray chart,
-   EV log, head-to-head. Wide screen: PropFinder's shape, the spray chart over the head-to-head on the left and the EV
-   log down the right. 1080px is about where two ~520px panels fit inside the 1200px card. */
-.portal-main { display: grid; gap: 6px 22px; align-items: start; margin-bottom: 8px; grid-template-columns: minmax(0, 1fr); grid-template-areas: "spray" "ev" "bvp" "props"; }
-.portal-main > .portal-spray { grid-area: spray; } .portal-main > .portal-ev { grid-area: ev; } .portal-main > .portal-bvp { grid-area: bvp; }
+/* THE MLB PLAYER CARD'S FRONT (the portal; components/PlayerModal.js). A phone shows one panel at a time (the card's
+   tab row picks it). From 1080px two by two, the spray chart beside the EV log it feeds (the blend); from 1500px all four
+   across, the way Donovan's 2026-10-22 screenshot sizes it. */
+.portal-main { display: grid; gap: 6px 22px; align-items: start; margin-bottom: 8px; grid-template-columns: minmax(0, 1fr); grid-template-areas: "splits" "spray" "ev" "props"; }
+.portal-main > .portal-splits { grid-area: splits; } .portal-main > .portal-spray { grid-area: spray; } .portal-main > .portal-ev { grid-area: ev; }
 .portal-main > .portal-props { grid-area: props; }
-@media (min-width: 1080px) { .portal-main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "spray ev" "bvp ev" "props props"; } }
-/* a wide desktop: spray | EV log | props, the head-to-head under the spray (Donovan 2026-10-22: the whole screen on open) */
-@media (min-width: 1400px) { .portal-main { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "spray ev props" "bvp ev props"; } }
-/* the card's top: one column, two on a wide desktop (who he is + the verdict | the checklist + price) */
+@media (min-width: 1080px) { .portal-main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "spray ev" "splits props"; } }
+@media (min-width: 1500px) { .portal-main { grid-template-columns: minmax(0, .95fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.05fr); grid-template-areas: "splits spray ev props"; } }
+/* THE BACK, PITCHES: his pitches | tonight's pitcher | vs him */
+.portal-back3 { display: grid; gap: 6px 22px; align-items: start; grid-template-columns: minmax(0, 1fr); margin-bottom: 8px; }
+@media (min-width: 1080px) { .portal-back3 { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr); } }
 .portal-top { display: block; }
 @media (min-width: 1280px) { .portal-top { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 0 22px; align-items: start; } }
