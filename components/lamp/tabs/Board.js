@@ -25,6 +25,10 @@ import { shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
 import WatchChip from '../../WatchChip'
 import HowToRead from '../../HowToRead'
 import { LampCards, PctBars, countOf } from '../LampCard'
+import LiveStatusCell from '../../table/LiveStatusCell'
+import { nhlLiveStatus } from '../../../lib/liveStatus'
+// the shared live Status once the puck drops (before it, the game's header and the GAME column already say when)
+const lampLive = (market, row, game) => { const l = nhlLiveStatus(market, row, game); return l && l.state !== 'pre' ? l : null }
 import { alpha } from '../../../lib/scales'
 import { useLampBoard, useLampGoalieWeakMany } from '../../../lib/nhl/useLamp'
 import { useRankMove } from '../../../lib/useRankMove'
@@ -491,14 +495,17 @@ function columnsFor(g, onOpenTeam, market = 'GOAL', gateOf = null) {
     { key: 'ppg', group: G.st, label: 'PP G', cset: 'read', primary: true, w: 44, explain: PPG_WHY },
     { key: 'ppvpk', group: G.st, label: 'PP v PK', heat: false, mono: true, w: 84, fmt: (v) => v || '—' },
     { key: 'rest', group: G.st, label: 'REST', heat: false, mono: true, w: 48, fmt: (v) => v || '—' },
-    { answers: 'called', key: 'result', group: G.call, cset: 'lean', label: graded ? marketOf(market).result : 'STATUS', heat: false, w: 96, fmt: (v, r) => {
+    { answers: 'called', key: 'result', group: G.call, cset: 'lean', label: graded ? marketOf(market).result : 'STATUS', heat: false, w: graded || g.game?.state === 'pre' ? 96 : 150, fmt: (v, r) => {
       const row = r._row
       if (graded) {
         if (row.dressed === false) return <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>VOID</span>
         const n = countOf(row, market)
         return <>{row.status === 'called' ? <CalledChip /> : null}<span style={{ color: row.hit ? C.ice : C.text3, font: `900 12px/1 ${NUM_FONT}` }}>{n == null ? '\u2014' : <>{row.hit && <LampDot />}{n}</>}</span></>
       }
-      return row.status === 'called' ? <CalledChip gate={gateOf ? gateOf(r) : null} /> : <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{STATUS[row.status]}</span>
+      const badge = row.status === 'called' ? <CalledChip gate={gateOf ? gateOf(r) : null} /> : <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{STATUS[row.status]}</span>
+      // where he is right now (the shared live Status, lib/liveStatus nhlLiveStatus): goals / points / assists off the game's goal list
+      const live = lampLive(market, row, g.game)
+      return live ? <LiveStatusCell badge={badge} live={live} accent={C.ice} C={C} NUM_FONT={NUM_FONT} /> : badge
     } },
   ]
 }
@@ -548,7 +555,11 @@ function lampSlateColumns(g, market = 'GOAL', onOpenTeam, gateOf = null) {
         const n = countOf(row, market)
         return <>{row.status === 'called' ? <CalledChip /> : null}<span style={{ color: row.hit ? C.ice : C.text3, font: `900 13px/1 ${NUM_FONT}` }}>{n == null ? '\u2014' : <>{row.hit && <LampDot />}{n}</>}</span></>
       } }]
-    : [{ answers: 'called', key: 'result', label: 'STATUS', cset: 'lean', heat: false, w: 104, group: G.call, fmt: (v, r) => (r._row.status === 'called' && !lampLocked(gateOf, r) ? <CalledChip /> : <span style={{ color: C.text3, font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>{STATUS[r._row.status === 'called' ? 'board' : r._row.status]}</span>) }]
+    : [{ answers: 'called', key: 'result', label: 'STATUS', cset: 'lean', heat: false, w: g.game?.state === 'pre' ? 104 : 160, group: G.call, fmt: (v, r) => {
+        const badge = r._row.status === 'called' && !lampLocked(gateOf, r) ? <CalledChip /> : <span style={{ color: C.text3, font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>{STATUS[r._row.status === 'called' ? 'board' : r._row.status]}</span>
+        const live = lampLive(market, r._row, g.game)   // the shared live Status (lib/liveStatus)
+        return live ? <LiveStatusCell badge={badge} live={live} accent={C.ice} C={C} NUM_FONT={NUM_FONT} /> : badge
+      } }]
   return [
     { key: 'rank', label: '#', heat: false, mono: true, w: 30, group: G.call,
       fmt: (v, r) => (r.status === 'called' && !lampLocked(gateOf, r)
@@ -639,6 +650,7 @@ export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'G
         <LampCards market={market} onOpen={onOpenPlayer} items={rows.map((x) => ({ key: x.id, r: x._row, g, rank: x.rank, rankMove: x.rankMove, facts: { pp: pct1(spotOf(g, x.team, true)?.ppPct), pk: pct1(spotOf(g, x.team, false)?.pkPct), rest: x.rest } }))} />
       ) : (
         <LampTable sets={!slate} nameCell="player" {...withNhlFullSet(rows, withLastNight(withWeakZone(slate ? lampSlateColumns(g, market, onOpenTeam, gateOf) : columnsFor(g, onOpenTeam, market, gateOf), wk, () => game.id), cln))} heatMode="primary" gateOf={gateOf}
+          liveOf={g.graded ? null : (r) => lampLive(market, r._row, g.game)}
           rowEdge={(r) => (r.status === 'called' ? C.ice : null)}
           faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(game.season, r._row?.team, r._row?.playerId), name: r._row?.name })}
           dimRow={(r) => g.graded && r._row.dressed === false}
@@ -783,14 +795,18 @@ export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam, onOpenGa
     { key: 'team', label: 'TM', heat: false, mono: true, w: 40, group: GROUPS.call, fmt: (v) => <button type="button" onClick={(e) => { e.stopPropagation(); onOpenTeam?.(v) }} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text2, font: `800 10.5px/1 ${NUM_FONT}` }}>{v}</button> },
     // the matchup opens that game (the address says game=<id>), not the row's player card
     { key: 'game', label: 'GAME', heat: false, mono: true, w: 70, group: GROUPS.call, subOnly: true, link: (r) => (onOpenGame && r._g?.game?.id ? () => onOpenGame(r._g.game.id) : null) },
-    { answers: 'called', key: 'status', label: 'STATUS', heat: false, w: 118, group: GROUPS.call, statusCol: true, fmt: (v, r) => {
+    { answers: 'called', key: 'status', label: 'STATUS', heat: false, w: kept.some(({ g }) => g.game?.state !== 'pre' && !g.graded) ? 190 : 118, group: GROUPS.call, statusCol: true, fmt: (v, r) => {
       const row = r._row
       return (
         <span style={{ whiteSpace: 'nowrap' }}>
           {r._g?.graded
             ? (row.dressed === false ? <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>VOID</span>
               : <><CalledChip />{' '}<span style={{ color: row.hit === true ? C.ice : C.text3, font: `900 12px/1 ${NUM_FONT}` }}>{countOf(row, market) == null ? '\u2014' : <>{row.hit === true && <LampDot />}{countOf(row, market)}</>}</span></>)
-            : (v === 'called' ? <CalledChip gate={gateOf ? gateOf(r) : null} /> : <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{STATUS[v]}</span>)}
+            : (() => {
+              const badge = v === 'called' ? <CalledChip gate={gateOf ? gateOf(r) : null} /> : <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{STATUS[v]}</span>
+              const live = lampLive(market, row, r._g?.game)   // the shared live Status (lib/liveStatus)
+              return live ? <LiveStatusCell badge={badge} live={live} accent={C.ice} C={C} NUM_FONT={NUM_FONT} /> : badge
+            })()}
           <span style={{ color: STAMP_TONE[stampOf(r._g)], font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em', marginLeft: 5 }}>{STAMP[stampOf(r._g)]}</span>
         </span>
       )
@@ -803,6 +819,7 @@ export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam, onOpenGa
   ]
   return (<>
     <LampTable sets nameCell="player" {...withNhlFullSet(rows, withLastNight(withWeakZone(columns, wk, (r) => r._g?.game?.id), cln))} heatMode="primary" statusOf={(r) => r.status} gateOf={gateOf}
+      liveOf={(r) => (r._g?.graded ? null : lampLive(market, r._row, r._g?.game))}
       rowEdge={(r) => (r.status === 'called' ? C.ice : null)}
       faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(r._g.game.season, r._row?.team, r._row?.playerId), name: r._row?.name })}
       dimRow={(r) => r._g?.graded && r._row?.dressed === false}
