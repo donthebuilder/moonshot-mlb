@@ -1,4 +1,5 @@
 'use client'
+import { flatChip } from '../lib/chips'
 import { useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 
@@ -32,13 +33,8 @@ export function ShowMoreButton({ open, restN, toggle, itemWord = '', total = nul
       onClick={toggle}
       aria-expanded={open}
       // a small pill (10-18: "the little buttons are way too big ... they take up a hell of a page"); the tap area is .tap-box's 44px ::after
-      style={{
-        display: 'inline-block', width: 'auto', marginTop: 6, padding: '5px 12px',
-        background: 'transparent', border: `1px solid ${C.border}`,
-        borderRadius: 3, cursor: 'pointer',   // flat square chip (2026-10-21, chips batch); .tap-box keeps the 44px target
-        fontSize: 10, fontWeight: 800, fontFamily: NUM_FONT,
-        color: C.text3, letterSpacing: '.04em',
-      }}
+      // 10-22 chip audit: the site's one chip (lib/chips.js flatChip)
+      style={{ ...flatChip(false, C.text2, C, NUM_FONT), marginTop: 6 }}
     >
       {open ? 'Fewer' : total ? `All ${total}${itemWord ? ` ${itemWord}` : ''}` : `+${restN} more${itemWord ? ` ${itemWord}` : ''}`}
     </button>

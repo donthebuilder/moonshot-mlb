@@ -14,14 +14,10 @@ import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 const mlbIdOf = (x) => Number(x?.player_id ?? x?.id)
 
 export function TabBtn({ active, onClick, children, tall = false }) {
-  // THE FLAT CHIP (2026-10-21, chips batch): the card's tab row was round 999 pills, the one shape Donovan asked to retire
-  // ("the very tiny square ones", 2026-10-20). Same lib/chips.js chip as every filter; its 44px touch target is .tap-box.
-  const { C, accent, NUM_FONT } = useSportTheme()
+  const { C, NUM_FONT, accent } = useSportTheme()
   return (
-    <button onClick={onClick} className={FLAT_CHIP_CLASS} style={{
-      ...flatChip(active, accent, C, NUM_FONT),
-      ...(tall ? { minHeight: 44, fontSize: 11 } : null),
-    }}>{children}</button>
+    // 10-22 chip audit: the site's one chip (lib/chips.js flatChip); `tall` only kept for callers, the 44px tap is .tap-box's
+    <button type="button" className={FLAT_CHIP_CLASS} onClick={onClick} aria-pressed={active} style={flatChip(active, accent, C, NUM_FONT)}>{children}</button>
   )
 }
 
