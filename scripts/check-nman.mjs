@@ -287,7 +287,10 @@ await t('POST TEXT: "ADMIN\'S 6-MAN: A + B + ..." (or his card name) with his no
   // names that cannot fit at all: nothing (whole or not at all)
   const huge = { ...row, legs: row.legs.map((l) => ({ ...l, name: 'N'.repeat(60) })) }
   assert.equal(nManXText({ sport: 'nhl', day: '2026-10-10', row: huge }).text, '')
-  assert.equal(nManXText({ sport: 'nba', day: '2026-10-10', row }).text, '')
+  // BUCKETS' Card is on (2026-10-20, Donovan: "turn it on"; lib/card/text.js CARD_WORDS has nba), so its N-man posts like the others now;
+  // a sport the Card doesn't know still gets nothing
+  assert.match(nManXText({ sport: 'nba', day: '2026-10-10', row }).text, /^\u{1F3AF} THE CARD · NBA · Oct 10\n\nADMIN'S 6-MAN: /u)
+  assert.equal(nManXText({ sport: 'xfl', day: '2026-10-10', row }).text, '')
   // a text with a banned word is never returned (defence in depth: the row\'s own sanitiser already refuses it)
   assert.equal(nManXText({ sport: 'nhl', day: '2026-10-10', row: { ...row, note: 'see https://x.com/a' } }).text.includes('https'), false)
 })

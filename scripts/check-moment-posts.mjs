@@ -462,7 +462,8 @@ process.env.MOMENT_POSTS_ON = 'on'
   check(/momentAfterTick\(null, \{ sources: \['nhl'\], db \}\)/.test(lampR) && /await tickGoals/.test(lampR), 'K: the LAMP goals tick calls the hook after tickGoals')
   check(/momentAfterTick\(null, \{ sources: \['daily'\], db \}\)/.test(totR) && /await cardTick/.test(totR), 'K: the card tick (totals cron) carries the day-keyed moments: 100-yard games and long shots')
   const cron = JSON.parse(readFileSync('vercel.json', 'utf8')).crons.map((c) => c.path)
-  check(!cron.some((p) => /moment|postseason/i.test(p)), 'K: no new cron path')
+  // /api/buckets/moments is BUCKETS' own 30-point tracker (older, on claude/JOBS-2026-10-20.txt), not this hook's: the rule is no NEW path
+  check(!cron.some((p) => /moment|postseason/i.test(p) && p !== '/api/buckets/moments'), 'K: no new cron path')
   const hook = readFileSync('lib/posts/momentTick.js', 'utf8')
   check(/if \(!momentPostsOn\(\)\) return null/.test(hook) && hook.indexOf('momentPostsOn()') < hook.indexOf('adminClient'), 'K: the hook reads the switch before touching anything (off = free)')
   // the hook never throws and never calls anything when off

@@ -7,6 +7,7 @@
 import { readNflCardRecord, sumTotals, edgeWord } from '../lib/nfl/cardRecord.js'
 import { seasonTotals } from '../lib/nfl/resultsArchive.js'
 import { NFL_DATA_BASE } from '../lib/nfl/dataSource.js'
+import { splitByBar } from '../lib/nfl/barSplit.js'
 
 let failed = 0
 const check = (ok, what) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`); if (!ok) failed += 1 }
@@ -18,10 +19,13 @@ const latest = await fetch(`${NFL_DATA_BASE}/nfl_results.json`).then((r) => r.js
 // The Record tab's set: the archive weeks plus the live file under its own week.
 const tabSet = files.map((f, i) => (rec.weeks[i] === Number(latest.week) ? latest : f)).filter(Boolean)
 const tab = seasonTotals(tabSet)
-const mine = sumTotals(tabSet)
+// One record per bar (lib/nfl/barSplit.js), like the page: the CURRENT bar is the latest week's, live week included.
+const mine = splitByBar(tabSet, sumTotals)
 // Voids: only completed weeks (the live week's ungraded rungs are written as
 // void by the bot -- pending, not void). n / hit / pct must match exactly.
-const done = seasonTotals(tabSet.filter((p) => Number(p.week) !== Number(latest.week)))
+// 2026-10-21: the live week stays IN the set with its voids zeroed, as the page does. Dropping it made the last COMPLETED week's bar the
+// "current" one, so a market whose bar moved this week (the yards lines to 100+ / 300+) compared its old bar's voids to the new record.
+const done = seasonTotals(tabSet.map((p) => (Number(p.week) === Number(latest.week) ? { ...p, totals: Object.fromEntries(Object.entries(p.totals || {}).map(([k, t]) => [k, { ...t, void: 0 }])) } : p)))
 for (const m of rec.markets) {
   const t = tab[m.key] || {}
   check(t.n === m.n && t.hit === m.hit && t.pct === m.pct, `${m.key.padEnd(8)} page ${m.hit}/${m.n} ${m.pct}%  ==  Record tab ${t.hit}/${t.n} ${t.pct}%`)
