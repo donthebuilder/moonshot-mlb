@@ -326,7 +326,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
                 <BucketsTable rows={xRows} columns={xCols} heatMode="none" maxHeight={9999} maxRows={1} caption={x.line} />
               </section>
             ) : x?.reason ? <p style={{ margin: 0, fontSize: 12, color: C.text3 }}>No projected points: {x.reason}.</p> : null}
-            <PlayerBars log={data.log || []} logSeason={data.logSeason} nextGame={data.nextGame} onOpenTeam={onOpenTeam} />
+            <PlayerBars log={data.log || []} logSeason={data.logSeason} pos={card.pos} nextGame={data.nextGame} onOpenTeam={onOpenTeam} />
           </>
         )}
 

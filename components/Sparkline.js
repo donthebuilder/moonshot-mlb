@@ -54,8 +54,12 @@ export default function Sparkline({ strip = [], run = 0, size = 7, gap = 2, max 
  * The dense version above is for a row in a list. This is for the one hitter
  * you actually opened, where the question stops being "what shape is he" and
  * becomes "what did he do on the 8th".
+ *
+ * Optional per game (2026-10-21, from PropFinder's player page): `sub` = the
+ * chance behind the result ("of 21 FGA"), `rk` = the opponent's rank among the
+ * 30 at giving that stat up, lit in `hi` when `soft`. Absent = MOONSHOT's tile.
  */
-export function GameStrip({ strip = [], max = 15 }) {
+export function GameStrip({ strip = [], max = 15, hi = C.text2 }) {
   const shown = strip.slice(-max)
   if (!shown.length) return null
   return (
@@ -75,6 +79,8 @@ export function GameStrip({ strip = [], max = 15 }) {
           <div style={{ fontFamily: NUM_FONT, fontSize: 7.5, color: C.text3, whiteSpace: 'nowrap' }}>
             {s.date} {s.home == null || s.home ? '' : '@'}{s.opp}
           </div>
+          {s.sub ? <div style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text2, whiteSpace: 'nowrap', marginTop: 2 }}>{s.sub}</div> : null}
+          {s.rk ? <div title={`${s.opp} gives up the #${s.rk} most of 30`} style={{ fontFamily: NUM_FONT, fontSize: 10, fontWeight: s.soft ? 900 : 600, color: s.soft ? hi : C.text3, whiteSpace: 'nowrap' }}>#{s.rk} D</div> : null}
         </div>
       ))}
     </div>
