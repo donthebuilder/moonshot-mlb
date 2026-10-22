@@ -100,7 +100,9 @@ const builder = (table) => {
 const fake = { from: (t) => builder(t), rpc: () => { calls.push('rpc'); throw new Error('rpc') } }
 const status = await readHubStatus(fake)
 ok(calls.length === 0, `the status reader made no writes (${calls.join(',')})`)
-ok(Array.isArray(status.cards) && status.cards.length === 3, 'status: three Card lines')
+// one Card line per Card sport (BUCKETS joined 2026-10-20, so four now): read from lib/card/core.js, never a typed count
+const { CARD_SPORTS } = await import('../lib/card/core.js')
+ok(Array.isArray(status.cards) && status.cards.length === CARD_SPORTS.length && status.cards.length === 4, `status: one Card line per Card sport (${status.cards?.length} of ${CARD_SPORTS.length})`)
 ok(status.build === 'abcdef0', 'status: build is 7 characters')
 const flat = JSON.stringify(status)
 ok(!/https?:|@|eyJ|sk_|Bearer|service_role|webhook|SUPABASE|password/i.test(flat), 'status carries no URL, email, token or env name')
