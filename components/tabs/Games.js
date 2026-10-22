@@ -876,7 +876,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
             onChange={(k) => { setGfilter(k); setActive(null) }}
             counts={gCounts}
           />
-          <StripFold isPhone={isPhone} count={games.length} summary={(() => { const open = games.find((g) => g.game_pk === activeGame); return open ? <>reading <MatchLogos sport="mlb" away={open.away} home={open.home} px={14} gap={3} /></> : 'tap to pick one' })()}>
+          <StripFold isPhone={isPhone} count={games.length} summary={games.some((g) => g.game_pk === activeGame) ? null : 'tap to pick one'}>
             <GameStrip nested rawOf={rawRows} slateRows={players} slateDate={slateDate} onPlayerClick={onPlayerClick} games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} live={liveByPk} targets={targets} onTarget={toggleTarget} />
           </StripFold>
         </div>
@@ -1382,7 +1382,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
             onChange={(k) => { setGfilter(k); setActive(null) }}
             counts={gCounts}
           />
-          <StripFold isPhone={isPhone} count={games.length} summary={(() => { const open = games.find((g) => g.game_pk === activeGame); return open ? <>reading <MatchLogos sport="mlb" away={open.away} home={open.home} px={14} gap={3} /></> : 'tap to pick one' })()}>
+          <StripFold isPhone={isPhone} count={games.length} summary={games.some((g) => g.game_pk === activeGame) ? null : 'tap to pick one'}>
             <GameStrip nested rawOf={rawRows} slateRows={players} slateDate={slateDate} onPlayerClick={onPlayerClick} games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} sortBy={sortBy} live={liveByPk} targets={targets} onTarget={toggleTarget} />
           </StripFold>
           {/* ── THE ANSWER TO "hella scrolling" (2026-08-23) ─────────────────
