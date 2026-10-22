@@ -3,6 +3,7 @@ import { C, NUM_FONT } from '../../lib/nba/theme'
 import { useBucketsBlowout } from '../../lib/nba/useBuckets'
 import BucketsTable from './BucketsTable'
 import { Kicker } from './ui'
+import { FAVOURITES_SEASON, favouriteBand, fmtMl } from '../../lib/nba/favourites'
 
 // 💨 WHO GAINS IN A BLOWOUT (2026-10-22, Donovan: "who gains minutes in a blowout (bench scorers)"). On a blowout-watch game
 // (lib/blowout.js: the book has a club favoured by 10+), both rosters, each man's minutes and points in his club's lopsided finals
@@ -11,7 +12,9 @@ import { Kicker } from './ui'
 export default function BlowoutGains({ date, gameId, onOpenPlayer, onOpenTeam }) {
   const { data } = useBucketsBlowout(date || null)
   const g = (data?.games || []).find((x) => x.id === String(gameId))
-  if (!g || !g.players.length) return null
+  if (!g) return null
+  const band = favouriteBand(g.spread)
+  const ml = fmtMl(g.favMl)
   const f1 = (v) => (v == null ? '—' : Number(v).toFixed(1))
   const sign = (v) => (v == null ? '—' : `${v > 0 ? '+' : ''}${Number(v).toFixed(1)}`)
   const rows = g.players.map((p) => ({ _id: p.id, ...p }))
@@ -32,8 +35,14 @@ export default function BlowoutGains({ date, gameId, onOpenPlayer, onOpenTeam })
       <p style={{ margin: '0 0 8px', fontSize: 12, color: C.text2, lineHeight: 1.45 }}>
         The book has {g.fav} by {g.spread} ({g.at}+ = blowout watch). Each man in his club’s {data.margin}+ margin finals vs the rest, <span style={{ fontFamily: NUM_FONT }}>{data.seasons.join(' + ')}</span>.
       </p>
-      <BucketsTable rows={rows} columns={cols} initialSort={{ key: 'minGain', dir: 'desc' }} heatMode="standouts" maxHeight={9999} maxRows={6}
-        caption={`Most minutes gained first. ${data.minGp}+ games on each side to be listed.`} />
+      {band || ml ? (
+        <p style={{ margin: '0 0 8px', fontSize: 12, color: C.text2, lineHeight: 1.45 }}>
+          💰 {ml ? <>Moneyline <b style={{ fontFamily: NUM_FONT, color: C.text }}>{g.fav} {ml}</b>. </> : null}
+          {band ? <>Favourites this size, {FAVOURITES_SEASON}: won <b style={{ fontFamily: NUM_FONT, color: C.text }}>{band.won} of {band.games}</b>, <span style={{ fontFamily: NUM_FONT }}>{band.big}</span> by {data.margin}+.</> : null}
+        </p>
+      ) : null}
+      {g.players.length ? <BucketsTable rows={rows} columns={cols} initialSort={{ key: 'minGain', dir: 'desc' }} heatMode="standouts" maxHeight={9999} maxRows={6}
+        caption={`Most minutes gained first. ${data.minGp}+ games on each side to be listed.`} /> : null}
     </section>
   )
 }
