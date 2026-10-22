@@ -120,7 +120,7 @@ function FormBadge({ form, color }) {
 // `market` + `hideMarketPicker` (2026-09-26, the Board hub): the hub's own
 // market picker drives this page; standalone it keeps its own.
 const nflRankId = (p) => p?.player_id
-export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsStatus, market: marketProp = null, hideMarketPicker = false, top = null, showOpts = true, viewCtl = null }) {
+export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsStatus, market: marketProp = null, hideMarketPicker = false, top = null, showOpts = true, viewCtl = null, liveSnap = null, statusOf = null }) {
   const dash = useDashLines()
   // ── SAVE FROM THE CARD ITSELF (parity pass, 2026-09-16) ─────────────────
   // MOONSHOT's PropsGrid found this exact gap 2026-08-24 (Donovan: "click a
@@ -325,7 +325,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
       {hidden > 0 || rows.length || pf.active ? null : (
         <div style={{ fontSize: TYPE.body, color: C.text3, margin: '4px 0 10px' }}>Nothing matches. Clear the search, team, game or a filter above.</div>
       )}
-      {view === 'list' && <NflBoardList games={data?.games} players={capped} market={market} rankOf={rankOf} rankMv={rankMv} weights={spec?.weights} odds={odds} phone={phone} onPlayerClick={onPlayerClick} base={base} pool={eligible} watchlist={watchlist} tags={drawer.tagsView} />}
+      {view === 'list' && <NflBoardList games={data?.games} players={capped} market={market} rankOf={rankOf} rankMv={rankMv} weights={spec?.weights} odds={odds} phone={phone} onPlayerClick={onPlayerClick} base={base} pool={eligible} watchlist={watchlist} tags={drawer.tagsView} statusOf={statusOf} liveSnap={liveSnap} bar={spec?.bar} />}
 
       {/* CARD BOARD (2026-09-15, Donovan: "the props card board is okay we
           just need the pictures on there ... a table flip wouldn't be bad,

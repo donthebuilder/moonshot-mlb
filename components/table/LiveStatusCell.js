@@ -5,8 +5,8 @@
 // text, no red: the tables' no-red/green rule). Before his first at-bat / shift / snap it is the call word and the start time.
 import CallStatusBadge from '../CallStatusBadge'
 
-export default function LiveStatusCell({ status, live, accent, C, NUM_FONT }) {
-  const badge = <CallStatusBadge status={status} accent={accent} />
+export default function LiveStatusCell({ status, live, accent, C, NUM_FONT, gate = null, short = false }) {
+  const badge = <CallStatusBadge status={status} accent={accent} gate={gate} short={short} />
   if (!live) return badge
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
@@ -34,7 +34,7 @@ export function LiveProgress({ live, accent, C, NUM_FONT, small = false }) {
       )}
       {clock && (
         <span style={{ font: `800 9.5px/1 ${NUM_FONT}`, letterSpacing: '.06em', color: state === 'live' ? accent : C.text3 }}>
-          {state === 'live' && !small ? '● ' : ''}{clock}
+          {state === 'live' && !small ? '● ' : ''}{small ? String(clock).replace(/\s*\d{1,2}:\d{2}$/, '') : clock}
         </span>
       )}
     </span>
