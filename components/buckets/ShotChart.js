@@ -147,6 +147,9 @@ export default function ShotChart({ shots = [], names = {}, teams = {}, title = 
   const zones = useMemo(() => (defClub === defense && withDef ? withDef : zoneRead(shown, defClub)), [shown, defClub, defense, withDef])
   const zk = Object.fromEntries(zones.map((z) => [z.k, z]))
   const valueOf = (z) => (isDef ? z.def?.diff ?? null : lens === 'attack' ? (z.attack ? z.diff + z.def.diff : null) : z.diff)
+  // whose spots: his (one player), their (a club), or just "hot" (a game's shots from many players)
+  const owner = who === 'their' ? 'their' : (has.has('player') && shooter === 'all' && players.length > 1) ? 'hot' : 'his'
+  const OWNER = owner.toUpperCase(), Owner = owner[0].toUpperCase() + owner.slice(1)
   const attacks = zones.filter((z) => z.attack).sort((a, b) => (b.diff + b.def.diff) - (a.diff + a.def.diff))
   // WHAT EACH ZONE WEARS under this light -- one list, drawn by the 2D court and painted onto the 3D floor
   const paint = useMemo(() => zones.map((z) => {
@@ -156,10 +159,14 @@ export default function ShotChart({ shots = [], names = {}, teams = {}, title = 
     return {
       k: z.k, fill: quiet ? alpha(C.bg, 0.45) : f, ink: !quiet && needsDarkInk(f) ? C.bg : null, outline: lens === 'attack' && z.attack, quiet: quiet || (!showDef && !z.enough),
       big: showDef ? (z.def ? `${Math.round(z.def.pct)}%` : '') : z.a ? `${Math.round(z.p)}%` : '',
-      small: showDef ? (z.def ? ordinal(z.def.rank) : '') : !z.a ? '' : z.enough ? sgn(z.diff) : `${z.a} FGA`,
+      // WORDS, NOT +/- (2026-10-22, Donovan: "when they're above, those should be highlighted as that player's spot ... I
+      // didn't know what the plus meant"). The +/- against the league stays on the tap line and in the table.
+      small: lens === 'attack' ? (z.attack ? 'ATTACK' : '')
+        : showDef ? (z.def ? (z.def.diff > 0 ? 'GIVES UP' : 'TOUGH') : '')
+        : !z.a ? '' : !z.enough ? `${z.a} FGA` : z.diff >= 0 ? `${OWNER} SPOT` : 'COLD',
       hot: (showDef ? z.def?.diff : z.diff) > 0,
     }
-  }), [zones, lens, isDef]) // eslint-disable-line react-hooks/exhaustive-deps
+  }), [zones, lens, isDef, OWNER]) // eslint-disable-line react-hooks/exhaustive-deps
   const props = { theme: C, numFont: NUM_FONT }
   const setAny = (k, v) => { setF(k, v); setPicked(null) }
 
@@ -168,7 +175,7 @@ export default function ShotChart({ shots = [], names = {}, teams = {}, title = 
     if (!shown.length) return null
     if (view === 'dots') return <><b style={{ color: ACCENT, fontWeight: 900 }}>{pct(made, shown.length)}</b> from the field ({made}/{shown.length}), {pct(threes.filter((s) => s.made).length, threes.length)} on threes.</>
     if (lens === 'attack') {
-      if (!attacks.length) return <>No zone where {who === 'their' ? 'they beat' : 'he beats'} the league <i>and</i> {defense} gave up more than the league. Try the {defense} D lens.</>
+      if (!attacks.length) return <>No zone where {who === 'their' ? 'they beat' : 'he beats'} the league <i>and</i> {defense} gave up more than the league. Try {defense} gives up.</>
       return <>Attack: <b style={{ color: C.cream }}>{attacks.slice(0, 2).map((z) => z.label.toLowerCase()).join(' and ')}</b>. {who === 'their' ? 'They beat' : 'He beats'} the league there and {defense} allowed more than the league.</>
     }
     if (isDef) {
@@ -183,11 +190,12 @@ export default function ShotChart({ shots = [], names = {}, teams = {}, title = 
   const zp = zone ? zk[zone] : null
   const zoneLegend = <ChartLegend theme={C} items={[
     { key: 'ramp', mark: <svg width="48" height="10" aria-hidden="true">{[-8, 3, 8, 15].map((v, i) => <rect key={v} x={i * 12} width="12" height="10" fill={fillFor(v)} />)}</svg>,
-      label: isDef ? 'tougher → gives up more than the league' : 'worse → hotter than the league' },
-    ...(lens === 'attack' ? [{ key: 'atk', mark: <svg width="12" height="10"><rect x="1" y="1" width="10" height="8" fill="none" stroke={C.cream} strokeWidth="1.5" /></svg>, label: 'attack here' }] : []),
+      label: isDef ? 'tough → gives up more than the NBA average' : `cold → ${owner} spot (better than the NBA average)` },
+    ...(lens === 'attack' ? [{ key: 'atk', mark: <svg width="12" height="10"><rect x="1" y="1" width="10" height="8" fill="none" stroke={C.cream} strokeWidth="1.5" /></svg>, label: `attack: ${owner} spot and ${defense} gives up` }] : []),
     { key: 'tap', mark: null, label: 'tap a zone' },
   ]} />
-  const lensItems = [{ k: 'shoot', label: 'Shooting' }, ...(ownDefense ? [{ k: 'own', label: `${ownDefense} D` }] : []), ...(defense ? [{ k: 'def', label: `${defense} D` }, { k: 'attack', label: 'Attack' }] : [])]
+  // the lens names say what each one shows: his spots, where a defense gives up, where the two meet
+  const lensItems = [{ k: 'shoot', label: `${Owner} spots` }, ...(ownDefense ? [{ k: 'own', label: `${ownDefense} gives up` }] : []), ...(defense ? [{ k: 'def', label: `${defense} gives up` }, { k: 'attack', label: 'Attack' }] : [])]
   const tableRows = zones.map((z) => ({ ...z, _id: z.k, fg: `${z.m}/${z.a}`, pctV: z.p, defPct: z.def?.pct ?? null, defRank: z.def?.rank ?? null }))
   const tableCols = [
     { key: 'label', label: 'Zone', group: 'Zone', w: 128, heat: false, bold: true, sticky: true },
@@ -225,10 +233,10 @@ export default function ShotChart({ shots = [], names = {}, teams = {}, title = 
       ]} />
       {view === '3d' ? (
         <CourtArena shots={shown} zones={paint} names={names3d || names} title={title || 'Shot chart'} picked={zone} onPick={setZone} legend={zoneLegend}
-          subtitle={`${shown.length} attempts · ${lens === 'shoot' ? 'vs the league' : isDef ? `${defClub} defense` : 'attack'}`} />
+          subtitle={`${shown.length} attempts · ${lens === 'shoot' ? `${owner} spots` : isDef ? `where ${defClub} gives up` : 'attack'}`} />
       ) : (
       <FlatStage theme={C} numFont={NUM_FONT} accent={ACCENT} label={title || 'Shot chart'} kicker="SHOT CHART"
-        right={view !== 'dots' ? (lens === 'shoot' ? 'VS THE LEAGUE' : isDef ? `${defClub} DEFENSE` : 'ATTACK') : `${shown.length} ${shown.length === 1 ? 'SHOT' : 'SHOTS'}`}
+        right={view !== 'dots' ? (lens === 'shoot' ? `${OWNER} SPOTS` : isDef ? `WHERE ${defClub} GIVES UP` : 'ATTACK') : `${shown.length} ${shown.length === 1 ? 'SHOT' : 'SHOTS'}`}
         title={title || null} sentence={sentence}
         legend={view === 'dots' ? <ChartLegend theme={C} items={[
           { key: 'made', mark: <svg width="10" height="10"><circle cx="5" cy="5" r="4" fill={ACCENT} /></svg>, label: 'made' },
@@ -270,7 +278,7 @@ export default function ShotChart({ shots = [], names = {}, teams = {}, title = 
       {view !== 'dots' ? (
         <p style={{ margin: 0, fontSize: 12, color: C.text2, fontFamily: NUM_FONT, minHeight: 18 }}>
           {zp ? <><b style={{ color: C.text }}>{zp.label}</b>: {zp.a ? <>{Math.round(zp.p)}% ({zp.m}/{zp.a}){zp.enough ? <>, league {Math.round(zp.lg)}% ({sgn(zp.diff)})</> : <>, too few to compare</>} · {Math.round(zp.share)}% of the shots (league {Math.round(zp.lgShare)}%)</> : 'no shots here in this set'}{zp.def ? <> · {defClub} allowed {Math.round(zp.def.pct)}% here, {ordinal(zp.def.rank)} most of 30</> : null}{zp.attack ? <b style={{ color: C.cream }}> · ATTACK</b> : null}</>
-            : `Tap a zone for its numbers. League = every club, ${ZONE_BASE_SEASON}.${defClub ? ` ${defClub} D = what ${defClub}'s opponents shot there last season${defClub === defense && defenseNote ? ` (${defenseNote})` : ''}.` : ''}`}
+            : `Tap a zone for its numbers. League = every club, ${ZONE_BASE_SEASON}.${defClub ? ` ${defClub} gives up = what ${defClub}'s opponents shot there last season${defClub === defense && defenseNote ? ` (${defenseNote})` : ''}.` : ''}`}
         </p>
       ) : null}
       {picked && view === 'dots' ? (
