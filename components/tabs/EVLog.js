@@ -137,6 +137,7 @@ export function toLogRow(h, i) {
     _key: `${h.date}-${i}`,
     date: h.date || '—',
     pitcher: h.pitcher || '—',
+    pitcher_id: h.pitcher_id ?? null,   // the name opens his file (2026-10-21)
     arm: h.arm || h.pitcher_throws || '—',
     pitch: PITCH_NAMES[h.pitch_type] || h.pitch_type || '—',
     ev: Number(h.ev) || null,
@@ -741,7 +742,9 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
         rows={rows}
         columns={[
           { key: 'date',    label: 'Date',    heat: false, w: 84, mono: true, sticky: true },
-          { key: 'pitcher', label: 'Pitcher', heat: false, w: 130 },
+          { key: 'pitcher', label: 'Pitcher', heat: false, w: 130,
+            // every name is a link (the portal puts this table on the card's first page, 2026-10-21)
+            link: (r) => (r?.pitcher_id ? () => { try { window.location.hash = `sport=mlb&tab=pitchers&pitcher=${r.pitcher_id}` } catch { /* no window */ } } : null) },
           { key: 'arm',     label: 'Arm',     heat: false, w: 34, mono: true, dim: true },
           { key: 'pitch',   label: 'Pitch',   heat: false, w: 84, dim: true },
           { key: 'ev',      label: 'EV',      w: 48, dp: 1 },

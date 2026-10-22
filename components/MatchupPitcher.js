@@ -455,7 +455,10 @@ export default function MatchupPitcher({ player, slateMode }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-        <span style={{ fontSize: 17, fontWeight: 800 }}>{clean(player.pitcher_name)}</span>
+        {/* his name opens his file (2026-10-21: the Pitcher panel is the card's first tab now; every name is a link) */}
+        {player?.pitcher_id
+          ? <a href={`#sport=mlb&tab=pitchers&pitcher=${player.pitcher_id}`} title="Open the pitcher's file" style={{ fontSize: 17, fontWeight: 800, color: 'inherit', textDecoration: 'none' }}>{clean(player.pitcher_name)}</a>
+          : <span style={{ fontSize: 17, fontWeight: 800 }}>{clean(player.pitcher_name)}</span>}
         <span style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT }}>
           {clean(player.pitcher_throws, '?')}HP · {clean(player.pitcher_team, '')} ·
           {/* #62: this header printed the raw slate value, so a WHIP of 1.4
