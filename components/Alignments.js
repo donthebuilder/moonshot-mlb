@@ -130,7 +130,7 @@ export default function Alignments({ players = [], watchIds = null, slateDate = 
   if (off) {
     return (
       <div style={{ display: 'grid', gap: 10 }}>
-        <PageHeader title="🔮 Numerology" sub="For fun: numbers that line up. Not part of any score." />
+        <PageHeader title="🔮 Numerology" sub="For fun: numbers that line up. Not part of any score." showToday={false} />
         <Empty title={off.title} note={off.note} tone={C.orange} />
         {off.numbersDate ? <TonightsNumbers date={off.numbersDate} theme={C} numFont={NUM_FONT} accent={C.orange} label={off.numbersLabel} /> : null}
       </div>
