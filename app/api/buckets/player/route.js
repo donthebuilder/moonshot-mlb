@@ -1,6 +1,7 @@
 // GET /api/buckets/player?id=ESPN athlete id -- one player: the card, this season
 // and last season's lines, the game log, his shots on the floor (buckets_shots,
 // packed [x, y, made, three, gameId]), and the model's rows on him. Gated.
+import { pos5For } from '../../../../lib/nba/depth'
 import { athleteFor, birthDateFor, reduceAthlete, gamelogFor, reduceGamelog, teamScheduleFor, reduceTeamSchedule } from '../../../../lib/nba/api'
 import { nbaTeam } from '../../../../lib/nba/teams'
 import { seasonStats } from '../../../../lib/nba/stats'
@@ -53,7 +54,9 @@ export const GET = bucketsRoute('player', async (q) => {
   // his club's schedule, both seasons: the next game (any season type) for "his games against them", and every FINAL
   // game the club played, by ET day, for the rest-days split (a game he sat out still counts as a day the club played)
   const club = nbaTeam(card?.team)
-  const [schedCur, schedPrev] = club ? await Promise.all([sn.cur, sn.prev].map((y) => teamScheduleFor(club.id, y).then((j) => reduceTeamSchedule(j, club.abbrev)).catch(() => null))) : [null, null]
+  const [schedCur, schedPrev, depth] = club ? await Promise.all([...[sn.cur, sn.prev].map((y) => teamScheduleFor(club.id, y).then((j) => reduceTeamSchedule(j, club.abbrev)).catch(() => null)), pos5For(club.abbrev)]) : [null, null, null]
+  // his depth-chart slot today (lib/nba/depth.js), for the five-position defence table; null when the chart doesn't list him
+  if (card) card.pos5 = depth?.get(String(id)) || null
   const nextGame = (schedCur || []).find((g) => g.state !== 'final') || null
   const clubGames = Object.fromEntries([[sn.cur, schedCur], [sn.prev, schedPrev]].filter(([, v]) => v).map(([y, v]) => [y, v.filter((g) => g.state === 'final').map((g) => ({ id: g.id, date: dayOf(g.start) }))]))
   const tag = (log, s) => log.map((g) => ({ ...g, s }))

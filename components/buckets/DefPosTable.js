@@ -14,8 +14,9 @@ export function statCell(v, rank) {
   return <span style={{ display: 'inline-grid', lineHeight: 1.15, justifyItems: 'end' }}><b>{v == null ? '—' : Number(v).toFixed(1)}</b><span style={{ fontSize: 10, fontFamily: NUM_FONT, color: rankTone(rank) }}>#{rank ?? '—'}</span></span>
 }
 
-export default function DefPosTable({ byPos, tonight = [], onOpenTeam }) {
-  const [pos, setPos] = useState('G')
+// words: POS_WORD (G / F / C) or POS5_WORD (PG..C, lib/nba/defPos posView) -- the table's own positions
+export default function DefPosTable({ byPos, words = POS_WORD, tonight = [], onOpenTeam }) {
+  const [pos, setPos] = useState(Object.keys(words)[0])
   const [win, setWin] = useState('Season')
   const [scope, setScope] = useState(tonight.length ? 'tonight' : 'all')
   const t = byPos?.[pos]?.[win] || {}
@@ -25,14 +26,14 @@ export default function DefPosTable({ byPos, tonight = [], onOpenTeam }) {
     { key: 'abbrev', label: 'Club', group: 'Defense', w: 60, heat: false, sticky: true, mono: true, teamMark: 'nba', link: (r) => (onOpenTeam ? () => onOpenTeam(r.abbrev) : null) },
     { key: 'gp', label: 'GP', group: 'Defense', w: 36, heat: false, mono: true, dim: true },
     ...DEF_STATS.map(([k, label]) => ({
-      key: k, label, group: `Allowed to ${POS_WORD[pos].toLowerCase()} · a game`, w: 56, mono: true,
-      title: `${label} this defense gave up a game to ${POS_WORD[pos].toLowerCase()}, and its rank of 30 (1 = the most)`,
+      key: k, label, group: `Allowed to ${words[pos].toLowerCase()} · a game`, w: 56, mono: true,
+      title: `${label} this defense gave up a game to ${words[pos].toLowerCase()}, and its rank of 30 (1 = the most)`,
       fmt: (v, r) => statCell(v, r.ranks?.[k]),
     })),
   ]
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8, minWidth: 0 }}>
-      <Pills ariaLabel="Position" value={pos} onChange={setPos} options={Object.entries(POS_WORD).map(([k, text]) => ({ key: k, text: text.toUpperCase() }))} />
+      <Pills ariaLabel="Position" value={pos} onChange={setPos} options={Object.keys(words).map((k) => ({ key: k, text: words === POS_WORD ? words[k].toUpperCase() : k, title: words[k] }))} />
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         <Pills ariaLabel="Games" value={win} onChange={setWin} options={WINDOWS.map(([k, text]) => ({ key: k, text: text.toUpperCase() }))} />
         {tonight.length > 0 && <Pills ariaLabel="Clubs" value={scope} onChange={setScope} options={[{ key: 'tonight', text: 'THAT DAY' }, { key: 'all', text: 'ALL 30' }]} />}

@@ -5,6 +5,7 @@ import { MatchLogos } from '../../TeamMark'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsDefense, useBucketsDefPos } from '../../../lib/nba/useBuckets'
 import DefPosTable from '../DefPosTable'
+import { posView } from '../../../lib/nba/defPos'
 import BucketsTable from '../BucketsTable'
 import { EmptyState, DelayedBanner, Loading, Kicker, DayPager, LastSeasonNote, Why, fmtDay, fmtTip } from '../ui'
 
@@ -63,7 +64,7 @@ export default function Matchups({ date, setDate, onOpenTeam, onOpenGame }) {
         <section>
           <Kicker>DEFENSE VS POSITION · {dp.seasonLabel}</Kicker>
           {dp.stale && <LastSeasonNote label={dp.seasonLabel} what="defense-vs-position numbers" />}
-          <DefPosTable key={dp.date} byPos={dp.byPos} tonight={(dp.games || []).flatMap((g) => [g.away.abbrev, g.home.abbrev])} onOpenTeam={onOpenTeam} />
+          <DefPosTable key={`${dp.date}-${posView(dp).five}`} byPos={posView(dp).table} words={posView(dp).words} tonight={(dp.games || []).flatMap((g) => [g.away.abbrev, g.home.abbrev])} onOpenTeam={onOpenTeam} />
         </section>
       )}
       {(data?.teams || []).length > 0 && (

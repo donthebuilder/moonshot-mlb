@@ -14,5 +14,5 @@ export const GET = bucketsRoute('defpos', async (q) => {
   const date = q.get('date') || await slateNight('nba')
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return bad('date must be YYYY-MM-DD')
   const [d, board] = await Promise.all([readDefPos(db), scoreboardFor(date)])
-  return ok({ date, season: d.season, seasonLabel: d.seasonLabel, stale: d.stale, byPos: d.ranked, games: reduceScoreboard(board) }, 900)
+  return ok({ date, season: d.season, seasonLabel: d.seasonLabel, stale: d.stale, byPos: d.ranked, byPos5: d.ranked5 || null, games: reduceScoreboard(board) }, 900)
 })
