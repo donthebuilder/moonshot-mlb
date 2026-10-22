@@ -1,19 +1,20 @@
 'use client'
-import StoryTape from '../../StoryTape'
 import { dayLine } from '../../../lib/dayLine'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { NBA_NAV } from '../../../lib/nba/routes'
-import { useBucketsBoard, useBucketsLeaders } from '../../../lib/nba/useBuckets'
-import { usePreview, ShowMoreButton } from '../../ListPreview'
-import GameList, { sortGames } from '../GameList'
-import BucketsTable from '../BucketsTable'
+import { useBucketsBoard } from '../../../lib/nba/useBuckets'
+import { sortGames } from '../GameList'
 import BucketsHeadline from '../BucketsHeadline'
-import BucketWatch from '../BucketWatch'
-import { EmptyState, DelayedBanner, Loading, Kicker, NavBtn, LastSeasonNote, fmtDay, fmtTip } from '../ui'
+import { EmptyState, DelayedBanner, Loading, NavBtn } from '../ui'
 import NbaTonight from '../../tonight/NbaTonight'
-import ChampionshipFold from '../../ChampionshipFold'
-import AwardRaces from '../../AwardRaces'
-import TopTenList from '../../home/TopTenList'
+import HeadlineStrip from '../../HeadlineStrip'
+import HomeGreeting from '../../home/HomeGreeting'
+import SlateRow from '../../home/SlateRow'
+import HomeLinks from '../../home/HomeLinks'
+import RaceTracker from '../../RaceTracker'
+import NetworkRow from '../../NetworkRow'
+import { useGameTotals } from '../../GameTotalLine'
+import { useStoryCards } from '../../../lib/useStoryCards'
 import Fold from '../../Fold'
 import TonightsCalls from '../../phone/TonightsCalls'
 import HotNumbers from '../../numerology/HotNumbers'
@@ -28,86 +29,65 @@ import { useLockOf } from '../../MemberGate'
 export default function Home({ today, date, setTab, onOpenPlayer, onOpenGame, onOpenTeam }) {
   const day = today?.data
   const games = sortGames(day?.games || [])
-  const prev = usePreview(games, 6)
   const pts = useBucketsBoard(date, 'pts')
   const reb = useBucketsBoard(date, 'reb')
   const ast = useBucketsBoard(date, 'ast')
-  const leaders = useBucketsLeaders()
-  const top = (leaders.data?.categories || []).map((c) => ({ ...c.leaders?.[0], cat: c.label, _id: c.key })).filter((r) => r.id)
+  const tpm = useBucketsBoard(date, '3pm')
+  const pra = useBucketsBoard(date, 'pra')
 
   const boardGames = pts.data?.games || []
   // the locked games are the board's own list (lib/nba/boardRead lockedGames); the games
   // carry no `locked` field, so this read 0 every night until 10-04
   const lockedN = (pts.data?.lockedGames || []).length
   const allLocked = boardGames.length > 0 && lockedN === boardGames.length
-  const firstTip = games.map((g) => g.start).filter(Boolean).sort()[0] || null
   const heroGames = games.map((g) => ({ away: g.away?.abbrev, home: g.home?.abbrev, start: Date.parse(g.start || ''), state: g.state === 'live' ? 'live' : g.state === 'final' ? 'final' : 'pre' }))
   const hero = dayLine(heroGames, { sport: 'nba', date: day?.date || date || undefined })
-  const link = { background: 'none', border: 0, padding: '6px 0', minHeight: 44, cursor: 'pointer', color: C.purple, font: `800 12px/1 ${NUM_FONT}`, letterSpacing: '.04em' }
-  // TOP 10 (2026-10-20 style audit: LAMP's Home lists, components/home/TopTenList): tonight's ten best scores on the points and rebounds boards. A CALLED,
-  // not-started pick a free viewer may not read is held back and counted, as LAMP's (components/MemberGate useLockOf).
+  // the top points score a free viewer may read (a CALLED, not-started pick is held back, as the Top 10s were)
   const lockOf = useLockOf()
-  const topOf = (data) => {
-    const startOf = new Map((data?.games || []).map((g) => [String(g.id), g.start]))
-    const ranked = (data?.rows || []).filter((r) => Number.isFinite(Number(r.score))).sort((x, y) => y.score - x.score).slice(0, 10)
-    const open = ranked.filter((r) => !lockOf({ status: r.status, key: `${r.gameId}|${r.playerId}`, time: startOf.get(String(r.gameId)), graded: r.hit === true || r.hit === false }).locked)
-    return { held: ranked.length - open.length, rows: open.map((r) => ({ key: `${r.gameId}|${r.playerId}`, id: r.playerId, name: r.name, team: r.team, pos: r.pos, score: r.score })) }
-  }
-  const topPts = topOf(pts.data)
-  const topReb = topOf(reb.data)
+  const startOf = new Map((pts.data?.games || []).map((g) => [String(g.id), g.start]))
+  const topPts = (pts.data?.rows || []).filter((r) => Number.isFinite(Number(r.score))).sort((x, y) => y.score - x.score)
+    .find((r) => !lockOf({ status: r.status, key: `${r.gameId}|${r.playerId}`, time: startOf.get(String(r.gameId)), graded: r.hit === true || r.hit === false }).locked) || null
+
+  // THE HOME, TUDDY'S LAYOUT (2026-10-22, Donovan: "build the same Home for LAMP, BUCKETS and MOONSHOT"): numbers, the greeting
+  // (the day, the next tip, three tiles, the storylines strip), The Starting Five, Tonight, the calls, the races, the slate, the link
+  // tiles, across the network. Bucket Watch, the Top 10s and Who leads are one tap away; title odds and the award races live on Leaders.
+  const stories = useStoryCards('nba', { color: C.purple })
+  const totals = useGameTotals('nba')
+  const pre = games.filter((g) => g.state === 'pre' && Number.isFinite(Date.parse(g.start || ''))).sort((a, b) => Date.parse(a.start) - Date.parse(b.start))
+  const nextG = pre[0] || null
+  const kick = nextG ? { away: nextG.away?.name || nextG.away?.abbrev, home: nextG.home?.name || nextG.home?.abbrev, start: Date.parse(nextG.start) } : null
+  const tiles = [
+    { label: date ? 'GAMES' : 'TONIGHT', value: games.length, sub: games.length === 1 ? 'game' : 'games' },
+    { label: 'TOP PTS SCORE', value: topPts ? Math.round(topPts.score) : '—', sub: topPts?.name || 'waiting for the board', dim: !topPts, onClick: topPts && onOpenPlayer ? () => onOpenPlayer(topPts.playerId) : null },
+    { label: 'LOCKED', value: `${lockedN}/${boardGames.length || 0}`, sub: allLocked ? 'every game locked' : 'games locked at tip', dim: !boardGames.length },
+  ]
+  const slateGames = games.map((g) => ({ id: g.id, away: g.away?.abbrev, home: g.home?.abbrev, start: Date.parse(g.start || ''), state: g.state, awayScore: g.away?.score, homeScore: g.home?.score }))
+  const LINKS = [
+    { tab: 'fullboard', sub: 'every player, ranked' }, { tab: 'scores', sub: 'every game' }, { tab: 'leaders', sub: 'title odds, awards' },
+    { tab: 'standings', sub: 'the conferences' }, { tab: 'ledger', sub: 'who scored' }, { tab: 'matchups', sub: 'defense vs position' },
+    { tab: 'results', sub: 'every call graded' }, { tab: 'players', sub: 'find anyone' }, { tab: 'storylines', sub: 'every story' },
+  ]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      {/* THE TAPE (2026-10-20): components/StoryTape.js, as on LAMP */}
-      <StoryTape sport="nba" theme={C} numFont={NUM_FONT} onSeeAll={() => setTab?.('storylines')}
-        day={{ icon: '🏀', eyebrow: hero.eyebrow, live: Boolean(day?.live), lead: !day ? 'Tonight on BUCKETS.' : hero.lead,
-          accentText: !day ? '' : games.length ? (allLocked ? 'Grading as they land.' : 'Two called per game.') : hero.accent }} />
-      {/* TONIGHT (2026-10-04): who cleared, who's still to go (components/tonight/NbaTonight.js; no NBA numerology yet) */}
-      <NbaTonight board={pts.data} date={date} onOpenPlayer={onOpenPlayer} setTab={setTab} />
-      {/* THE SWIPE DECK (2026-10-20, LAMP's): tonight's called players as their real cards, folded; /api/phone/calls?sport=nba holds the members gate */}
-      {!date && <Fold id="buckets-calls" title="🃏 Tonight's calls" meta="swipe the real cards"><TonightsCalls sport="nba" /></Fold>}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <HotNumbers compact sport="nba" date={day?.date || date} theme={C} numFont={NUM_FONT} accent={C.purple} onOpen={() => setTab?.('numerology')} />
+
+      <HomeGreeting sport="nba" theme={C} numFont={NUM_FONT} icon="🏀" eyebrow={hero.eyebrow} live={Boolean(day?.live)} kick={kick} verb="tips off" more={Math.max(0, pre.length - 1)}
+        lead={!day ? 'Tonight on BUCKETS.' : hero.lead} accentText={!day ? '' : games.length ? (allLocked ? 'Grading as they land.' : 'Two called per game.') : hero.accent} tiles={tiles}>
+        {stories.length ? <HeadlineStrip sport="nba" cards={stories} onOpen={(c) => (c.playerId ? onOpenPlayer?.(c.playerId) : null)} theme={C} numFont={NUM_FONT} accent={C.purple} title="STORIES" countWord="in the strip" /> : null}
+      </HomeGreeting>
       <DelayedBanner error={today?.error} what="the league’s scores" />
       {!day && today?.loading ? <Loading what="tonight" /> : null}
 
-      <BucketsHeadline theme={C} numFont={NUM_FONT} boards={{ pts: pts.data, reb: reb.data, ast: ast.data }} onOpenPlayer={onOpenPlayer} />
-      <section aria-label="Tonight's games">
-        <Kicker>THE GAMES{day?.date ? ` · ${fmtDay(day.date)}` : ''}</Kicker>
-        {day && !games.length ? <EmptyState title="NO GAMES TODAY" note="Nothing on the league’s calendar today. Page a day on Live, or open a club’s schedule."><NavBtn onClick={() => setTab('scores')} strong>Open Live</NavBtn></EmptyState> : null}
-        {games.length > 0 && <GameList games={prev.shown} onOpenGame={onOpenGame} />}
-        {prev.restN > 0 && <ShowMoreButton open={prev.open} restN={prev.restN} toggle={prev.toggle} total={prev.total} itemWord="games" />}
-      </section>
-
-      {(pts.data?.rows || []).length > 0 && <BucketWatch rows={pts.data.rows} date={pts.data.date} onOpenPlayer={onOpenPlayer} />}
-      <TopTenList title="Top 10 · Points" rows={topPts.rows} held={topPts.held} sport="nba" theme={C} numFont={NUM_FONT} accent={C.purple} onOpen={(r) => onOpenPlayer?.(r.id)} onAll={() => setTab?.('fullboard')} />
-      <TopTenList title="Top 10 · Rebounds" rows={topReb.rows} held={topReb.held} sport="nba" theme={C} numFont={NUM_FONT} accent={C.purple} onOpen={(r) => onOpenPlayer?.(r.id)} onAll={() => setTab?.('fullboard')} />
-      {/* TONIGHT'S NUMBERS: one line, taps to Numerology (LAMP's, components/numerology/HotNumbers) */}
-      <HotNumbers compact sport="nba" date={day?.date || date} theme={C} numFont={NUM_FONT} accent={C.purple} onOpen={() => setTab?.('numerology')} />
-      {/* WAVE 2 (2026-10-11): the Players / Teams / Leaders door row sat above the games (first row y 1,211); it now follows them. */}
-      <nav aria-label="Players, standings and leaders" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: -6 }}>
-        {['players', 'standings', 'leaders'].map((k) => (
-          <button key={k} type="button" onClick={() => setTab?.(k)} style={link}>{NBA_NAV[k]?.icon} {NBA_NAV[k]?.label} ›</button>
-        ))}
-      </nav>
-
-      <section>
-        <Kicker>WHO LEADS{leaders.data?.seasonLabel ? ` · ${leaders.data.seasonLabel}` : ''}</Kicker>
-        {leaders.data?.stale && <LastSeasonNote label={leaders.data.seasonLabel} what="leaders" />}
-        {top.length > 0 && (
-          <BucketsTable rows={top.map((r) => ({ ...r, playerId: r.id }))} columns={[
-            { key: 'cat', label: 'Per game', group: 'Leader', w: 90, heat: false, mono: true },
-            { key: 'name', label: 'Player', group: 'Leader', w: 150, heat: false, bold: true, sticky: true },
-            { key: 'team', label: 'Tm', group: 'Leader', w: 52, heat: false, mono: true, teamMark: 'nba', link: (r) => (onOpenTeam ? () => onOpenTeam(r.team) : null) },
-            { key: 'value', label: 'Value', group: 'Line', w: 56, heat: false, mono: true, dp: 1 },
-          ]} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} nameCell="player" faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })}
-            heatMode="none" maxHeight={9999} maxRows={top.length} caption="The league leader in each category. Each row opens that player." />
-        )}
-        <div style={{ marginTop: 8 }}><NavBtn onClick={() => setTab('leaders')}>Every leader →</NavBtn></div>
-      </section>
-
-      {/* TITLE ODDS (2026-10-13): MOONSHOT's October fold for BUCKETS (components/PennantRace.js). Not drawn until the bot has published the file; BUCKETS itself stays hidden until BUCKETS_PUBLIC=on. */}
-      <ChampionshipFold sport="nba" />
-      {/* AWARD RACES (2026-10-20): MVP, DPOY, ROY, MIP and Finals MVP from a model of past votes (lib/nba/awards.js), under Title odds. */}
-      <AwardRaces sport="nba" onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />
+      <BucketsHeadline theme={C} numFont={NUM_FONT} boards={{ pts: pts.data, reb: reb.data, ast: ast.data, '3pm': tpm.data, pra: pra.data }} onOpenPlayer={onOpenPlayer} />
+      {/* TONIGHT (2026-10-04): who cleared, who's still to go (components/tonight/NbaTonight.js) */}
+      <NbaTonight board={pts.data} date={date} onOpenPlayer={onOpenPlayer} setTab={setTab} />
+      {!date && <Fold id="buckets-calls" title="🃏 Tonight's calls" meta="swipe the real cards"><TonightsCalls sport="nba" /></Fold>}
+      <RaceTracker sport="nba" theme={C} numFont={NUM_FONT} onOpen={() => setTab?.('leaders')} />
+      {day && !games.length ? <EmptyState title="NO GAMES TODAY" note="Nothing on the league’s calendar today. Page a day on Live, or open a club’s schedule."><NavBtn onClick={() => setTab('scores')} strong>Open Live</NavBtn></EmptyState> : null}
+      <SlateRow sport="nba" theme={C} numFont={NUM_FONT} games={slateGames} totals={totals} onOpenGame={onOpenGame} title={date ? 'THE GAMES' : 'TONIGHT'} />
+      <HomeLinks sport="nba" theme={C} nav={NBA_NAV} links={LINKS} setTab={setTab} label="More on BUCKETS" />
+      <NetworkRow sport="nba" theme={C} numFont={NUM_FONT} />
     </div>
   )
 }
