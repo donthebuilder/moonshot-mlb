@@ -3,6 +3,7 @@
 // the Slate (one game) and the player's file, so a board row reads the same
 // everywhere. Columns carry their group in order (skin v2): Player · Call ·
 // Legs · Game. Status words come from lib/callStatus via CallStatusBadge.
+import { blowoutFor } from '../../lib/blowout'
 import CallStatusBadge from '../CallStatusBadge'
 import { C, NUM_FONT } from '../../lib/nba/theme'
 import { NBA_MARKETS, LEG_LABEL, fmtLeg, ACTUAL_WORD, RAW_OF } from '../../lib/nba/legs'
@@ -22,7 +23,8 @@ export function boardRows(data, { calledOnly = false, gameId = null, xpts = null
     .sort((a, b) => (a.nightRank ?? 9999) - (b.nightRank ?? 9999) || String(a.name).localeCompare(String(b.name)))
     .map((r) => {
       const g = games.get(r.gameId)
-      return { ...r, xpts: xpts?.get(String(r.playerId))?.xpts ?? null, xptsLine: xpts?.get(String(r.playerId))?.line ?? null, _id: `${r.gameId}-${r.playerId}`, oppTxt: r.home ? r.opp : `@${r.opp}`, tip: g?.start || null, gameState: g?.state || null, ...Object.fromEntries(Object.entries(r.legs || {})) }
+      const blow = g ? blowoutFor('nba', g.spreadHome, { home: g.home?.abbrev, away: g.away?.abbrev, team: r.team }) : null
+      return { ...r, xpts: xpts?.get(String(r.playerId))?.xpts ?? null, xptsLine: xpts?.get(String(r.playerId))?.line ?? null, _id: `${r.gameId}-${r.playerId}`, oppTxt: r.home ? r.opp : `@${r.opp}`, tip: g?.start || null, gameState: g?.state || null, blow: blow?.watch ? blow : null, ...Object.fromEntries(Object.entries(r.legs || {})) }
     })
 }
 
@@ -43,6 +45,7 @@ export function boardColumns(market, { onOpenTeam, onOpenGame, withGame = true, 
         <CallStatusBadge status={v} accent={C.purple} />
         {r.role ? <b style={{ fontSize: 10, color: C.purple, fontFamily: NUM_FONT }}>{r.role}</b> : null}
         {r.locked && v !== 'off' ? <span title="Locked before tip: this row is the record" style={{ fontSize: 10, color: C.text3 }}>🔒</span> : null}
+        {r.blow ? <b title={`Blowout watch: the book has ${r.blow.fav} favoured by ${r.blow.spread} (${r.blow.at}+ = watch). Starters can sit the 4th.`} style={{ fontSize: 10, color: C.amber, fontFamily: NUM_FONT }}>BLOWOUT</b> : null}
       </span>) },
     { key: 'actual', label: 'Result', cset: 'lean', group: 'Call', w: 64, heat: false, mono: true, title: market === 'dd' || market === 'td' ? `Did he get ${D.barWord}, once his game is final` : `What he did, once his game is final (${ACTUAL_WORD[market] || ''})`, fmt: (v, r) => (
       r.voidReason ? <span style={{ fontSize: 10, color: C.text3 }}>VOID</span>

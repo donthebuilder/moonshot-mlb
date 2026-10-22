@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import PropBars from '../player/PropBars'
 import SplitChips from '../player/SplitChips'
 import { tagGames, barChips, applyChips, marginOf, chipKey } from '../../lib/barFilters'
+import { minutesInBlowouts } from '../../lib/blowout'
 import { C, NUM_FONT } from '../../lib/nba/theme'
 import { tensIn } from '../../lib/nba/ddtd'
 import { useBucketsDefPos } from '../../lib/nba/useBuckets'
@@ -33,7 +34,7 @@ const SOFT = 10
 const md = (iso) => { try { return new Date(`${gameDay(iso)}T12:00:00Z`).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', timeZone: 'UTC' }) } catch { return '' } }
 const pct = (ok, n) => (n ? Math.round((100 * ok) / n) : null)
 
-export default function PlayerBars({ log = [], logSeason = '', pos = '', pos5 = null, nextGame = null, onOpenTeam = null }) {
+export default function PlayerBars({ log = [], logSeason = '', pos = '', pos5 = null, blow = null, blowLog = [], seasonYears = null, nextGame = null, onOpenTeam = null }) {
   const [k, setK] = useState('pts')
   const [lines, setLines] = useState({})
   const [win, setWin] = useState('L10')
@@ -111,6 +112,18 @@ export default function PlayerBars({ log = [], logSeason = '', pos = '', pos5 = 
       {nextGame ? (
         <p style={{ margin: '6px 0 0', fontSize: 12, color: C.text2 }}>NEXT: {nextGame.home ? 'vs' : '@'} <Tap onClick={onOpenTeam ? () => onOpenTeam(nextGame.opp) : null}><b style={{ color: C.text }}>{nextGame.opp}</b></Tap>, {fmtTip(nextGame.start)}</p>
       ) : null}
+      {/* 💨 BLOWOUT WATCH (lib/blowout.js): the book's spread tonight, then what lopsided games did to HIS minutes */}
+      {blow?.watch ? (() => {
+        // both seasons (this one is short early on), regular season + playoffs, said so in the line
+        const mb = minutesInBlowouts('nba', blowLog.filter((g) => g.seasonType === 2 || g.seasonType === 3))
+        const yrs = seasonYears ? [seasonYears.prev, seasonYears.cur].filter(Boolean).join(' + ') : ''
+        return (
+          <p style={{ margin: '6px 0 0', fontSize: 12, color: C.text2, lineHeight: 1.45 }}>
+            <b style={{ color: C.amber }}>BLOWOUT WATCH</b> · the book has {blow.fav} by {blow.spread} ({blow.at}+ = watch)
+            {mb ? <> · his {mb.at}+ margin games{yrs ? ` (${yrs})` : ''}: <b style={{ color: C.text, fontFamily: NUM_FONT }}>{mb.blowMin} min</b> ({mb.blowN}) vs <b style={{ color: C.text, fontFamily: NUM_FONT }}>{mb.restMin}</b> the rest</> : null}
+          </p>
+        )
+      })() : null}
     </section>
   )
 }

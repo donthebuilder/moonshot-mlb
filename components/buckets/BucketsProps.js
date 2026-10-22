@@ -1,4 +1,5 @@
 'use client'
+import { blowoutFor } from '../../lib/blowout'
 import { useMemo } from 'react'
 import PropCards from '../props/PropCards'
 import TeamMark from '../TeamMark'
@@ -56,6 +57,7 @@ function bucketsAdapter(startOf, odds) {
       if (x.hit === true || x.hit === false) chips.push({ t: k === 'first' ? (x.hit ? '✅ scored first' : '❌ not first') : k === 'dd' || k === 'td' ? (x.hit ? `✅ ${SHORT[k].toLowerCase()}` : `❌ no ${SHORT[k].toLowerCase()}`) : `${x.hit ? '✅' : '❌'} ${x.actual ?? '—'} ${SHORT[k]}`, warn: !x.hit })
       else if (x.voidReason) chips.push({ t: `➖ void · ${x.voidReason}`, warn: true })
       if (x.injury) chips.push({ t: `⚠ ${x.injury}`, warn: true })
+      if (r.blow) chips.push({ t: `💨 blowout watch · ${r.blow.fav} by ${r.blow.spread}`, warn: true })
       if (x.role && chips.length < 2) chips.push({ t: x.role, warn: false })
       return {
         photo: faceUrl({ sport: 'nba', id: r.id, size: 96 }),
@@ -103,10 +105,14 @@ export default function BucketsProps({ date = null, onOpenPlayer }) {
     const m = new Map(); const st = new Map()
     KEYS.forEach((k, i) => {
       const d = datas[i]
-      for (const g of d?.games || []) { const t = Date.parse(g.start || g.startUtc || ''); if (Number.isFinite(t)) st.set(String(g.id), t) }
+      const gm = new Map()
+      for (const g of d?.games || []) { gm.set(String(g.id), g); const t = Date.parse(g.start || g.startUtc || ''); if (Number.isFinite(t)) st.set(String(g.id), t) }
       for (const x of d?.rows || []) {
         const id = `${x.playerId}|${x.gameId}`
-        const cur = m.get(id) || { id: x.playerId, gameId: x.gameId, name: x.name, team: x.team, opp: x.opp, home: x.home, pos: x.pos }
+        // 💨 the book's spread on his game (lib/blowout.js): a watch chip on the card when one club is favoured by the sport's number
+        const g = gm.get(String(x.gameId))
+        const bl = g ? blowoutFor('nba', g.spreadHome, { home: g.home?.abbrev, away: g.away?.abbrev, team: x.team }) : null
+        const cur = m.get(id) || { id: x.playerId, gameId: x.gameId, name: x.name, team: x.team, opp: x.opp, home: x.home, pos: x.pos, blow: bl?.watch ? bl : null }
         cur[k] = x
         m.set(id, cur)
       }
