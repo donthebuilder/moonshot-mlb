@@ -23,7 +23,7 @@ async function shotsOf(db, id) {
   const skip = [...new Set((pre.data || []).map((r) => String(r.game_id)))].filter((x) => /^\d+$/.test(x))
   const data = []
   for (let from = 0; from < 8000; from += 1000) {
-    let qy = db.from('buckets_shots').select('x, y, made, three, game_id, game_date, period').eq('player_id', id)
+    let qy = db.from('buckets_shots').select('x, y, made, three, game_id, game_date, period, clock').eq('player_id', id)
     if (skip.length) qy = qy.not('game_id', 'in', `(${skip.join(',')})`)
     const r = await qy.order('game_date', { ascending: false }).order('event_id').range(from, from + 999)
     if (r.error) return { data, error: r.error }

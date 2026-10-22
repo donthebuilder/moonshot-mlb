@@ -1,6 +1,6 @@
 // GET /api/buckets/shots?team=BOS | ?player=id [&season=2026] -- every field-goal
 // attempt on file (buckets_shots: last season's backfill + this season's grades),
-// packed by lib/nba/shots.js packShots: [x, y, made, three, game index, period] + games [[id, date]]. Gated.
+// packed by lib/nba/shots.js packShots: [x, y, made, three, game index, period, clock] + games [[id, date]]. Gated.
 import { adminClient } from '../../../../lib/supabase/admin'
 import { nbaTeam } from '../../../../lib/nba/teams'
 import { ok, bad, bucketsRoute } from '../../../../lib/nba/respond'
@@ -24,7 +24,7 @@ export const GET = bucketsRoute('shots', async (q) => {
   // a fresh query per page, in a total order, so pages neither repeat nor skip. FIVE AT A TIME (2026-10-20: one after
   // another a club's 7,000+ attempts were 8 round trips, ~6.5 s on the Shot map); a short page ends the read.
   const page = (from) => {
-    let qy = db.from('buckets_shots').select('x, y, made, three, game_id, game_date, period')
+    let qy = db.from('buckets_shots').select('x, y, made, three, game_id, game_date, period, clock')
     qy = team ? qy.eq('team_id', team.id) : qy.eq('player_id', player)
     if (skip.length) qy = qy.not('game_id', 'in', `(${skip.join(',')})`)
     if (season) qy = qy.gte('game_date', `${season - 1}-09-01`).lt('game_date', `${season}-09-01`)
