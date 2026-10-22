@@ -16,7 +16,7 @@ import dynamic from 'next/dynamic'
 import { ChipGroup, ChartLegend, StatStrip } from '../charts'
 import FlatStage from '../charts/FlatStage'
 import { C, NUM_FONT } from '../../lib/nba/theme'
-import { alpha } from '../../lib/scales'
+import { alpha, rgbOf } from '../../lib/scales'
 import FiltersSheet from '../player/FiltersSheet'
 import useHashFilters from '../../lib/useHashFilters'
 import { ZONES12, zoneOfShot, FEED_TO_COURT, RIM, THREE_R, CORNER_X, CORNER_Y } from '../../lib/nba/zones'
@@ -29,7 +29,8 @@ const CourtArena = dynamic(() => import('./CourtArena'), { ssr: false })
 
 const ACCENT = C.purple
 export const MIN_A = 15          // fewer attempts than this in a zone: not coloured
-const FULL_AT = 6                // points better / worse than the league for the full light / the full dark
+const HOT_FULL = 15              // points better than the league for the hottest colour (was one ceiling of 6 for both sides:
+const COLD_FULL = 10             // +6 and +15 painted the same, Donovan 2026-10-22: "the colors are hard to differentiate")
 const ATTACK_SHARE = 4           // a zone is an ATTACK only when at least this % of his shots come from it,
 const ATTACK_SHOOT = 1.5         // he beats the league there by at least this many points,
 const ATTACK_DEF = 1             // and the defense allowed at least this many points more than the league
@@ -53,11 +54,26 @@ export function zoneRead(shots, defense = null) {
   })
 }
 
-// the light on a zone for a value in points against the league: lit accent above, the dark floor below
-function fillFor(v) {
+// THE LIGHT ON A ZONE (2026-10-22, three steps you can tell apart). Better than the league climbs dim purple -> the accent
+// -> cream as it gets hotter, so +4, +9 and +15 are three different colours, not three shades of one; worse than the
+// league goes cold blue. Built from the theme's own tokens (ZONE_RAMP); 2D and 3D read the same function.
+const mixRgb = (a, b, t) => { const x = rgbOf(a), y = rgbOf(b); return x.map((v, i) => Math.round(v + (y[i] - v) * t)) }
+const rgba = ([r, g, b], a) => `rgba(${r},${g},${b},${Math.max(0, Math.min(1, a)).toFixed(3)})`
+const DIM = (() => { const [r, g, b] = mixRgb(C.bg3, ACCENT, 0.45); return `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}` })()
+export const ZONE_RAMP = { cold: C.blue, dim: DIM, mid: ACCENT, hot: C.cream }
+/** True when a zone's fill is light enough that its numbers need dark ink (the hottest, cream end of the ramp). */
+export function needsDarkInk(fill) {
+  const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/.exec(String(fill || ''))
+  if (!m) return false
+  const a = m[4] == null ? 1 : Number(m[4]), L = (0.299 * m[1] + 0.587 * m[2] + 0.114 * m[3]) / 255
+  return L * a > 0.55
+}
+export function fillFor(v) {
   if (v == null) return null
-  const t = Math.min(1, Math.abs(v) / FULL_AT)
-  return v >= 0 ? alpha(ACCENT, 0.22 + 0.63 * t) : alpha(C.bg, 0.2 + 0.5 * t)
+  if (v < 0) { const t = Math.min(1, -v / COLD_FULL); return alpha(ZONE_RAMP.cold, 0.16 + 0.5 * t) }
+  const t = Math.min(1, v / HOT_FULL)
+  const c = t < 0.5 ? mixRgb(ZONE_RAMP.dim, ZONE_RAMP.mid, t / 0.5) : mixRgb(ZONE_RAMP.mid, ZONE_RAMP.hot, (t - 0.5) / 0.5)
+  return rgba(c, 0.4 + 0.55 * t)
 }
 
 function CourtLines({ stroke, width = 0.16 }) {
@@ -138,7 +154,7 @@ export default function ShotChart({ shots = [], names = {}, teams = {}, title = 
     const quiet = lens === 'attack' && !z.attack
     const f = fillFor(valueOf(z))
     return {
-      k: z.k, fill: quiet ? alpha(C.bg, 0.45) : f, outline: lens === 'attack' && z.attack, quiet: quiet || (!showDef && !z.enough),
+      k: z.k, fill: quiet ? alpha(C.bg, 0.45) : f, ink: !quiet && needsDarkInk(f) ? C.bg : null, outline: lens === 'attack' && z.attack, quiet: quiet || (!showDef && !z.enough),
       big: showDef ? (z.def ? `${Math.round(z.def.pct)}%` : '') : z.a ? `${Math.round(z.p)}%` : '',
       small: showDef ? (z.def ? ordinal(z.def.rank) : '') : !z.a ? '' : z.enough ? sgn(z.diff) : `${z.a} FGA`,
       hot: (showDef ? z.def?.diff : z.diff) > 0,
@@ -166,8 +182,8 @@ export default function ShotChart({ shots = [], names = {}, teams = {}, title = 
 
   const zp = zone ? zk[zone] : null
   const zoneLegend = <ChartLegend theme={C} items={[
-    { key: 'lit', mark: <svg width="12" height="10"><rect width="12" height="10" rx="1" fill={alpha(ACCENT, 0.7)} /></svg>, label: isDef ? 'gives up more than the league' : 'better than the league' },
-    { key: 'dark', mark: <svg width="12" height="10"><rect width="12" height="10" rx="1" fill={alpha(C.bg, 0.7)} stroke={C.border2} strokeWidth="1" /></svg>, label: isDef ? 'tougher' : 'worse' },
+    { key: 'ramp', mark: <svg width="48" height="10" aria-hidden="true">{[-8, 3, 8, 15].map((v, i) => <rect key={v} x={i * 12} width="12" height="10" fill={fillFor(v)} />)}</svg>,
+      label: isDef ? 'tougher → gives up more than the league' : 'worse → hotter than the league' },
     ...(lens === 'attack' ? [{ key: 'atk', mark: <svg width="12" height="10"><rect x="1" y="1" width="10" height="8" fill="none" stroke={C.cream} strokeWidth="1.5" /></svg>, label: 'attack here' }] : []),
     { key: 'tap', mark: null, label: 'tap a zone' },
   ]} />
@@ -237,8 +253,8 @@ export default function ShotChart({ shots = [], names = {}, teams = {}, title = 
             const fsz = side ? 1.45 : z.k === 'ra' ? 1.5 : 2.1
             return (
               <g key={`t${z.k}`} transform={side ? `rotate(-90 ${lx} ${ly})` : undefined} style={{ pointerEvents: 'none' }} opacity={z.quiet ? 0.55 : 1}>
-                <text x={lx} y={ly} textAnchor="middle" fontSize={fsz} fontWeight={900} fill={z.hot ? C.cream : C.text} stroke={C.wood1} strokeWidth={0.42} paintOrder="stroke" fontFamily={NUM_FONT}>{z.big}</text>
-                {z.small ? <text x={lx} y={ly + fsz * 0.78} textAnchor="middle" fontSize={fsz * 0.52} fontWeight={800} fill={z.hot ? C.cream : C.text2} stroke={C.wood1} strokeWidth={0.3} paintOrder="stroke" fontFamily={NUM_FONT}>{z.small}</text> : null}
+                <text x={lx} y={ly} textAnchor="middle" fontSize={fsz} fontWeight={900} fill={z.ink || (z.hot ? C.cream : C.text)} stroke={z.ink ? C.cream : C.wood1} strokeWidth={0.42} paintOrder="stroke" fontFamily={NUM_FONT}>{z.big}</text>
+                {z.small ? <text x={lx} y={ly + fsz * 0.78} textAnchor="middle" fontSize={fsz * 0.52} fontWeight={800} fill={z.ink || (z.hot ? C.cream : C.text2)} stroke={z.ink ? C.cream : C.wood1} strokeWidth={0.3} paintOrder="stroke" fontFamily={NUM_FONT}>{z.small}</text> : null}
               </g>
             )
           }) : null}

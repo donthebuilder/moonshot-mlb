@@ -70,7 +70,7 @@ function paintZones(cv, zones, { picked = null, halo = C.wood1, glow = false } =
     // tracking look: a lit zone throws a little light on the floor around it (drawn once per repaint, free per frame)
     if (z.fill && glow) {
       // tracking look: the zone is light on the floor -- a soft fill, a bright edge, a little spill around it
-      g.save(); g.shadowColor = z.fill; g.shadowBlur = 1.4 * PX; g.globalAlpha = 0.62; g.fillStyle = z.fill; g.fill(p, 'evenodd')
+      g.save(); g.shadowColor = z.fill; g.shadowBlur = 0.45 * PX; g.globalAlpha = 0.8; g.fillStyle = z.fill; g.fill(p, 'evenodd')
       g.globalAlpha = 1; g.lineWidth = 0.22; g.strokeStyle = z.fill; g.stroke(p); g.restore()
     } else if (z.fill) { g.fillStyle = z.fill; g.fill(p, 'evenodd') }
     g.lineWidth = 0.08; g.strokeStyle = alpha(COURT.line, 0.28); g.stroke(p)
@@ -86,8 +86,8 @@ function paintZones(cv, zones, { picked = null, halo = C.wood1, glow = false } =
     g.globalAlpha = z.quiet ? 0.55 : 1
     g.font = `900 ${fs}px ${NUM_FONT}`; g.textAlign = 'center'; g.textBaseline = 'alphabetic'
     if (halo) { g.lineWidth = fs * 0.2; g.strokeStyle = halo; g.strokeText(z.big, 0, 0) }
-    g.fillStyle = z.hot ? C.cream : C.text; g.fillText(z.big, 0, 0)
-    if (z.small) { g.font = `800 ${fs * 0.52}px ${NUM_FONT}`; g.lineWidth = fs * 0.14; if (halo) g.strokeText(z.small, 0, fs * 0.78); g.fillStyle = z.hot ? C.cream : C.text2; g.fillText(z.small, 0, fs * 0.78) }
+    g.fillStyle = z.ink || (z.hot ? C.cream : C.text); g.fillText(z.big, 0, 0)
+    if (z.small) { g.font = `800 ${fs * 0.52}px ${NUM_FONT}`; g.lineWidth = fs * 0.14; if (halo) g.strokeText(z.small, 0, fs * 0.78); g.fillStyle = z.ink || (z.hot ? C.cream : C.text2); g.fillText(z.small, 0, fs * 0.78) }
     g.restore()
   }
 }
@@ -125,8 +125,8 @@ export default function CourtArena({ shots = [], zones = [], names = {}, title =
     const scene = new THREE.Scene()
     // THE TRACKING LOOK (?look=tracking): no building, no wood, no AO -- a dark floor, thin lines, the lit zones
     scene.background = new THREE.Color(tracking ? C.bg : COURT.apron)
-    // the floor: the chassis' top surface with a breath of the product's accent, lifted so it reads off the void
-    const trackFloor = new THREE.Color(C.bg3).lerp(new THREE.Color(ACCENT), 0.05).multiplyScalar(1.45)
+    // the floor: the chassis top surface, lifted so it reads off the void
+    const trackFloor = new THREE.Color(C.bg3).multiplyScalar(1.45)   // neutral: purple on the floor only ever means a hot zone
     buildCourt(scene, { tracking: tracking ? { floor: trackFloor, apron: C.bg2, line: C.text, paint: ACCENT } : null })
     if (!tracking) {
       const bowl = new THREE.Group(); scene.add(bowl)
@@ -215,12 +215,14 @@ export default function CourtArena({ shots = [], zones = [], names = {}, title =
     renderer.domElement.addEventListener('pointerup', onUp)
     // ── THE PLAYBACK (tracking look only)
     const playG = new THREE.Group(); scene.add(playG)
-    const ringGeo = new THREE.RingGeometry(0.85, 1.15, 40), dotGeo = new THREE.CircleGeometry(0.5, 20), missGeo = new THREE.RingGeometry(0.34, 0.5, 20)
+    const ringGeo = new THREE.RingGeometry(0.85, 1.15, 40), dotGeo = new THREE.CircleGeometry(0.55, 20), missGeo = new THREE.RingGeometry(0.36, 0.56, 20), edgeGeo = new THREE.CircleGeometry(0.72, 20)
     const pulseGeo = new THREE.RingGeometry(0.8, 1.0, 40)
     const pm = {
       ring: new THREE.MeshBasicMaterial({ color: new THREE.Color(ACCENT), transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }),
-      made: new THREE.MeshBasicMaterial({ color: new THREE.Color(ACCENT) }),
-      miss: new THREE.MeshBasicMaterial({ color: new THREE.Color(C.text3), transparent: true, opacity: 0.9 }),
+      // a make leaves the rim's orange (BUCKETS' "made buckets" colour), a miss a white ring: both read on every zone colour
+      made: new THREE.MeshBasicMaterial({ color: new THREE.Color(C.rim) }),
+      miss: new THREE.MeshBasicMaterial({ color: new THREE.Color(C.text), transparent: true, opacity: 0.85 }),
+      edge: new THREE.MeshBasicMaterial({ color: new THREE.Color(C.bg) }),
       pulse: new THREE.MeshBasicMaterial({ color: new THREE.Color(C.cream), transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }),
       ball: new THREE.MeshBasicMaterial({ color: new THREE.Color(C.rim) }),
     }
@@ -244,22 +246,33 @@ export default function CourtArena({ shots = [], zones = [], names = {}, title =
       setReel({ date: list[0].game_date, n: 0, of: list.length, made: 0, att: 0 })
     }
     const stopPlay = () => { clearPlay(); setReel(null) }
+    const markLeft = (p) => {   // the mark a finished shot leaves, on a dark edge so it lifts off a bright zone
+      const m = new THREE.Mesh(p.made ? dotGeo : missGeo, p.made ? pm.made : pm.miss)
+      m.rotation.x = -Math.PI / 2; m.position.copy(courtPoint(p.x, p.y, 0.07)); playG.add(m); left.push(m)
+      const e = new THREE.Mesh(edgeGeo, pm.edge)
+      e.rotation.x = -Math.PI / 2; e.position.copy(courtPoint(p.x, p.y, 0.065)); playG.add(e); left.push(e)
+    }
+    // move the reel on to shot k: leave the mark of the one in flight, and count + mark any a slow frame jumped past
+    const advance = (k) => {
+      if (play.i >= 0 && play.i < play.list.length) markLeft(play.list[play.i])
+      for (let j = play.i + 1; j < Math.min(k, play.list.length); j += 1) { const p = play.list[j]; play.att += 1; if (p.made) play.made += 1; markLeft(p) }
+      play.i = k
+    }
     const stepPlay = (now) => {
       if (!play) return
       const k = Math.floor((now - play.t0) / STEP_MS), t = (now - play.t0) - k * STEP_MS
       if (k >= play.list.length) {   // the game is over: hold the marks, say so
         ring.visible = ball.visible = pulse.visible = false
         if (trail) trail.visible = false
-        if (play.i !== Infinity) { play.i = Infinity; setReel((r) => (r ? { ...r, done: true } : r)) }
+        if (!play.done) {
+          advance(play.list.length); play.done = true
+          setReel((r) => (r ? { ...r, done: true, n: play.list.length, made: play.made, att: play.att } : r))
+        }
         return
       }
       const s = play.list[k], at = courtPoint(s.x, s.y, 0.08)
-      if (k !== play.i) {   // a new shot: leave the last one's mark, draw this one's arc
-        if (play.i >= 0 && play.list[play.i]) {
-          const p = play.list[play.i], m = new THREE.Mesh(p.made ? dotGeo : missGeo, p.made ? pm.made : pm.miss)
-          m.rotation.x = -Math.PI / 2; m.position.copy(courtPoint(p.x, p.y, 0.07)); playG.add(m); left.push(m)
-        }
-        play.i = k
+      if (k !== play.i) {   // a new shot: its arc, its ring, counted as it goes up
+        advance(k)
         if (trail) { playG.remove(trail); trail.geometry.dispose(); trail.material.dispose() }
         trail = new THREE.Line(new THREE.BufferGeometry().setFromPoints(shotArc(s.x, s.y, s.made)),
           new THREE.LineBasicMaterial({ color: new THREE.Color(s.made ? ACCENT : C.text2), transparent: true, opacity: 0.9 }))
@@ -301,7 +314,7 @@ export default function CourtArena({ shots = [], zones = [], names = {}, title =
       renderer.domElement.removeEventListener('pointerdown', onDown); renderer.domElement.removeEventListener('pointerup', onUp)
       renderer.domElement.removeEventListener('pointermove', onMove); renderer.domElement.removeEventListener('pointerleave', onLeave)
       for (const m of [madeMesh, missMesh]) { m.geometry.dispose(); m.dispose() }
-      clearPlay(); for (const g of [ringGeo, dotGeo, missGeo, pulseGeo, ball.geometry]) g.dispose(); for (const m of Object.values(pm)) m.dispose()
+      clearPlay(); for (const g of [ringGeo, dotGeo, missGeo, edgeGeo, pulseGeo, ball.geometry]) g.dispose(); for (const m of Object.values(pm)) m.dispose()
       lit.geometry.dispose(); lit.material.dispose(); tex.dispose()
       controls.dispose(); look.dispose?.(); renderer.dispose(); if (renderer.domElement.parentNode === el) el.removeChild(renderer.domElement)
       api.current = {}
