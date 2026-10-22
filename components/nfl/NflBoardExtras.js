@@ -13,7 +13,9 @@ import { alpha } from '../../lib/scales'
 import RangeDual from '../RangeDual'
 import WatchBox from '../WatchBox'
 import MobileFold from '../MobileFold'
-import { lineFor, tdsIn } from '../../lib/nfl/liveSlate'
+import { lineFor, tdsIn, gameFor, marketValue } from '../../lib/nfl/liveSlate'
+import LiveStatusCell from '../table/LiveStatusCell'
+import { nflLiveStatus } from '../../lib/liveStatus'
 import { nflBoardRow, withNflBoardColumns } from '../../lib/nfl/boardColumns'
 import DashChip, { useDashLines, DASH_OF } from './DashChip'
 import { boardReason } from '../../lib/nfl/boardReason'
@@ -115,7 +117,9 @@ const PLAYER_GROUP = { key: 'player', label: 'Player', order: 0 }
 const CALL_GROUP = { key: 'call', label: 'The call', order: 1 }
 const MARK_GROUP = { key: 'marks', label: 'Marks', order: 2 }
 const TAGS_GROUP = { key: 'matchup', label: 'The matchup', order: 2.6 }
-export function NflBoardList({ games = null, players, market, weights, odds, phone, onPlayerClick, statusOf = null, rankOf = null, base = null, pool = null, watchlist = null, lastNight = null, tags = null, rankMv = null, twoOf = null }) {
+// liveSnap / bar (2026-10-22, the shared live Status): with the shell's live snapshot (lib/nfl/useNflLive) the Status cell says
+// where he is against this lane's bar right now (lib/liveStatus nflLiveStatus, components/table/LiveStatusCell).
+export function NflBoardList({ games = null, players, market, weights, odds, phone, onPlayerClick, statusOf = null, rankOf = null, base = null, pool = null, watchlist = null, lastNight = null, tags = null, rankMv = null, twoOf = null, liveSnap = null, bar = null }) {
   const { open: openWhy, sheet: whySheet } = useWhySheet({ theme: C, accent: C.green, numFont: NUM_FONT })
   // THE MEMBERS LOCK on this week's CALLED labels (components/MemberGate.js): the free taste is counted over the whole pool in the board's own order (a
   // filter cannot reveal more); started = his game's kickoff has passed. null for everyone but a free viewer, and then the table draws as before.
@@ -128,6 +132,9 @@ export function NflBoardList({ games = null, players, market, weights, odds, pho
   // THE ONE SLIP (lib/slip/store.js): a row's + adds this market at the book's real price on its bar (lib/slip/rowLegs.js). Every row gets the same
   // control whatever the members gate says about its label, so its presence tells nothing; a row tap is a by-hand add, never the 'called' shortcut.
   const slip = useSlip('nfl')
+  // a touchdown lane's bar is its count (1+ / 2+), whatever the market file stores; the others clear at value >= bar (TUDDY's Live rungs)
+  const liveBar = market === 'TD' ? 1 : market === 'TD2' ? 2 : Number(bar) > 0 ? Number(bar) : null
+  const liveOf = liveSnap && liveBar != null ? (r) => { const p = r._p ?? r; return nflLiveStatus(market, marketValue(lineFor(liveSnap, p), market === 'TD2' ? 'TD' : market), gameFor(liveSnap, p), liveBar, kickoffFor(games, p)) } : null
   const marketLabel = (MARKETS.find(([k]) => k === market) || [])[1] || market
   const dmk = DASH_OF[market]
   const top = Object.entries(weights || {}).sort((a, b) => b[1] - a[1]).slice(0, phone ? 2 : 3).map(([k]) => k)
@@ -198,7 +205,8 @@ export function NflBoardList({ games = null, players, market, weights, odds, pho
     ...(phone ? [] : [{ key: 'grade', group: CALL_GROUP, label: 'Grade', cset: 'read', w: 56, heat: false }]),
     { ...whyColumn({ textOf: (r) => whyOf(r._p)?.text || '', shortOf: (r) => whyOf(r._p)?.short || '', itemOf: whyItem, open: openWhy, theme: C, numFont: NUM_FONT, w: phone ? 140 : 260, tidy: true }), group: CALL_GROUP, cset: 'lean' },
     // Status right after Why (2026-10-06): short on a phone, so Why shows without a swipe
-    ...(statusOf ? [{ key: 'status', group: CALL_GROUP, label: 'Status', heat: false, statusCol: true, w: phone ? 64 : 118, fmt: (v, r) => <CallStatusBadge status={statusOf(r._p)} accent={C.green} short={phone} gate={gateOf ? gateOf(r) : null} /> }] : []),
+    ...(statusOf ? [{ key: 'status', group: CALL_GROUP, label: 'Status', heat: false, statusCol: true, w: phone ? 64 : liveOf ? 178 : 118,
+      fmt: (v, r) => <LiveStatusCell status={statusOf(r._p)} live={phone ? null : liveOf?.(r)} accent={C.green} C={C} NUM_FONT={NUM_FONT} short={phone} gate={gateOf ? gateOf(r) : null} /> }] : []),
     ...(rows.some((r) => r._leg) ? [{ key: 'slipOn', group: CALL_GROUP, label: '+', cset: 'lean', action: true, w: 44, heat: false, mark: '\u2713', markOff: '+', titleOn: 'Take off the slip', titleOff: 'Add to slip',
       show: (row) => Boolean(row?._leg), onAction: (row) => { const leg = (row?._p ? row : rows.find((r) => r._p === row))?._leg; if (leg) slip.toggle({ ...leg, sport: 'nfl', source: 'player' }) } }] : []),
     ...top.map((k, i) => ({ group: CALL_GROUP, key: k, label: LABELS[k] || k, cset: i < 2 ? 'lean' : 'read', w: phone ? 74 : 86, scale: 'seq', domain: [0, 100] })),
@@ -231,6 +239,7 @@ export function NflBoardList({ games = null, players, market, weights, odds, pho
       dimRow={(r) => r._p?.low_sample} onRowClick={(r) => (r._p?.position === 'DEF' ? null : onPlayerClick?.(r._p, market))}
       // the TD board's Status column: CALLED / ON THE BOARD / NOT ON THE BOARD (lib/nfl/tdStatus)
       statusOf={statusOf ? (r) => statusOf(r._p) : null}
+      liveOf={liveOf}
       gateOf={gateOf}
       caption={phone
         ? 'Score and the two heaviest parts of it, as percentiles in this week’s pool. Tap a row for the full card.'

@@ -4,7 +4,7 @@
 // everywhere. Columns carry their group in order (skin v2): Player · Call ·
 // Legs · Game. Status words come from lib/callStatus via CallStatusBadge.
 import { blowoutFor } from '../../lib/blowout'
-import CallStatusBadge from '../CallStatusBadge'
+import LiveStatusCell from '../table/LiveStatusCell'
 import { C, NUM_FONT } from '../../lib/nba/theme'
 import { NBA_MARKETS, LEG_LABEL, fmtLeg, ACTUAL_WORD, RAW_OF } from '../../lib/nba/legs'
 import { fmtTip, RimDot } from './ui'
@@ -29,7 +29,8 @@ export function boardRows(data, { calledOnly = false, gameId = null, xpts = null
 }
 
 /** The columns for one market. `withGame` adds the game column (off on the one-game Slate). */
-export function boardColumns(market, { onOpenTeam, onOpenGame, withGame = true, whyCol = null, withXpts = false } = {}) {
+// liveOf (2026-10-22, the shared live Status): (row) -> lib/liveStatus nbaLiveStatus shape; the Status cell then says where he is
+export function boardColumns(market, { onOpenTeam, onOpenGame, withGame = true, whyCol = null, withXpts = false, liveOf = null } = {}) {
   const D = NBA_MARKETS[market] || NBA_MARKETS.pts
   return [
     { key: 'nightRank', label: '#', group: 'Player', w: 36, heat: false, mono: true, dim: true, title: 'His rank on the night’s board for this market' },
@@ -40,9 +41,9 @@ export function boardColumns(market, { onOpenTeam, onOpenGame, withGame = true, 
     { key: 'score', label: 'Score', cset: 'lean', group: 'Call', w: 54, dp: 0, primary: true, scale: 'seq', domain: [0, 100], title: 'The market’s 0-100 score: a rank among tonight’s players, not a probability' },
     ...(withXpts && XPTS_MARKETS.includes(market) ? [{ key: 'xpts', label: 'xPTS', cset: 'lean', group: 'Call', w: 58, dp: 1, mono: true, title: XPTS_TITLE, fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span title={r.xptsLine || XPTS_TITLE}>{Number(v).toFixed(1)}</span>) }] : []),
     ...(whyCol ? [{ ...whyCol, cset: 'lean', group: 'Call' }] : []),
-    { key: 'status', label: 'Status', group: 'Call', w: 156, heat: false, statusCol: true, fmt: (v, r) => (
+    { key: 'status', label: 'Status', group: 'Call', w: liveOf ? 220 : 156, heat: false, statusCol: true, fmt: (v, r) => (
       <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center', whiteSpace: 'nowrap' }}>
-        <CallStatusBadge status={v} accent={C.purple} />
+        <LiveStatusCell status={v} live={liveOf ? liveOf(r) : null} accent={C.purple} C={C} NUM_FONT={NUM_FONT} />
         {r.role ? <b style={{ fontSize: 10, color: C.purple, fontFamily: NUM_FONT }}>{r.role}</b> : null}
         {r.locked && v !== 'off' ? <span title="Locked before tip: this row is the record" style={{ fontSize: 10, color: C.text3 }}>🔒</span> : null}
         {r.blow ? <b title={`Blowout watch: the book has ${r.blow.fav} favoured by ${r.blow.spread} (${r.blow.at}+ = watch). Starters can sit the 4th.`} style={{ fontSize: 10, color: C.amber, fontFamily: NUM_FONT }}>BLOWOUT</b> : null}

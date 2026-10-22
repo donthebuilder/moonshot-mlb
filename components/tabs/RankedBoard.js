@@ -33,6 +33,8 @@ import { ordinal } from '../../lib/format'
 import { useRankMove } from '../../lib/useRankMove'
 import { RankMoveNote } from '../RankMove'
 import TwoHrCard, { twoHrInputsText } from './TwoHrCard'
+import { useLiveSlate } from '../../lib/useLiveSlate'
+import { mlbLiveStatus } from '../../lib/liveStatus'
 import { TWO_HR_NOTE } from '../../lib/mlb/twoHrScore'
 
 // The nine inputs the old profile grid drew as columns. They are not drawn
@@ -181,6 +183,8 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
   const setViewMode = onViewMode ?? setOwnView
   const catOmit = [...(CAT_OMIT[type] || CAT_OMIT.default), ...(rankings ? CAT_DUPES : [])]
   const whyOn = rankings && type === 'hr'
+  // live lines for the Status cell on every lane (one cached read; nothing when there's no slate)
+  const liveSnap = useLiveSlate(players.length > 0)
   // WHY: the sentence the player card already prints (lib/mlb/boardReason.js), ranked against the whole slate
   const whyPool = slate || players
   const rctx = useMemo(() => (whyOn ? reasonContext(whyPool) : null), [whyOn, whyPool])
@@ -608,6 +612,11 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
           {...(whyOn ? { statusOf: (r) => callStatus({ role: r._raw?.game_pick_role, board_rank: r.rank, board_of: boardOf }), gateOf, maxRows: Math.max(ranked.length, 1) } : null)}
           // 2+ HR: ON THE BOARD is the top third of THIS board (lib/callStatus, the one rule); CALLED never appears, there is no 2+ HR call or price
           {...(type === 'hr2' ? { statusOf: (r) => callStatus({ board_rank: r.rank, board_of: slateRank?.size || ranked.length }) } : null)}
+          // EVERY LANE GETS THE STATUS (2026-10-22, Donovan: "make that shared for each prop lane"): Hit / HRR / Contact / HR on the
+          // other boards draw the same call word the members gate already counts (gateOf's rule), and every lane says where he
+          // is against its bar live (lib/liveStatus mlbLiveStatus, components/table/LiveStatusCell).
+          {...(!whyOn && type !== 'hr2' ? { statusOf: (r) => callStatus({ role: r._raw?.game_pick_role, board_rank: slateRank?.get(mlbId(r._raw)), board_of: boardOf }), gateOf } : null)}
+          liveOf={(r) => { const p = r._raw; const l = liveSnap?.lines?.[mlbId(p)] || null; return mlbLiveStatus(type, l, l ? (liveSnap?.games || []).find((g) => Number(g.pk) === Number(l.pk)) : null, p?.game_time) }}
           maxHeight={rankings ? 640 : 520}
           caption={`Ranked by ${type === 'hr' ? 'MOONSHOT’s HR score, with ISO beside it' : type === 'hr2' ? 'our two-homer ranking (a new model, not the HR score)' : 'the category score'}. ${type === 'hr' ? 'A big score on thin power is the board’s most common trap. ' : ''}"When picked" is what he actually did the other times MOONSHOT picked him here. Tap any header to re-sort; the # column always gets you back to the board's own order.`}
         />

@@ -149,6 +149,9 @@ export default function DenseTable({
   //             status rule; it is stamped in the CALL group.
   //   title     the sheet head.
   statusOf = null,
+  // liveOf (2026-10-22): (row) -> lib/liveStatus shape | null. With statusOf, the Status cell also says where he is against
+  // the lane's bar right now and where his game is (components/table/LiveStatusCell.js). Absent: the call word only.
+  liveOf = null,
   // gateOf (2026-10-16): (row) -> { key, started, graded, free } | null from components/MemberGate.js useCallGate; a CALLED stamp the viewer may not see draws as the Members lock. Absent: nothing changes.
   gateOf = null,
   title = '',
@@ -423,7 +426,7 @@ export default function DenseTable({
     C, NUM_FONT, ac, columns, view, sorted, sort, setSort, toggle, adding, setAdding, tierSig: sorter.tierSig, phone, ranges, fields, lit,
     heatMode, ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
     explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
-    truncated, maxRows, moreStep, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey, gateOf,
+    truncated, maxRows, moreStep, extra, setExtra, exportCsv, railRef, statusOf, liveOf, title, initialStack, firstTextKey, gateOf,
     capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam: teamNav, sport: tableSport, injuryLayer, nameCell, compactPhoneRow,
   })
 }
