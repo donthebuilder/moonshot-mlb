@@ -6,7 +6,7 @@ import { tagGames, barChips, applyChips, marginOf, chipKey } from '../../lib/bar
 import { C, NUM_FONT } from '../../lib/nba/theme'
 import { tensIn } from '../../lib/nba/ddtd'
 import { useBucketsDefPos } from '../../lib/nba/useBuckets'
-import { posOf, POS_WORD } from '../../lib/nba/defPos'
+import { posView, posKeyFor } from '../../lib/nba/defPos'
 import Tap from '../Tap'
 import { Kicker, Pills, fmtTip, gameDay } from './ui'
 
@@ -33,7 +33,7 @@ const SOFT = 10
 const md = (iso) => { try { return new Date(`${gameDay(iso)}T12:00:00Z`).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', timeZone: 'UTC' }) } catch { return '' } }
 const pct = (ok, n) => (n ? Math.round((100 * ok) / n) : null)
 
-export default function PlayerBars({ log = [], logSeason = '', pos = '', nextGame = null, onOpenTeam = null }) {
+export default function PlayerBars({ log = [], logSeason = '', pos = '', pos5 = null, nextGame = null, onOpenTeam = null }) {
   const [k, setK] = useState('pts')
   const [lines, setLines] = useState({})
   const [win, setWin] = useState('L10')
@@ -42,8 +42,10 @@ export default function PlayerBars({ log = [], logSeason = '', pos = '', nextGam
   const m = MARKETS.find((x) => x.k === k)
   const line = lines[k] ?? m.first
   const games = useMemo(() => log.filter((g) => g.seasonType === 2 || g.seasonType === 3).slice().reverse(), [log])  // oldest -> newest
-  const p = posOf(pos)
-  const table = p && dp?.seasonLabel && dp.seasonLabel === logSeason ? dp.byPos?.[p]?.Season : null
+  // PG..C once the five-position table is ready this season, else G / F / C (lib/nba/defPos posView)
+  const view = posView(dp)
+  const p = posKeyFor(dp, pos, pos5)
+  const table = p && dp?.seasonLabel && dp.seasonLabel === logSeason ? view.table?.[p]?.Season : null
   const rankOf = (mk, abbrev) => (table && mk.rank ? table[abbrev]?.r?.[mk.rank] ?? null : null)
   const cleared = (mk, ln, g) => { const v = mk.val(g); return v != null && v >= ln }
 
@@ -103,7 +105,7 @@ export default function PlayerBars({ log = [], logSeason = '', pos = '', nextGam
         })}
       </div>
       <p style={{ margin: '8px 0 0', fontSize: 11, color: C.text3, lineHeight: 1.4 }}>
-        Lit = cleared {line}+ · under each bar: his minutes{m.chance ? ' · hollow = 3PA' : ''}{ranked ? ` · R = how much that club gives up to ${POS_WORD[p]?.toLowerCase()}, of 30` : ''}
+        Lit = cleared {line}+ · under each bar: his minutes{m.chance ? ' · hollow = 3PA' : ''}{ranked ? ` · R = how much that club gives up to ${view.words[p]?.toLowerCase()}, of 30` : ''}
         <br />{chipKey({ soft: SOFT, hasRank: ranked })}
       </p>
       {nextGame ? (

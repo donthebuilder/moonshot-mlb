@@ -34,7 +34,7 @@ import SeasonToggle from '../../nfl/SeasonToggle'
 import { TabBtn, Navigator } from '../../card/CardNav'
 import { DefPosFor } from '../DefPosSheet'
 import PosVsOpp from '../PosVsOpp'
-import { posOf, POS_WORD } from '../../../lib/nba/defPos'
+import { posOf } from '../../../lib/nba/defPos'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useCardLock, useCallMask, useMemberState, CardLockLine } from '../../MemberGate'
@@ -378,7 +378,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
         <div style={{ margin: '4px 0 0', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12, minWidth: 0 }}>
           <StarMemory sport="nba" id={pid} />
           {/* THE BARS: one bar a game against the line + the L5..H2H hit rates (was THE BARS on The Read + the props grid, 10-21) */}
-          <PlayerBars log={data.log || []} logSeason={data.logSeason} pos={card.pos} nextGame={data.nextGame} onOpenTeam={onOpenTeam} />
+          <PlayerBars log={data.log || []} logSeason={data.logSeason} pos={card.pos} pos5={card.pos5} nextGame={data.nextGame} onOpenTeam={onOpenTeam} />
           <PlayerDdTd playerId={pid} />
           <ScoredFirst sport="nba" playerId={pid} word="Scored the first basket" color={C.purple} textColor={C.text2} />
         </div>
@@ -486,8 +486,7 @@ function VsTab({ card, games, logRows, nextGame, row, onOpenTeam, onOpenGame, lo
       {rows.length > 0 && <BucketsTable rows={rows} columns={logCols} onRowClick={(r) => onOpenGame?.((r?._raw ?? r).id)} heatMode="standouts" maxHeight={9999} maxRows={rows.length} caption={`His games against ${opp}, newest first. Each row opens the game.`} />}
       {opp && posOf(card.pos) && (
         <>
-          <Kicker>{opp} D VS {POS_WORD[posOf(card.pos)].toUpperCase()}</Kicker>
-          <DefPosFor opp={opp} espnPos={card.pos} onOpenTeam={onOpenTeam} />
+          <DefPosFor opp={opp} espnPos={card.pos} pos5={card.pos5} onOpenTeam={onOpenTeam} />
           <PosVsOpp opp={opp} espnPos={card.pos} onOpenGame={onOpenGame} />
         </>
       )}

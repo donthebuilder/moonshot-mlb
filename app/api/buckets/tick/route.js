@@ -16,6 +16,7 @@ import { readNbaBoard } from '../../../../lib/nba/boardRead'
 import { runNbaWriteups } from '../../../../lib/writeups/post'
 import { recordNbaLanes, gradeNbaLanes } from '../../../../lib/numerology/nbaTick'
 import { boxRows } from '../../../../lib/nba/defPos'
+import { pos5For } from '../../../../lib/nba/depth'
 import { lockOurLines, gradeOurLines } from '../../../../lib/nba/gameLinesStore'
 
 
@@ -146,6 +147,9 @@ export async function GET(request) {
       const cs = s?.header?.competitions?.[0]?.competitors || []
       const score = (h) => { const x = Number(cs.find((c) => c.homeAway === h)?.score); return Number.isFinite(x) ? x : null }
       const brows = boxRows({ gameId: p.game_id, gameDate: p.game_date, season: p.season, seasonType: p.season_type, home: p.home, away: p.away, homeScore: score('home'), awayScore: score('away') }, [...box.values()])
+      // five positions from tonight's depth charts (lib/nba/depth.js); a chart that fails to read leaves pos5 null, never blocks the grade
+      const [ph, pa] = await Promise.all([pos5For(p.home), pos5For(p.away)])
+      for (const r of brows) r.pos5 = (r.team === p.home ? ph : pa).get(String(r.player_id)) || null
       if (brows.length) {
         const bw = await db.from('buckets_box').upsert(brows, { onConflict: 'game_id,player_id' })
         // like the shots: a failed write leaves the game open for the next tick
