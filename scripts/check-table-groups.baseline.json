@@ -61,7 +61,7 @@
   "components/record/RecordPage.js": 3,
   "components/table/v2.js": 1,
   "components/tabs/Backtest.js": 1,
-  "components/tabs/EVLog.js": 17,
+  "components/tabs/EVLog.js": 1,
   "components/tabs/GapBoard.js": 1,
   "components/tabs/HitsHRR.js": 10,
   "components/tabs/Leaders.js": 23,
