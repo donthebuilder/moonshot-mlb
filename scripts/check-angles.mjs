@@ -41,7 +41,9 @@ eq(keys(pickAngles({ matchup: [{ ...c('called', 30), status: 'called' }, { ...c(
 }
 {
   const card = readFileSync(new URL('../components/slate/SlateCard.js', import.meta.url), 'utf8')
-  const block = card.slice(card.indexOf('BEST ANGLES</div>') - 200, card.indexOf('THE EITHER/OR ROW'))
+  // the heading went (2026-10-20: the tags say it), so the block is anchored on its comment, from there to the either/or row
+  const from = card.indexOf('THE WEAK SPOT, then BEST ANGLES')
+  const block = from < 0 ? '' : card.slice(from, card.indexOf('THE EITHER/OR ROW')).replace(/\{\/\*[\s\S]*?\*\/\}/g, '')   // its own comments say 'no call stamp'
   ok(block.length > 100 && !/CALLED|called|STATUS_WORD|CallStatusBadge|probab/i.test(block), 'the card draws a called stamp / word / probability in its BEST ANGLES block')
 }
 

@@ -14,13 +14,14 @@
 //   - a position nobody has (pos=ZZ) says "No ZZ on the board with these filters." and its Clear button empties pos=
 import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { MAC_CHROME, MAC_BRAVE, EXTRA_PATHS } from './_browser.mjs'
 
 const req = createRequire(`${process.cwd()}/package.json`)
 const { chromium } = req('playwright-core')
 const arg = (k, d = null) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d }
 const BASE = (arg('--base') || 'http://localhost:3108').replace(/\/$/, '')
 const ONLY = arg('--only')
-const exe = [arg('--browser'), '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome'].filter(Boolean).find(existsSync)
+const exe = [arg('--browser'), MAC_BRAVE, MAC_CHROME, ...EXTRA_PATHS, '/usr/bin/google-chrome'].filter(Boolean).find(existsSync)
 if (!exe) { console.error('No Brave/Chrome found; pass --browser'); process.exit(2) }
 
 const PAGES = { mlb: '/app#sport=mlb&tab=fullboard', nfl: '/app#sport=nfl&tab=research', nhl: '/app#sport=nhl&tab=fullboard', nba: '/app#sport=nba&tab=fullboard' }

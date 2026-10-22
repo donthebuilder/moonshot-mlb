@@ -99,11 +99,8 @@ export function Pills({ value, onChange, options, ariaLabel, nowrap = false }) {
 /** A small button (pagers, "open the game"). */
 export function NavBtn({ children, onClick, disabled = false, strong = false, ariaLabel }) {
   return (
-    <button type="button" onClick={onClick} disabled={disabled} aria-label={ariaLabel} style={{
-      minHeight: 44, padding: '0 14px', borderRadius: 10, cursor: disabled ? 'default' : 'pointer',
-      border: `1px solid ${strong ? C.purple : C.border2}`, background: strong ? `${C.purple}14` : C.bg2,
-      color: strong ? C.purple : C.text2, font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.04em', opacity: disabled ? .5 : 1,
-    }}>{children}</button>
+    // a pager is the site's one chip (lib/chips.js flatChip, 10-22); 44px to the thumb through .tap-box
+    <button type="button" className={FLAT_CHIP_CLASS} onClick={onClick} disabled={disabled} aria-label={ariaLabel} style={flatChip(strong, C.purple, C, NUM_FONT, { disabled })}>{children}</button>
   )
 }
 /** "‹ <where you came from>" -- the shell's trail names the place (lib/useShellRoute). */

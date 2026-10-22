@@ -1,4 +1,5 @@
 'use client'
+import { FLAT_CHIP_CLASS, flatChip } from '../../lib/chips'
 import WatchBox from '../WatchBox'
 import CalledLastNight from '../CalledLastNight'
 import { useCalledLastLens } from '../../lib/calledLast/useCalledLast'
@@ -628,14 +629,8 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
             "which tool am I in" and "which board within it" are told apart by
             shape before anyone reads a word. */}
         {GROUPS.map(([k, label]) => (
-          <button key={k} onClick={() => (k === 'boards' && onNavigate ? onNavigate('fullboard') : setBview(k))} style={{
-            padding: '7px 16px', borderRadius: 999, cursor: 'pointer', fontSize: TYPE.body,
-            fontWeight: 900, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
-            letterSpacing: '.02em',
-            border: `1px solid ${bview === k ? C.orange : C.border}`,
-            background: bview === k ? 'rgba(249,115,22,.14)' : 'transparent',
-            color: bview === k ? C.orange : C.text3,
-          }}>{label}</button>
+          <button key={k} type="button" className={FLAT_CHIP_CLASS} aria-pressed={bview === k} onClick={() => (k === 'boards' && onNavigate ? onNavigate('fullboard') : setBview(k))}
+            style={flatChip(bview === k, C.orange, C, NUM_FONT)}>{label}</button>
         ))}
         {/* The 'Full slate' / 'Box scores' LINKS that used to sit here are gone
             (2026-08-17, "when you click on certain it navigates you out of the

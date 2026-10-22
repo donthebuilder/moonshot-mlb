@@ -1,4 +1,5 @@
 'use client'
+import { FLAT_CHIP_CLASS, chipSelect, chipCaret } from '../lib/chips'
 import { useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { alpha } from '../lib/scales'
@@ -29,27 +30,20 @@ export function TopSelect({ value, onChange, options, allLabel, ariaLabel, accen
   // zero rows while the select read "All". Now it can be seen and cleared.
   const opts = on && !options.some((o) => String(o.key) === String(value)) ? [{ key: value, label: `${value} \u00b7 not on this slate` }, ...options] : options
   return (
-    <div className="top-select-wrap" style={{ position: 'relative', minWidth: 0 }}>
+    <div className="top-select-wrap" style={{ position: 'relative', minWidth: 0, display: 'inline-flex' }}>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="moon-select top-select"
+        className={`moon-select top-select ${FLAT_CHIP_CLASS}`}
         aria-label={ariaLabel}
         title={ariaLabel}
-        style={{
-          appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',
-          background: on ? `linear-gradient(135deg, ${alpha(accent, 0.16)}, ${alpha(accent, 0.05)})` : C.bg3,
-          border: `1px solid ${on ? alpha(accent, 0.55) : C.border2}`,
-          color: on ? accent : C.text, fontWeight: on ? 800 : 500,
-          borderRadius: 999, padding: '9px 30px 9px 14px', fontSize: 12, fontFamily: NUM_FONT,
-          outline: 'none', width: '100%', minWidth: 0, boxSizing: 'border-box', cursor: 'pointer',
-          textOverflow: 'ellipsis',
-        }}
+        // 10-22 chip audit: the site's one chip, as a dropdown (lib/chips.js chipSelect)
+        style={chipSelect(on, accent, C, NUM_FONT)}
       >
         <option value="">{allLabel}</option>
         {opts.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
       </select>
-      <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 10, color: on ? accent : C.text3, pointerEvents: 'none' }}>▾</span>
+      <span style={chipCaret(on, accent, C)}>▾</span>
     </div>
   )
 }

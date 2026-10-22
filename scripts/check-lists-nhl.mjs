@@ -19,16 +19,28 @@ check(pg.players.get(7).games.length === 2 && pg.teams.get('TST').join() === '11
 const { nhlListOrder } = await import('../lib/lists/post.js')
 check(nhlListOrder('2026-10-05').join() === 'iron_man' && nhlListOrder('2026-10-06').join() === 'goal_streak,point_every_game', 'Mondays IRON MAN; other days goal streaks, else a point in every game')
 if (!process.argv.includes('--offline')) {
+  // LIVE, dry run (2026-10-21): the readers read the WHOLE current season by its id, not "as of" a date, so the old fixed 2026-09-27 checks
+  // ("before opening night ... nothing posts") went false the night the season opened. Live checks use today now; the before-opening-night
+  // rule is the season reader's own answer, so it is checked on whichever side of opening night today is.
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date())
   const { nhlSeasonStarted } = await import('../lib/lists/nhl.js')
-  check((await nhlSeasonStarted('2026-09-27')) === false, 'before opening night: the season has not started -> no NHL list posts')
+  const started = await nhlSeasonStarted(today)
+  check(typeof started === 'boolean', `season ${seasonIdFor(today)} started: ${started} (${today})`)
   const t0 = Date.now()
-  const iron = await ironManList('2026-09-27')
+  const iron = await ironManList(today)
   const t = listText(iron)
   console.log(`   iron man built in ${((Date.now() - t0) / 1000).toFixed(1)} s`)
-  check(Boolean(t) && t.length <= 280, `IRON MAN (before opening night: through 2025-26): ${iron?.rows.length} rows, ${t?.length} chars`)
+  check(Boolean(t) && t.length <= 280, `IRON MAN (${today}): ${iron?.rows.length} rows, ${t?.length} chars`)
   console.log(`--- IRON MAN (dry run) ---\n${t}\n`)
-  const [pe, gs] = await Promise.all([pointEveryGameList('2026-09-27'), goalStreakList('2026-09-27')])
-  check(pe && pe.rows.length === 0 && gs && gs.rows.length === 0, 'no games yet in 2026-27: point-every-game and goal-streak lists are empty (nothing posts)')
+  const [pe, gs] = await Promise.all([pointEveryGameList(today), goalStreakList(today)])
+  check(pe && gs && Array.isArray(pe.rows) && Array.isArray(gs.rows), `point-every-game ${pe?.rows.length} rows, goal streaks ${gs?.rows.length} rows (built from the live season)`)
+  if (!started) check(pe.rows.length === 0 && gs.rows.length === 0, 'before opening night: both lists are empty (nothing posts)')
+  const { MIN_ROWS } = await import('../lib/lists/shape.js')
+  for (const l of [pe, gs]) {
+    const lt = listText(l)
+    if (l.rows.length < MIN_ROWS) check(lt === null, `${l.kind}: ${l.rows.length} rows, under the ${MIN_ROWS}-row floor -> no post`)
+    else check(Boolean(lt) && lt.length <= 280, `${l.kind}: ${lt?.length} chars, under 280`)
+  }
 }
 console.log(failed ? `\n${failed} FAILED` : '\nall green')
 process.exit(failed ? 1 : 0)

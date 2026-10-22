@@ -189,8 +189,9 @@ function dayWord(j) {
 // a small oval chip, one height everywhere
 function chip(C, numFont, col = null, kind = 'plain') {
   return {
-    display: 'inline-flex', alignItems: 'center', height: 20, padding: '0 8px', borderRadius: 999, whiteSpace: 'nowrap',
-    fontFamily: numFont, fontSize: 11, fontWeight: 800, letterSpacing: '.04em', textDecoration: 'none',
+    // the site's chip size (lib/chips.js flatChip: the 10px oval, 10-22 chip audit)
+    display: 'inline-flex', alignItems: 'center', padding: '5px 10px', borderRadius: 999, whiteSpace: 'nowrap',
+    font: `800 10px/1.1 ${numFont}`, letterSpacing: '.07em', textTransform: 'uppercase', textDecoration: 'none',   // the font shorthand, as flatChip: the phone text floor lifts only a bare font-size
     color: kind === 'fill' ? C.bg : (col || C.text2),
     background: kind === 'fill' ? col : 'transparent',
     border: `1px solid ${kind === 'plain' ? C.border2 : col}`,

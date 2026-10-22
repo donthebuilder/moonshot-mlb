@@ -13,6 +13,7 @@ import { createRequire } from 'node:module'
 import { MLB_TEAMS } from '../lib/mlbTeams.js'
 import { NFL_TEAMS } from '../lib/nfl/teams.js'
 import { NHL_TEAMS } from '../lib/nhl/teams.js'
+import { MAC_BRAVE, EXTRA_PATHS, findBrowser } from './_browser.mjs'
 const req = createRequire(import.meta.url)
 const { chromium } = req('playwright-core')
 
@@ -34,7 +35,7 @@ const CODES = {
 }
 const sportOf = (p) => (/sport=nfl/.test(p) ? 'nfl' : /sport=nhl/.test(p) ? 'nhl' : 'mlb')
 
-const b = await chromium.launch({ executablePath: '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser', headless: true })
+const b = await chromium.launch({ executablePath: findBrowser([arg('--browser'), MAC_BRAVE, ...EXTRA_PATHS]), headless: true })
 let total = 0
 for (const path of PAGES) {
   for (const [w, h] of [[390, 844], [1280, 900]]) {

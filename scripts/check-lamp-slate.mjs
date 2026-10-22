@@ -118,7 +118,13 @@ const night = (count = 4, over = {}) => Array.from({ length: count }, (_, i) => 
 const textBad = /https?:|www\.|\.com\b|dashnetwork|test\.example|#\w|\bbot\b|\bprobab|\bchance\b|\bodds\b|%|\block\b|\blocked\b|guarantee|\bpick\b|\bsure\b/i
 const emojiCount = (t) => (t.match(/\p{Extended_Pictographic}/gu) || []).length
 const rowsOf = (db) => db.tables.homer_feed_posts.filter((r) => r.kind === 'nhl_slate')
-const run = (db, games, now = NOW, extra = {}) => LS.postLampSlateOnce(db, { day: DAY, load: async () => games, hooks: 'https://discord.test/h', now, ...extra })
+// The routing table (lib/dash/routing.js nhl_slate -> the 'sport' room) narrows any hook to that room's webhooks, so the test hook IS the LAMP
+// room for the run (DISCORD_NHL_WEBHOOKS), as in production; without it the send is 'routing:no-room' and nothing goes (the 0 !== 1 of 10-20).
+const run = async (db, games, now = NOW, extra = {}) => {
+  const had = process.env.DISCORD_NHL_WEBHOOKS
+  if (!had) process.env.DISCORD_NHL_WEBHOOKS = 'https://discord.test/h'
+  try { return await LS.postLampSlateOnce(db, { day: DAY, load: async () => games, hooks: 'https://discord.test/h', now, ...extra }) } finally { if (!had) delete process.env.DISCORD_NHL_WEBHOOKS }
+}
 const A = (games, now = NOW, extra = {}) => LS.assembleLampSlate({ day: DAY, games, now, ...extra })
 const APP_NHL_BOARD = '/app#sport=nhl&tab=fullboard'
 
@@ -242,7 +248,9 @@ await ok('post: claims (day, nhl_slate), X first, Discord after; the row keeps w
   assert.equal(tweets.length, 1); assert.equal(discords.length, 1)
   const row = rowsOf(db)[0]
   assert.ok(row.x_post_id); assert.equal(row.discord_sent, true); assert.deepEqual(row.payload.named, ['t1', 't2', 't3', 't4', 't5']); assert.equal(row.payload.x_tag, 'INFO'); assert.equal(row.payload.n_called, 8)
-  assert.equal(tweets[0].text, A(night(4)).text)
+  // postToX adds the receipt line under every post (lib/posts/receiptLine.js): the tweet is the Slate's text plus that line, nothing else
+  const { receiptLineFor } = await import('../lib/posts/receiptLine.js')
+  assert.equal(tweets[0].text, `${A(night(4)).text}\n\n${receiptLineFor('nhl_slate', { sport: 'nhl', text: A(night(4)).text })}`)
   for (let i = 0; i < 3; i++) assert.equal(await run(db, night(4), NOW + i * 600e3), 'already-posted')
   PC._resetTakenForTests(); assert.equal(await run(db, night(4)), 'already-posted')       // a cold instance still finds the row
   assert.equal(tweets.length, 1); assert.equal(discords.length, 1); assert.equal(rowsOf(db).length, 1)

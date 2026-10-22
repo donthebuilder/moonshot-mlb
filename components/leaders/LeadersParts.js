@@ -1,6 +1,6 @@
 'use client'
+import { flatChip, CHIP_MARK } from '../../lib/chips'
 import { TYPE } from '../../lib/theme'
-import { alpha } from '../../lib/scales'
 import { useSportTheme } from '../SportTheme'
 import { useIsPhone } from '../MobileFold'
 import { Children, useState } from 'react'
@@ -27,13 +27,8 @@ export function LeadersIntro({ children }) {
 /** One chip's style, MOONSHOT's Leaders chip. */
 export function useLeaderChip() {
   const { C, NUM_FONT, accent } = useSportTheme()
-  return (on) => ({
-    padding: '3px 9px', fontSize: TYPE.body, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
-    fontFamily: NUM_FONT,
-    border: `1px solid ${on ? accent : C.border}`,
-    background: on ? alpha(accent, 0.12) : 'transparent',
-    color: on ? accent : C.text3,
-  })
+  // the site's one chip (lib/chips.js flatChip, the oval; 10-22 chip audit); CHIP_MARK gives the 44px tap on a phone
+  return (on) => ({ ...flatChip(on, accent, C, NUM_FONT), ...CHIP_MARK })
 }
 
 /**

@@ -20,6 +20,24 @@ const walk = (d) => { for (const n of readdirSync(d)) { if (SKIP_DIR.has(n)) con
 for (const d of ['components', 'lib', 'app']) walk(d)
 
 const TABLE = /<(DenseTable|NflTable|LampTable|BucketsTable|Table)\b|\bcolumns\s*[:=]|boardColumns|Columns\(/
+const MENU_ARRAYS = new Set(['games', 'teams', 'filters', 'toggles', 'groups', 'items', 'chips', 'tabs', 'options'])
+/** The name the nearest named, still-open array literal before `at` is assigned to (`games={[` / `items: [`), or null. Skips a `[` that opens
+ *  a ternary or spread branch and keeps going outward. */
+function enclosingArrayName(src, at) {
+  let depth = 0, seen = 0
+  for (let k = at - 1, lim = Math.max(0, at - 4000); k >= lim; k--) {
+    const ch = src[k]
+    if (ch === ']' || ch === ')' || ch === '}') depth++
+    else if (ch === '(' || ch === '{') { if (depth) depth--; }
+    else if (ch === '[') {
+      if (depth) { depth--; continue }
+      const m = /(\w+)\s*[:=]\s*\{?\s*$/.exec(src.slice(Math.max(0, k - 80), k))
+      if (m) return m[1]
+      if (++seen > 4) return null
+    }
+  }
+  return null
+}
 /** top-level-ish object literals that hold both key: and label: */
 function literals(src) {
   const out = []
@@ -41,7 +59,15 @@ function literals(src) {
     // ...and a tab / option list (const TABS = [ { key, label } ], VIEW_OPTIONS, PANELS): a menu, not a table
     const before = src.slice(Math.max(0, i - 1500), i)
     const inMenu = /\b\w*(?:TABS|OPTIONS|VIEWS|PANELS|options)\s*=\s*\{?\[[^\]]*$/.test(before)
+    // NOT A COLUMN either (10-21, KNOWN-ISSUES #2): a FindBar / FiltersSheet filter (onChange, defaultValue), a ChartLegend item (mark), a zone
+    // definition (test), an option inside a named menu array (games=, teams=, filters=, toggles=, groups=, items=, chips=), and a table's DATA row
+    // (built into a `rows` const). The shared filters (#206) and the shot-map legends (#175) put dozens of these in table files.
+    const menuArray = enclosingArrayName(src, i)
+    const inColumns = /^(?:columns|cols|\w*Cols|\w*Columns)$/.test(menuArray || '')
+    const dataRow = !menuArray && /(?:return|=>\s*\()\s*$/.test(before) && /(?:const|let)\s+(?:rows|\w*Rows)\s*=/.test(before.slice(-400))   // a row a `const rows = ...map(` callback returns
+    const legend = props.includes('mark') && !['w', 'flag', 'action'].some((k) => props.includes(k))   // a flag column has mark AND w / flag
     const notColumn = props.includes('order') || props.includes('text') || props.includes('onClear') || inMenu   // onClear: an active-filter chip
+      || (!inColumns && (['onChange', 'defaultValue', 'test'].some((k) => props.includes(k)) || legend || MENU_ARRAYS.has(menuArray) || dataRow))
     if (!notColumn && /^\{\s*(?:answers:[^,]+,\s*)?key:\s*['"`$\w]/.test(body) && /\blabel:/.test(body)) {
       const flat = body.replace(/\{[^{}]*\}/g, '{}')   // ignore nested objects when looking for the property
       out.push({ at: i, body, ungrouped: !/\bgroup\b/.test(body) && !/\.\.\.\w+/.test(flat.slice(1, 40)) })
@@ -53,6 +79,7 @@ function literals(src) {
 const found = {}
 for (const f of files) {
   if (f === 'lib/parity.js') continue   // the parity matrix: rows have key + label but are features, not table columns
+  if (f === 'lib/awards.js') continue   // stat-line definitions; components/AwardRaces.js gives each its column and group: 'Line'
   const src = readFileSync(f, 'utf8')
   if (!TABLE.test(src)) continue
   const bad = literals(src).filter((l) => l.ungrouped)

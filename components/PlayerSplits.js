@@ -255,7 +255,7 @@ export function GroupPicker({ groups, active, onPick }) {   // exported (10-19):
             onClick={() => onPick(g.key)}
             style={{
               fontSize: 10.5, fontWeight: on ? 800 : 600,
-              ...CHIP_MARK, padding: '4px 10px', borderRadius: 3, cursor: 'pointer',
+              ...CHIP_MARK, padding: '4px 10px', borderRadius: 999, cursor: 'pointer',
               background: on ? C.bg2 : 'transparent',
               border: `1px solid ${on ? C.border : 'transparent'}`,
               color: on ? C.text : C.text3,

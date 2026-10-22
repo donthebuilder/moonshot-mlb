@@ -1,4 +1,5 @@
 'use client'
+import { flatChip } from '../lib/chips'
 import { useSportTheme } from './SportTheme'
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
@@ -69,14 +70,9 @@ export function FilterPill({ active, onClick, children, count, title, disabled, 
   const themed = !!useSportTheme()?.themed
   // THE CHIP INSIDE THE TARGET (2026-10-20, Donovan: "the very tiny square ones ... so it can fit well on the screen"): the button is
   // the 44px thumb target on a touch screen (.fp-themed) and draws nothing; the chip you see is the small flat square inside it.
-  const chip = {
-    padding: tall ? '6px 10px' : '5px 9px', fontSize: tall ? 11 : 10, borderRadius: 3, letterSpacing: '.04em', lineHeight: 1.1,
-    ...(tall ? { fontFamily: NUM_FONT } : null),
-    border: `1px solid ${s.borderColor}`,
-    background: active ? alpha(s.color, 0.14) : 'transparent',
-    color: s.color, fontWeight: s.fontWeight,
-    whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 5,
-  }
+  // 10-22 (chip audit): the chip is the site's one chip, lib/chips.js flatChip (the small oval, matching the X cards), in this
+  // product's accent; `tall` no longer changes its size (one size everywhere), only the 44px target around it.
+  const chip = { ...flatChip(active, s.color, C, NUM_FONT), cursor: 'inherit', opacity: 1 }
   return (
     <button
       className={themed ? 'fp-themed' : 'tap-box'}
@@ -143,11 +139,11 @@ export function Segmented({ value, options, onChange, label, tall = false }) {
             <button key={o.key} className={themed ? 'fp-themed' : 'tap-box'} onClick={() => onChange(o.key)} title={o.title} style={{
               padding: 0, border: 0, background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', ...(tall ? { minHeight: 44 } : null),
             }}>
+              {/* the joined oval (lib/chips.js flatChip, 10-22): round only at the two outer ends */}
               <span style={{
-                padding: tall ? '6px 9px' : '5px 10px', fontSize: tall ? 11 : 10, whiteSpace: 'nowrap', lineHeight: 1.1, letterSpacing: '.04em',
-                border: `1px solid ${active ? s.borderColor || C.border : C.border}`, borderLeftWidth: i && !active ? 0 : 1,
-                borderRadius: i === 0 ? '3px 0 0 3px' : last ? '0 3px 3px 0' : 0,
-                background: active ? alpha(s.color, 0.14) : 'transparent', color: s.color, fontWeight: s.fontWeight,
+                ...flatChip(active, s.color, C, NUM_FONT), cursor: 'inherit',
+                borderLeftWidth: i && !active ? 0 : 1,
+                borderRadius: options.length === 1 ? 999 : i === 0 ? '999px 0 0 999px' : last ? '0 999px 999px 0' : 0,
               }}>{o.label}</span>
             </button>
           )

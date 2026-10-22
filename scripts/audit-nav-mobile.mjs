@@ -43,6 +43,7 @@
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import './_esm-resolve.mjs'
+import { MAC_CHROME, MAC_BRAVE, EXTRA_PATHS } from './_browser.mjs'
 
 const req = createRequire(`${process.cwd()}/package.json`)
 const { chromium } = req('playwright-core')
@@ -55,7 +56,7 @@ const ONLY = arg('--only')
 const PAGES = arg('--pages')
 const CONCURRENCY = Number(arg('--concurrency', 3))
 const OUT = 'mobile-report/audit'
-const BROWSERS = [arg('--browser'), '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser', '/usr/bin/google-chrome', '/usr/bin/chromium'].filter(Boolean)
+const BROWSERS = [arg('--browser'), MAC_CHROME, MAC_BRAVE, ...EXTRA_PATHS, '/usr/bin/google-chrome', '/usr/bin/chromium'].filter(Boolean)
 const executablePath = BROWSERS.find((p) => existsSync(p))
 if (!executablePath) { console.error('No Chrome/Brave found; pass --browser /path/to/chrome'); process.exit(2) }
 const run = (part) => !ONLY || ONLY === part

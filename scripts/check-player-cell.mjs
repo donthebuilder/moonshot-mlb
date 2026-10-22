@@ -18,6 +18,7 @@
 //   - the name is a button, the cell is at least 44px tall, and at most MAX_FACES images are in the DOM per table
 // Exit 1 on any failure.
 import { fitName, planChips, oppFromGame, oppWords, surnameOf, initialSurname, wrapWords } from '../lib/nameFit.js'
+import { MAC_CHROME, MAC_BRAVE, EXTRA_PATHS } from './_browser.mjs'
 
 let fails = 0
 const ok = (cond, msg) => { if (!cond) { fails += 1; console.log(`FAIL ${msg}`) } }
@@ -101,7 +102,7 @@ const { createRequire } = await import('node:module')
 const { existsSync } = await import('node:fs')
 const req = createRequire(`${process.cwd()}/package.json`)
 const { chromium } = req('playwright-core')
-const BROWSERS = [arg('--browser'), '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser', '/usr/bin/google-chrome', '/usr/bin/chromium'].filter(Boolean)
+const BROWSERS = [arg('--browser'), MAC_CHROME, MAC_BRAVE, ...EXTRA_PATHS, '/usr/bin/google-chrome', '/usr/bin/chromium'].filter(Boolean)
 const executablePath = BROWSERS.find((p) => existsSync(p))
 const PAGES = (arg('--pages') || '/app#sport=mlb&tab=fullboard,/app#sport=nhl&tab=fullboard,/app#sport=nfl&tab=research,/app#sport=nba&tab=fullboard,/app#sport=nhl&tab=watchlist,/app#sport=nfl&tab=watchlist').split(',')
 const VPS = [[390, 844, 58], [360, 780, 58], [430, 932, 58], [1280, 900, 52]]

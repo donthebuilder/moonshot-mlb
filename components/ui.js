@@ -18,7 +18,7 @@ export function chipStyle(color) {
     border: `1px solid ${color}55`,
     background: `${color}16`,
     color,
-    borderRadius: 3,   // flat and square like every chip (2026-10-21); it was a round 999 pill
+    borderRadius: 999,   // the site's one chip shape: the oval (10-22, matches the X cards)
     padding: '3px 7px',
     fontSize: 10,
     fontWeight: 800,

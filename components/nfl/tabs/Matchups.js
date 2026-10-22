@@ -117,7 +117,7 @@ export function Zones({ field, team }) {
           }]
         }))} />
       <div style={{ fontSize: 10, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
-        <b style={{ color: C.green }}>orange</b> = they give up more there than a normal defense · the number is yards per {unit} vs normal{pass ? ', with touchdowns allowed under it' : ''} · ringed = the softest spot · — = too few plays
+        <b style={{ color: C.green }}>lit</b> = they give up more there than a normal defense · the number is yards per {unit} vs normal{pass ? ', with touchdowns allowed under it' : ''} · ringed = the softest spot · — = too few plays
       </div>
       {!pass && (() => {
         const o = laneOutcomes(field, team)

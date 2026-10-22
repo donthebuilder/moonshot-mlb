@@ -1,4 +1,5 @@
 'use client'
+import { FLAT_CHIP_CLASS, flatChip } from '../../lib/chips'
 import MoreNote from '../MoreNote'
 import Tap from '../Tap'
 import InjuryMark from '../injuries/InjuryMark'
@@ -380,14 +381,9 @@ export default function AlignmentsView({
           const x = expected > 0 ? c.count / expected : 0
           const on = openRoot === c.root
           return (
-            <button key={c.root} onClick={() => setOpenRoot(on ? null : c.root)} style={{
-              padding: '5px 12px', borderRadius: 9, cursor: 'pointer',
-              border: `1px solid ${on ? accent : C.border}`,
-              background: on ? `${accent}18` : C.bg2,
-              color: C.text2, fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 800,
-            }}
+            <button key={c.root} className={FLAT_CHIP_CLASS} onClick={() => setOpenRoot(on ? null : c.root)} aria-pressed={on} style={flatChip(on, accent, C, NUM_FONT)}
               title={`Root ${c.root}: ${c.count} memberships across all ${W.axesWord} axes, against ~${Math.round(expected)} expected by arithmetic. ${x >= 1.25 ? `Running above its share ${W.night}.` : x <= 0.8 ? 'Running below its share.' : 'About its arithmetic share.'}`}>
-              <span style={{ color: C.text, fontSize: 13 }}>{c.root}</span>
+              <span style={{ color: C.text, fontSize: 11 }}>{c.root}</span>
               {' '}{c.count}
               <span style={{ color: x >= 1.25 ? accent : C.text3, fontSize: 9 }}> {x.toFixed(2)}×</span>
             </button>
