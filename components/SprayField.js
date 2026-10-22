@@ -224,6 +224,8 @@ const RANGES = [
   { key: 'g10', label: 'L10', games: 10 },
   { key: 'g15', label: 'L15', games: 15 },
   { key: 'g25', label: 'L25', games: 25 },
+  // his last 25 batted balls, whatever games they came in (Donovan, 2026-10-22: "Last 25 batted ball events ... keep it")
+  { key: 'b25', label: 'L25 BBE', games: null, bbe: 25 },
   { key: 'all', label: 'All', games: null },
 ]
 
@@ -450,6 +452,10 @@ export default function SprayField({
   const [armPick, setArmPick] = useState('ALL')  // ALL | L | R — pitcher hand
   const [sidePick, setSidePick] = useState('ALL') // ALL | pull | center | oppo
   const [deepPick, setDeepPick] = useState('ALL') // ALL | 375 | 400 | pullair
+  // BATS (2026-10-22, Donovan: "a right pitcher, left batter, left pitcher, right batter. That's how a switch hitter
+  // works"). A switch hitter's two swings are two different hitters, so the chart and the EV log beside it open on the
+  // side he stands on tonight, and the game windows count only that side's games. ALL | L | R; only switch hitters see it.
+  const [batPick, setBatPick] = useState('ALL')
   // PARK OVERLAY (2026-08-28, addendum N3: "would it have gone out here").
   // '' = off, showing only his real park's wall like every chart before this.
   // A selected park name re-tests every dot on screen against THAT park's
@@ -581,30 +587,45 @@ export default function SprayField({
     }
   }).filter(Boolean), [data])
 
+  // A switch hitter: balls on file from both sides (5+ each, so one odd at-bat doesn't make a right-handed hitter "switch").
+  const standCounts = useMemo(() => {
+    const c = { L: 0, R: 0 }
+    hits.forEach((h) => { if (h.stand === 'L' || h.stand === 'R') c[h.stand] += 1 })
+    return c
+  }, [hits])
+  const isSwitch = standCounts.L >= 5 && standCounts.R >= 5
+  // the side filter sits UNDER the windows: "L10" on a switch hitter batting lefty tonight is his last 10 games lefty
+  const pool = useMemo(
+    () => (batPick === 'ALL' || !isSwitch ? hits : hits.filter((h) => !h.stand || h.stand === batPick)),
+    [hits, batPick, isSwitch],
+  )
+
   // Everything below the date window works off this, so a range change moves
   // the chip counts too rather than leaving them describing a wider sample
   // than what's drawn. Rates that don't move with the filter are the classic
   // way a panel like this ends up lying.
   const newest = useMemo(
-    () => hits.reduce((m, h) => (h.date && h.date > m ? h.date : m), ''),
-    [hits],
+    () => pool.reduce((m, h) => (h.date && h.date > m ? h.date : m), ''),
+    [pool],
   )
   // Every date he has a tracked ball on, newest first. This is the game list.
   const gameDates = useMemo(
-    () => [...new Set(hits.map((h) => h.date).filter(Boolean))].sort().reverse(),
-    [hits],
+    () => [...new Set(pool.map((h) => h.date).filter(Boolean))].sort().reverse(),
+    [pool],
   )
   useEffect(() => {
-    if (rangeTouched.current || range !== 'g5' || !hits.length) return
+    if (rangeTouched.current || range !== 'g5' || !pool.length) return
     const keep = new Set(gameDates.slice(0, 5))
-    if (!hits.some((h) => keep.has(h.date))) setRange('all')
-  }, [hits, gameDates, range])
+    if (!pool.some((h) => keep.has(h.date))) setRange('all')
+  }, [pool, gameDates, range])
   const inRange = useMemo(() => {
     const spec = RANGES.find((r) => r.key === range)
-    if (!spec?.games) return hits
+    // newest first by game date (a stable sort keeps the feed's own order inside a day), then the first N
+    if (spec?.bbe) return pool.map((h, i) => [h, i]).sort((a, b) => (b[0].date || '').localeCompare(a[0].date || '') || b[1] - a[1]).slice(0, spec.bbe).map(([h]) => h)
+    if (!spec?.games) return pool
     const keep = new Set(gameDates.slice(0, spec.games))
-    return hits.filter((h) => keep.has(h.date))
-  }, [hits, range, gameDates])
+    return pool.filter((h) => keep.has(h.date))
+  }, [pool, range, gameDates])
   const gamesShown = useMemo(
     () => new Set(inRange.map((h) => h.date).filter(Boolean)).size,
     [inRange],
@@ -621,6 +642,14 @@ export default function SprayField({
     if (seen.length > 1 && (arm === 'L' || arm === 'R')) return arm === 'R' ? 'L' : 'R'
     return seen.sort((a, b) => counts[b] - counts[a])[0] || clean(player?.bats, '').toUpperCase().slice(0, 1) || ''
   }, [hits, player])
+
+  // a switch hitter opens on tonight's side, once per hitter (a tap on the other side or All sticks)
+  const batApplied = useRef(null)
+  useEffect(() => {
+    if (state !== 'done' || batApplied.current === pid) return
+    batApplied.current = pid
+    setBatPick(isSwitch && (standVsTonight === 'L' || standVsTonight === 'R') ? standVsTonight : 'ALL')
+  }, [state, pid, isSwitch, standVsTonight])
 
   // Tonight's starter's mix, matched to the side he'll be standing on.
   const tonight = useMemo(() => {
@@ -792,7 +821,7 @@ export default function SprayField({
     }
   }).filter(Boolean), [liveBalls])
 
-  const reset = () => { setOnly('all'); setPicked(null); setBbPick(null); setArmPick('ALL'); setSidePick('ALL'); setDeepPick('ALL'); setRange('all'); setLiveRes('all'); setLiveQual(new Set()); setLivePitch(null); setTestPark('') }
+  const reset = () => { setOnly('all'); setPicked(null); setBbPick(null); setArmPick('ALL'); setSidePick('ALL'); setDeepPick('ALL'); setRange('all'); setBatPick(isSwitch && (standVsTonight === 'L' || standVsTonight === 'R') ? standVsTonight : 'ALL'); setLiveRes('all'); setLiveQual(new Set()); setLivePitch(null); setTestPark('') }
 
   const liveN = liveHits.length
   // In liveOnly the ● Tonight chip isn't rendered (it lives in the season
@@ -1195,7 +1224,7 @@ export default function SprayField({
             <button
               key={r.key}
               onClick={() => { rangeTouched.current = true; userRange.current = true; setRange(r.key) }}
-              title={r.games ? `His last ${r.games} games with a tracked batted ball` : `All ${gameDates.length} games on file`}
+              title={r.games ? `His last ${r.games} games with a tracked batted ball` : r.bbe ? `His last ${r.bbe} tracked batted balls, whatever games they came in` : `All ${gameDates.length} games on file`}
               style={{
                 ...chipBtn(range === r.key, C.orange),
                 padding: '2px 8px', fontSize: 9.5,
@@ -1214,7 +1243,7 @@ export default function SprayField({
             spray-cache publish gap shows up here now instead of only in the
             pipeline log. */}
         <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
-          {gamesShown}G · {inRange.length} of {hits.length} BBE
+          {gamesShown}G · {inRange.length} of {pool.length} BBE
           {newest ? ` · through ${newest}` : ''}
           {(() => {
             if (!newest) return null
@@ -1229,6 +1258,20 @@ export default function SprayField({
             )
           })()}
         </span>
+        {isSwitch && (
+          <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
+            <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', marginLeft: 4 }}>Bats</span>
+            {[['L', 'L'], ['R', 'R'], ['ALL', 'Both']].map(([k, label]) => (
+              <button
+                key={k}
+                onClick={() => setBatPick(k)}
+                aria-pressed={batPick === k}
+                title={k === 'ALL' ? 'Both sides of the plate' : `Only balls he hit batting ${k === 'L' ? 'left' : 'right'}-handed (${standCounts[k]} on file)${k === standVsTonight ? ' -- the side he bats tonight' : ''}`}
+                style={{ ...chipBtn(batPick === k, C.orange), padding: '2px 8px', fontSize: 9.5 }}
+              >{label}</button>
+            ))}
+          </span>
+        )}
         {liveN > 0 && (
           <button
             onClick={() => setLiveOn((v) => !v)}
