@@ -184,8 +184,8 @@ button {
    On a touch screen a button drawn as a pill (border-radius 999px inline, both spacings) gets the same invisible 44px-tall ::after as .tap-box: the pill keeps its look and size, the thumb gets the
    target. Inline `position` (absolute / fixed buttons) wins over this rule, since it carries no !important. Not for a pill inside a clipping scroller: its ::after is clipped to the scroller, which is no worse than before. */
 @media (pointer: coarse) {
-  button[style*="border-radius: 999px"], button[style*="border-radius:999px"] { position: relative; }
-  button[style*="border-radius: 999px"]::after, button[style*="border-radius:999px"]::after { content: ''; position: absolute; left: 50%; top: 50%; width: max(44px, 100%); height: 44px; transform: translate(-50%, -50%); }
+  button[style*="border-radius: 999px"], button[style*="border-radius:999px"], button[style*="--chip"] { position: relative; }
+  button[style*="border-radius: 999px"]::after, button[style*="border-radius:999px"]::after, button[style*="--chip"]::after { content: ''; position: absolute; left: 50%; top: 50%; width: max(44px, 100%); height: 44px; transform: translate(-50%, -50%); }
 }
 
 /* TAP-BOX (2026-10-13, phone tap-target pass): a control whose visible box must stay small (a ticker pill, a table-toolbar chip) gets a 44px

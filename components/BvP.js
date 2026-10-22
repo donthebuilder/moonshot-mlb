@@ -161,7 +161,7 @@ export default function BvP({ batterId, pitcherId, pitcherName, player }) {
           </div>
           {contactRows.length > 5 && (
             <button type="button" onClick={() => setAllBalls((v) => !v)}
-              style={{ marginTop: 6, minHeight: 44, padding: '0 14px', borderRadius: 999, cursor: 'pointer', font: 'inherit',
+              style={{ marginTop: 6, minHeight: 44, padding: '0 14px', borderRadius: 3, cursor: 'pointer', font: 'inherit',
                 fontSize: 12, fontWeight: 800, color: C.orange, background: 'transparent', border: `1px solid ${C.border2}` }}>
               {allBalls ? 'Show the last 5' : `+${contactRows.length - 5} more off him`}
             </button>
@@ -201,7 +201,7 @@ export default function BvP({ batterId, pitcherId, pitcherName, player }) {
           {data.seasons.map((s) => (
             <span key={s.season} style={{
               fontSize: 9, fontFamily: NUM_FONT, color: C.text3,
-              border: `1px solid ${C.border}`, borderRadius: 999, padding: '2px 8px',
+              border: `1px solid ${C.border}`, borderRadius: 3, padding: '2px 8px',
             }}>
               {s.season}: {num(s.stat.hits)}/{num(s.stat.atBats)}
               {num(s.stat.homeRuns) > 0 && <b style={{ color: C.orange }}> · {num(s.stat.homeRuns)} HR</b>}

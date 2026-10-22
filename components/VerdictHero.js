@@ -86,7 +86,7 @@ export function Dial({ value, col, size = 64, max = 100, title, dp = 0, pct: pct
       {withFace && (
         <span style={{
           position: 'absolute', left: '50%', bottom: -7, transform: 'translateX(-50%)',
-          padding: '2px 7px', borderRadius: 999, background: C.bg, border: `1px solid ${alpha(col, 0.7)}`,
+          padding: '2px 7px', borderRadius: 3, background: C.bg, border: `1px solid ${alpha(col, 0.7)}`,
           color: col, font: `900 ${Math.max(11, Math.round(size * 0.19))}px/1 ${NUM_FONT}`, whiteSpace: 'nowrap',
         }}>{numText}</span>
       )}
@@ -100,7 +100,7 @@ export function VerdictBadge({ label, col, quiet }) {
   return (
     <span style={{
       flexShrink: 0, fontSize: 11, fontWeight: 900, letterSpacing: '.07em',
-      padding: '3px 8px', borderRadius: 999, whiteSpace: 'nowrap',
+      padding: '3px 8px', borderRadius: 3, whiteSpace: 'nowrap',
       color: quiet ? C.text3 : col,
       border: `1px solid ${quiet ? C.border2 : alpha(col, 0.55)}`,
       background: quiet ? 'transparent' : alpha(col, 0.12),
@@ -174,7 +174,7 @@ export function ScoreChip({ value, col, title }) {
   return (
     <span title={title} style={{
       flexShrink: 0, display: 'inline-flex', alignItems: 'baseline', gap: 4,
-      padding: '3px 8px', borderRadius: 999, border: `1px solid ${alpha(col, 0.4)}`, background: alpha(col, 0.08),
+      padding: '3px 8px', borderRadius: 3, border: `1px solid ${alpha(col, 0.4)}`, background: alpha(col, 0.08),
     }}>
       <span style={{ fontSize: 7.5, fontWeight: 800, color: C.text3, letterSpacing: '.06em' }}>SCORE</span>
       <span style={{ fontSize: 12.5, fontWeight: 900, color: col, fontFamily: NUM_FONT, lineHeight: 1 }}>{v == null ? '—' : fmtScore(v, 0)}</span>
@@ -376,7 +376,7 @@ export default function VerdictHero({
           {chips.map((c) => (
             <span key={c.t} style={{
               fontSize: 11, fontWeight: 800, letterSpacing: '.03em', padding: '3px 8px',
-              borderRadius: 999, whiteSpace: 'nowrap',
+              borderRadius: 3, whiteSpace: 'nowrap',
               color: c.warn ? C.text : C.text2,
               border: `1px solid ${c.warn ? C.border2 : alpha(col, 0.3)}`,
               background: c.warn ? C.glass : alpha(col, 0.07),
@@ -401,7 +401,7 @@ export default function VerdictHero({
           {factsShown.map((f, i) => (
             <span key={`${f}-${i}`} style={{
               fontSize: 11, fontWeight: 700, letterSpacing: '.02em', padding: '3px 8px',
-              borderRadius: 999, whiteSpace: 'nowrap', fontFamily: NUM_FONT,
+              borderRadius: 3, whiteSpace: 'nowrap', fontFamily: NUM_FONT,
               color: C.text3, border: `1px solid ${C.border}`, background: C.glass,
             }}>{f}</span>
           ))}

@@ -94,7 +94,7 @@ export const moreBtn = () => ({
   // Padding widened 2026-09-13 (Donovan: "buttons/tap targets too small or
   // cramped" on mobile) — this pill is every "show N more"/"show all" button
   // on every table site-wide, so the fix here is a one-edit, every-table fix.
-  borderRadius: 999, padding: '5px 10px', cursor: 'pointer',
+  borderRadius: 3, padding: '5px 10px', cursor: 'pointer', '--chip': '1',   // flat square chip (2026-10-21); --chip keeps its 44px touch target (globals.css)
   font: `800 9px/1.4 ${NUM_FONT}`, letterSpacing: '.04em',
 })
 

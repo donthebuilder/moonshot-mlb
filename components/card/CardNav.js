@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { nameOf, teamOf, oppOf } from '../../lib/player'
 import { useSportTheme } from '../SportTheme'
+import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 
 // THE CARD'S TAB ROW AND PEER ARROWS, SHARED (2026-09-29, player cards step 5).
 // Moved verbatim out of components/PlayerModal.js so TUDDY's card stops
@@ -13,15 +14,13 @@ import { useSportTheme } from '../SportTheme'
 const mlbIdOf = (x) => Number(x?.player_id ?? x?.id)
 
 export function TabBtn({ active, onClick, children, tall = false }) {
-  const { C, accent } = useSportTheme()
+  // THE FLAT CHIP (2026-10-21, chips batch): the card's tab row was round 999 pills, the one shape Donovan asked to retire
+  // ("the very tiny square ones", 2026-10-20). Same lib/chips.js chip as every filter; its 44px touch target is .tap-box.
+  const { C, accent, NUM_FONT } = useSportTheme()
   return (
-    <button onClick={onClick} style={{
-      padding: '5px 13px', fontSize: 11, fontWeight: 700, cursor: 'pointer', borderRadius: 999,
-      ...(tall ? { minHeight: 44, fontSize: 12 } : null),
-      border: `1px solid ${active ? accent : C.border}`,
-      background: active ? `${accent}22` : 'transparent',
-      color: active ? accent : C.text3,
-      whiteSpace: 'nowrap',
+    <button onClick={onClick} className={FLAT_CHIP_CLASS} style={{
+      ...flatChip(active, accent, C, NUM_FONT),
+      ...(tall ? { minHeight: 44, fontSize: 11 } : null),
     }}>{children}</button>
   )
 }

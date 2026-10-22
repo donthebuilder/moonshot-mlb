@@ -32,6 +32,7 @@ import StarMemory from './watch/StarMemory'
 import { oddsHistoryPaths } from '../lib/dataSource'
 import MultiLine from './ledger/MultiLine'
 import { Chip } from './ui'
+import { flatChip, FLAT_CHIP_CLASS } from '../lib/chips'
 import Explain from './Explain'
 import VerdictBlock from './player/VerdictBlock'
 import { useCardLock, useMemberState, CardLockLine } from './MemberGate'
@@ -776,13 +777,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                 <button
                   onClick={() => onWatch(p)}
                   title={watched ? 'Remove from watchlist' : 'Add to watchlist'}
-                  style={{
-                    padding: '4px 11px', fontSize: 11, fontWeight: 700, borderRadius: 7, cursor: 'pointer',
-                    fontFamily: NUM_FONT,
-                    border: `1px solid ${watched ? C.orange : C.border}`,
-                    background: watched ? 'rgba(249,115,22,.14)' : 'transparent',
-                    color: watched ? C.orange : C.text3,
-                  }}
+                  className={FLAT_CHIP_CLASS} style={flatChip(watched, C.orange, C, NUM_FONT)}
                 >{watched ? '★ Watching' : '☆ Watch'}</button>
               )}
               {onAdd && (
@@ -795,11 +790,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                       key={b}
                       onClick={() => onAdd(p, b)}
                       title={`Add ${nameOf(p)} — ${b} — to the slip`}
-                      style={{
-                        padding: '4px 10px', fontSize: 11, fontWeight: 700, borderRadius: 7, cursor: 'pointer',
-                        fontFamily: NUM_FONT, border: `1px solid ${C.border}`,
-                        background: 'transparent', color: C.text2,
-                      }}
+                      className={FLAT_CHIP_CLASS} style={flatChip(false, C.orange, C, NUM_FONT)}
                     >+ {b}</button>
                   ))}
                   <span style={{ fontSize: 9, color: C.text3 }}>

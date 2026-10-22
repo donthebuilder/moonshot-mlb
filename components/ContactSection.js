@@ -22,7 +22,7 @@ function Chip({ on, onClick, children, title }) {
   return (
     <button type="button" onClick={onClick} title={title} aria-pressed={on}
       style={{ flexShrink: 0, minHeight: 44, padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
-      <span style={{ display: 'inline-flex', alignItems: 'center', height: 28, padding: '0 10px', borderRadius: 999, whiteSpace: 'nowrap',
+      <span style={{ display: 'inline-flex', alignItems: 'center', height: 28, padding: '0 10px', borderRadius: 3, whiteSpace: 'nowrap',
         border: `1px solid ${on ? C.orange : C.border}`, background: on ? alpha(C.orange, 0.14) : 'transparent', color: on ? C.orange : C.text2,
         font: `700 10.5px/1 ${NUM_FONT}` }}>{children}</span>
     </button>
