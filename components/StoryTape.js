@@ -20,7 +20,7 @@ import { TYPE } from '../lib/theme'
 const PER_SPORT = 8
 const ROW_SECONDS = 3.2
 
-const TYPE_WORD = {
+export const TYPE_WORD = {   // the story kinds' short words (also NflHeadlineStrip's story cards)
   milestone: 'MILESTONE', hot: 'HOT', multi: 'MULTI', b2b: 'BACK TO BACK', due: 'DUE', redzone: 'RED ZONE',
   list_td: 'EVERY GAME', list_100: '100+ STREAK', revenge: 'REVENGE', rivalry: 'RIVALRY', defense: 'SOFT D',
   point_streak: 'POINT STREAK', goal_streak: 'GOAL STREAK', iron_man: 'IRON MAN', birthday: 'BIRTHDAY',
