@@ -17,15 +17,15 @@
 // game — which is the whole distinction — so this renders on the API-only
 // cards where the watch button correctly refuses to.
 
+import { flatChip } from '../lib/chips'
 import { useSportTheme } from './SportTheme'
-import { alpha } from '../lib/scales'
 import { useFollowing } from '../lib/dash/follow'
 import { useDashAccount } from '../lib/dash/sync'
 
 export default function FollowButton({ sport = 'mlb', id, name, team, position, compact = false }) {
   const { following, toggle } = useFollowing(sport)
   // TUDDY / LAMP cards: the sport's cool accent (C.cyan on every theme).
-  const { C, NUM_FONT, themed } = useSportTheme()
+  const { C, NUM_FONT } = useSportTheme()
   const account = useDashAccount()
   if (!id) return null
 
@@ -46,16 +46,6 @@ export default function FollowButton({ sport = 'mlb', id, name, team, position, 
       // margin so the row keeps its height; the pill inside is the same pill as before (same padding, border, colour).
       aria-pressed={on}
       style={{ minHeight: 44, minWidth: 44, margin: '-10px 0', padding: 0, border: 0, background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-    ><span style={{
-        padding: compact ? '3px 9px' : '4px 11px',
-        fontSize: compact ? 10 : 11,
-        fontWeight: 700,
-        fontFamily: NUM_FONT,
-        borderRadius: 7,
-        border: `1px solid ${on ? C.cyan : C.border}`,
-        background: on ? (themed ? alpha(C.cyan, 0.14) : 'rgba(34,211,238,.14)') : 'transparent',
-        color: on ? C.cyan : C.text3,
-        whiteSpace: 'nowrap',
-      }}>{on ? '★ Watching' : '☆ Watch'}</span></button>
+    ><span style={flatChip(on, C.cyan, C, NUM_FONT)}>{/* the site's one chip (lib/chips.js flatChip, the oval; 10-22) */}{on ? '★ Watching' : '☆ Watch'}</span></button>
   )
 }
