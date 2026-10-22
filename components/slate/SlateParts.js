@@ -65,7 +65,7 @@ export function GameFilterRail({ value, onChange, counts, opts = BASE_GAME_FILTE
  *  builds its cards in GameStrip and keeps doing so. */
 export function SlateStrip({ sport, isPhone, rememberKey, accent, theme, open = null, cards, activeId, onSelect, legend }) {
   return (
-    <StripFold isPhone={isPhone} count={cards.length} rememberKey={rememberKey} accent={accent}
+    <StripFold isPhone={isPhone} rememberKey={rememberKey} accent={accent}
       summary={open ? null : 'tap to pick one'}>
       <div style={{ marginBottom: 16 }}>
         <style>{'@keyframes gsLivePulse{0%,100%{opacity:1}50%{opacity:.3}}'}</style>
@@ -81,10 +81,12 @@ export function SlateStrip({ sport, isPhone, rememberKey, accent, theme, open = 
 // SAID ONCE (layout sweep, 2026-10-22, Donovan: "repeated data of the line before"): the fold's title no longer carries the
 // game count (the lit All / Live / Upcoming / Final chip right above it says it) or "reading NYM @ WSH" (the lit card in the
 // strip, the lit chip in the phone's game switcher and the open game's own header all say it). `count` is accepted and unused.
-export function StripFold({ isPhone, count: _count, summary, rememberKey = 'moonshot_games_fold_v1', accent = C.orange, children }) {
+// MOONSHOT's Games page shows the count again (Donovan 10-22: MLB's slate back to how it was); SlateStrip's products pass none.
+export function StripFold({ isPhone, count = null, summary, rememberKey = 'moonshot_games_fold_v1', accent = C.orange, children }) {
   return (
     <MobileFold
       title="🏟 All games"
+      count={count}
       summary={summary}
       maxWidth={760}
       always

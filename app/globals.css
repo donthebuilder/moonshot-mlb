@@ -1,9 +1,3 @@
-/* THE OPEN MLB GAME ON THE SLATE (2026-10-22, components/tabs/Games.js): the lineups table leads; the read sits beside it on a
-   wide screen and under it on a phone. The read's two starter panels stack in the narrower column. */
-.game-lead { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 20px; align-items: start; }
-.game-lead > div { min-width: 0; }
-@media (min-width: 1280px) { .game-lead { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); } }
-
 /* ── iOS TEXT INFLATION, OFF (2026-08-29) ───────────────────────────────
    Donovan, with screenshots: "doesnt seem like its a lot of words and its
    taking up the page on most of the picks ... like the pairs you cant even
