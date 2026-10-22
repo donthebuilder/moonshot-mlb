@@ -38,6 +38,7 @@ import VerdictBlock from './player/VerdictBlock'
 import { useCardLock, useMemberState, CardLockLine } from './MemberGate'
 import StatRow from './player/StatRow'
 import HelpTip from './HelpTip'
+import { useIsPhone } from './MobileFold'
 import { useMlbBot, mlbStatus, mlbRecordLine, mlbLastLine, mlbStatRow } from './player/mlbAdapter'
 import EVLog from './tabs/EVLog'
 import PitchBreakdown from './tabs/PitchBreakdown'
@@ -241,11 +242,24 @@ const TABS = [
   { key: 'read',     label: 'The Read' },
   { key: 'sim',      label: '🎮 Sim' },
 ]
-// the views that are the page itself (old tabs, still valid in links and pushes)
-const PAGE_VIEWS = ['overview', 'spray', 'ev']
-// an off-slate (live API) player has no bot panels: these run on live pulls only
+// ON A PHONE THE PAGE IS TABS TOO (2026-10-22, Donovan: "a full-fledged version ... for the phone, like how it had the
+// things where you can click through each ... form-fitted for the phone instead of having it so long"). Where two columns
+// don't fit (under 1080px, the same line as app/globals.css .portal-main), the page's own panels become the first tabs and
+// one panel shows at a time. Desktop keeps the whole page with the deeper tabs under it.
+const PAGE_TABS = [
+  { key: 'spray',    label: '🗺 Spray' },
+  { key: 'ev',       label: '⚡ EV Log' },
+  { key: 'bvp',      label: '⚔ vs Him' },
+  { key: 'props',    label: '📊 Props' },
+]
+const PAGE_KEYS = PAGE_TABS.map((t) => t.key)
+// the views that are the page itself (old tabs, still valid in links and pushes); 'overview' is the page's top
+const PAGE_VIEWS = ['overview', ...PAGE_KEYS]
+// an off-slate (live API) player has no bot panels: these run on live pulls only (no head-to-head without a pitcher)
 const API_TABS = ['splits', 'log', 'read']
-const firstTab = (apiOnly) => (apiOnly ? 'splits' : 'pitcher')
+const API_PAGE = ['spray', 'ev', 'props']
+const firstTab = (apiOnly, tabbed = false) => (tabbed ? 'spray' : apiOnly ? 'splits' : 'pitcher')
+const TABBED_BELOW = 1080
 
 // BET MARKETS for the slip. Same four the boards offer, so an entry added from
 // here is indistinguishable from one added from a card.
@@ -284,6 +298,11 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   // the page's own sections, for links that ask for them (view=spray / ev / overview)
   const sprayRef = useRef(null)
   const evRef = useRef(null)
+  const bvpRef = useRef(null)
+  const propsRef = useRef(null)
+  // phone / narrow screen: one panel at a time (see PAGE_TABS)
+  const tabbed = useIsPhone(TABBED_BELOW - 1)
+  const pickedRef = useRef(false)   // the reader picked a tab: don't move him when the width settles
   const [detail, setDetail] = useState(null)
   const [detailState, setDetailState] = useState('idle')
   const [compareOpen, setCompareOpen] = useState(false)
@@ -375,7 +394,14 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   }, [pid, slateMode, player?.api_only, player?.game_pk])
 
   // An API-only player can land while a bot-only tab is open — snap home.
-  useEffect(() => { if (player?.api_only) setTab(firstTab(true)) }, [player])
+  useEffect(() => { pickedRef.current = false; if (player?.api_only) setTab(firstTab(true, tabbed)) }, [player])   // eslint-disable-line react-hooks/exhaustive-deps
+  // the width is known only after mount: a phone opens on the spray chart, a desktop on the Pitcher panel; a page panel
+  // picked on a phone is already on screen on a desktop, so the desktop's tab row falls back to its first tab
+  useEffect(() => {
+    if (pickedRef.current && (tabbed || !PAGE_KEYS.includes(tab))) return
+    if (tabbed && !PAGE_KEYS.includes(tab) && !pickedRef.current) setTab('spray')
+    if (!tabbed && PAGE_KEYS.includes(tab)) setTab(firstTab(!!player?.api_only))
+  }, [tabbed])   // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── TONIGHT'S BALLS ON THE CARD'S OWN SPRAY (2026-09-03) ─────────────────
   //
@@ -436,21 +462,23 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   useEffect(() => {
     if (!player) return
     if (!initialTab) {
-      if (lastViewRef.current) setTab(firstTab(!!player?.api_only))
+      if (lastViewRef.current) setTab(firstTab(!!player?.api_only, tabbed))
       lastViewRef.current = ''
       return
     }
     lastViewRef.current = initialTab
     // the page's own sections: scroll to the one asked for (the spray chart for a homer push)
     if (PAGE_VIEWS.includes(initialTab)) {
-      const el = initialTab === 'spray' ? sprayRef.current : initialTab === 'ev' ? evRef.current : null
+      const key = initialTab === 'overview' ? 'spray' : initialTab
+      if (tabbed) { pickedRef.current = true; setTab(key); return }   // a phone: that panel is a tab
+      const el = { spray: sprayRef, ev: evRef, bvp: bvpRef, props: propsRef }[initialTab]?.current
       if (el) setTimeout(() => { try { el.scrollIntoView({ block: 'start', behavior: 'smooth' }) } catch { /* old engine */ } }, 250)
       return
     }
     const allowed = player?.api_only ? API_TABS : TABS.map((t) => t.key)
-    if (allowed.includes(initialTab)) setTab(initialTab)
+    if (allowed.includes(initialTab)) { pickedRef.current = true; setTab(initialTab) }
     else onViewChange?.('')
-  }, [player, initialTab])   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [player, initialTab, tabbed])   // eslint-disable-line react-hooks/exhaustive-deps
 
   // 🎽 JERSEY NUMBER (2026-08-13, Donovan: "add jersey numbers to the players
   // modal"). Not something the bot publishes — it's static roster info, the
@@ -564,7 +592,12 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   // detail file — see the caveat right below, no longer suppressed for
   // apiOnly either, now that a real fetch is actually attempted.
   const apiOnly = !!p?.api_only
-  const visibleTabs = apiOnly ? TABS.filter((t) => API_TABS.includes(t.key)) : TABS
+  const deeperTabs = apiOnly ? TABS.filter((t) => API_TABS.includes(t.key)) : TABS
+  const pageTabs = apiOnly ? PAGE_TABS.filter((t) => API_PAGE.includes(t.key)) : PAGE_TABS
+  // a phone: the page's panels first, then the deeper ones, one row of flat chips; a desktop: the deeper ones only
+  const visibleTabs = tabbed ? [...pageTabs, ...deeperTabs] : deeperTabs
+  // a page panel draws when the page is whole (desktop) or when it is the picked tab (phone)
+  const showPanel = (k) => !tabbed || tab === k
 
   const role = compactRole(p)
   const rc = roleColor(role, C)
@@ -845,10 +878,25 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
             )}
           </div>
 
+          {/* the tab row: on a phone it comes first (every panel is a tab), on a desktop it sits under the page */}
+          {tabbed && (() => {
+            const row = (
+              <div style={{ borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: '10px 0', margin: tabbed ? '2px 0 12px' : '6px 0 14px',
+                // a phone: the row stays at the top of the card while you read a panel, so the next one is one tap away
+                ...(tabbed ? { position: 'sticky', top: 0, zIndex: 5, background: C.bg2 } : null) }}>
+                <div className="chip-row" style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                  {visibleTabs.map(t => (
+                    <TabBtn key={t.key} active={tab === t.key} onClick={() => { pickedRef.current = true; setTab(t.key); onViewChange?.(t.key) }}>{t.label}</TabBtn>
+                  ))}
+                </div>
+              </div>
+            )
+            return row
+          })()}
           {/* the main grid (app/globals.css .portal-main): desktop = spray over the head-to-head on the left, the EV log down
-              the right (PropFinder's shape, his spray chart where its team splits were); phone = spray, EV log, head-to-head */}
+              the right (PropFinder's shape, his spray chart where its team splits were); phone = one panel at a time, picked in the tab row above */}
           <div className="portal-main">
-            <section ref={sprayRef} className="portal-spray" style={PORTAL_CELL} aria-label="Spray chart">
+            {showPanel('spray') && <section ref={sprayRef} className="portal-spray" style={PORTAL_CELL} aria-label="Spray chart">
               <SprayField
                 player={p}
                 height={340}
@@ -859,14 +907,14 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                 liveFocusId={Number(pid) || null}
                 liveLabel={nameOf(p)}
               />
-            </section>
-            <section ref={evRef} className="portal-ev" style={PORTAL_CELL} aria-label="EV log">
+            </section>}
+            {showPanel('ev') && <section ref={evRef} className="portal-ev" style={PORTAL_CELL} aria-label="EV log">
               {detailState === 'loading'
                 ? <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Loading batted balls…</div>
                 : <EVLog player={p} />}
-            </section>
-            {!apiOnly && (
-              <section className="portal-bvp" style={PORTAL_CELL} aria-label="Against tonight's pitcher">
+            </section>}
+            {!apiOnly && showPanel('bvp') && (
+              <section ref={bvpRef} className="portal-bvp" style={PORTAL_CELL} aria-label="Against tonight's pitcher">
                 <BvP batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} player={p} />
                 <FirstPitchSplit batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} />
               </section>
@@ -874,18 +922,26 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
           </div>
 
           {/* the props grid, the full width of the card: every market x every window is a wide matrix */}
-          <section style={{ ...PORTAL_CELL, marginBottom: 8 }} aria-label="Props">
-            <ThresholdGrid playerId={pid} odds={odds} />
-          </section>
+          {showPanel('props') && (
+            <section ref={propsRef} style={{ ...PORTAL_CELL, marginBottom: 8 }} aria-label="Props">
+              <ThresholdGrid playerId={pid} odds={odds} />
+            </section>
+          )}
 
-          {/* the deeper panels */}
-          <div style={{ borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: '10px 0', margin: '6px 0 14px' }}>
-            <div className="chip-row" style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-              {visibleTabs.map(t => (
-                <TabBtn key={t.key} active={tab === t.key} onClick={() => { setTab(t.key); onViewChange?.(t.key) }}>{t.label}</TabBtn>
-              ))}
-            </div>
-          </div>
+          {!tabbed && (() => {
+            const row = (
+              <div style={{ borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: '10px 0', margin: tabbed ? '2px 0 12px' : '6px 0 14px',
+                // a phone: the row stays at the top of the card while you read a panel, so the next one is one tap away
+                ...(tabbed ? { position: 'sticky', top: 0, zIndex: 5, background: C.bg2 } : null) }}>
+                <div className="chip-row" style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                  {visibleTabs.map(t => (
+                    <TabBtn key={t.key} active={tab === t.key} onClick={() => { pickedRef.current = true; setTab(t.key); onViewChange?.(t.key) }}>{t.label}</TabBtn>
+                  ))}
+                </div>
+              </div>
+            )
+            return row
+          })()}
 
           {tab === 'numbers' && !apiOnly && (
               <div style={{ marginBottom: 14 }}>
