@@ -22,7 +22,7 @@ export default function InjuryChip({ entry, C, font, size = 9, style, label = nu
       style={{ display: 'inline-block', padding: '15px 14px', margin: `-15px -14px -15px ${marginLeft - 14}px`, cursor: 'pointer', verticalAlign: 'middle' }}>
       <span style={{
         display: 'inline-block', fontFamily: font, fontSize: size, fontWeight: 900, letterSpacing: '.08em', color: tone,
-        border: `1px solid ${tone}`, borderRadius: 4, padding: '1px 5px', lineHeight: 1.3, whiteSpace: 'nowrap', ...rest,
+        border: `1px solid ${tone}`, borderRadius: 999, padding: '1px 6px', lineHeight: 1.3, whiteSpace: 'nowrap', ...rest,
       }}>{label || info.chip}</span>
     </span>
   )

@@ -1,4 +1,5 @@
 'use client'
+import { flatChip } from '../lib/chips'
 import { useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { STATE, alpha } from '../lib/scales'
@@ -117,13 +118,8 @@ export default function FiltersDrawer({
             className="tap-box"
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
-              padding: '6px 12px', borderRadius: 8, ...(compact ? { minHeight: 44 } : null),
-              border: `1px solid ${open || active ? accent : C.border}`,
-              background: open ? C.bg3 : active ? alpha(STATE.on().color, 0.08) : 'transparent',
-              color: active ? accent : C.text2, fontSize: 11.5, fontWeight: 800, fontFamily: NUM_FONT,
-            }}
+            // the site's one chip (lib/chips.js flatChip, the oval; 10-22); the 44px tap is .tap-box's
+            style={flatChip(open || active, accent, C, NUM_FONT)}
           >
             ▤ Filters
             {activeCount > 0 && (
