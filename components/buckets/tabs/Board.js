@@ -4,7 +4,8 @@ import PageHeader from '../../PageHeader'
 import HowToRead from '../../HowToRead'
 import { useIsPhone } from '../../MobileFold'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
-import { useBucketsExpected } from '../../../lib/nba/useBuckets'
+import { useBucketsExpected, useBucketsLive } from '../../../lib/nba/useBuckets'
+import { nbaLiveStatus } from '../../../lib/liveStatus'
 import { NBA_MARKETS, MARKET_OPTIONS, LEG_LABEL, fmtLeg, RAW_OF } from '../../../lib/nba/legs'
 import BucketsTable from '../BucketsTable'
 import { useGatedBoard } from '../useGatedBoard'
@@ -131,6 +132,8 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
   }, [bPts.data, bReb.data, bAst.data, bTpm.data, bPra.data, bDd.data, bTd.data, bFirst.data]) // eslint-disable-line react-hooks/exhaustive-deps
   const marketOptions = MARKET_PILLS.map((o) => ({ key: o.key, label: o.text, count: marketCounts[o.key] ?? undefined, title: o.key === ALL ? 'Every market side by side' : NBA_MARKETS[o.key]?.label }))
   const xp = useBucketsExpected(date)
+  // the shared live Status: tonight's box lines, asked for only once a game has started
+  const live = useBucketsLive(data?.date || date, Boolean(data?.rows?.some((r) => r.gameState && r.gameState !== 'pre'))).data
   const xptsBy = useMemo(() => new Map((xp.data?.rows || []).map((r) => [String(r.playerId), r])), [xp.data])
   const D = NBA_MARKETS[mk]
   const shown = data?.date || date
@@ -310,7 +313,8 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
         <BucketsCards market={mk} day={shown || ''} onOpen={onOpenPlayer} rankOf={(r) => cardRank.get(r._id || `${r.gameId}-${r.playerId}`)} rows={[...rows].filter((r) => r.score != null && Number.isFinite(Number(r.score))).sort((a, b) => b.score - a.score).map((r) => ({ ...r, rankMove: rankMv.cell(r._id) }))} />
       )}
       {rows.length > 0 && !noStarters && layout === 'table' && (
-        <BucketsTable sets rows={rows.map((r) => ({ ...r, ...(cln.on ? { cln: cln.cell(r.playerId) } : null), rankMove: rankMv.cell(r._id) }))} columns={withLastNight(boardColumns(m, { onOpenTeam, onOpenGame, withXpts: true, whyCol: whyColumn({ textOf: (r) => (r.status === 'off' && r.reason ? r.reason : plainWhy(r, m)?.short || ''), itemOf: (r) => whyItemFor(r, m, r.nightRank), open: openWhy, theme: C, numFont: NUM_FONT, w: 165, tidy: true }) }), cln)} statusOf={(r) => r.status}
+        <BucketsTable sets rows={rows.map((r) => ({ ...r, ...(cln.on ? { cln: cln.cell(r.playerId) } : null), rankMove: rankMv.cell(r._id) }))} columns={withLastNight(boardColumns(m, { onOpenTeam, onOpenGame, withXpts: true, liveOf: (r) => nbaLiveStatus(m, r, live, NBA_MARKETS[m]?.bar), whyCol: whyColumn({ textOf: (r) => (r.status === 'off' && r.reason ? r.reason : plainWhy(r, m)?.short || ''), itemOf: (r) => whyItemFor(r, m, r.nightRank), open: openWhy, theme: C, numFont: NUM_FONT, w: 165, tidy: true }) }), cln)} statusOf={(r) => r.status}
+          liveOf={(r) => nbaLiveStatus(m, r, live, NBA_MARKETS[m]?.bar)}
           onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} nameCell="player" faceOf={faceOf}
           dimRow={(r) => Boolean(r.voidReason) || r.status === 'off'}
           initialSort={{ key: 'nightRank', dir: 'asc' }} heatMode="sorted" maxHeight={620} maxRows={Math.max(rows.length, 1)}

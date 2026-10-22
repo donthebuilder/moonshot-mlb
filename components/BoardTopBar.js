@@ -37,8 +37,10 @@ export function TopSelect({ value, onChange, options, allLabel, ariaLabel, accen
         className={`moon-select top-select ${FLAT_CHIP_CLASS}`}
         aria-label={ariaLabel}
         title={ariaLabel}
-        // 10-22 chip audit: the site's one chip, as a dropdown (lib/chips.js chipSelect)
-        style={chipSelect(on, accent, C, NUM_FONT)}
+        // 10-22 chip audit: the site's one chip, as a dropdown (lib/chips.js chipSelect). It fills its wrap (flex 1): in the
+        // desktop bar's fixed grid cell the wrap is wider than the words, and the ▾ (pinned to the wrap's right) sat apart
+        // from its chip (layout sweep 10-22). A wrap sized to its words is unchanged.
+        style={{ ...chipSelect(on, accent, C, NUM_FONT), flex: '1 1 auto' }}
       >
         <option value="">{allLabel}</option>
         {opts.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
@@ -85,8 +87,10 @@ export default function BoardTopBar({ inDrawer = false, query, setQuery, placeho
         @media (max-width: 560px) {
           .board-topbar.collapses { grid-template-columns: minmax(0, 1fr) auto !important; }
           .board-topbar.collapses .board-topbar-search { grid-column: auto; }
-          .board-topbar.collapses :global(.top-select-wrap) { display: none; grid-column: 1 / -1; }
-          .board-topbar.collapses.open :global(.top-select-wrap) { display: block; grid-column: 1 / -1; }
+          /* !important: the wrap's own inline display (inline-flex, chips batch 1, 10-22) beat these, so on a phone the team
+             and game dropdowns stood open on two rows of their own under the Filter button (layout sweep 10-22) */
+          .board-topbar.collapses :global(.top-select-wrap) { display: none !important; grid-column: 1 / -1; }
+          .board-topbar.collapses.open :global(.top-select-wrap) { display: flex !important; grid-column: 1 / -1; }
           .board-topbar.collapses .board-topbar-btn { display: inline-flex; }
         }
         @media (max-width: 640px), (pointer: coarse) {
