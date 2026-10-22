@@ -204,7 +204,6 @@ button {
    small look; its 44px tap area is the .tap-box ::after above, not a 44px-tall box. */
 @media (pointer: coarse) and (min-width: 761px) {
   .hdr-word-row > button { min-height: 44px; }
-  .hdr-date .date-mode-switch button { min-height: 44px; }
   .hdr-gear > div > button[aria-haspopup] { width: 44px !important; height: 44px !important; }
   .hdr-acct a, .hdr-acct button[aria-haspopup] { min-height: 44px; display: inline-flex; align-items: center; }
 }
