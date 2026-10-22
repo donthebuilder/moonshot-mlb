@@ -49,7 +49,6 @@ import PlayerSplits from '../PlayerSplits'
 import GoalTracking from '../GoalTracking'
 import { PlayerDepthToggle } from '../NhlDepth'
 import LampSlipAdd from '../LampSlipAdd'
-import LampPriceHistory from '../LampPriceHistory'
 import PlayerInjuryChip from '../../injuries/PlayerInjuryChip'
 
 // 🏒 PLAYER — one man's file, at a stable address (#sport=nhl&tab=player&
@@ -338,7 +337,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
           <PlayerNotes playerId={String(p.id)} scope="nhl" accent={C.ice} />
           {!goalie && <InTheLedger sport="nhl" id={p.id} name={p.name} jersey={p.number} birthDate={p.birthDate} next={nextG} date={etToday()} />}
           {!goalie && <HisNumbers name={p.name} jersey={p.number} birthDate={p.birthDate} next={nextG} career={Number.isFinite(p.career?.regular?.g) ? p.career.regular.g + 1 : null} nextWord="goal" date={etToday()} theme={C} accent={C.ice} numFont={NUM_FONT} />}
-          {!goalie && !locked && <LampPriceHistory id={String(p.id)} />}
+          {/* NO PRICE TIMELINE (2026-10-21, Donovan: "remove the price timeline inside of the player model ... remove it") */}
           {/* NO MORE FOLD (Donovan 10-20): what it held sits on the page -- the props grid, last five, star memory, multi-goal and the bio */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, margin: '4px 0' }}>
             {!goalie && <LampPropsMatrix logThis={logThis} logLast={logLast} seasonThis={f.seasonLabel} seasonLast={p.logPrev?.seasonLabel} />}

@@ -23,7 +23,6 @@ import {
   roleColor as verdictRoleColor,
 } from '../lib/verdict'
 import { quoteFor, fmtOdds } from '../lib/odds'
-import OddsTimeline from './OddsTimeline'
 import VerdictHero from './VerdictHero'
 import CardShell from './CardShell'
 import { TabBtn, Navigator } from './card/CardNav'
@@ -864,7 +863,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               {/* PROPS FIRST (2026-10-07, Donovan): the card opens on his props, then the head-to-head
                   and his first pitch against tonight's arm. Both render nothing when there is no data. */}
               {/* 2026-10-17 trim: his props grid, the head-to-head and the first-pitch split now live in the folded More section (end of the card). */}
-              {!apiOnly && !cardLocked && <OddsTimeline quote={heroQuote} marketLabel={heroRole === 'WATCH' ? 'HR' : heroRole} />}
+              {/* NO PRICE TIMELINE (2026-10-21, Donovan: "remove the price timeline inside of the player model ... remove it") */}
               {/* ── 💥 HIS HOMER SHAPE USED TO END THE TAB, RIGHT HERE ────
                   MOVED UP 2026-08-16 (Donovan: "i need hr shape moved up on
                   the player modal"). It shipped on 2026-08-14 as an inline
