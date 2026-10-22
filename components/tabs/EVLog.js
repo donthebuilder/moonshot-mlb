@@ -316,7 +316,43 @@ export function ContactStrip({ rows, suffix = 'shown below' }) {
         )
 }
 
-export default function EVLog({ player, bbeRange: bbeRangeProp }) {
+// The log's columns, shared by the full EV log and the blended panel on the card's first page.
+const LOG_COLUMNS = [
+      { key: 'date',    label: 'Date',    heat: false, w: 84, mono: true, sticky: true },
+      { key: 'pitcher', label: 'Pitcher', heat: false, w: 130,
+        // every name is a link (the portal puts this table on the card's first page, 2026-10-21)
+        link: (r) => (r?.pitcher_id ? () => { try { window.location.hash = `sport=mlb&tab=pitchers&pitcher=${r.pitcher_id}` } catch { /* no window */ } } : null) },
+      { key: 'arm',     label: 'Arm',     heat: false, w: 34, mono: true, dim: true },
+      { key: 'pitch',   label: 'Pitch',   heat: false, w: 84, dim: true },
+      { key: 'ev',      label: 'EV',      w: 48, dp: 1 },
+      // high is not good on its own (70 is a popup): no standout heat; the
+      // 8-32 sweet spot reads bold in the accent instead
+      { key: 'la',      label: 'Angle',   w: 48, dp: 0, standout: false,
+        tone: (n) => (Number.isFinite(n) && n >= 8 && n <= 32 ? { color: C.orange, weight: 700 } : null),
+        title: 'Launch angle. 8-32 degrees (bold) is the sweet spot for damage; high on its own is a popup.' },
+      { key: 'dist',    label: 'Dist',    w: 48, dp: 0 },
+      { key: 'velo',    label: 'Velo',    w: 48, dp: 1, invert: true,
+        title: 'Pitch velocity. Inverted: a ball crushed off a slower pitch is the less impressive one.' },
+      { key: 'barrel',  label: 'BRL',     flag: true, mark: '●', w: 32 },
+      { key: 'hard',    label: 'HH',      flag: true, mark: '●', w: 32 },
+      { key: 'hr',      label: 'HR',      flag: true, mark: '★', w: 32 },
+      { key: 'xbh',     label: 'XBH',     flag: true, mark: '●', w: 34,
+        explain: 'Extra-base hit — MOONSHOT\u2019s own flag on this batted ball.' },
+      { key: 'k',       label: 'K',       flag: true, mark: '✕', w: 28,
+        title: 'Strikeout — the pitch that ended the at-bat, not a batted ball. EV/Angle/Dist/Side/Lane are blank because none exists; Pitch/Arm/Velo are still his last pitch faced.' },
+      { key: 'side',    label: 'Side',    heat: false, w: 64, dim: true,
+        title: 'Pull, center or opposite field. Direction only — it says where the ball went, not how hard.' },
+      { key: 'lane',    label: 'Lane',    heat: false, w: 54, mono: true, dim: true,
+        title: 'Which slice of the outfield it landed in: LF, LCF, CF, RCF, RF. Straight off the hit coordinates, not modelled.' },
+      { key: 'result',  label: 'Result',  heat: false, w: 116, dim: true },
+      { key: 'traj',    label: 'Traj',    heat: false, w: 84, dim: true },
+]
+const LOG_CAPTION = "Heat marks the standouts in each column against this window: the top fifth glows, the bottom fifth recedes, so changing the window changes the heat. Angle has no heat (a high angle is a popup); the 8-32 degree sweet spot is bold instead. BRL / HH / HR are MOONSHOT's own flags. A K row is a strikeout, not a batted ball — EV/Angle/Dist/Side/Lane are blank on purpose; Pitch/Arm/Velo are still his last pitch faced."
+
+// balls (2026-10-22, THE BLEND): when the spray chart beside it hands over its filtered balls, this is just their numbers
+// and their log -- no controls, no zone map, no live pull of its own. The spray chart's one filter bar drives both.
+// zoneOnly: just the strike-zone map with his per-pitch line (it lives on the card's Pitches tab since the blend).
+export default function EVLog({ player, bbeRange: bbeRangeProp, balls = null, zoneOnly = false }) {
   const [mode, setMode] = useState('bbe')          // 'bbe' | 'games'
   const [games, setGames] = useState(10)
   const [bbeRange, setBbeRange] = useState(25)
@@ -350,6 +386,7 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
   }, [pidKey, tonightArm]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const botLog = player?.batted_ball_log || player?.spray_chart || []
+  const blended = Array.isArray(balls)
 
   // 🔴 LIVE STATCAST FALLBACK (2026-08-08, Donovan: "players not on the bot
   // — season stats need to populate as best as possible, esp EV Log"). The
@@ -358,13 +395,13 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
   // this origin). Same row schema, so everything below just works.
   const [liveLog, setLiveLog] = useState(null)   // null = untried/loading
   useEffect(() => {
-    if (botLog.length || !pidKey) { setLiveLog(null); return undefined }
+    if (blended || botLog.length || !pidKey) { setLiveLog(null); return undefined }
     let alive = true
     import('../../lib/savant').then(({ savantBattedBalls }) =>
       savantBattedBalls(pidKey).then((rows) => { if (alive) setLiveLog(rows) }))
       .catch(() => { if (alive) setLiveLog([]) })
     return () => { alive = false }
-  }, [pidKey, botLog.length])
+  }, [pidKey, botLog.length, blended])
   const liveSource = !botLog.length && !!liveLog?.length
   const log = botLog.length ? botLog : (liveLog || [])
 
@@ -496,6 +533,9 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
       .sort((a, b) => (b.usage ?? -1) - (a.usage ?? -1))
       .slice(0, 5)
   }, [log, usagePct])
+
+  if (blended) return <BlendedLog balls={balls} />
+  if (zoneOnly) return <ZoneMap playerId={pid} bats={String(player?.bats || '').toUpperCase().slice(0, 1)} pitchInfo={pitchInfo} />
 
   // The zone map is live API, so it renders even when the spray payload is
   // empty — the log needs the bot, the plate map doesn't.
@@ -740,40 +780,30 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
 
       <DenseTable
         rows={rows}
-        columns={[
-          { key: 'date',    label: 'Date',    heat: false, w: 84, mono: true, sticky: true },
-          { key: 'pitcher', label: 'Pitcher', heat: false, w: 130,
-            // every name is a link (the portal puts this table on the card's first page, 2026-10-21)
-            link: (r) => (r?.pitcher_id ? () => { try { window.location.hash = `sport=mlb&tab=pitchers&pitcher=${r.pitcher_id}` } catch { /* no window */ } } : null) },
-          { key: 'arm',     label: 'Arm',     heat: false, w: 34, mono: true, dim: true },
-          { key: 'pitch',   label: 'Pitch',   heat: false, w: 84, dim: true },
-          { key: 'ev',      label: 'EV',      w: 48, dp: 1 },
-          // high is not good on its own (70 is a popup): no standout heat; the
-          // 8-32 sweet spot reads bold in the accent instead
-          { key: 'la',      label: 'Angle',   w: 48, dp: 0, standout: false,
-            tone: (n) => (Number.isFinite(n) && n >= 8 && n <= 32 ? { color: C.orange, weight: 700 } : null),
-            title: 'Launch angle. 8-32 degrees (bold) is the sweet spot for damage; high on its own is a popup.' },
-          { key: 'dist',    label: 'Dist',    w: 48, dp: 0 },
-          { key: 'velo',    label: 'Velo',    w: 48, dp: 1, invert: true,
-            title: 'Pitch velocity. Inverted: a ball crushed off a slower pitch is the less impressive one.' },
-          { key: 'barrel',  label: 'BRL',     flag: true, mark: '●', w: 32 },
-          { key: 'hard',    label: 'HH',      flag: true, mark: '●', w: 32 },
-          { key: 'hr',      label: 'HR',      flag: true, mark: '★', w: 32 },
-          { key: 'xbh',     label: 'XBH',     flag: true, mark: '●', w: 34,
-            explain: 'Extra-base hit — MOONSHOT\u2019s own flag on this batted ball.' },
-          { key: 'k',       label: 'K',       flag: true, mark: '✕', w: 28,
-            title: 'Strikeout — the pitch that ended the at-bat, not a batted ball. EV/Angle/Dist/Side/Lane are blank because none exists; Pitch/Arm/Velo are still his last pitch faced.' },
-          { key: 'side',    label: 'Side',    heat: false, w: 64, dim: true,
-            title: 'Pull, center or opposite field. Direction only — it says where the ball went, not how hard.' },
-          { key: 'lane',    label: 'Lane',    heat: false, w: 54, mono: true, dim: true,
-            title: 'Which slice of the outfield it landed in: LF, LCF, CF, RCF, RF. Straight off the hit coordinates, not modelled.' },
-          { key: 'result',  label: 'Result',  heat: false, w: 116, dim: true },
-          { key: 'traj',    label: 'Traj',    heat: false, w: 84, dim: true },
-        ]}
+        columns={LOG_COLUMNS}
         initialSort={null}
         maxHeight={460}
-        caption="Heat marks the standouts in each column against this window: the top fifth glows, the bottom fifth recedes, so changing the window changes the heat. Angle has no heat (a high angle is a popup); the 8-32 degree sweet spot is bold instead. BRL / HH / HR are MOONSHOT's own flags. A K row is a strikeout, not a batted ball — EV/Angle/Dist/Side/Lane are blank on purpose; Pitch/Arm/Velo are still his last pitch faced."
+        caption={LOG_CAPTION}
       />
+    </div>
+  )
+}
+
+// THE BLENDED LOG (2026-10-22). The numbers and the log of exactly the balls on the spray chart above it: one filter bar
+// (the chart's), so the dots and the rows can never disagree. Newest first; a phone sees ten rows, "+N more" opens the rest.
+function BlendedLog({ balls }) {
+  const rows = useMemo(
+    () => [...balls].sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).map(toLogRow),
+    [balls],
+  )
+  if (!rows.length) return <Empty text="No balls under these filters. Loosen one above." />
+  return (
+    <div>
+      <div style={{ font: `800 10px/1.2 ${NUM_FONT}`, letterSpacing: '.08em', color: C.text3, marginBottom: 6, textTransform: 'uppercase' }}>
+        {rows.length} ball{rows.length === 1 ? '' : 's'} on the chart · newest first
+      </div>
+      <ContactStrip rows={rows} />
+      <DenseTable rows={rows} columns={LOG_COLUMNS} initialSort={null} maxRows={10} caption={LOG_CAPTION} />
     </div>
   )
 }

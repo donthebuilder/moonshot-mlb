@@ -8,6 +8,7 @@ import useScrollLock from '../lib/useScrollLock'
 import { C, NUM_FONT } from '../lib/theme'
 import { fetchBatterDetail } from '../lib/dataSource'
 import BornLine from './player/BirthdayChip'
+import { birthdayChip } from '../lib/birthday'
 import {
   nameOf, teamOf, oppOf, n, clean, pct, sc, playerId,
   hrScore, hitScore, prodScore, tbScore, pitchMixScore,
@@ -246,18 +247,19 @@ const TABS = [
 // things where you can click through each ... form-fitted for the phone instead of having it so long"). Where two columns
 // don't fit (under 1080px, the same line as app/globals.css .portal-main), the page's own panels become the first tabs and
 // one panel shows at a time. Desktop keeps the whole page with the deeper tabs under it.
+// THE BLEND (2026-10-22, Donovan: "how can we blend both spray and ev chart together"): the spray chart and the EV log
+// are one panel, one filter bar (the chart's), so on a phone they're one tab. view=ev still works: it opens this tab.
 const PAGE_TABS = [
-  { key: 'spray',    label: '🗺 Spray' },
-  { key: 'ev',       label: '⚡ EV Log' },
+  { key: 'spray',    label: '⚾ Batted balls' },
   { key: 'bvp',      label: '⚔ vs Him' },
   { key: 'props',    label: '📊 Props' },
 ]
 const PAGE_KEYS = PAGE_TABS.map((t) => t.key)
 // the views that are the page itself (old tabs, still valid in links and pushes); 'overview' is the page's top
-const PAGE_VIEWS = ['overview', ...PAGE_KEYS]
+const PAGE_VIEWS = ['overview', 'ev', ...PAGE_KEYS]
 // an off-slate (live API) player has no bot panels: these run on live pulls only (no head-to-head without a pitcher)
 const API_TABS = ['splits', 'log', 'read']
-const API_PAGE = ['spray', 'ev', 'props']
+const API_PAGE = ['spray', 'props']
 const firstTab = (apiOnly, tabbed = false) => (tabbed ? 'spray' : apiOnly ? 'splits' : 'pitcher')
 const TABBED_BELOW = 1080
 
@@ -297,6 +299,9 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   const [tab, setTab] = useState(() => firstTab(!!player?.api_only))
   // the page's own sections, for links that ask for them (view=spray / ev / overview)
   const sprayRef = useRef(null)
+  // the balls the spray chart is drawing under its filters; the EV log tables exactly these (null = still loading)
+  const [chartBalls, setChartBalls] = useState(null)
+  useEffect(() => { setChartBalls(null) }, [player?.player_id || player?.id])   // eslint-disable-line react-hooks/exhaustive-deps
   const evRef = useRef(null)
   const bvpRef = useRef(null)
   const propsRef = useRef(null)
@@ -469,8 +474,12 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
     lastViewRef.current = initialTab
     // the page's own sections: scroll to the one asked for (the spray chart for a homer push)
     if (PAGE_VIEWS.includes(initialTab)) {
-      const key = initialTab === 'overview' ? 'spray' : initialTab
-      if (tabbed) { pickedRef.current = true; setTab(key); return }   // a phone: that panel is a tab
+      const key = initialTab === 'overview' || initialTab === 'ev' ? 'spray' : initialTab
+      if (tabbed) {   // a phone: that panel is a tab (the EV log sits under the spray chart in it)
+        pickedRef.current = true; setTab(key)
+        if (initialTab === 'ev') setTimeout(() => { try { evRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }) } catch { /* old engine */ } }, 400)
+        return
+      }
       const el = { spray: sprayRef, ev: evRef, bvp: bvpRef, props: propsRef }[initialTab]?.current
       if (el) setTimeout(() => { try { el.scrollIntoView({ block: 'start', behavior: 'smooth' }) } catch { /* old engine */ } }, 250)
       return
@@ -597,7 +606,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   // a phone: the page's panels first, then the deeper ones, one row of flat chips; a desktop: the deeper ones only
   const visibleTabs = tabbed ? [...pageTabs, ...deeperTabs] : deeperTabs
   // a page panel draws when the page is whole (desktop) or when it is the picked tab (phone)
-  const showPanel = (k) => !tabbed || tab === k
+  const showPanel = (k) => !tabbed || tab === k || (k === 'ev' && tab === 'spray')
 
   const role = compactRole(p)
   const rc = roleColor(role, C)
@@ -637,6 +646,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   // THE FLAGS (2026-10-08): the grade, the better bet, the matchup edge, the bot's pills and the hero's two
   // chips, as one small chip row inside the verdict. The role itself is the hero's badge, so it is not repeated.
   // A Skip HR wears no grade (grading a market the bot said to skip is decoration, 2026-08-15).
+  const showChecklist = !apiOnly && !cardLocked
   const verdictSignals = (() => {
     if (apiOnly) return []
     const skipHr = /skip/i.test(role)
@@ -648,8 +658,15 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
     if (hasMatchupEdge) all.push({ t: '🎯 Matchup Edge' })
     pills.forEach((x) => all.push({ t: x.label }))
     chipsFor(p, heroRole).forEach((c) => all.push(c))
+    // ONE CHIP PER FACT (2026-10-22, Donovan: "chips of repeated data"): "Trap" and "⚠ trap risk" are one fact (keyed on
+    // the first word), and his ISO is already the VS HIS HAND tile on the checklist right under it.
     const seen = new Set()
-    return all.filter((c) => { const k = String(c.t).toUpperCase().replace(/[^A-Z0-9]/g, ''); if (!k || seen.has(k)) return false; seen.add(k); return true })
+    const firstWord = (t) => (String(t).toUpperCase().match(/[A-Z0-9]+/) || [''])[0]
+    return all.filter((c) => {
+      const k = firstWord(c.t)
+      if (!k || seen.has(k) || (showChecklist && k === 'ISO')) return false
+      seen.add(k); return true
+    })
   })()
   const heroPriceText = heroQuote ? fmtOdds(heroQuote.over) : '—'
   // the line-moved chip beside his price (10-20, MOONSHOT parity: TUDDY / LAMP / BUCKETS wear it); no opening price on the quote, no chip
@@ -663,11 +680,12 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   // six window tiles, a value chart and three filter rows were living in a
   // phone-width column on a desktop screen.
   // ONE WIDTH (2026-10-21, the portal): two columns on a desktop (spray | EV log, head-to-head | props), one on a phone.
-  const modalWidth = 1200
+  // THE WHOLE SCREEN (2026-10-22): on a desktop the card takes nearly all of it (CardShell fill); a phone is full width anyway
+  const modalWidth = 1760
 
   return (
     <>
-    <CardShell inline={inline} onClose={onClose} width={modalWidth} label={`${nameOf(p)} card`}>
+    <CardShell inline={inline} onClose={onClose} width={modalWidth} fill label={`${nameOf(p)} card`}>
 
           {/* THE TOOLBAR, ON ITS OWN LINE (2026-08-23). These five controls
               plus the badge left about 90px for the hitter's NAME on a 430px
@@ -724,6 +742,11 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               components/PickVerdictStamp.js -- the card was the one surface
               on this site that never graded itself. */}
           {!apiOnly && <PickVerdictStamp player={p} />}
+          {/* THE TOP, ON A WIDE DESKTOP (2026-10-22, Donovan: open and it "almost engulfs the whole screen" with the spray, the
+              EV, the props): who he is and the verdict on the left, his checklist and price on the right (app/globals.css
+              .portal-top), so the charts start in the first screen. One column under 1280px. */}
+          <div className="portal-top">
+          <div className="portal-who">
           <VerdictHero
             style={{ marginBottom: 12 }}
             // The face INSIDE the dial (2026-09-27): it used to sit beside it
@@ -766,7 +789,8 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
             )}
           />
           {/* HIS BIRTHDAY (real date from the league people file; nothing when unknown) */}
-          <BornLine birth={birthDate} on={etToday()} accent={C.orange} C={C} font={NUM_FONT} style={{ marginTop: -4 }} />
+          {/* a phone shows it only near his birthday (the chip is the point); the top of a phone card is for the read */}
+          {(!tabbed || birthdayChip(birthDate, etToday())) && <BornLine birth={birthDate} on={etToday()} accent={C.orange} C={C} font={NUM_FONT} style={{ marginTop: -4 }} />}
 
           {/* STAT-FIRST HEADER (2026-08-09). The card used to open on chips,
               then model scores. The two sites people call easier to read both
@@ -796,7 +820,8 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
             recordLine={botData === undefined ? null : mlbRecordLine(botData)}
             lastLine={botData === undefined ? null : mlbLastLine(botData)}
           />
-          <StatRow stats={mlbStatRow(p, slate, liveSeason)} style={{ marginBottom: 8 }} />
+          {/* HR is the checklist's first tile; the row keeps the numbers the checklist doesn't (4 tiles, even) */}
+          <StatRow stats={mlbStatRow(p, slate, liveSeason).filter((s) => !(showChecklist && s.id === 'hr'))} style={{ marginBottom: 8 }} />
 
           {/* THE BUTTON THAT WASN'T THERE (2026-08-24, Donovan: "I click add
               to watch, nothing happens"). It wasn't broken — this whole block
@@ -812,37 +837,37 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
           {/* Watchlist + slip. You could open a hitter from any board, decide
               he's worth playing, and then have to close the modal and find his
               card again to add him. Both actions live here now. */}
-          {!apiOnly && (onAdd || onWatch) && (
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
-              {onWatch && (
-                <button
-                  onClick={() => onWatch(p)}
-                  title={watched ? 'Remove from watchlist' : 'Add to watchlist'}
-                  className={FLAT_CHIP_CLASS} style={flatChip(watched, C.orange, C, NUM_FONT)}
-                >{watched ? '★ Watching' : '☆ Watch'}</button>
-              )}
-              {onAdd && (
-                <>
-                  <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.06em', marginLeft: 4 }}>
-                    Add to slip
-                  </span>
-                  {BETS.map((b) => (
+          {/* ONE EVEN ROW (2026-10-22, Donovan: watch and slip "taking a whole row with it not being symmetrical"): Watch and the
+              four slip adds are equal cells in one line. MOONSHOT's pick wears a ★ on its chip instead of a sentence beside it;
+              a pass night (Skip) stars nothing. */}
+          {!apiOnly && (onAdd || onWatch) && (() => {
+            const pick = /skip/i.test(role) ? '' : (String(bestBet(p, 'hr') || '').toUpperCase().match(/[A-Z]+/) || [''])[0]
+            const cells = (onWatch ? 1 : 0) + (onAdd ? BETS.length : 0)
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cells}, minmax(0, 1fr))`, gap: 6, marginBottom: 10 }}>
+                {onWatch && (
+                  <button
+                    onClick={() => onWatch(p)}
+                    title={watched ? 'Remove from watchlist' : 'Add to watchlist'}
+                    className={FLAT_CHIP_CLASS} style={{ ...flatChip(watched, C.orange, C, NUM_FONT), justifyContent: 'center', whiteSpace: 'nowrap' }}
+                  >{watched ? '★ Watching' : '☆ Watch'}</button>
+                )}
+                {onAdd && BETS.map((b) => {
+                  const isPick = !!pick && b.toUpperCase() === pick
+                  return (
                     <button
                       key={b}
                       onClick={() => onAdd(p, b)}
-                      title={`Add ${nameOf(p)} — ${b} — to the slip`}
-                      className={FLAT_CHIP_CLASS} style={flatChip(false, C.orange, C, NUM_FONT)}
-                    >+ {b}</button>
-                  ))}
-                  <span style={{ fontSize: 9, color: C.text3 }}>
-                    {/* "pick: Avoid for HR" is not a pick — a Skip HR reads as
-                        the pass it is (flow-and-clean pass, 2026-08-15). */}
-                    MOONSHOT&apos;s pick: <b style={{ color: C.text2 }}>{/skip/i.test(role) ? 'pass tonight' : bestBet(p, 'hr')}</b>
-                  </span>
-                </>
-              )}
-            </div>
-          )}
+                      aria-label={`Add to slip: ${b}${isPick ? " (MOONSHOT's pick)" : ''}`}
+                      title={`Add ${nameOf(p)} — ${b} — to the slip${isPick ? ". MOONSHOT's pick for him tonight." : ''}`}
+                      className={FLAT_CHIP_CLASS}
+                      style={{ ...flatChip(false, C.orange, C, NUM_FONT), justifyContent: 'center', whiteSpace: 'nowrap', ...(isPick ? { color: C.orange, borderColor: C.orange } : null) }}
+                    >+ {b}{isPick ? ' ★' : ''}</button>
+                  )
+                })}
+              </div>
+            )
+          })()}
 
           {/* ── THE PORTAL (2026-10-21) ─────────────────────────────────────────────────────────────────────────────────
               1 the read: his checklist (lib/mlb/checklist.js) and the price line
@@ -850,10 +875,14 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               3 the head-to-head + first pitch | the props grid
               4 the deeper panels, as tabs
               5 his record: star, multi-HR, MOONSHOT on him, the ledger, his numbers, my note */}
+          </div>
+          <div className="portal-read">
           {!apiOnly && (cardLocked
             ? (nonMember ? <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ margin: '4px 0 10px' }} /> : null)
             : <Checklist rows={checklist(p)} />)}
           {!apiOnly && !cardLocked && <OddsTimeline quote={heroQuote} marketLabel={heroRole === 'WATCH' ? 'HR' : heroRole} />}
+          </div>
+          </div>
 
           <div style={{ minHeight: 0 }}>
             {detailState === 'loading' && (
@@ -869,11 +898,11 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                 Couldn’t load his data just now. Reopen the card to retry.
               </span>
             )}
-            {detailState === 'missing' && (
-              <span style={{ fontSize: 10, color: C.orange, fontFamily: NUM_FONT }}>
-                {apiOnly
-                  ? 'Not archived yet — this player isn’t on tonight’s slate and the off-slate archive hasn’t reached him'
-                  : 'No detail for this hitter yet'}
+            {/* a slate hitter with no saved file says nothing here: each panel below says what it drew from, and the spray
+                chart and EV log pull his season live (2026-10-22, a two-line orange note under the checklist was noise) */}
+            {detailState === 'missing' && apiOnly && (
+              <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
+                Not archived yet — this player isn’t on tonight’s slate and the off-slate archive hasn’t reached him
               </span>
             )}
           </div>
@@ -906,12 +935,17 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                 liveBalls={liveBalls}
                 liveFocusId={Number(pid) || null}
                 liveLabel={nameOf(p)}
+                // the blend: his HR setup on the way in (L10, the starter's top 3, hard hit), rarer filters folded away,
+                // and the balls it draws go straight to the EV log beside it
+                preset="hr"
+                moreFilters
+                onShown={setChartBalls}
               />
             </section>}
             {showPanel('ev') && <section ref={evRef} className="portal-ev" style={PORTAL_CELL} aria-label="EV log">
-              {detailState === 'loading'
+              {chartBalls === null
                 ? <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Loading batted balls…</div>
-                : <EVLog player={p} />}
+                : <EVLog player={p} balls={chartBalls} />}
             </section>}
             {!apiOnly && showPanel('bvp') && (
               <section ref={bvpRef} className="portal-bvp" style={PORTAL_CELL} aria-label="Against tonight's pitcher">
@@ -919,14 +953,13 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                 <FirstPitchSplit batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} />
               </section>
             )}
+            {/* the props grid: full width under the two columns, or the third column on a wide desktop (app/globals.css) */}
+            {showPanel('props') && (
+              <section ref={propsRef} className="portal-props" style={PORTAL_CELL} aria-label="Props">
+                <ThresholdGrid playerId={pid} odds={odds} />
+              </section>
+            )}
           </div>
-
-          {/* the props grid, the full width of the card: every market x every window is a wide matrix */}
-          {showPanel('props') && (
-            <section ref={propsRef} style={{ ...PORTAL_CELL, marginBottom: 8 }} aria-label="Props">
-              <ThresholdGrid playerId={pid} odds={odds} />
-            </section>
-          )}
 
           {!tabbed && (() => {
             const row = (
@@ -1050,6 +1083,8 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                       fetched. Without it the Pitch tab's batter half reads a
                       field make_slim.py drops -- see the note at the top of
                       PitchBreakdown.js. */}
+                  {/* the strike-zone map with his line per pitch (it sat on top of the EV log before the blend) */}
+                  <EVLog player={p} zoneOnly />
                   <PitchBreakdown player={p} detail={detail} />
                   {/* Which pitches he actually homers off, against tonight's
                       mix. The one panel that crosses batter and pitcher, so it
