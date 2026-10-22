@@ -39,6 +39,7 @@ export default function PlayerBars({ log = [], logSeason = '', pos = '', pos5 = 
   const [lines, setLines] = useState({})
   const [win, setWin] = useState('L10')
   const [picked, setPicked] = useState({})
+  const [pin, setPin] = useState(null)   // a tapped bar: its game's line under the chart
   const { data: dp } = useBucketsDefPos(null)
   const m = MARKETS.find((x) => x.k === k)
   const line = lines[k] ?? m.first
@@ -88,9 +89,20 @@ export default function PlayerBars({ log = [], logSeason = '', pos = '', pos5 = 
       </div>
       <div style={{ marginTop: 10 }}>
         {bars.length
-          ? <PropBars games={bars} line={line} C={C} NUM_FONT={NUM_FONT} accent={C.purple} />
+          ? <PropBars games={bars} line={line} C={C} NUM_FONT={NUM_FONT} accent={C.purple} selected={pin} onSelect={setPin} />
           : <p style={{ margin: 0, fontSize: 12, color: C.text3 }}>{win === 'H2H' ? `No games against ${nextGame?.opp} in this log.` : `No ${picks.join(' · ').toLowerCase()} games in this log.`}</p>}
       </div>
+      {(() => {
+        const g = pin ? shown.find((x) => x.id === pin) : null
+        if (!g) return null
+        return (
+          <div style={{ marginTop: 6, padding: '6px 10px', borderRadius: 8, font: `600 12px/1.5 ${NUM_FONT}`, color: C.text2, border: `1px solid ${C.border}`, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <b style={{ color: C.text }}>{md(g.date)} {g.atVs === '@' ? '@' : 'vs'} {g.opp}</b>
+            <span>{g.pts ?? '—'} PTS</span><span>{g.reb ?? '—'} REB</span><span>{g.ast ?? '—'} AST</span><span>{g.tpm ?? '—'} 3PM</span>{g.min != null ? <span>{g.min} MIN</span> : null}
+            <button type="button" onClick={() => setPin(null)} aria-label="Unpin the game" style={{ marginLeft: 'auto', minHeight: 44, minWidth: 44, background: 'none', border: 'none', color: C.text3, cursor: 'pointer', font: 'inherit' }}>✕</button>
+          </div>
+        )
+      })()}
       {/* window chips: how often he cleared this line, each window */}
       <div role="group" aria-label="Window" style={{ display: 'grid', gridTemplateColumns: `repeat(${winOpts.length}, minmax(0, 1fr))`, gap: 4, marginTop: 8 }}>
         {winOpts.map((w) => {
