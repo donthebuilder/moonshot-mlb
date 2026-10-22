@@ -11,7 +11,8 @@ import { useHashFilter } from '../../../lib/filterHash'
 import { panelPairs, panelSubs, gameSections } from '../../../lib/game/sections'
 import { ViewPills, GameFilterRail, SlateStrip, GamePanelPills, PanelAnchor, GameFrame, PrevNextGame } from '../../slate/SlateParts'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
-import { useBucketsBoard, useBucketsExpected, useBucketsTeamModel, useBucketsHot } from '../../../lib/nba/useBuckets'
+import { useBucketsBoard, useBucketsExpected, useBucketsTeamModel, useBucketsHot, useBucketsLive } from '../../../lib/nba/useBuckets'
+import { nbaLiveStatus } from '../../../lib/liveStatus'
 import { MARKET_OPTIONS, NBA_MARKETS } from '../../../lib/nba/legs'
 import BucketsTable from '../BucketsTable'
 import { boardRows, boardColumns, faceOf } from '../boardTable'
@@ -61,6 +62,8 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
   const { data, error, loading } = useBucketsBoard(date, m)
   // the table view reads the points board whatever market the games view is on (its legs are points legs)
   const pts = useBucketsBoard(date, 'pts')
+  // the shared live Status: tonight's box lines, asked for only once a game has started
+  const live = useBucketsLive(data?.date || date, Boolean(data?.rows?.some((r) => r.gameState && r.gameState !== 'pre'))).data
   const xp = useBucketsExpected(date)
   // THE TEAM MODEL (lib/nba/teamModel.js): expected points a game, the Slate dial (NHL's expected goals, NFL's expected touchdowns)
   const tm = useBucketsTeamModel(date)
@@ -189,7 +192,8 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
             <PanelAnchor id="board" gamePk={g.id} style={{ marginTop: 14 }}>
               <div style={{ marginBottom: 8 }}><Pills ariaLabel="Market" value={m} onChange={(k) => { setM(k); writeHashParam('m', k === 'pts' ? null : k) }} options={MARKET_OPTIONS} /></div>
               {rows.length > 0
-                ? <BucketsTable rows={rows} columns={boardColumns(m, { onOpenTeam, onOpenGame, withGame: false, withXpts: true })} statusOf={(r) => r.status}
+                ? <BucketsTable rows={rows} columns={boardColumns(m, { onOpenTeam, onOpenGame, withGame: false, withXpts: true, liveOf: (r) => nbaLiveStatus(m, r, live, NBA_MARKETS[m]?.bar) })} statusOf={(r) => r.status}
+                  liveOf={(r) => nbaLiveStatus(m, r, live, NBA_MARKETS[m]?.bar)}
                     onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} nameCell="player" faceOf={faceOf} dimRow={(r) => r.status === 'off'}
                     initialSort={{ key: 'nightRank', dir: 'asc' }} heatMode="sorted" maxHeight={560} maxRows={Math.max(rows.length, 1)}
                     caption={`This game’s board for ${NBA_MARKETS[m].label}. Each row opens that player.`} />

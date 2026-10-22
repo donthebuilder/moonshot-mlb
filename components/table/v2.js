@@ -684,7 +684,7 @@ export function renderV2(ctx) {
                     const hasStatusCol = columns.some((x) => x._status || x.statusCol)
                     if (called) chips.push({ key: 'call', prio: 0, phoneOnly: hasStatusCol, text: 'CALLED', node: <CallStatusBadge status="called" accent={ac} variant="text" style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.06em' }} /> })
                     // where he's at, live (2026-10-22): on a phone the Status column is off to the right, so the name's chip line says it
-                    const lv = phone && hasStatusCol && typeof liveOf === 'function' ? liveOf(r) : null
+                    const lv = phone && typeof liveOf === 'function' ? liveOf(r) : null
                     if (lv && (lv.n != null || lv.state === 'off')) chips.push({ key: 'live', prio: 0, phoneOnly: true, fixedW: 96, node: <LiveProgress live={lv} accent={ac} C={C} NUM_FONT={NUM_FONT} small /> })
                     if (injEntry) chips.push({ key: 'inj', prio: 1, fixedW: 36, node: <InjuryChip entry={injEntry} C={C} font={NUM_FONT} size={9} style={{ marginLeft: 0 }} /> })
                     if (watched) chips.push({ key: 'star', prio: 4, fixedW: 10, node: <span style={{ color: ac }}>★</span> })
