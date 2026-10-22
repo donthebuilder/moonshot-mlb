@@ -615,7 +615,6 @@ export default function MobileCSS() {
       @media (max-width: 390px) {
         .hdr-meta { justify-content: space-between; gap: 4px !important; }
         .date-badge > div > span:first-child { display: none; }
-        .date-mode-switch button { padding-left: 9px !important; padding-right: 9px !important; }
         .palette-key-button { padding-left: 6px !important; padding-right: 6px !important; }
         .rail { padding-left: 8px !important; padding-right: 8px !important; scroll-snap-type: x proximity; }
         .rail button { scroll-snap-align: center; }

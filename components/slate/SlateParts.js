@@ -1,9 +1,9 @@
 'use client'
+import { FLAT_CHIP_CLASS, flatChip } from '../../lib/chips'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { alpha } from '../../lib/scales'
 import { btnStyle } from '../ui'
 import { FilterPill } from '../Filters'
-import { useSportTheme } from '../SportTheme'
 import MobileFold from '../MobileFold'
 import { MatchLogos } from '../TeamMark'
 import Rail from '../Rail'
@@ -24,17 +24,11 @@ import SlateCard from './SlateCard'
 //   PrevNextGame     ‹ previous · 3 / 15 · next ›
 
 export function ViewPills({ views, view, setView, accent = C.orange }) {
-  const themed = !!useSportTheme()?.themed   // 44px on a touch screen in TUDDY / LAMP / BUCKETS (.fp-themed); MOONSHOT unchanged
   return (
     <div style={{ display: 'flex', gap: 5, marginBottom: 10, flexWrap: 'wrap' }}>
       {views.map(([k, label]) => (
-        <button key={k} className={themed ? 'fp-themed' : undefined} onClick={() => setView(k)} style={{
-          padding: '4px 13px', borderRadius: 999, cursor: 'pointer', fontSize: TYPE.body,
-          fontWeight: 800, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
-          border: `1px solid ${view === k ? accent : C.border}`,
-          background: view === k ? alpha(accent, 0.14) : 'transparent',
-          color: view === k ? accent : C.text3,
-        }}>{label}</button>
+        // the site's one chip (lib/chips.js flatChip, the oval; 10-22 chip audit); the 44px tap is .tap-box's
+        <button key={k} type="button" className={FLAT_CHIP_CLASS} aria-pressed={view === k} onClick={() => setView(k)} style={flatChip(view === k, accent, C, NUM_FONT)}>{label}</button>
       ))}
     </div>
   )
@@ -123,15 +117,12 @@ export function GamePanelPills({ panels, subs = {}, badges = {}, panel, setPanel
           return (
             <button
               key={k}
+              type="button"
+              className={FLAT_CHIP_CLASS}
+              aria-pressed={on}
               onClick={(e) => { e.stopPropagation(); jump(k) }}
               title={subs[k]}
-              style={{
-                padding: '4px 12px', borderRadius: 999, cursor: 'pointer', fontSize: TYPE.body,
-                fontWeight: 800, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
-                border: `1px solid ${on ? accent : C.border}`,
-                background: on ? alpha(accent, 0.14) : 'transparent',
-                color: on ? accent : C.text3,
-              }}
+              style={flatChip(on, accent, C, NUM_FONT)}   // the site's one chip (10-22)
             >
               {label}
               {badges[k] && (

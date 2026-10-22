@@ -1,4 +1,5 @@
 'use client'
+import { FLAT_CHIP_CLASS, flatChip } from '../../lib/chips'
 import MoreNote from '../MoreNote'
 import DenseTable from '../DenseTable'
 import TeamMark from '../TeamMark'
@@ -114,7 +115,7 @@ export default function LaneTable({ sport, theme: C, numFont, accent, tonight = 
             { key: 'z', label: 'z', w: 44, fmt: (v, l) => (!l.shown || v == null ? '—' : Number(v).toFixed(1)), tone: (n, l) => ({ color: l.shown && Math.abs(n || 0) >= 2 ? accent : C.text3, weight: 800 }) },
           ]} />
       </div>
-      {lanes.length > 5 && <button type="button" onClick={() => setAll((v) => !v)} style={{ marginTop: 6, minHeight: 44, padding: '0 10px', border: `1px solid ${C.border}`, borderRadius: 8, background: 'transparent', color: accent, fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>{all ? 'Fewer' : `All ${lanes.length} lanes`}</button>}
+      {lanes.length > 5 && <button type="button" onClick={() => setAll((v) => !v)} className={FLAT_CHIP_CLASS} style={{ ...flatChip(false, accent, C, numFont), color: accent, marginTop: 6 }}>{all ? 'Fewer' : `All ${lanes.length} lanes`}</button>}
       <MoreNote label="How to read the lanes"><div style={{ marginTop: 6, fontSize: 11, color: C.text3, lineHeight: 1.5 }}>
         {provisional ? <>Tracking: a lane needs {data.minNights || MIN_NIGHTS} nights and {data.minMatched || MIN_MATCHED} matches before it counts; under that, no z. </> : null}
         z = matched players vs the rest of the pool; |z| under 2 is chance. 95% Wilson ranges. Graded nights only.{allBase} Information only: never part of a score, never a call.

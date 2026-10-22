@@ -3,6 +3,7 @@
 // Games.js) as one control every product's header carries -- a dot, "updated
 // 2m ago", and the button. Tapping it refreshes every live view on the page
 // (lib/liveRefresh.js); nothing on the site refreshes itself on a timer.
+import { flatChip, CHIP_MARK } from '../lib/chips'
 import { useEffect, useState } from 'react'
 import { useSportTheme } from './SportTheme'
 import { requestLiveRefresh, useLiveRefreshState } from '../lib/liveRefresh'
@@ -39,9 +40,8 @@ export default function RefreshStamp({ live = false, compact = false, inline = f
       <button type="button" onClick={() => requestLiveRefresh('tap')} disabled={pulling}
         title="Pull the live scores, ledgers and boards on this page again now"
         aria-label={`Refresh live data, updated ${ageText(age)}`}
-        style={{ marginLeft: compact ? 0 : 'auto', flexShrink: 0, minHeight: 44, minWidth: 44, padding: '0 14px', borderRadius: 999, cursor: pulling ? 'default' : 'pointer',
-          border: `1px solid ${old && live ? accent : C.border2}`, background: 'transparent', color: old && live ? accent : C.text2,
-          fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, opacity: pulling ? 0.6 : 1 }}>
+        // the site's one chip (lib/chips.js flatChip, the oval; 10-22); CHIP_MARK gives the 44px tap on a phone
+        style={{ ...flatChip(old && live, accent, C, NUM_FONT, { disabled: pulling }), ...CHIP_MARK, marginLeft: compact ? 0 : 'auto' }}>
         {pulling ? 'pulling…' : '↻ refresh'}
       </button>
     </div>
