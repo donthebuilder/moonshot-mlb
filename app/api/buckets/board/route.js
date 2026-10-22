@@ -4,6 +4,8 @@ import { NBA_MARKETS } from '../../../../lib/nba/model'
 import { ok, bad, bucketsRoute } from '../../../../lib/nba/respond'
 import { slateNight } from '../../../../lib/slateNight'
 import { recordNbaBoard } from '../../../../lib/rankSnapshots/record'
+import { adminClient } from '../../../../lib/supabase/admin'
+import { bookRowsFor, booksFor } from '../../../../lib/gameLinesStore'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -15,5 +17,12 @@ export const GET = bucketsRoute('board', async (q) => {
   if (!NBA_MARKETS[market]) return bad(`market must be one of ${Object.keys(NBA_MARKETS).join(', ')}`)
   const board = await readNbaBoard(date, market)
   await recordNbaBoard(date, market, board)   // the ordering behind the rank arrows (lib/rankSnapshots): a quiet no-op until its table exists
+  // THE BOOK'S SPREAD on each game (odds_game_lines, newest before tip), for the blowout watch (lib/blowout.js). One small read;
+  // no line on file = no spread, never a guess.
+  const db = adminClient()
+  if (db && (board.games || []).length) {
+    const books = booksFor('nba', board.games.map((g) => ({ id: g.id, away: g.away?.abbrev, home: g.home?.abbrev, start: g.start })), await bookRowsFor(db, 'nba', date), Date.now())
+    board.games = board.games.map((g) => ({ ...g, spreadHome: books.get(String(g.id))?.spread_home ?? null }))
+  }
   return ok(board, 60)
 })
