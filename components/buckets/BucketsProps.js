@@ -7,7 +7,7 @@ import { faceUrl } from '../PlayerFace'
 import { C, NUM_FONT } from '../../lib/nba/theme'
 import { NBA_MARKETS } from '../../lib/nba/model'
 import { RAW_OF } from '../../lib/nba/legs'
-import { useBucketsBoard } from '../../lib/nba/useBuckets'
+import { useBucketsBoard, useBucketsBlowout } from '../../lib/nba/useBuckets'
 import { useFollowing } from '../../lib/dash/follow'
 import { useLiveFetch } from '../../lib/useLiveFetch'
 import { nbaQuote } from '../../lib/nba/oddsQuote'
@@ -34,7 +34,7 @@ const fmt = (leg, v) => {
   return (Math.round(n * 10) / 10).toFixed(1)
 }
 
-function bucketsAdapter(startOf, odds) {
+function bucketsAdapter(startOf, odds, gainOf = null) {
   // the book's price at the card's own bar (lib/nba/oddsQuote.js, as BucketsCard); DD / TD / first basket have no book line here: unpriced
   const quoteOf = (r, k) => nbaQuote(odds, r.id, k === 'NONE' ? KEYS.find((m) => r[m]) : k)
   const color = (k) => (k === 'NONE' ? C.text3 : C.purple)   // ONE accent (2026-10-07 colour diet): the market's name says which market it is
@@ -58,6 +58,9 @@ function bucketsAdapter(startOf, odds) {
       else if (x.voidReason) chips.push({ t: `➖ void · ${x.voidReason}`, warn: true })
       if (x.injury) chips.push({ t: `⚠ ${x.injury}`, warn: true })
       if (r.blow) chips.push({ t: `💨 blowout watch · ${r.blow.fav} by ${r.blow.spread}`, warn: true })
+      // who GAINS when it gets lopsided (lib/nba/blowoutRead.js): 2+ more minutes a game in his club's blowouts
+      const gain = gainOf?.(r.id)
+      if (gain && gain.minGain >= 2) chips.push({ t: `📈 +${gain.minGain} min in blowouts`, warn: false })
       if (x.role && chips.length < 2) chips.push({ t: x.role, warn: false })
       return {
         photo: faceUrl({ sport: 'nba', id: r.id, size: 96 }),
@@ -120,7 +123,9 @@ export default function BucketsProps({ date = null, onOpenPlayer }) {
     return { rows: [...m.values()], startOf: st }
   }, datas) // eslint-disable-line react-hooks/exhaustive-deps
   const { data: odds } = useLiveFetch('/api/odds/latest?sport=nba')   // once, no timer (as BucketsCard)
-  const a = useMemo(() => bucketsAdapter(startOf, odds), [startOf, odds])
+  const { data: blowouts } = useBucketsBlowout(date)
+  const gainOf = useMemo(() => { const m = new Map(); for (const g of blowouts?.games || []) for (const p of g.players) m.set(p.id, p); return (id) => m.get(String(id)) || null }, [blowouts])
+  const a = useMemo(() => bucketsAdapter(startOf, odds, gainOf), [startOf, odds, gainOf])
   if (!rows.length) return null
   return (
     <PropCards a={a} rows={rows} date={date} onOpen={(r) => onOpenPlayer?.(r.id)}
