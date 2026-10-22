@@ -8,7 +8,7 @@ import { GLOW_AT, STREAK_AT } from '../player/heat'
 import { Kicker, Pills } from './ui'
 
 // 🏒 LAMP'S PROPS MATRIX (2026-10-20, the parity sweep: "build anything truly missing"): MOONSHOT's props heat
-// (components/player/PropsMatrix.js), as BUCKETS has it (components/buckets/PropsMatrix.js), on a skater's own NHL game log.
+// (components/player/PropsMatrix.js), on a skater's own NHL game log.
 // GOALS / SHOTS / POINTS / ASSISTS at the bars a bettor plays, over his last 5, 10, 20 and the season, with the games each
 // rate stands on: `cleared / games` per window, never a forecast and never a price. This season's log; a man with no game
 // yet this season reads last season's, said so. No log, no grid: the honest empty line says so.
