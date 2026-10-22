@@ -3,12 +3,13 @@
 //   node scripts/check-collect-back-ui.mjs --previews <folder with nhl-hat-*-stats.png / -brand.png> [--base http://localhost:3108]
 import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { MAC_CHROME, MAC_BRAVE, EXTRA_PATHS } from './_browser.mjs'
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d }
 const BASE = arg('--base', 'http://localhost:3108')
 const PREVIEWS = arg('--previews', '/private/tmp/claude-501/back')
 const req = createRequire(`${process.cwd()}/package.json`)
 const { chromium } = req('playwright-core')
-const executablePath = [arg('--browser'), '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'].filter(Boolean).find((p) => existsSync(p))
+const executablePath = [arg('--browser'), MAC_CHROME, MAC_BRAVE, ...EXTRA_PATHS].filter(Boolean).find((p) => existsSync(p))
 const card = { moment: 'nhl_hat_trick', id: '2026020091:8480801', sport: 'nhl', tier: 'elite', tierWord: 'ELITE', holo: true, shimmer: false, kicker: 'HAT TRICK', line: '3 GOALS', day: '2026-10-01', dayWord: 'Oct 1', status: null, playerId: '8480801', name: 'Brady Tkachuk', team: 'FLA', opp: 'CBJ', game: '2026020091' }
 let failed = 0
 const check = (ok, what) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`); if (!ok) failed += 1 }

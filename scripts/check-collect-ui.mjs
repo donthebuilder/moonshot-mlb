@@ -4,12 +4,13 @@
 //   node scripts/check-collect-ui.mjs --previews <folder> [--base http://localhost:3108]
 import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { MAC_CHROME, MAC_BRAVE, EXTRA_PATHS } from './_browser.mjs'
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d }
 const BASE = arg('--base', 'http://localhost:3108')
 const PREVIEWS = arg('--previews', '/Volumes/DONX/USERS/Kingdondondon/Desktop/AUDITS-TO-READ/CARD-SYSTEM/previews')
 const req = createRequire(`${process.cwd()}/package.json`)
 const { chromium } = req('playwright-core')
-const executablePath = [arg('--browser'), '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'].filter(Boolean).find((p) => existsSync(p))
+const executablePath = [arg('--browser'), MAC_CHROME, MAC_BRAVE, ...EXTRA_PATHS].filter(Boolean).find((p) => existsSync(p))
 const PNG = { base: 'real-base-tkachuk.png', star: 'real-star-tkachuk.png', elite: 'real-elite-tkachuk.png', legend: 'real-legend-tkachuk.png' }
 const card = (tier, n) => ({ moment: 'nhl_hat_trick', id: `202602009${n}:8480801`, sport: 'nhl', tier, tierWord: tier.toUpperCase(), holo: tier === 'elite' || tier === 'legend', shimmer: tier === 'star', kicker: 'HAT TRICK', line: '3 GOALS', day: `2026-10-0${n}`, dayWord: `Oct ${n}`, status: null, playerId: '8480801', name: 'Brady Tkachuk', team: 'FLA', opp: 'CBJ', game: `202602009${n}` })
 const cards = ['legend', 'elite', 'star', 'base'].map((t, i) => card(t, i + 1))

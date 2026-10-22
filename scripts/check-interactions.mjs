@@ -21,6 +21,7 @@
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import './_esm-resolve.mjs'
+import { MAC_CHROME, MAC_BRAVE, EXTRA_PATHS } from './_browser.mjs'
 
 const req = createRequire(`${process.cwd()}/package.json`)
 const { chromium } = req('playwright-core')
@@ -38,7 +39,7 @@ const MAX = Number(arg('--max', QUICK ? 4 : 10))
 const DEEP = Number(arg('--deep', QUICK ? 1 : 3))
 const OUT = arg('--out', 'interaction-report')
 const VP = arg('--vp', QUICK ? '390' : 'both')
-const BROWSERS = [arg('--browser'), '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome', '/usr/bin/chromium'].filter(Boolean)
+const BROWSERS = [arg('--browser'), MAC_BRAVE, MAC_CHROME, ...EXTRA_PATHS, '/usr/bin/google-chrome', '/usr/bin/chromium'].filter(Boolean)
 const executablePath = BROWSERS.find((p) => existsSync(p))
 if (!executablePath) { console.error('No Brave/Chrome found; pass --browser'); process.exit(2) }
 const VIEWPORTS = [{ name: '390', width: 390, height: 844, mobile: true }, { name: '1280', width: 1280, height: 800, mobile: false }].filter((v) => VP === 'both' || v.name === VP)

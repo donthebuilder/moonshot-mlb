@@ -19,6 +19,7 @@ import { createRequire } from 'node:module'
 import { existsSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { MAC_BRAVE, EXTRA_PATHS } from './_browser.mjs'
 process.emitWarning = () => {}   // lib/ is typeless ESM; node's reparse warning is noise here
 const req = createRequire(import.meta.url)
 const { chromium } = req('playwright-core')
@@ -32,7 +33,7 @@ const BASE = arg('--base', 'http://localhost:3113').replace(/\/$/, '')
 const WIDTHS = String(arg('--widths', '390,1280')).split(',').map(Number)
 const QUICK = has('--quick')
 const OUT = arg('--out', join(tmpdir(), 'check-clicks-report.md'))
-const CHROME = arg('--chrome', [process.env.CHROME_PATH, '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'].find((p) => p && existsSync(p)))
+const CHROME = arg('--chrome', [process.env.CHROME_PATH, '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', MAC_BRAVE, ...EXTRA_PATHS].find((p) => p && existsSync(p)))
 const ONLY = (arg('--pages', '') || '').split(',').map((s) => s.trim()).filter(Boolean)
 
 // ── what is allowed to leave the site ──

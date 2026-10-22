@@ -17,6 +17,7 @@ import { createRequire } from 'node:module'
 import './_esm-resolve.mjs'
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'fs'
 import { join } from 'path'
+import { MAC_CHROME, MAC_BRAVE, EXTRA_PATHS } from './_browser.mjs'
 
 const argv = process.argv.slice(2)
 const arg = (k, d = null) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : d }
@@ -47,7 +48,7 @@ const ALL = { mlb: reg.MLB_TABS, nfl: reg.NFL_TABS, nhl: reg.NHL_TABS }[SPORT]
 const TABS = arg('--tabs') ? arg('--tabs').split(',') : ALL
 mkdirSync(OUT, { recursive: true })
 
-const exe = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'].find((p) => existsSync(p))
+const exe = [MAC_CHROME, MAC_BRAVE, ...EXTRA_PATHS].find((p) => existsSync(p))
 const browser = await chromium.launch({ executablePath: exe })
 const mask = (s) => s
   .replace(/\b\d{1,2}:\d{2}(:\d{2})?\s?(AM|PM|am|pm)?\b/g, '#:#')

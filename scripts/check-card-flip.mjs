@@ -10,6 +10,7 @@
 import { mkdirSync } from 'node:fs'
 import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { MAC_CHROME, MAC_BRAVE, EXTRA_PATHS } from './_browser.mjs'
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d }
 const BASE = arg('--base', 'http://localhost:3108')
@@ -17,7 +18,7 @@ const OUT = arg('--out', '/private/tmp/claude-501/card-flip')
 mkdirSync(OUT, { recursive: true })
 const req = createRequire(`${process.cwd()}/package.json`)
 const { chromium } = req('playwright-core')
-const BROWSERS = [arg('--browser'), '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'].filter(Boolean)
+const BROWSERS = [arg('--browser'), MAC_CHROME, MAC_BRAVE, ...EXTRA_PATHS].filter(Boolean)
 const executablePath = BROWSERS.find((p) => existsSync(p))
 const PAGES = [
   ['nhl', `/app#sport=nhl&tab=player&player=${arg('--nhl', '8478402')}`],

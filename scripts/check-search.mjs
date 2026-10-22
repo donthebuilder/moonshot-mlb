@@ -14,6 +14,7 @@ process.env.NEXT_PUBLIC_BUCKETS_PUBLIC = 'on'
 import './_esm-resolve.mjs'
 import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { MAC_CHROME, MAC_BRAVE, EXTRA_PATHS } from './_browser.mjs'
 
 const E = await import('../lib/search/engine.js')
 const R = await import('../lib/routes.js')
@@ -81,7 +82,7 @@ const BASE = arg('--base')
 if (BASE) {
   const req = createRequire(`${process.cwd()}/package.json`)
   const { chromium } = req('playwright-core')
-  const exe = [arg('--browser'), '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'].filter(Boolean).find((p) => existsSync(p))
+  const exe = [arg('--browser'), MAC_CHROME, MAC_BRAVE, ...EXTRA_PATHS].filter(Boolean).find((p) => existsSync(p))
   if (!exe) { console.log('FAIL no Chrome/Brave for --base (pass --browser)'); process.exit(1) }
   const browser = await chromium.launch({ executablePath: exe, headless: true })
   const VPS = [['390', 390, 844, true], ['360', 360, 780, true], ['430', 430, 932, true], ['land', 844, 390, true], ['1280', 1280, 900, false]]
