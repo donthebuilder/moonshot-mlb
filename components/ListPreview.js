@@ -35,7 +35,7 @@ export function ShowMoreButton({ open, restN, toggle, itemWord = '', total = nul
       style={{
         display: 'inline-block', width: 'auto', marginTop: 6, padding: '5px 12px',
         background: 'transparent', border: `1px solid ${C.border}`,
-        borderRadius: 999, cursor: 'pointer',
+        borderRadius: 3, cursor: 'pointer',   // flat square chip (2026-10-21, chips batch); .tap-box keeps the 44px target
         fontSize: 10, fontWeight: 800, fontFamily: NUM_FONT,
         color: C.text3, letterSpacing: '.04em',
       }}

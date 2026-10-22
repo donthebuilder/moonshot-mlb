@@ -12,6 +12,7 @@ import { rampColor, inkFor } from './Heatmap'
 import { armFormParts } from '../lib/armLeak'
 import { penFrom, penLineParts } from '../lib/bullpen'
 import { airParts, airVerdict } from '../lib/conditions'
+import { flatChip } from '../lib/chips'
 
 // Two decimals or an em dash. ERA and WHIP are rate stats and the whole site
 // prints them at two places; the slate payload does not promise a precision,
@@ -513,9 +514,7 @@ export default function MatchupPitcher({ player, slateMode }) {
         <button
           onClick={() => setShowDetail((v) => !v)}
           style={{
-            marginTop: 7, padding: '3px 10px', fontSize: 10, fontWeight: 700,
-            borderRadius: 7, cursor: 'pointer', fontFamily: NUM_FONT,
-            border: `1px solid ${C.border}`, background: 'transparent', color: C.text3,
+            ...flatChip(false, C.orange, C, NUM_FONT), marginTop: 7,
           }}
         >{showDetail ? 'Hide the numbers' : 'Show the numbers'}</button>
       </div>
