@@ -1,4 +1,5 @@
 'use client'
+import { FLAT_CHIP_CLASS, flatChip } from '../lib/chips'
 import { useEffect, useState } from 'react'
 import { C as MLB_C, NUM_FONT as MLB_NUM } from '../lib/theme'
 import { localTime } from '../lib/localTime'
@@ -47,11 +48,9 @@ export default function DateMode({
   const seg = ({ key, text, color }) => {
     const on = value === key
     return (
-      <button key={key} onClick={() => onChange?.(key)} aria-pressed={on} style={{
-        padding: '4px 10px', fontSize: 10.5, fontWeight: 800, cursor: 'pointer', border: 'none',
-        background: on ? color : 'transparent', color: on ? T.bg : T.text3,
-        transition: 'background .12s, color .12s', borderRadius: 999,
-      }}>{text}</button>
+      // the site's one chip (lib/chips.js flatChip, the oval; Donovan 10-22: "shrink the top bar's day switch to the small oval
+      // chip too"), lit in the day's own colour; the 44px tap is .tap-box's invisible ::after, not a 44px-tall button
+      <button key={key} type="button" className={FLAT_CHIP_CLASS} onClick={() => onChange?.(key)} aria-pressed={on} style={flatChip(on, color, T, NF)}>{text}</button>
     )
   }
 
@@ -61,7 +60,7 @@ export default function DateMode({
         <span style={{ fontSize: 11.5, color: T.text2, fontFamily: NF, fontWeight: 800 }}>{label}</span>
         <span style={{ fontSize: 9.5, color: T.text3, fontFamily: NF }}>{time}</span>
       </div>
-      <div style={{ display: 'flex', padding: 2, borderRadius: 999, border: `1px solid ${T.border}`, background: T.glass, gap: 2 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         {(options || []).map(seg)}
       </div>
     </div>
