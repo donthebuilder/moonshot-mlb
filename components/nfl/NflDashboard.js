@@ -500,7 +500,8 @@ export default function NflDashboard({ palettePass = 0 }) {
             style={{ maxWidth: 1300, margin: '0 auto', padding: '14px 14px 40px' }}>
         <h1 className="sr-only">{pageTitle('nfl', missingTab ? 'home' : tab)}</h1>
         <NflStaleBanner meta={meta} data={data} loading={loading} />
-        {!missingTab && !loading && !NFL_OWN_HEADER.has(tab) && <div style={{ margin: '2px 0 12px', fontSize: 12, lineHeight: 1.45, color: C.text3 }}><NflNote tab={tab} /></div>}
+        {/* the page's line and the ↻ on ONE row (2026-10-21 dead-space pass; the stamp was a 44px row of its own) */}
+        {!missingTab && !loading && !NFL_OWN_HEADER.has(tab) && <div style={{ margin: '2px 0 10px', fontSize: 12, lineHeight: 1.45, color: C.text3, display: 'flex', alignItems: 'center', gap: 10 }}><span style={{ flex: 1, minWidth: 0 }}><NflNote tab={tab} /></span>{isLiveTab('nfl', tab) && <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}><RefreshStamp inline live={nflLive} /></SportTheme>}</div>}
         {missingTab ? (
           <TabNotFound
             asked={missingTab}
@@ -522,7 +523,7 @@ export default function NflDashboard({ palettePass = 0 }) {
           {/* ONE ACCENT SOURCE (0g C2-C6 root cause): every tab inside its product's theme */}
           <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
           {/* the ↻ on the live pages: nothing refreshes on a timer (lib/liveRefresh.js) */}
-          {isLiveTab('nfl', tab) && <RefreshStamp live={nflLive} className={tab === 'games' ? 'slate-stamp' : undefined} style={{ marginBottom: 8 }} />}
+          {isLiveTab('nfl', tab) && !(!missingTab && !loading && !NFL_OWN_HEADER.has(tab)) && <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '0 0 4px', minHeight: 17 }}><RefreshStamp inline live={nflLive} className={tab === 'games' ? 'slate-stamp' : undefined} /></div>}
           <TeamNav.Provider value={openTeamPage}>
           <GameNav.Provider value={openGameNav}>
           <ErrorBoundary resetKey={tab} label={`the ${tab} tab`}>

@@ -51,7 +51,7 @@ const WORDS = {
 const scoreOf = lampScoreOf
 
 export default function Numerology({ date = null, onOpenPlayer }) {
-  const { data, error, loading } = useLampNumerology(date)
+  const { data, error, loading } = useLampNumerology(date, { preview: true })
   const { data: board } = useLampBoardOnce(data?.date || date)
   const phone = useIsPhone()
 
@@ -72,7 +72,7 @@ export default function Numerology({ date = null, onOpenPlayer }) {
       <DelayedBanner error={error} what="tonight’s lineups" />
       {data?.waiting?.length ? (
         <div style={{ color: C.text3, font: `700 10.5px/1.5 ${NUM_FONT}`, margin: '8px 0' }}>
-          Lineup not posted yet: {data.waiting.join(', ')} — those skaters join once it is.
+          Lineup not posted yet: {data.waiting.join(', ')} — {data.fromRoster?.length ? 'showing their full rosters until it is, then who dressed.' : 'those skaters join once it is.'}
         </div>
       ) : null}
       <p style={{ margin: '8px 0 10px', color: C.text3, fontSize: 11, lineHeight: 1.5 }}>

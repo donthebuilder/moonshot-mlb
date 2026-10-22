@@ -127,7 +127,7 @@ export default function LampProps({ date = null, onOpenPlayer, children = null }
   // arrive (LAMP layout shift, 2026-10-06). `children` render after the cards.
   if (!goal.data && !sog.data) return !(goal.loading || sog.loading) ? null : <div aria-busy="true" style={{ minHeight: '100vh' }}><span style={{ position: 'absolute', left: -9999 }}>Loading…</span></div>
   return (<>
-    <PropCards a={a} rows={rows} onOpen={(r) => onOpenPlayer?.(r.id)}
+    <PropCards a={a} rows={rows} date={date} onOpen={(r) => onOpenPlayer?.(r.id)}
       onWatch={(r) => following.toggle({ id: r.id, name: r.name, team: r.team, position: r.pos })}
       watchIds={following.ids}
       hero find={{ nameOf: (r) => r.name || '', teamOf: (r) => r.team || '', placeholder: 'Search player or team…' }}

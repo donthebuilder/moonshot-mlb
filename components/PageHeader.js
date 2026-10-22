@@ -114,9 +114,11 @@ export default function PageHeader({
             {eyebrow}
           </div>
         )}
-        <h2 className="ph-title" style={{ fontSize: 24, margin: '0 0 3px', fontWeight: 900, letterSpacing: '-.03em', lineHeight: 1.15 }}>
-          {title}
-        </h2>
+        {title != null && title !== '' && (
+          <h2 className="ph-title" style={{ fontSize: 24, margin: '0 0 3px', fontWeight: 900, letterSpacing: '-.03em', lineHeight: 1.15 }}>
+            {title}
+          </h2>
+        )}
         {todayText && (() => {
           // The weekday + date lead in the product's accent; the facts stay grey.
           const cut = todayText.indexOf(' · ')

@@ -1,11 +1,13 @@
 'use client'
 import MoreNote from '../MoreNote'
 import Tap from '../Tap'
+import InjuryMark from '../injuries/InjuryMark'
 import { usePreview, ShowMoreButton } from '../ListPreview'
 import { useState } from 'react'
 import { usePickLight } from '../../lib/pickLight'
 import { C as MLB_C, NUM_FONT as MLB_NUM } from '../../lib/theme'
 import MilestonesBlock from '../MilestonesBlock'
+import AlignFilters, { useAlignFilters } from './AlignFilters'
 
 // 🔮 THE ALIGNMENTS VIEW, EVERY SPORT (2026-09-29, numerology parity).
 // MOONSHOT's components/Alignments.js, lifted out so TUDDY and LAMP render
@@ -75,7 +77,7 @@ export const MLB_WORDS = {
 }
 
 export default function AlignmentsView({
-  model, tonight, todayKey, todayRoot, AXIS_META, scoreOf = () => null,
+  model: modelIn, tonight: tonightIn, todayKey, todayRoot, AXIS_META, scoreOf = () => null,
   head = null, days = null, watchedRows = [], hasWatch = false,
   words = MLB_WORDS, builder = false, chipLimit = 24, compact = false, onBuildAround, onName, children = null,
   theme = MLB_C, numFont = MLB_NUM, accent = null, sport = 'mlb',
@@ -84,6 +86,12 @@ export default function AlignmentsView({
   const NUM_FONT = numFont
   accent = accent || C.orange
   const W = { ...MLB_WORDS, ...words }
+  // FILTERS (2026-10-20, components/numerology/AlignFilters.js): search / game / which numbers count; every section
+  // below reads the filtered model and tonight, re-run through the same engine, so its chance numbers fit the set
+  const ctl = useAlignFilters({ model: modelIn, tonight: tonightIn, todayRoot, scoreOf, AXIS_META, sport })
+  const model = ctl.model
+  const tonight = ctl.tonight
+  const filters = <AlignFilters ctl={ctl} AXIS_META={AXIS_META} todayRoot={todayRoot} theme={C} numFont={NUM_FONT} accent={accent} words={W} onName={onName} />
   const { rows, clubs, totalMemberships, braids, names } = model
   // THE PICKED SET IS SITE-WIDE (2026-09-30, Donovan: "click and highlight
   // players and then click thru and see they are highlighted -- that
@@ -115,11 +123,13 @@ export default function AlignmentsView({
   const expected = totalMemberships / 9
 
   const milestones = <MilestonesBlock sport={sport} theme={C} numFont={NUM_FONT} accent={accent} dateRoot={todayRoot} date={/^\d{4}-\d{2}-\d{2}$/.test(String(todayKey || '')) ? todayKey : null} />
-  if (!rows.length) return <div><div style={{ fontSize: 11.5, color: C.text3 }}>{W.empty}</div>{milestones}</div>
+  if (!modelIn.rows.length) return <div><div style={{ fontSize: 11.5, color: C.text3 }}>{W.empty}</div>{milestones}</div>
+  if (!rows.length) return <div>{head}{filters}{milestones}</div>
 
   return (
     <div>
       {head}
+      {filters}
 
       {/* ── TONIGHT'S NUMBER (2026-08-31) ─────────────────────────────────
           Donovan: "you mus give us preditcution using the numeroly
@@ -261,7 +271,7 @@ export default function AlignmentsView({
                   border: `1px solid ${picked.has(a.pid) ? accent : `${accent}55`}`,
                   background: picked.has(a.pid) ? `${accent}24` : 'transparent', color: C.text2,
                 }}>
-                {a.name}
+                {a.name}<InjuryMark who={{ player_id: a.pid, name: a.name, team: a.team }} C={C} font={NUM_FONT} />
                 {/* The bot's score, on the chip rather than buried in a
                     tooltip — it is what the list is ORDERED by, and a list
                     whose ordering is invisible reads as arbitrary. */}
@@ -351,7 +361,7 @@ export default function AlignmentsView({
                       border: `1px solid ${picked.has(a.pid) ? accent : any ? accent + '55' : C.border}`,
                       background: picked.has(a.pid) ? `${accent}24` : 'transparent', color: C.text2,
                     }}>
-                    {a.name}
+                    {a.name}<InjuryMark who={{ player_id: a.pid, name: a.name, team: a.team }} C={C} font={NUM_FONT} />
                     {hitsYesterday && <span style={{ color: accent, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 5 }}>Y</span>}
                     {hitsToday && <span style={{ color: accent, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 3 }}>T</span>}
                     {hitsTomorrow && <span style={{ color: accent, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 3 }}>+1</span>}
@@ -401,7 +411,7 @@ export default function AlignmentsView({
                     border: `1px solid ${picked.has(a.pid) ? accent : C.border}`,
                     background: picked.has(a.pid) ? `${accent}24` : 'transparent', color: C.text2,
                   }}>
-                  {a.name}
+                  {a.name}<InjuryMark who={{ player_id: a.pid, name: a.name, team: a.team }} C={C} font={NUM_FONT} />
                   {/* Raw number → root, not just the axis name. "season HR
                       19→1" is the read; "season HR" alone is a label. */}
                   <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9 }}>
@@ -436,7 +446,7 @@ export default function AlignmentsView({
                   border: `1px solid ${picked.has(a.pid) ? accent : strength >= 3 ? accent : C.border}`,
                   background: picked.has(a.pid) ? `${accent}24` : 'transparent', color: C.text2,
                 }}>
-                {a.name}
+                {a.name}<InjuryMark who={{ player_id: a.pid, name: a.name, team: a.team }} C={C} font={NUM_FONT} />
                 <span style={{ color: C.text, fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900 }}> {root}</span>
                 <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9 }}>×{strength}</span>
               </button>
@@ -487,7 +497,7 @@ export default function AlignmentsView({
         </span>
         {/* a picked name opens his file (0g A6: onName was accepted and never called) */}
         {pickedRows.map((a) => (
-          <span key={a.pid} style={{ fontSize: 10, color: C.text2 }}>{onName ? <Tap onClick={() => onName(a)}>{a.name}</Tap> : a.name}</span>
+          <span key={a.pid} style={{ fontSize: 10, color: C.text2 }}>{onName ? <Tap onClick={() => onName(a)}>{a.name}</Tap> : a.name}<InjuryMark who={{ player_id: a.pid, name: a.name, team: a.team }} C={C} font={NUM_FONT} /></span>
         ))}
         <button
           disabled={!pickedRows.length}
