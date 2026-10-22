@@ -279,12 +279,12 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
         <StatRow stats={nbaStatRow({ line: season1, xpts: x, seasonWord, stale })} noun="players" style={{ marginBottom: 0 }} />
 
         {/* THE WATCH ROW (MOONSHOT's): Watch, ADD TO SLIP with a + for each market the books quote at the card's bar, and the pick. No price, no button. */}
-        <div data-pm="watch-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          <FollowButton sport="nba" id={pid} name={card.name} team={card.team} position={card.pos} />
-          <BucketsSlipAdd id={pid} name={card.name} team={card.team} opp={row?.opp || data.nextGame?.opp || null} style={{ margin: 0 }} />
-          <span style={{ fontSize: 12, color: C.text3 }}>
-            BUCKETS&apos; pick: <b style={{ color: C.text2 }}>{nbaPickWord(shownRow, ptsMarket.label)}</b>
-          </span>
+        {/* 2026-10-22, the even row: Watch and the + cells are equal; BUCKETS' pick is a ★ on its cell, the sentence only when no cell carries it */}
+        <div data-pm="watch-row">
+          <BucketsSlipAdd id={pid} name={card.name} team={card.team} opp={row?.opp || data.nextGame?.opp || null} style={{ margin: 0 }} even
+            lead={<FollowButton sport="nba" id={pid} name={card.name} team={card.team} position={card.pos} cell />}
+            pickCode={shownRow?.status === 'called' ? 'pts' : null}
+            pickLine={<>BUCKETS&apos; pick: <b style={{ color: C.text2 }}>{nbaPickWord(shownRow, ptsMarket.label)}</b></>} />
         </div>
 
         {/* PILL TABS, the tab in the address (view=) */}

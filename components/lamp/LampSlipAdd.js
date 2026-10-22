@@ -9,7 +9,8 @@ import { C, NUM_FONT } from '../../lib/nhl/theme'
 const WORD = { GOAL: 'Goal', SOG: 'Shots 3+' }
 const LINE = { GOAL: 'o0.5', SOG: 'o2.5' }
 
-export default function LampSlipAdd({ id, name, team = null, opp = null, style = null, compact = false }) {
+// even / lead / pickCode / pickLine pass through to SlipAdd (the card's even watch + slip row, 2026-10-22)
+export default function LampSlipAdd({ id, name, team = null, opp = null, style = null, compact = false, ...row }) {
   const { data: odds } = useLiveFetch('/api/odds/latest?sport=nhl')
   const r = { id }
   const game = team && opp ? { key: [team, opp].sort().join('-'), label: [team, opp].sort().join(' · ') } : null
@@ -19,5 +20,5 @@ export default function LampSlipAdd({ id, name, team = null, opp = null, style =
   }).filter(Boolean)
   // the other markets the books post for him (1+ point, 1+ assist, the 0.5 lines only): a button only where the price is real, never a call
   for (const a of lampAlsoPriced(odds, id)) legs.push({ key: `${id}|${a.word.replace(/\W+/g, '')}`, id: String(id), name, team, market: a.word, line: 'o0.5', side: 'over', price: Number(a.price), game })
-  return <SlipAdd sport="nhl" legs={legs} C={C} NUM_FONT={NUM_FONT} accent={C.ice} style={style} compact={compact} />
+  return <SlipAdd sport="nhl" legs={legs} C={C} NUM_FONT={NUM_FONT} accent={C.ice} style={style} compact={compact} {...row} />
 }
