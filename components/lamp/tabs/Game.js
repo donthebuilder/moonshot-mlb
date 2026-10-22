@@ -15,12 +15,15 @@ import GoalieWeakSpots from '../GoalieWeakSpots'
 import GameHead from '../../game/GameHead'
 import { LampAttack } from '../../game/SportAttack'
 import GameRink from '../GameRink'
+import dynamic from 'next/dynamic'
 import Tap from '../../Tap'
 import ShareCardButton from '../../card/ShareCardButton'
 import { shareUrl, slug, stamp } from '../../../lib/cards/saveCard'
 import GameTotalLine, { useGameTotals } from '../../GameTotalLine'
 import SiteTeamMark from '../../TeamMark'
 import { EmptyState, DelayedBanner, Loading, Kicker, GameTypeChip, LampDot, GoalLabel, fmtDay, fmtPuckDrop, zoneAbbrev } from '../ui'
+// the game, replayed event by event (PREPLAY, ?look=tracking only); three.js loads only when it shows
+const GameReplay = dynamic(() => import('../GameReplay'), { ssr: false })
 
 // 🏒 GAME — one game, top to bottom: the header (score, period, clock),
 // the linescore and shots by period, every goal with its assists and
@@ -155,6 +158,7 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
     ),
     stage: () => (
       <>
+      <GameReplay game={g} />
       <GameRink game={g} />
       </>
     ),
