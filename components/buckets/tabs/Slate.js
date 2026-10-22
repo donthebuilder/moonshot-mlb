@@ -187,7 +187,8 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
           ),
           board: () => (
             <PanelAnchor id="board" gamePk={g.id} style={{ marginTop: 14 }}>
-              <div style={{ marginBottom: 8 }}><Pills ariaLabel="Market" value={m} onChange={(k) => { setM(k); writeHashParam('m', k === 'pts' ? null : k) }} options={MARKET_OPTIONS} /></div>
+              {/* the eight markets swipe on a phone (.chip-row) instead of wrapping 4 + 3 + FIRST BASKET alone (layout sweep 10-22) */}
+              <div style={{ marginBottom: 8 }}><Pills ariaLabel="Market" className="chip-row" value={m} onChange={(k) => { setM(k); writeHashParam('m', k === 'pts' ? null : k) }} options={MARKET_OPTIONS} /></div>
               {rows.length > 0
                 ? <BucketsTable rows={rows} columns={boardColumns(m, { onOpenTeam, onOpenGame, withGame: false, withXpts: true })} statusOf={(r) => r.status}
                     onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} nameCell="player" faceOf={faceOf} dimRow={(r) => r.status === 'off'}
