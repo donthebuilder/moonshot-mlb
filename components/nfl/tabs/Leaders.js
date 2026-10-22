@@ -1,5 +1,8 @@
 'use client'
 import NflNote from '../NflNote'
+import TeamPower from '../TeamPower'
+import ChampionshipFold from '../../ChampionshipFold'
+import AwardRaces from '../../AwardRaces'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
@@ -249,6 +252,16 @@ export default function Leaders({ data, onPlayerClick }) {
             caption={`Per-game rates over the trailing window, players on bye excluded. Sample: Full hides the rows flagged low-sample, because a rate on one or two games belongs to nobody. A category needs ${MIN_QUALIFIED} players with a number to get a tile and a column; one we don't carry is left out rather than shown empty.`}
           />
         )}
+
+        {/* FROM HOME (2026-10-22, Home is a home page now): the clubs ranked by offense, the Super Bowl odds and the award races --
+            MOONSHOT keeps its odds and awards on Leaders too. A name in the races opens his card when he is on this week's board. */}
+        <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
+          <TeamPower players={data?.players || []} statSeason={data?.stat_season} onPlayerClick={onPlayerClick} preview={4} />
+          <ChampionshipFold sport="nfl" />
+          <AwardRaces sport="nfl"
+            canOpenPlayer={(id) => (data?.players || []).some((x) => String(x.player_id) === id)}
+            onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) onPlayerClick?.(p, 'TD') }} />
+        </div>
       </div>
     </SportTheme>
   )

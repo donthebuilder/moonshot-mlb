@@ -3,7 +3,7 @@
 //
 // Loads every page check-mobile loads (or --pages) at 390x844 and measures every CHIP: a button / [role=button] / link drawn as a
 // small bordered or filled box with a short label (not a name link, not a table header or cell -- a tag in a table row follows the
-// DenseTable density -- not the bottom bar). Each chip gets a
+// DenseTable density -- not a [data-tile] (a game / stat tile, not a choice), not the bottom bar). Each chip gets a
 // family: shape (square = radius <= 4, pill = radius >= half its height, rounded between), height, font size / weight, capitals.
 // THE STANDARD is lib/chips.js flatChip: an oval (pill), 18-26px tall, 10px, capitals (shape picked 10-22 to match the X cards).
 //
@@ -45,7 +45,7 @@ function measure() {
   const vis = (el) => { const s = getComputedStyle(el); if (s.visibility === 'hidden' || s.display === 'none' || Number(s.opacity) === 0) return false; const r = el.getBoundingClientRect(); return r.width > 1 && r.height > 1 }
   const where = (el) => { for (let a = el.parentElement; a; a = a.parentElement) { const l = a.getAttribute && (a.getAttribute('aria-label') || (a.tagName === 'SECTION' && a.querySelector('div')?.textContent?.slice(0, 30))); if (l) return String(l).slice(0, 40) } return '' }
   for (const el of document.querySelectorAll('button, [role=button], a[href]')) {
-    if (!vis(el) || el.classList.contains('tap-link') || el.closest('th, td, nav, .skip-link, .mobile-tabbar, [class*="tabbar"]')) continue
+    if (!vis(el) || el.classList.contains('tap-link') || el.closest('th, td, nav, [data-tile], .skip-link, .mobile-tabbar, [class*="tabbar"]')) continue
     const text = (el.innerText || '').trim().replace(/\s+/g, ' ')
     if (!text || text.length > 28) continue
     const r = el.getBoundingClientRect()

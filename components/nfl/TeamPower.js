@@ -122,7 +122,7 @@ export default function TeamPower({ players = [], statSeason, onPlayerClick, pre
         .tp-starters>button>small{font-size:9px;opacity:.55}
         .tp-starters>button>em{margin-left:auto;font:900 11px/1 var(--num-font,ui-monospace,monospace);font-style:normal}
         .tp-starters>p{margin:4px 0 0;font-size:10px;opacity:.6}
-        .tp-more{margin-top:8px;padding:5px 12px;border-radius:999px;border:1px solid rgba(0,245,173,.4);background:transparent;color:inherit;font:800 10px/1 var(--num-font,ui-monospace,monospace);cursor:pointer}
+        .tp-more{margin-top:8px;padding:5px 10px;border-radius:999px;border:1px solid rgba(0,245,173,.4);background:transparent;color:inherit;font:800 10px/1.1 var(--num-font,ui-monospace,monospace);letter-spacing:.07em;text-transform:uppercase;cursor:pointer}
         @media(max-width:520px){.tp-starters{padding-left:12px}}
       `}</style>
     </section>
