@@ -71,6 +71,7 @@ import ContactSection from './ContactSection'
 import { reasonContext, boardReasonFor, reasonLines } from '../lib/mlb/boardReason'
 import BotOnHim from './BotOnHim'
 import Checklist from './player/Checklist'
+import SplitsPanel from './player/SplitsPanel'
 import { checklist } from '../lib/mlb/checklist'
 import PlayerInjuryChip from './injuries/PlayerInjuryChip'
 
@@ -233,15 +234,21 @@ function Row({ label, value, mono = true, term, explain, title }) {
 // than textual). The card is ONE page now, not eleven tabs: the read with his checklist, then his spray chart beside his
 // EV log, then the head-to-head beside the props grid. These tabs are the deeper panels UNDER that page. The old
 // Overview / Spray / EV Log views are the page itself: a link asking for them (#p=<id>&view=spray|ev) scrolls there.
+// THE FRONT AND THE BACK (2026-10-22, Donovan, on his screenshot of this card: "we start out with those four things that we
+// picked out [splits, spray, EV, props], and then you'll just be able to click to the other side and see the rest of them
+// ... pitches, the numbers, things like that"). The front is the page itself; every other view is one tap in the row
+// above it and fills the same space. Pitches is three panels side by side: his pitches, tonight's pitcher, him vs that
+// pitcher. Old addresses still land: view=pitcher and view=bvp open Pitches, view=splits the front's Splits panel.
 const TABS = [
-  { key: 'pitcher',  label: '🥎 Pitcher' },
   { key: 'pitch',    label: '🎯 Pitches' },
-  { key: 'splits',   label: '📅 Splits' },
   { key: 'log',      label: '📋 Game log' },
   { key: 'numbers',  label: '🔢 Numbers' },
   { key: 'read',     label: 'The Read' },
   { key: 'sim',      label: '🎮 Sim' },
+  { key: 'sheet',    label: '📅 All splits' },
 ]
+const FRONT = { key: 'front', label: '🃏 Front' }
+const VIEW_ALIAS = { pitcher: 'pitch', bvp: 'pitch' }
 // ON A PHONE THE PAGE IS TABS TOO (2026-10-22, Donovan: "a full-fledged version ... for the phone, like how it had the
 // things where you can click through each ... form-fitted for the phone instead of having it so long"). Where two columns
 // don't fit (under 1080px, the same line as app/globals.css .portal-main), the page's own panels become the first tabs and
@@ -250,16 +257,16 @@ const TABS = [
 // are one panel, one filter bar (the chart's), so on a phone they're one tab. view=ev still works: it opens this tab.
 const PAGE_TABS = [
   { key: 'spray',    label: '⚾ Batted balls' },
-  { key: 'bvp',      label: '⚔ vs Him' },
+  { key: 'splits',   label: '📅 Splits' },
   { key: 'props',    label: '📊 Props' },
 ]
 const PAGE_KEYS = PAGE_TABS.map((t) => t.key)
 // the views that are the page itself (old tabs, still valid in links and pushes); 'overview' is the page's top
-const PAGE_VIEWS = ['overview', 'ev', ...PAGE_KEYS]
+const PAGE_VIEWS = ['overview', 'ev', 'front', ...PAGE_KEYS]
 // an off-slate (live API) player has no bot panels: these run on live pulls only (no head-to-head without a pitcher)
-const API_TABS = ['splits', 'log', 'read']
-const API_PAGE = ['spray', 'props']
-const firstTab = (apiOnly, tabbed = false) => (tabbed ? 'spray' : apiOnly ? 'splits' : 'pitcher')
+const API_TABS = ['sheet', 'log', 'read']
+const API_PAGE = ['spray', 'splits', 'props']
+const firstTab = (apiOnly, tabbed = false) => (tabbed ? 'spray' : 'front')
 const TABBED_BELOW = 1080
 
 // BET MARKETS for the slip. Same four the boards offer, so an entry added from
@@ -304,7 +311,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   const [pickedBall, setPickedBall] = useState(null)
   useEffect(() => { setChartBalls(null); setPickedBall(null) }, [player?.player_id || player?.id])   // eslint-disable-line react-hooks/exhaustive-deps
   const evRef = useRef(null)
-  const bvpRef = useRef(null)
+  const splitsRef = useRef(null)
   const propsRef = useRef(null)
   // phone / narrow screen: one panel at a time (see PAGE_TABS)
   const tabbed = useIsPhone(TABBED_BELOW - 1)
@@ -404,9 +411,10 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   // the width is known only after mount: a phone opens on the spray chart, a desktop on the Pitcher panel; a page panel
   // picked on a phone is already on screen on a desktop, so the desktop's tab row falls back to its first tab
   useEffect(() => {
-    if (pickedRef.current && (tabbed || !PAGE_KEYS.includes(tab))) return
-    if (tabbed && !PAGE_KEYS.includes(tab) && !pickedRef.current) setTab('spray')
-    if (!tabbed && PAGE_KEYS.includes(tab)) setTab(firstTab(!!player?.api_only))
+    if (tabbed && tab === 'front') { setTab('spray'); return }
+    if (!tabbed && PAGE_KEYS.includes(tab)) { setTab('front'); return }
+    if (pickedRef.current) return
+    if (tabbed && !PAGE_KEYS.includes(tab)) setTab('spray')
   }, [tabbed])   // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── TONIGHT'S BALLS ON THE CARD'S OWN SPRAY (2026-09-03) ─────────────────
@@ -473,20 +481,22 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
       return
     }
     lastViewRef.current = initialTab
+    const view = VIEW_ALIAS[initialTab] || initialTab
     // the page's own sections: scroll to the one asked for (the spray chart for a homer push)
     if (PAGE_VIEWS.includes(initialTab)) {
-      const key = initialTab === 'overview' || initialTab === 'ev' ? 'spray' : initialTab
+      const key = initialTab === 'overview' || initialTab === 'ev' || initialTab === 'front' ? 'spray' : initialTab
       if (tabbed) {   // a phone: that panel is a tab (the EV log sits under the spray chart in it)
         pickedRef.current = true; setTab(key)
         if (initialTab === 'ev') setTimeout(() => { try { evRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }) } catch { /* old engine */ } }, 400)
         return
       }
-      const el = { spray: sprayRef, ev: evRef, bvp: bvpRef, props: propsRef }[initialTab]?.current
+      setTab('front')
+      const el = { spray: sprayRef, ev: evRef, splits: splitsRef, props: propsRef }[initialTab]?.current
       if (el) setTimeout(() => { try { el.scrollIntoView({ block: 'start', behavior: 'smooth' }) } catch { /* old engine */ } }, 250)
       return
     }
     const allowed = player?.api_only ? API_TABS : TABS.map((t) => t.key)
-    if (allowed.includes(initialTab)) { pickedRef.current = true; setTab(initialTab) }
+    if (allowed.includes(view)) { pickedRef.current = true; setTab(view) }
     else onViewChange?.('')
   }, [player, initialTab, tabbed])   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -604,10 +614,10 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   const apiOnly = !!p?.api_only
   const deeperTabs = apiOnly ? TABS.filter((t) => API_TABS.includes(t.key)) : TABS
   const pageTabs = apiOnly ? PAGE_TABS.filter((t) => API_PAGE.includes(t.key)) : PAGE_TABS
-  // a phone: the page's panels first, then the deeper ones, one row of flat chips; a desktop: the deeper ones only
-  const visibleTabs = tabbed ? [...pageTabs, ...deeperTabs] : deeperTabs
-  // a page panel draws when the page is whole (desktop) or when it is the picked tab (phone)
-  const showPanel = (k) => !tabbed || tab === k || (k === 'ev' && tab === 'spray')
+  // a phone: the front's panels first, then the back's views, one row of flat chips; a desktop: Front, then the back
+  const visibleTabs = tabbed ? [...pageTabs, ...deeperTabs] : [FRONT, ...deeperTabs]
+  // a front panel draws when the front is up (desktop) or when it is the picked tab (phone)
+  const showPanel = (k) => (tabbed ? tab === k || (k === 'ev' && tab === 'spray') : tab === 'front')
 
   const role = compactRole(p)
   const rc = roleColor(role, C)
@@ -694,7 +704,10 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               caught in the render, not in review. A toolbar is not part of the
               verdict; it goes above it, right-aligned, and the name gets the
               whole width of the line it deserves. */}
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'flex-end', marginBottom: 8 }}>
+          {/* one line that scrolls sideways when the buttons outgrow a phone (the right-aligned row used to push Card off the
+              left edge, out of reach); the inner row rides right with margin auto so scrolling reaches every button */}
+          <div style={{ display: 'flex', overflowX: 'auto', scrollbarWidth: 'none', marginBottom: 8 }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginLeft: 'auto', flex: '0 0 auto' }}>
 
             {/* the ✕ was a bare 22px glyph — about a 22px square to hit with a
                 thumb on a modal that now covers the whole phone screen. The
@@ -724,6 +737,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               {onNavigate && peers.length > 1 && (
                 <Navigator peers={peers} cur={player} onNavigate={onNavigate} />
               )}
+          </div>
           </div>
 
           {/* ── THE HERO (2026-08-23) ─────────────────────────────────────
@@ -881,6 +895,8 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
           {!apiOnly && (cardLocked
             ? (nonMember ? <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ margin: '4px 0 10px' }} /> : null)
             : <Checklist rows={checklist(p)} />)}
+          {/* his numbers near the top: jersey, life path, personal day, next HR, and what lines up tonight (HisNumbers strip) */}
+          <HisNumbers look="strip" name={nameOf(p)} jersey={jersey} birthDate={birthDate} next={hrSoFar != null ? hrSoFar + 1 : null} nextWord="HR" date={etToday()} theme={C} accent={C.orange} numFont={NUM_FONT} />
           {/* NO PRICE TIMELINE (2026-10-21, Donovan: "remove the price timeline inside of the player model ... remove it"; #207) */}
           </div>
           </div>
@@ -908,24 +924,23 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
             )}
           </div>
 
-          {/* the tab row: on a phone it comes first (every panel is a tab), on a desktop it sits under the page */}
-          {tabbed && (() => {
-            const row = (
-              <div style={{ borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: '10px 0', margin: tabbed ? '2px 0 12px' : '6px 0 14px',
-                // a phone: the row stays at the top of the card while you read a panel, so the next one is one tap away
-                ...(tabbed ? { position: 'sticky', top: 0, zIndex: 5, background: C.bg2 } : null) }}>
-                <div className="chip-row" style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                  {visibleTabs.map(t => (
-                    <TabBtn key={t.key} active={tab === t.key} onClick={() => { pickedRef.current = true; setTab(t.key); onViewChange?.(t.key) }}>{t.label}</TabBtn>
-                  ))}
-                </div>
-              </div>
-            )
-            return row
-          })()}
-          {/* the main grid (app/globals.css .portal-main): desktop = spray over the head-to-head on the left, the EV log down
-              the right (PropFinder's shape, his spray chart where its team splits were); phone = one panel at a time, picked in the tab row above */}
+          {/* the side row: Front and the back's views (desktop), or every panel as a tab (phone); it stays at the top of the
+              card while you read, so the next view is one tap away */}
+          <div style={{ borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: '8px 0', margin: '2px 0 12px', position: 'sticky', top: 0, zIndex: 5, background: C.bg2 }}>
+            <div className="chip-row" style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+              {visibleTabs.map(t => (
+                <TabBtn key={t.key} active={tab === t.key} onClick={() => { pickedRef.current = true; setTab(t.key); onViewChange?.(t.key === 'front' ? '' : t.key) }}>{t.label}</TabBtn>
+              ))}
+            </div>
+          </div>
+          {/* THE FRONT (app/globals.css .portal-main): splits | spray | EV log | props across a wide desktop, two by two on a
+              laptop, one panel at a time on a phone (picked in the row above) */}
           <div className="portal-main">
+            {showPanel('splits') && (
+              <section ref={splitsRef} className="portal-splits" style={PORTAL_CELL} aria-label="Splits">
+                <SplitsPanel player={p} />
+              </section>
+            )}
             {showPanel('spray') && <section ref={sprayRef} className="portal-spray" style={PORTAL_CELL} aria-label="Spray chart">
               <SprayField
                 player={p}
@@ -950,13 +965,6 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                 ? <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Loading batted balls…</div>
                 : <EVLog player={p} balls={chartBalls} pickedBall={pickedBall} onPickBall={setPickedBall} />}
             </section>}
-            {!apiOnly && showPanel('bvp') && (
-              <section ref={bvpRef} className="portal-bvp" style={PORTAL_CELL} aria-label="Against tonight's pitcher">
-                <BvP batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} player={p} />
-                <FirstPitchSplit batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} />
-              </section>
-            )}
-            {/* the props grid: full width under the two columns, or the third column on a wide desktop (app/globals.css) */}
             {showPanel('props') && (
               <section ref={propsRef} className="portal-props" style={PORTAL_CELL} aria-label="Props">
                 <ThresholdGrid playerId={pid} odds={odds} />
@@ -964,20 +972,35 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
             )}
           </div>
 
-          {!tabbed && (() => {
-            const row = (
-              <div style={{ borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: '10px 0', margin: tabbed ? '2px 0 12px' : '6px 0 14px',
-                // a phone: the row stays at the top of the card while you read a panel, so the next one is one tap away
-                ...(tabbed ? { position: 'sticky', top: 0, zIndex: 5, background: C.bg2 } : null) }}>
-                <div className="chip-row" style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                  {visibleTabs.map(t => (
-                    <TabBtn key={t.key} active={tab === t.key} onClick={() => { pickedRef.current = true; setTab(t.key); onViewChange?.(t.key) }}>{t.label}</TabBtn>
-                  ))}
-                </div>
-              </div>
-            )
-            return row
-          })()}
+          {/* THE BACK: PITCHES, three panels side by side (one column on a phone): what he does to each pitch, the arm he
+              faces tonight, and him against that arm (the head-to-head and the first-pitch split) */}
+          {tab === 'pitch' && (
+            <div className="portal-back3">
+              <section style={PORTAL_CELL} aria-label="His pitches">
+                {detailState === 'loading'
+                  ? <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Loading pitch profile…</div>
+                  : <>
+                      {/* the strike-zone map with his line per pitch (it sat on top of the EV log before the blend) */}
+                      <EVLog player={p} zoneOnly />
+                      {/* `detail` is the batter file this modal already fetched (see the note at the top of PitchBreakdown.js) */}
+                      <PitchBreakdown player={p} detail={detail} />
+                      {/* which pitches he homers off, against tonight's mix */}
+                      <HRPitchProfile player={p} slateMode={slateMode} />
+                    </>}
+              </section>
+              {!apiOnly && (
+                <section style={PORTAL_CELL} aria-label="Tonight's pitcher">
+                  <MatchupPitcher player={p} slateMode={slateMode} />
+                </section>
+              )}
+              {!apiOnly && (
+                <section style={PORTAL_CELL} aria-label="Against tonight's pitcher">
+                  <BvP batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} player={p} />
+                  <FirstPitchSplit batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} />
+                </section>
+              )}
+            </div>
+          )}
 
           {tab === 'numbers' && !apiOnly && (
               <div style={{ marginBottom: 14 }}>
@@ -1069,34 +1092,9 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
           )}
 
 
-          {/* the arm he's facing */}
-          {tab === 'pitcher' && <MatchupPitcher player={p} slateMode={slateMode} />}
-
           {/* his game-by-game line, one row a game (the live game log the props grid already reads) */}
           {tab === 'log' && <MlbGameLog pid={pid} />}
 
-
-          {/* what this batter does to each pitch type */}
-          {tab === 'pitch' && (
-            detailState === 'loading'
-              ? <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Loading pitch profile…</div>
-              : (
-                <>
-                  {/* `detail` is the batter file this modal already
-                      fetched. Without it the Pitch tab's batter half reads a
-                      field make_slim.py drops -- see the note at the top of
-                      PitchBreakdown.js. */}
-                  {/* the strike-zone map with his line per pitch (it sat on top of the EV log before the blend) */}
-                  <EVLog player={p} zoneOnly />
-                  <PitchBreakdown player={p} detail={detail} />
-                  {/* Which pitches he actually homers off, against tonight's
-                      mix. The one panel that crosses batter and pitcher, so it
-                      belongs under the batter's pitch table rather than in a
-                      third place. */}
-                  <HRPitchProfile player={p} slateMode={slateMode} />
-                </>
-              )
-          )}
 
           {/* where he puts the ball */}
 
@@ -1107,9 +1105,9 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               an outside source. Context only — none of it moves a score. */}
           {/* ⚡ EV LOG and 🎮 SIM, their own tabs again (10-20) -- `p` is the merged slate row + detail file */}
           {tab === 'sim' && !apiOnly && <BatterSim player={p} name={nameOf(p)} />}
-          {tab === 'splits' && (
+          {tab === 'sheet' && (
             <>
-              {/* The head-to-head and the first-pitch split moved to the Overview, under his props (2026-10-07). */}
+              {/* every split as one long sheet (Donovan, 2026-08-15); the front's Splits panel is the quick read */}
               {!apiOnly && <PlayerSplits player={p} slateMode={slateMode} />}
               <SituationalSplits playerId={pid} kind="batter" />
             </>
@@ -1125,7 +1123,6 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
             <BotOnHim pid={pid} data={botData} />
             <PlayerNotes playerId={pid} />
             <InTheLedger sport="mlb" id={pid} name={nameOf(p)} jersey={jersey} birthDate={birthDate} next={hrSoFar != null ? hrSoFar + 1 : null} date={etToday()} />
-            <HisNumbers name={nameOf(p)} jersey={jersey} birthDate={birthDate} next={hrSoFar != null ? hrSoFar + 1 : null} nextWord="HR" date={etToday()} theme={C} accent={C.orange} numFont={NUM_FONT} />
           </div>
 
           {/* the cards he has earned (his real multi-homer games, a long shot that cashed): at the END of the card, no section when he has none */}
