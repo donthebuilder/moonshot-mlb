@@ -1,5 +1,6 @@
 'use client'
 
+import { flatChip, CHIP_MARK } from '../../../lib/chips'
 import NflNote from '../NflNote'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../../../lib/nfl/theme'
@@ -82,11 +83,8 @@ function download(name, text, type) {
 }
 const kickLabel = (iso) => (iso ? new Date(iso).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : '')
 
-const btn = (on = false) => ({
-  minHeight: 44, padding: '0 14px', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap',
-  border: `1px solid ${on ? C.green : C.border}`, background: on ? alpha(C.green, 0.12) : C.bg2, color: on ? C.green : C.text2,
-  font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.06em',
-})
+// the site's one chip (lib/chips.js flatChip, the oval; 10-22); CHIP_MARK gives it the 44px tap on a phone
+const btn = (on = false) => ({ ...flatChip(on, C.green, C, NUM_FONT), ...CHIP_MARK })
 
 export default function Watchlist({ data, matchup, logs, picks = null, onPlayerClick }) {
   const wl = useNflWatchlist(data)
@@ -174,7 +172,7 @@ export default function Watchlist({ data, matchup, logs, picks = null, onPlayerC
                     <PlayerFace sport="nfl" espnId={p.espn_id} team={p.team} name={p.name} size={28} />
                     <span style={{ minWidth: 0 }}><b style={{ fontSize: 14 }}>{p.name}</b><span style={{ color: C.text3, font: `700 10px/1 ${NUM_FONT}`, marginLeft: 6 }}>{p.team} · {p.position} · TD {Math.round(p.scores.TD)}</span></span>
                   </button>
-                  <button type="button" onClick={() => toggle(p)} aria-label={`Add ${p.name} to watchlist`} style={{ ...btn(), minWidth: 44, padding: '0 12px', color: C.yellow }}>☆ Watch</button>
+                  <button type="button" onClick={() => toggle(p)} aria-label={`Add ${p.name} to watchlist`} style={{ ...btn(), color: C.yellow }}>☆ Watch</button>
                 </div>
               ))}
             </div>

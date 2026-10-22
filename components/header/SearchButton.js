@@ -29,7 +29,7 @@ export default function SearchButton({ theme = MLB_C }) {
     <button type="button" className="hdr-search" onClick={open} title="Search players, teams and games (Ctrl/⌘ K)" aria-label="Search players, teams and games" aria-haspopup="dialog"
       style={{
         width: 44, height: 44, flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        borderRadius: 12, border: `1px solid ${theme.border}`, background: 'transparent', color: theme.text2,
+        borderRadius: 999, border: `1px solid ${theme.border}`, background: 'transparent', color: theme.text2,   // a circle, as the ⚙ beside it (10-22 chip audit)
         fontSize: 17, lineHeight: 1, cursor: 'pointer', padding: 0,
       }}>{'\u{1F50D}'}</button>
   )

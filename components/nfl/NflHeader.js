@@ -75,7 +75,7 @@ function TickerStrip({ children }) {
   // the shell is components/Ticker.js (R9 #4); TUDDY's classes and flex basis unchanged
   return (
     <Ticker className="nfl-ticker-shell" style={{ flex: '1 1 320px', minWidth: 0 }}
-      trackClassName="nfl-tiles-set nfl-ticker-track" items={items}
+      trackClassName="nfl-tiles-set nfl-ticker-track hdr-ticker-track" items={items}
       render={(el, echo, i) => (echo ? cloneElement(el, { key: `echo-${i}`, 'aria-hidden': true }) : el)} />
   )
 }

@@ -1,4 +1,5 @@
 'use client'
+import { FLAT_CHIP_CLASS, flatChip } from '../../lib/chips'
 import { useEffect, useState } from 'react'
 import { dateNumberRows, dayBefore, NUMBERS_NOTE } from '../../lib/numerology/dayNumbers'
 
@@ -59,7 +60,7 @@ export default function DayNumbers({ sport, date, theme: C, numFont, accent, eve
             </div>
           ))}
         </div>
-        {rows.length > PREVIEW && <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} style={{ marginTop: 6, minHeight: 44, padding: '0 10px', border: `1px solid ${C.border}`, borderRadius: 8, background: 'transparent', color: accent, fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>{open ? 'Fewer' : `All ${rows.length} numbers`}</button>}
+        {rows.length > PREVIEW && <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className={FLAT_CHIP_CLASS} style={{ ...flatChip(false, accent, C, numFont), color: accent, marginTop: 6 }}>{open ? 'Fewer' : `All ${rows.length} numbers`}</button>}
       </>
     )
   }
