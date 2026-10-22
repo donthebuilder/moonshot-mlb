@@ -32,6 +32,7 @@ import { teamHref } from '../../lib/routes'
 import { STATUS_WORD } from '../../lib/callStatus'
 import PlayerFace from '../PlayerFace'
 import CallStatusBadge from '../CallStatusBadge'
+import LiveStatusCell, { LiveProgress } from './LiveStatusCell'
 import { lockedFor } from '../../lib/members/gate'
 import { HiddenCalledLine } from '../MemberGate'
 import PlayerNameCell, { PC_GEOM } from './PlayerNameCell'
@@ -320,7 +321,7 @@ export function renderV2(ctx) {
     C, NUM_FONT, ac, columns: rawColumns, view, sorted, sort, setSort, toggle, ranges, fields, lit,
     heatMode = 'full', ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
     explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
-    truncated, maxRows, moreStep = 0, extra, setExtra, exportCsv, railRef, statusOf, gateOf = null, title, initialStack, firstTextKey,
+    truncated, maxRows, moreStep = 0, extra, setExtra, exportCsv, railRef, statusOf, liveOf = null, gateOf = null, title, initialStack, firstTextKey,
     capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam = null, sport = null, injuryLayer = null,
     adding = false, setAdding = () => {}, tierSig = null, phone = false, nameCell = null, compactPhoneRow = false,
   } = ctx
@@ -337,7 +338,7 @@ export function renderV2(ctx) {
     const g = nm?._g || null
     let at = ordered.indexOf(nm)
     ordered.forEach((c, i) => { if (g && c._g?.key === g.key) at = i })
-    const col = { key: '_status', label: 'Status', heat: false, _status: true, _g: g, w: 118, title: `${STATUS_WORD.called}: our pick. ${STATUS_WORD.board}: inside the board, not picked. ${STATUS_WORD.off}: outside the board.` }
+    const col = { key: '_status', label: 'Status', heat: false, _status: true, _g: g, w: typeof liveOf === 'function' ? 168 : 118, title: `${STATUS_WORD.called}: our pick. ${STATUS_WORD.board}: inside the board, not picked. ${STATUS_WORD.off}: outside the board.` }
     return [...ordered.slice(0, at + 1), col, ...ordered.slice(at + 1)]
   })()
   // SUB-ONLY COLUMNS (2026-10-10, Donovan: "we dont need opp as a column on the rankings it takes up space"):
@@ -562,7 +563,9 @@ export function renderV2(ctx) {
               }
 
               if (c._status) {
-                return <td key={c.key} className={cls(c, 'txt')} style={bgTint || undefined}><CallStatusBadge status={status} accent={ac} /></td>
+                return <td key={c.key} className={cls(c, 'txt')} style={bgTint || undefined}>{typeof liveOf === 'function'
+                  ? <LiveStatusCell status={status} live={liveOf(r)} accent={ac} C={C} NUM_FONT={NUM_FONT} />
+                  : <CallStatusBadge status={status} accent={ac} />}</td>
               }
 
               if (c.heat === false) {
@@ -680,6 +683,9 @@ export function renderV2(ctx) {
                     // the call word: the caller's own status (callStatus), CALLED in the product's accent; a desktop table with a Status column of its own lets the column say it
                     const hasStatusCol = columns.some((x) => x._status || x.statusCol)
                     if (called) chips.push({ key: 'call', prio: 0, phoneOnly: hasStatusCol, text: 'CALLED', node: <CallStatusBadge status="called" accent={ac} variant="text" style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.06em' }} /> })
+                    // where he's at, live (2026-10-22): on a phone the Status column is off to the right, so the name's chip line says it
+                    const lv = phone && hasStatusCol && typeof liveOf === 'function' ? liveOf(r) : null
+                    if (lv && (lv.n != null || lv.state === 'off')) chips.push({ key: 'live', prio: 0, phoneOnly: true, fixedW: 96, node: <LiveProgress live={lv} accent={ac} C={C} NUM_FONT={NUM_FONT} small /> })
                     if (injEntry) chips.push({ key: 'inj', prio: 1, fixedW: 36, node: <InjuryChip entry={injEntry} C={C} font={NUM_FONT} size={9} style={{ marginLeft: 0 }} /> })
                     if (watched) chips.push({ key: 'star', prio: 4, fixedW: 10, node: <span style={{ color: ac }}>★</span> })
                     const fc = faceOf ? faceOf(r) : null
