@@ -7,11 +7,11 @@ import { useHashFilter } from '../../lib/filterHash'
 import { useIsPhone } from '../MobileFold'
 import PageHeader from '../PageHeader'
 import Tap from '../Tap'
+import GameHeadRow from '../slate/GameHeadRow'
 import { Dial } from '../VerdictHero'
 import GameSwitcher from '../GameSwitcher'
 import { panelPairs, panelSubs, gameSections } from '../../lib/game/sections'
 import { ViewPills, GameFilterRail, SlateStrip, GamePanelPills, PanelAnchor, GameFrame, PrevNextGame } from '../slate/SlateParts'
-import { FactTiles } from '../matchup/MatchupParts'
 import { CardLockLine } from '../MemberGate'
 import { GameBoard, NavBtn, AllGamesTable, spotOf, pct1, restWord, useLampCallGate, lampLocked } from './tabs/Board'
 import { overallRanks } from '../../lib/positions'
@@ -243,31 +243,35 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
                 <PanelAnchor id="read" gamePk={g.game.id}>
                   {/* THE CALL (2026-10-05): the game's write-up, from this same board game */}
                   <NhlWriteupBlock game={g} onOpenPlayer={onOpenPlayer} />
-                  <FactTiles theme={C} numFont={NUM_FONT} big min={150} tiles={[
-                    { k: 'Calls', v: g.graded ? 'Graded' : g.locked ? 'Locked' : 'Not locked', sub: g.graded ? null : g.locked ? `at ${new Date(g.lockedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : 'can still change', tone: g.locked && !g.graded ? C.ice : undefined },
-                    { k: 'Lineups', v: g.lineupKnown ? 'Posted' : 'Not posted', sub: g.lineupKnown ? 'players dressed' : 'every skater counted' },
-                  ]} note={g.net ? `In net: ${g.net}` : null} />
-                  <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', marginBottom: 6 }}>
-                    {[[away, home], [home, away]].map(([att, def]) => {
-                      const us = spotOf(g, att, true); const them = spotOf(g, def, true)
-                      const ga = gaOf(att)
-                      const rest = us?.b2b ? 'Back-to-back' : us?.rest != null ? `${us.rest} day${us.rest === 1 ? '' : 's'}` : null
-                      return (
-                        <div key={att} style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 12px 0', minWidth: 0 }}>
-                          <div style={{ marginBottom: 10 }}>
-                            {/* the club is its logo + short name (2026-10-15; was the bare code "TOR attacking MTL") */}
-                            <Tap onClick={onOpenTeam && (() => onOpenTeam(att))} title={att}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 18, fontWeight: 900, fontFamily: NUM_FONT, color: C.text }}><TeamMark sport="nhl" abbr={att} variant="logo" px={24} />{nhlNickname(att)}</span></Tap>
-                            <span style={{ color: C.text3, fontSize: 13, marginLeft: 8 }}>attacking <TeamMark sport="nhl" abbr={def} variant="logo" px={16} style={{ verticalAlign: '-3px' }} /> {nhlNickname(def)}{rest ? ` · rest: ${rest.toLowerCase()}` : ''}</span>
-                          </div>
-                          <FactTiles theme={C} numFont={NUM_FONT} big min={130} tiles={[
-                            { k: XG_LABEL, v: rows1(sideOf(g, att)?.goals), sub: sideOf(g, att) ? (g.proj.source === 'xg' ? 'from shots' : 'from goals a game') : null },
-                            { k: 'Power play', v: pct1(us?.ppPct) ? `${pct1(us.ppPct)}%` : null },
-                            { k: `${def} penalty kill`, v: pct1(them?.pkPct) ? `${pct1(them.pkPct)}%` : null },
-                            { k: `${def} goals allowed`, v: ga != null ? ga.toFixed(2) : null, sub: 'a game' },
-                          ]} />
-                        </div>
-                      )
-                    })}
+                  {/* THE MATCHUP, ONE SMALL TABLE (2026-10-20, Donovan: "make that shorter, especially for the phone"): was a Calls /
+                      Lineups tile row and two tall tile blocks per club. Same numbers: each club's xG, its power play
+                      against the other's kill, what the other allows a game, its rest; the lock and lineups ride one line. */}
+                  <div style={{ fontSize: 12, color: C.text3, fontFamily: NUM_FONT, margin: '0 0 6px' }}>
+                    {g.graded ? 'Calls graded' : g.locked ? `Calls locked at ${new Date(g.lockedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : 'Calls not locked, can still change'}
+                    {' · '}{g.lineupKnown ? 'lineups posted' : 'lineups not posted'}{g.net ? ` · in net: ${g.net}` : ''}
+                  </div>
+                  <div style={{ overflowX: 'auto', marginBottom: 6 }}>
+                    <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12, fontFamily: NUM_FONT }}>
+                      <thead><tr>{['CLUB', 'xG', 'PP', 'VS PK', 'OPP GA', 'REST'].map((h) => <th key={h} style={{ textAlign: h === 'CLUB' ? 'left' : 'right', padding: '6px 6px', fontSize: 11, fontWeight: 800, letterSpacing: '.06em', color: C.text3, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap' }}>{h}</th>)}</tr></thead>
+                      <tbody>
+                        {[[away, home], [home, away]].map(([att, def]) => {
+                          const us = spotOf(g, att, true); const them = spotOf(g, def, true)
+                          const ga = gaOf(att)
+                          const rest = us?.b2b ? 'B2B' : us?.rest != null ? `${us.rest}d` : '—'
+                          const td = { textAlign: 'right', padding: '8px 6px', borderBottom: `1px solid ${C.border}`, color: C.text, whiteSpace: 'nowrap' }
+                          return (
+                            <tr key={att}>
+                              <td style={{ ...td, textAlign: 'left' }}><Tap onClick={onOpenTeam && (() => onOpenTeam(att))} title={att}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 900 }}><TeamMark sport="nhl" abbr={att} variant="logo" px={20} />{nhlNickname(att)}</span></Tap></td>
+                              <td style={{ ...td, fontWeight: 900 }}>{rows1(sideOf(g, att)?.goals) ?? '—'}</td>
+                              <td style={td}>{pct1(us?.ppPct) ? `${pct1(us.ppPct)}%` : '—'}</td>
+                              <td style={td}>{pct1(them?.pkPct) ? `${pct1(them.pkPct)}%` : '—'}</td>
+                              <td style={td}>{ga != null ? ga.toFixed(2) : '—'}</td>
+                              <td style={{ ...td, color: us?.b2b ? C.ice : C.text2 }}>{rest}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </PanelAnchor>
           ),
@@ -309,30 +313,13 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
         return (
           <div id="lamp-slate-game" style={{ scrollMarginTop: 'calc(var(--hdr-h, 0px) + var(--gsw-h, 0px) + 8px)', marginBottom: 20 }}>
             <GameFrame accent={C.ice} past={st === 'final'}>
-              <div style={{ padding: '14px 14px 6px' }}>
-                {/* each club ONCE, big; the score sits between them once it has started */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  {teamLink(away)}
-                  {st === 'upcoming'
-                    ? <span style={{ fontSize: 20, color: C.text3, fontWeight: 600 }}>@</span>
-                    : <span style={{ fontFamily: NUM_FONT, fontSize: 30, fontWeight: 900, color: st === 'live' ? C.ice : C.text }}>{g.game.away.score ?? 0}–{g.game.home.score ?? 0}</span>}
-                  {teamLink(home)}
-                  {/* TUDDY's ring in the game header (2026-10-20, "match the nfl pages"): the team model's projected count (XG_WORDS), the strip's own dial */}
-                  <span style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, width: 84 }} title={dialTitle(g)}>
-                    <Dial value={bestOf(g) || null} dp={1} pct={100 * heatFor(g)} col={dialInk(heatFor(g), C)} size={64} title={dialTitle(g)} />
-                    <span style={{ fontSize: 12, lineHeight: 1.25, color: C.text2, textAlign: 'center' }}>{XG_WORDS}</span>
-                  </span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 44 }}>
-                  <span style={{ fontSize: 14, fontFamily: NUM_FONT, color: st === 'live' ? C.ice : C.text2, fontWeight: 800 }}>
-                    {st === 'live' ? (g.game.statusLine || 'LIVE') : st === 'final' ? 'FINAL' : timeOf(g)}
-                  </span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                    {st !== 'upcoming' && onOpenGame && <Tap onClick={() => onOpenGame(g.game.id)}><span style={{ fontSize: 14, fontFamily: NUM_FONT, color: C.ice, fontWeight: 800 }}>Box score ›</span></Tap>}
-                    {/* 📸 this game as a baseball card (the two clubs, the team model's projected goals, the skaters on the board): the right end of the game's title row */}
-                    <ShareCardButton sport="nhl" what="this game" url={shareUrl({ kind: 'game', sport: 'nhl', game: g.game.id, date: shown || g.game.date })} filename={`game-${slug(g.game.away.abbrev)}-${slug(g.game.home.abbrev)}_${stamp(shown || g.game.date)}.png`} />
-                  </span>
-                </div>
+              {/* ONE ROW (2026-10-21): components/slate/GameHeadRow.js, shared with TUDDY and BUCKETS */}
+              <GameHeadRow sport="nhl" away={away} home={home} state={st} score={[g.game.away.score, g.game.home.score]} onOpenTeam={onOpenTeam}
+                status={st === 'live' ? (g.game.statusLine || 'LIVE') : st === 'final' ? 'FINAL' : timeOf(g)}
+                link={st !== 'upcoming' && onOpenGame ? <Tap onClick={() => onOpenGame(g.game.id)}><span style={{ color: C.ice }}>Box score ›</span></Tap> : null}
+                dial={{ value: bestOf(g) || null, dp: 1, pct: 100 * heatFor(g), col: dialInk(heatFor(g), C), title: dialTitle(g), label: 'xG' }}
+                share={<ShareCardButton sport="nhl" what="this game" icon url={shareUrl({ kind: 'game', sport: 'nhl', game: g.game.id, date: shown || g.game.date })} filename={`game-${slug(g.game.away.abbrev)}-${slug(g.game.home.abbrev)}_${stamp(shown || g.game.date)}.png`} />} />
+              <div style={{ padding: '0 12px' }}>
                 {/* THIS GAME'S TOTAL (2026-10-10): the Top Totals row the lock stored for it (the projected goals are the same number) */}
                 <GameTotalLine sport="nhl" row={gameTotals?.[String(g.game.id)]} style={{ marginTop: 2, paddingBottom: 6 }} />
               </div>
