@@ -1,5 +1,4 @@
 'use client'
-import { FLAT_CHIP_CLASS, flatChip } from '../../lib/chips'
 import { useEffect, useState } from 'react'
 import { nameOf, teamOf, oppOf } from '../../lib/player'
 import { useSportTheme } from '../SportTheme'
