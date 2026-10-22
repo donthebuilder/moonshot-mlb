@@ -54,6 +54,8 @@ import { TeamTap } from '../EntityTap'
 import { localTime } from '../../lib/localTime'
 import { sharedFetch } from '../../lib/sharedRead'
 import { ShowMoreButton } from '../ListPreview'
+import MlbOffseason from './MlbOffseason'
+import { useMlbPhase } from '../../lib/mlb/usePhase'
 
 // An Eastern calendar day n days from today (YYYY-MM-DD), on etToday's clock.
 const etShift = (n) => { const d = new Date(`${etToday()}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
@@ -295,6 +297,8 @@ export default function Home({
   // else this device's remembered choice. Storage reads/writes are wrapped
   // because private mode without localStorage must not take the page down.
   const [view, setView] = useState('tonight')
+  // MLB'S STATE (2026-10-21, BATCH-MLB-OFFSEASON B1): lib/mlb/phase.js from MLB's schedule; null while loading or unreadable (this page as always)
+  const mlbPhase = useMlbPhase()
   const [top10All, setTop10All] = useState(false)   // the two top-10 lists show four rows until opened (10-18)
   useEffect(() => {
     if (initial !== 'tonight' && HOME_VIEW_KEYS.has(initial)) { setView(initial); return }
@@ -736,6 +740,10 @@ export default function Home({
     { tab: 'results', icon: '✅', title: 'The receipts', color: C.orange,
       body: 'Every pick graded, wins and losses alike.' },
   ]
+
+  // THE OFFSEASON (2026-10-21, BATCH-MLB-OFFSEASON B1): once MLB's schedule has no regular or postseason game within three days either side, Home's
+  // Tonight view is the offseason page (the record, fall ball while it plays). Any other state, or a state not read yet, draws this page as it was.
+  if (mlbPhase?.phase === 'OFFSEASON' && view === 'tonight') return <MlbOffseason phase={mlbPhase} onNavigate={onNavigate} />
 
   return (
     <div>

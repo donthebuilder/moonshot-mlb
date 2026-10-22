@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useMlbPhase } from '../lib/mlb/usePhase'
 import { C, NUM_FONT } from '../lib/theme'
 import { localTime, etWallInstant } from '../lib/localTime'
 import { explain } from '../lib/explain'
@@ -52,7 +53,9 @@ const daysBetween = (a, b) => Math.round(
 // 'today' / 'tomorrow' / 'on Tue, Oct 20' for a slate date against the ET date
 const slateDayWord = (d, today) => (d === today ? 'today' : d === addDays(today, 1) ? 'tomorrow' : `on ${new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })}`)
 
-export default function StaleBanner({ slateDate = '', mode = 'today', loading = false, truncated = false, games = 0, compact = false, schedule = null }) {
+export default function StaleBanner({ slateDate = '', mode = 'today', loading = false, truncated = false, games = 0, compact = false, schedule = null, onHome = false }) {
+  // MLB'S STATE (2026-10-21, BATCH-MLB-OFFSEASON B1): lib/mlb/phase.js; in the offseason the slate shown is the season's last, said once, plainly
+  const phase = useMlbPhase()
   // Re-check on a slow timer so a tab left open overnight notices the rollover
   // rather than sitting on the assumption it made when it was opened.
   const [now, setNow] = useState(null)
@@ -65,6 +68,13 @@ export default function StaleBanner({ slateDate = '', mode = 'today', loading = 
   // Rendered only once we know the ET clock — computing it during render would
   // make the server and the client disagree.
   if (!now || loading) return null
+
+  // THE OFFSEASON (2026-10-21): no regular or postseason game within three days either side. Home says it in its own words
+  // (components/tabs/MlbOffseason.js), so the banner steps aside there; every other MOONSHOT tab is showing the season's last slate and says so.
+  if (phase?.phase === 'OFFSEASON') {
+    if (onHome) return null
+    return <StaleNote compact={compact} tone={C.blue} icon="📅" title="MLB is in the offseason" meta={slateDate ? `showing ${new Date(`${slateDate}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })}, the last game day of the season` : null} />
+  }
 
   // CALLED OFF (2026-10-20, bot audit). MLB's schedule, read for this slate's own date, has NO game on it: the slate's games
   // were taken off (an if-necessary game that wasn't needed -- ALCS game 849814 -- or a postponement). The bot skips a day with no

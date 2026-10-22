@@ -16,7 +16,8 @@ import { BRAND } from '../../lib/routes'
 
 const THEME = { mlb: { C: MLB_C, num: MLB_NUM }, nfl: { C: NFL_C, num: NFL_NUM }, nhl: { C: NHL_C, num: NHL_NUM } }
 
-function columns(accent, T, heat) {
+// exported (2026-10-21) so MOONSHOT's offseason Home (components/tabs/MlbOffseason.js) draws the season record in these same columns, not a look-alike
+export function columns(accent, T, heat) {
   return [
     {
       key: 'label', label: 'Group', group: 'Call', sticky: true, heat: false, plain: true, w: 140,

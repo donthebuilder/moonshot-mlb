@@ -958,7 +958,7 @@ export default function Dashboard({ palettePass = 0 }) {
             has the full panel) — live info dies when it needs visiting. */}
         {/* Loudest thing on the page when it fires, and silent otherwise:
             "you are looking at a slate that already happened". */}
-        <StaleBanner compact slateDate={slateDate} mode={mode} loading={loading} truncated={!slateIsReal} games={groupGames(allPlayers).length} schedule={schedHere} />
+        <StaleBanner compact slateDate={slateDate} mode={mode} loading={loading} truncated={!slateIsReal} games={groupGames(allPlayers).length} schedule={schedHere} onHome={tab === 'home'} />
         <MiniWire players={players} watchIds={watchIds} tab={tab} mode={mode} results={resultsForSlate} odds={odds} onGo={() => setTab('scoreboard')} onPlayerClick={setModalPlayer} />
         {/* the ↻ on the live pages: nothing refreshes on a timer (lib/liveRefresh.js) */}
         {isLiveTab('mlb', tab) && <RefreshStamp live={results?.live_mode === true} style={{ marginBottom: 8 }} />}
