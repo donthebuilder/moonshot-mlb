@@ -283,3 +283,9 @@ button {
 .share-card-btn { min-height: 44px; }
 @media (min-width: 1024px) and (hover: hover) and (pointer: fine) { .share-card-btn { min-height: 34px; } }
 @media (max-width: 360px) { .share-card-btn { width: 44px !important; } .share-card-btn .share-card-word { display: none; } }
+
+/* THE OPEN MLB GAME ON THE SLATE (2026-10-22, components/tabs/Games.js): the lineups table leads; the read sits beside it on a
+   wide screen and under it on a phone. The read's two starter panels stack in the narrower column. */
+.game-lead { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 20px; align-items: start; }
+.game-lead > div { min-width: 0; }
+@media (min-width: 1280px) { .game-lead { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); } }
