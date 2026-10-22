@@ -15,6 +15,9 @@ const LANES = [
   { key: 'pts', label: 'PTS 25+', icon: '🏀', colorKey: 'purple', blurb: 'scores 25+', stat: (r) => f1(r.ptsPg) && `${f1(r.ptsPg)} PTS/g` },
   { key: 'reb', label: 'REB 10+', icon: '🧱', colorKey: 'teal', blurb: '10+ rebounds', stat: (r) => f1(r.rebPg) && `${f1(r.rebPg)} REB/g` },
   { key: 'ast', label: 'AST 8+', icon: '🎯', colorKey: 'amber', blurb: '8+ assists', stat: (r) => f1(r.astPg) && `${f1(r.astPg)} AST/g` },
+  // THE STARTING FIVE (named 2026-10-22 by Donovan): BUCKETS' five boards, 3PM and PRA beside the first three
+  { key: '3pm', label: '3PM 4+', icon: '🎯', colorKey: 'teal', blurb: '4+ threes', stat: (r) => f1(r.tpmPg) && `${f1(r.tpmPg)} 3PM/g · ${f1(r.tpaPg) || '—'} 3PA/g` },
+  { key: 'pra', label: 'PRA 35+', icon: '📈', colorKey: 'purple', blurb: '35+ points, rebounds and assists', stat: (r) => f1(r.praPg) && `${f1(r.praPg)} PRA/g` },
 ]
 
 function topCalled(board) {
@@ -40,8 +43,8 @@ export default function BucketsHeadline({ theme: C, numFont, boards, onOpenPlaye
   if (!lanes.length) return null
   return (
     <HeadlinePicks sport="nba" theme={C} numFont={numFont}
-      title="🏀 Tonight's calls"
-      subtitle="the called players on each board: the top scorer on each team, while he is on the board. Scores rank tonight's pool, 0–100 — not probabilities."
+      title="🏀 The Starting Five"
+      subtitle="five boards, the top called players on each: points, rebounds, assists, threes and PRA. Scores rank tonight's pool, 0–100 — not probabilities."
       lanes={lanes} collapsePhone
       onPick={(pick) => pick.raw?.playerId && onOpenPlayer?.(String(pick.raw.playerId))} />
   )

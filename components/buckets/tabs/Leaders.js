@@ -1,4 +1,6 @@
 'use client'
+import ChampionshipFold from '../../ChampionshipFold'
+import AwardRaces from '../../AwardRaces'
 import { useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import LeaderTile, { LEADER_GRID } from '../../LeaderTile'
@@ -169,6 +171,12 @@ export default function Leaders({ onOpenPlayer }) {
             caption={`Regular-season lines, per game, unmodelled. Minimum games played is set to ${minGP} because a rate on a handful of games is noise. Tap a row for his file.`}
           />
         ))}
+
+        {/* FROM HOME (2026-10-22): title odds and the award races (MOONSHOT, TUDDY and LAMP keep theirs on Leaders too) */}
+        <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
+          <ChampionshipFold sport="nba" />
+          <AwardRaces sport="nba" onOpenPlayer={onOpenPlayer} />
+        </div>
       </div>
     </SportTheme>
   )

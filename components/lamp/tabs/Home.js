@@ -20,6 +20,13 @@ import Tap from '../../Tap'
 import { TeamMark, EmptyState, DelayedBanner, Loading, Kicker, GameTypeChip, fmtDay, fmtPuckDrop, zoneAbbrev } from '../ui'
 import { NHL_NAV } from '../../../lib/nhl/routes'
 import HotNumbers from '../../numerology/HotNumbers'
+import HomeGreeting from '../../home/HomeGreeting'
+import SlateRow from '../../home/SlateRow'
+import HomeLinks from '../../home/HomeLinks'
+import RaceTracker from '../../RaceTracker'
+import NetworkRow from '../../NetworkRow'
+import { useGameTotals } from '../../GameTotalLine'
+import { useStoryCards, interleave } from '../../../lib/useStoryCards'
 import { MatchLogos } from '../../TeamMark'
 import NhlTonight from '../../tonight/NhlTonight'
 import { CardLockLine } from '../../MemberGate'
@@ -42,13 +49,11 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
   // `today` is the shell's own read of today's scores (LampDashboard), so
   // the front page and the header lamp share one poll rather than two.
   const scores = today
-  const standings = useLampStandings()
   // `today` is the shell's scores for the day the header shows (Today /
   // Tmrw / a paged day, 2026-09-26); the board follows the same day.
   const board = useLampBoard(date)
   const sogBoard = useLampBoard(date, 'SOG')
   const boardGames = board.data?.games || []
-  const boardPrev = usePreview(boardGames, 6)
   // MEMBERS GATE (2026-10-17): "who is called in each game" names only the calls a free viewer may read (the free four, over every game on the board); the rest are not
   // listed and not counted. null gateOf (members, unknown membership): the list is exactly as it was.
   const flatBoard = boardGames.filter((g) => !g.noMarketLock).flatMap((g) => g.rows.map((r) => ({ r, g })))
@@ -65,48 +70,8 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
     return { held: ranked.length - open.length, rows: open.map(({ r, g }) => ({ key: `${g.game.id}|${r.playerId}`, id: r.playerId, name: r.name, team: r.team, pos: r.pos, score: r.score })) }
   }
   const topGoal = topOf(flatBoard, callGate)
-  // THE LAMP TWINS (Donovan 10-19 "yes"): TUDDY's power rankings, TD ledger and Look-Out, in hockey, from feeds LAMP already reads.
-  //   Offense, ranked  every club by goals a game this season (standings gf / gp), PP% beside it (special teams)
-  //   Goal ledger      last night's scorers, goals each, CALLED where LAMP called him (the shared record's status)
-  //   Leaky nets       tonight's clubs by goals allowed a game, their starting goalie's save % ("expected" until
-  //                    ESPN confirms him) and their PK%; who faces them is the quiet code
-  const special = useLampSpecialTeams()
-  const lastNight = useLampLedger({ days: 1 })
-  const seasonStats = useLampSeasonStats()
-  const perGame = (n, gp) => (Number(gp) > 0 && Number.isFinite(Number(n)) ? Number(n) / Number(gp) : null)
-  const stRow = new Map((special.data?.teams || []).map((t) => [t.abbrev, t]))
-  const pctTxt = (v) => (Number.isFinite(v) ? `${(v * (v <= 1 ? 100 : 1)).toFixed(1)}%` : '—')
-  const offenseRows = (standings.data?.rows || []).map((t) => ({ t, gfg: perGame(t.gf, t.gp) })).filter((x) => x.gfg != null)
-    .sort((a, b) => b.gfg - a.gfg)
-    .map(({ t, gfg }) => ({ key: t.abbrev, team: t.abbrev, name: t.nickname || t.name || t.abbrev, line: `PP ${pctTxt(stRow.get(t.abbrev)?.ppPct)} · ${t.gp} GP`, value: `${gfg.toFixed(2)} G/GP`, onOpen: onOpenTeam ? () => onOpenTeam(t.abbrev) : null }))
-  const ledgerRows = (lastNight.data?.season?.hitters || []).filter((h) => Number(h.value) > 0)
-    .sort((a, b) => b.value - a.value || (b.score ?? 0) - (a.score ?? 0))
-    .map((h) => ({ key: String(h.id), team: h.team, name: h.name, value: <>{h.status === 'called' ? <CallStatusBadge status="called" accent={C.ice} short size={8} theme={C} numFont={NUM_FONT} /> : null}{h.value} G</>, onOpen: onOpenPlayer ? () => onOpenPlayer(Number(h.id)) : null }))
-  const goalieByName = new Map((seasonStats.data?.goalies || []).map((x) => [String(x.name).toLowerCase(), x]))
-  const leakRows = boardGames.flatMap((g) => ['away', 'home'].map((side) => {
-    const team = g.game[side].abbrev, opp = g.game[side === 'away' ? 'home' : 'away'].abbrev
-    const st = (standings.data?.rows || []).find((t) => t.abbrev === team)
-    const gag = perGame(st?.ga, st?.gp)
-    if (gag == null) return null
-    const gk = g.starters?.[side]
-    const gs = gk?.name ? goalieByName.get(String(gk.name).toLowerCase()) : null
-    const sv = gs && Number.isFinite(gs.svPct) ? `.${String(Math.round(gs.svPct * 1000)).padStart(3, '0')}` : null
-    const pk = g.spots?.[side]?.pkPct
-    const line = [gk?.name ? `${gk.name.split(' ').slice(-1)[0]}${sv ? ` ${sv}` : ''}${gk.confirmed ? '' : ' (exp.)'}` : null, Number.isFinite(pk) ? `PK ${Math.round(pk * (pk <= 1 ? 100 : 1))}%` : null].filter(Boolean).join(' · ')
-    return { key: `${g.game.id}|${team}`, team, name: <>{st?.nickname || team} <span data-opp="" style={{ fontWeight: 600, fontSize: 11, color: C.text3 }}>vs {opp}</span></>, line, value: `${gag.toFixed(2)} GA/GP`, gag, onOpen: onOpenTeam ? () => onOpenTeam(team) : null }
-  })).filter(Boolean).sort((a, b) => b.gag - a.gag)
-  const topSog = topOf(flatSog, sogGate)
-  const angleRows = lampAngles(flatBoard, 'GOAL').map((d) => {
-    const hits = flatBoard.filter((x) => Number.isFinite(x.r.score) && d.test(x)).sort((a, b) => b.r.score - a.r.score)
-    const best = hits.find(({ r, g }) => !lampLocked(callGate, { _row: r, _g: g }))
-    return best ? { key: d.key, tag: d.label, n: hits.length, r: best.r } : null   // `tag`, not `label`: an angle, not a table column
-  }).filter(Boolean)
   const day = scores.data
   const games = sortGames(day?.games || [])
-  const prev = usePreview(games, 6)
-  const rows = standings.data?.rows || []
-  const leaders = ['Atlantic', 'Metropolitan', 'Central', 'Pacific']
-    .map((d) => rows.find((r) => r.divName === d && r.divRank === 1)).filter(Boolean)
 
   // ── THE HERO, MOONSHOT'S SHAPE (2026-09-26, shell-parity step 2) ─────────
   // Every number below is a field: games and first puck drop off the day's
@@ -153,151 +118,49 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
   const ready = Boolean(day || scores.error) && Boolean(board.data || board.error)
   const hero = dayLine(heroGames, { sport: 'nhl', date: day?.date || date || undefined, label: typeWord, next: day?.next ? { date: day.next } : null })
 
+  // THE HOME, TUDDY'S LAYOUT (2026-10-22, Donovan: "build the same Home for LAMP, BUCKETS and MOONSHOT"): numbers, the greeting
+  // (the day, the next puck drop, three tiles, the headlines + stories strip), The Hat Trick, Tonight, your players, the calls, the
+  // races, the slate, the link tiles, across the network. Tonight's board, the games table, the ranked lists, Longshots and the
+  // division leaders are one tap away; Cup odds and the award races live on Leaders.
+  const stories = useStoryCards('nhl', { color: C.ice })
+  const totals = useGameTotals('nhl')
+  const heroPre = heroGames.filter((g) => g.state === 'pre' && Number.isFinite(g.start)).sort((a, b) => a.start - b.start)
+  const nextG = heroPre[0] ? games.find((g) => Date.parse(g.startUtc || '') === heroPre[0].start && g.away?.abbrev === heroPre[0].away) : null
+  const kick = nextG ? { away: nextG.away?.name || nextG.away?.abbrev, home: nextG.home?.name || nextG.home?.abbrev, start: Date.parse(nextG.startUtc) } : null
+  const sameNight = nextG ? heroPre.length - 1 : 0
+  const topG = topGoal.rows[0] || null
+  const tiles = [
+    { label: 'RECORD · CALLED', value: graded?.value || '—', sub: graded?.sub || 'nothing graded yet', dim: !graded, onClick: () => setTab?.('results') },
+    { label: 'TOP GOAL SCORE', value: topG ? Math.round(topG.score) : '—', sub: topG?.name || 'waiting for the board', dim: !topG, onClick: topG && onOpenPlayer ? () => onOpenPlayer(topG.id) : null },
+    { label: date ? 'GAMES' : 'TONIGHT', value: games.length, sub: games.length === 1 ? 'game' : 'games' },
+  ]
+  const slateGames = games.map((g) => ({ id: g.id, away: g.away?.abbrev, home: g.home?.abbrev, start: Date.parse(g.startUtc || ''), state: g.state, awayScore: g.away?.score, homeScore: g.home?.score }))
+  const LINKS = [
+    { tab: 'fullboard', sub: 'every skater, ranked' }, { tab: 'scores', sub: 'every game' }, { tab: 'leaders', sub: 'Cup odds, awards' },
+    { tab: 'standings', sub: 'the divisions' }, { tab: 'ledger', sub: 'who scored' }, { tab: 'shots', sub: 'shots 3+ board' },
+    { tab: 'results', sub: 'every call graded' }, { tab: 'players', sub: 'find anyone' }, { tab: 'storylines', sub: 'every story' },
+  ]
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      {/* THE TAPE (2026-10-20, Donovan picked prototype A): the day in one line, then every
-          product's storylines rolling, then a line per product (components/StoryTape.js).
-          It replaces the hero's stat tiles and the crawl. */}
-      <StoryTape sport="nhl" theme={C} numFont={NUM_FONT} onSeeAll={() => setTab?.('storylines')}
-        day={{ icon: '🏒', eyebrow: hero.eyebrow, live: Boolean(day?.live), lead: !day ? 'Tonight on LAMP.' : hero.lead,
-          accentText: !day ? '' : games.length ? (allLocked ? 'Grading as they land.' : 'One called per team.') : hero.accent }} />
-
-      {/* LAYOUT SHIFT (2026-10-06, CLS 0.3-0.9 on slow 4G): everything under the hero is
-          built from the day's scores and the board. Until both have answered it is one
-          screen of empty height, so the sections never paint small and then get pushed
-          down as each arrives. A failed feed still opens the page (the sections say so). */}
-      {!ready ? <div aria-busy="true" style={{ minHeight: '100vh' }}><span style={{ position: 'absolute', left: -9999 }}>Loading…</span></div> : <>
-      {/* TONIGHT (2026-10-04): who went, who lines up, who's still to go (components/tonight/NhlTonight.js) */}
-      <NhlTonight today={day} board={board.data} date={date} onOpenPlayer={onOpenPlayer} setTab={setTab} />
-
-      {/* TONIGHT'S CALLS AS CARDS (2026-10-18, PHONE-PARITY 9a): MOONSHOT's swipe deck, shut by default. Tonight's list only: a paged day has no deck of its own */}
-      {!date && <Fold id="lamp-calls" title="🃏 Tonight's calls" meta="swipe the real cards"><TonightsCalls sport="nhl" /></Fold>}
-
-      {/* THE PEOPLE, ONE TAP IN (2026-09-26, stranger test: "where are the
-          players?" was the one question still slow -- they sat behind More).
-          One line, the pages' own names from the registry. */}
-      <nav aria-label="Players and standings" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: -6 }}>
-        {['players', 'standings'].map((k) => (
-          <button key={k} type="button" className="tap-box" onClick={() => setTab?.(k)} style={link}>{NHL_NAV[k].icon} {NHL_NAV[k].label} ›</button>
-        ))}
-      </nav>
-
-      <section aria-label="Tonight's board">
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-          <Kicker>THE BOARD · ONE CALLED PER TEAM</Kicker>
-          <button type="button" className="tap-box" onClick={() => setTab?.('fullboard')} style={link}>Full board ›</button>
-        </div>
-        {board.loading && !board.data ? <Loading what="the board" /> : null}
-        {board.data && boardGames.length === 0 && <EmptyState title="NO BOARD TONIGHT" note="No games, so nothing to call." />}
-        {boardGames.length > 0 && (
-          // THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b): each game's
-          // called skaters (names open the player), its state; the game opens it.
-          <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={40} caption="Tonight's board: who is called in each game"
-            rows={boardPrev.shown.map((g) => ({ _key: g.game.id, g, game: `${g.game.away.abbrev}@${g.game.home.abbrev}`, stamp: g.graded ? 'GRADED' : g.locked ? 'LOCKED' : g.setting ? 'SETTING' : 'PREVIEW' }))}
-            columns={[
-              { key: 'game', label: 'Game', heat: false, sticky: true, w: 90, link: (r) => (onOpenGame ? () => onOpenGame(r.g.game.id) : null), fmt: (_, r) => <MatchLogos sport="nhl" away={r.g.game.away.abbrev} home={r.g.game.home.abbrev} px={16} gap={3} /> },
-              { key: 'called',
-                // A PREVIEW game's names aren't calls yet (scenario test F10:
-                // "CALLED" beside "not a call yet"). Locked/graded -> Called.
-                label: boardGames.every((g) => g.locked || g.graded) ? 'Called' : boardGames.some((g) => g.locked || g.graded) ? 'Called · preview = projected' : 'Projected',
-                heat: false, numeric: false, w: 260, fmt: (_, r) => (
-                <span style={{ fontSize: 11.5, lineHeight: 1.4, whiteSpace: 'normal' }}>
-                  {readableCalls(r.g).map((x, i) => (
-                    <span key={x.playerId}>{i ? ' · ' : ''}{onOpenPlayer ? <Tap onClick={() => onOpenPlayer(x.playerId)}><span style={{ color: x.hit ? C.ice : C.text }}>{x.name}</span></Tap> : <span style={{ color: x.hit ? C.ice : C.text }}>{x.name}</span>} <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{x.score}</span></span>
-                  ))}
-                </span>) },
-              { key: 'stamp', label: 'State', heat: false, w: 70, fmt: (v, r) => <span style={{ color: r.g.graded ? C.cream : r.g.locked ? C.teal : C.amber, font: `900 8px/1 ${NUM_FONT}`, letterSpacing: '.12em' }}>{v}</span> },
-            ]} />
-        )}
-        {someHidden && <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ marginTop: 6 }} />}
-        <ShowMoreButton open={boardPrev.open} restN={boardPrev.restN} toggle={boardPrev.toggle} total={boardPrev.total} itemWord="games" />
-      </section>
-
-
-      {/* TONIGHT'S CALLS (BATCH-HEADLINE-PICKS step 3): GOAL and SHOTS, each
-          model's called skaters -- MOONSHOT's The Four layout -- then
-          Around the League below, the same order MOONSHOT uses. */}
-      <LampHeadline theme={C} numFont={NUM_FONT} goalBoard={board.data} sogBoard={sogBoard.data} record={regT ? { ...regT, sog: reg.data?.sog } : null} onOpenPlayer={onOpenPlayer} />
-      <section aria-label="Tonight's games">
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Kicker>{date ? 'GAMES' : 'TONIGHT’S GAMES'}</Kicker>
-            {(day?.gameTypes || []).map((t) => <span key={t} style={{ marginBottom: 6 }}><GameTypeChip label={t === 1 ? 'PRESEASON' : t === 2 ? 'REGULAR SEASON' : 'PLAYOFFS'} /></span>)}
-          </div>
-          <button type="button" className="tap-box" onClick={() => setTab?.('scores')} style={link}>All scores ›</button>
-        </div>
-        <DelayedBanner error={scores.error} what="the scores" />
-        {scores.loading && !day ? <Loading what="tonight’s games" /> : null}
-        {day && games.length === 0 && !scores.error && (
-          <EmptyState title="NO GAMES TODAY" note={day.next ? `The next game day is ${fmtDay(day.next)}. The schedule has the whole week.` : 'Nothing on the league schedule today.'} />
-        )}
-        {games.length > 0 && (
-          <>
-            <ScoreTable games={prev.shown} onOpen={onOpenGame} compact />
-            <ShowMoreButton open={prev.open} restN={prev.restN} toggle={prev.toggle} total={prev.total} itemWord="games" />
-          </>
-        )}
-      </section>
-
-      {/* WAVE 2 (2026-10-11, Donovan: "everything moving toward simplicity with the ability to dive deep into stats").
-          The first screen is the hero, tonight's board (one called per team, as a table), the calls and the games. The rest of
-          the page -- headlines, your players, storylines, longshots, hot numbers, division leaders -- is one fold, nothing
-          deleted. The first table row was y 1,994 on a phone; it was the games list under all of these.
-          10-18: open again (the TUDDY Home rule), each piece already a short strip or preview. */}
-      <>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      {/* FACES ON THE CARDS (2026-09-29, queue batch 5): MOONSHOT's and TUDDY's
-          strips pass faceOf; LAMP's didn't. The shared PlayerFace, table
-          variant -- LAMP's circle, and it hides itself if a mug 404s. */}
-      <HeadlineStrip sport="nhl" cards={cards} onOpen={openCard} theme={C} numFont={NUM_FONT} accent={C.ice}
-        faceOf={(c) => { const url = c.playerId && c.team ? nhlMug(board.data?.season?.current || board.data?.season?.id, c.team, c.playerId) : null; return url ? <PlayerFace sport="nhl" photo={url} variant="table" size={22} theme={C} /> : null }} />
-      {/* 2026-09-27 (BATCH-STORYLINES-PAGE step 4): the story engine's rarest
-          five (History Watch's claims lead as the rarest), then the Storylines tab. */}
-      {/* ⭐ YOUR PLAYERS (2026-10-03): MOONSHOT's section, fed by the scores and board read above. */}
-      <LampYourPlayers games={games} board={board.data} onOpenPlayer={onOpenPlayer} />
-      <RankList title="Offense, ranked" sub={standings.data?.seasonLabel || null} rows={offenseRows} sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onAll={() => setTab?.('standings')} allLabel="Standings" />
-      <RankList title="Goal ledger" sub={lastNight.data?.season?.to ? `last night · ${fmtDay(lastNight.data.season.to)}` : 'last night'} rows={ledgerRows} ranked={false} sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onAll={() => setTab?.('ledger')} allLabel="Ledger" />
-      <RankList title="Leaky nets" sub="tonight" rows={leakRows} sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} />
-      {/* ANGLES TONIGHT on the shared list (10-19: the old row clipped names at 375): the angle and how many fit it ride the
-          line under the name, the score on the right */}
-      <RankList title="Angles tonight" ranked={false} sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice}
-        rows={angleRows.map((a) => ({ key: a.key, team: a.r.team, name: a.r.name, line: `${a.tag} · ${a.n} fit tonight`, value: a.r.score, onOpen: onOpenPlayer ? () => onOpenPlayer(a.r.playerId) : null }))} />
-      <TopTenList title="Top 10 · Goals" rows={topGoal.rows} held={topGoal.held} sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onOpen={(r) => onOpenPlayer?.(r.id)} onAll={() => setTab?.('fullboard')} />
-      <TopTenList title="Top 10 · Shots 3+" rows={topSog.rows} held={topSog.held} sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onOpen={(r) => onOpenPlayer?.(r.id)} onAll={() => setTab?.('shots')} />
-      <LongshotsPreview plain sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onSeeAll={() => setTab?.('longshots')} onOpenPlayer={(id) => onOpenPlayer?.(id)} />
-
-      {/* TONIGHT'S NUMBERS (numerology v2 step 6b): one line under the board, taps to Numerology. */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <HotNumbers compact sport="nhl" date={day?.date || date} theme={C} numFont={NUM_FONT} accent={C.ice} onOpen={() => setTab?.('numerology')} />
 
-      <section aria-label="Division leaders">
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-          <Kicker>DIVISION LEADERS{standings.data?.seasonLabel ? ` · ${standings.data.seasonLabel}${standings.data.stale ? ' FINAL' : ''}` : ''}</Kicker>
-          <button type="button" className="tap-box" onClick={() => setTab?.('standings')} style={link}>Full standings ›</button>
-        </div>
-        {standings.data?.stale && (
-          <div style={{ color: C.text3, fontSize: 11, margin: '0 0 8px', lineHeight: 1.5 }}>
-            Last season’s final table — the new one opens {standings.data.current?.standingsStart ? fmtDay(standings.data.current.standingsStart) : 'with the first regular-season game'}.
-          </div>
-        )}
-        {standings.loading && !standings.data ? <Loading what="the standings" /> : null}
-        {leaders.length > 0 && (
-          <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={8} caption="Each division's leader"
-            rows={leaders.map((r) => ({ ...r, _key: r.abbrev, rec: `${r.w}-${r.l}-${r.otl}` }))}
-            columns={[
-              { key: 'nickname', label: 'Team', heat: false, sticky: true, w: 150, fmt: (_, r) => <TeamMark abbrev={r.abbrev} name={r.nickname} onClick={onOpenTeam ? () => onOpenTeam(r.abbrev) : null} /> },
-              { key: 'divName', label: 'Division', heat: false, w: 100 },
-              { key: 'rec', label: 'Rec', heat: false, mono: true, w: 64 },
-              { key: 'pts', label: 'Pts', w: 44, dp: 0, tone: () => ({ color: C.text, weight: 900 }) },
-            ]} />
-        )}
-      </section>
+      <HomeGreeting sport="nhl" theme={C} numFont={NUM_FONT} icon="🏒" eyebrow={hero.eyebrow} live={Boolean(day?.live)} kick={kick} verb="puck drops" more={sameNight}
+        lead={!day ? 'Tonight on LAMP.' : hero.lead} accentText={!day ? '' : games.length ? (allLocked ? 'Grading as they land.' : 'One called per team.') : hero.accent} tiles={tiles}>
+        <HeadlineStrip sport="nhl" cards={interleave(cards, stories)} onOpen={openCard} theme={C} numFont={NUM_FONT} accent={C.ice} title="HEADLINES + STORIES" countWord="in the strip"
+          faceOf={(c) => { const url = c.playerId && c.team ? nhlMug(board.data?.season?.current || board.data?.season?.id, c.team, c.playerId) : null; return url ? <PlayerFace sport="nhl" photo={url} variant="table" size={22} theme={C} /> : null }} />
+      </HomeGreeting>
 
-        </div>
-      </>
-      {/* STANLEY CUP ODDS (2026-10-13): MOONSHOT's October fold for the NHL (components/PennantRace.js). Not drawn until the bot has published the file. */}
-      <ChampionshipFold sport="nhl" />
-      {/* AWARD RACES (2026-10-20, lib/awards.js + lib/nhl/awards.js): Hart, Vezina, Norris and Calder, a model of past votes. */}
-      <AwardRaces sport="nhl" onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />
+      {!ready ? <div aria-busy="true" style={{ minHeight: '100vh' }}><span style={{ position: 'absolute', left: -9999 }}>Loading…</span></div> : <>
+      <LampHeadline theme={C} numFont={NUM_FONT} goalBoard={board.data} sogBoard={sogBoard.data} record={regT ? { ...regT, sog: reg.data?.sog } : null} onOpenPlayer={onOpenPlayer} />
+      <NhlTonight today={day} board={board.data} date={date} onOpenPlayer={onOpenPlayer} setTab={setTab} />
+      <LampYourPlayers games={games} board={board.data} onOpenPlayer={onOpenPlayer} />
+      {!date && <Fold id="lamp-calls" title="🃏 Tonight's calls" meta="swipe the real cards"><TonightsCalls sport="nhl" /></Fold>}
+      <RaceTracker sport="nhl" theme={C} numFont={NUM_FONT} onOpen={() => setTab?.('leaders')} />
+      <DelayedBanner error={scores.error} what="the scores" />
+      <SlateRow sport="nhl" theme={C} numFont={NUM_FONT} games={slateGames} totals={totals} onOpenGame={onOpenGame} title={date ? 'THE GAMES' : 'TONIGHT'} />
+      <HomeLinks sport="nhl" theme={C} nav={NHL_NAV} links={LINKS} setTab={setTab} label="More on LAMP" />
+      <NetworkRow sport="nhl" theme={C} numFont={NUM_FONT} />
       </>}
     </div>
   )
