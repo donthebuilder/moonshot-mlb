@@ -1,5 +1,6 @@
 'use client'
 import BlowoutGains from '../BlowoutGains'
+import ComebackLine from '../ComebackLine'
 import { Fragment, useMemo } from 'react'
 import TeamMark from '../../TeamMark'
 import GameHead from '../../game/GameHead'
@@ -67,6 +68,7 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
         <GameTotalLine sport="nba" row={gameTotals?.[String(id)]} />
       </>
     ),
+    comeback: () => <ComebackLine game={data} id={id} date={gameDay(data.date)} />,
     line: () => (periods > 0 ? <LineScore teams={[away, home]} periods={periods} qLabel={qLabel} done={done} onOpenTeam={onOpenTeam} /> : null),
     firsts: () => ((fb || fp) ? (
       <div style={{ fontSize: 12, color: C.text2, display: 'grid', gap: 4 }}>

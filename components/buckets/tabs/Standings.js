@@ -6,6 +6,7 @@ import { useBucketsStandings } from '../../../lib/nba/useBuckets'
 import BucketsTable from '../BucketsTable'
 import { DelayedBanner, Loading, Kicker, Pills } from '../ui'
 import { NBA_TEAMS } from '../../../lib/nba/teams'
+import ComebacksTable from '../ComebacksTable'
 
 // 📈 STANDINGS -- both conferences, seeded, the league's own order (ESPN
 // standings). Before opening night it is last season's final table, labelled;
@@ -67,6 +68,7 @@ export default function Standings({ onOpenTeam }) {
             caption={`${c.name}, seeded. Each row opens the club.`} />
         </section>
       ))}
+      {data ? <ComebacksTable onOpenTeam={onOpenTeam} /> : null}
     </div>
   )
 }
