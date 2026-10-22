@@ -107,7 +107,7 @@ await ok('points write-up: the called man reads his own numbers; with no points 
   assert.equal(w.players.length, 1)
   assert.deepEqual(w.players[0].markets.map((m) => m.word), ['25+ points'])
   const t = w.players[0].why.map((l) => l.t).join(' | ')
-  assert.match(t, /28\.4 points a game/); assert.match(t, /21\.2 shots a game, percentile 92/); assert.match(t, /BBB allow 118\.2 points a game, percentile 80/)
+  assert.match(t, /28\.4 points a game/); assert.match(t, /21\.2 shots a game \(top 8% of tonight's players\)/); assert.match(t, /118\.2 points a game allowed by BBB \(top 20% of tonight's defenses\)/)   // plain words since the write-up dropped 'percentile N'
   for (const l of w.players[0].why) assert.ok(l.v.every((v) => String(l.t).includes(String(v))), `a printed value is in the line: ${l.t}`)
   // the old shape: dd only, byte-identical markets
   const dd = call('2', 'TEST Bravo', 'BBB', 'AAA', { ctx: { logGames: 40, ddGames: 20 }, legs: { minPg: 34 }, pct: { minPg: 80 } })
