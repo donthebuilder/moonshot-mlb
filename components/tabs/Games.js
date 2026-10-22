@@ -754,8 +754,6 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   )
 
   if (!games.length) return <Empty text="No games found yet." />
-  // the whole slate (before the rail's own filter) is one game: no rail, sort, strip or switcher (see the note at the grid)
-  const oneGame = (allGames || games).length === 1
 
   const scrollTo = (pk) => {
     if (mode === 'lineups') {
@@ -768,7 +766,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
     // card grid: clicking a card TOGGLES its in-place deep-dive below the
     // grid — re-click closes, a new card switches and scrolls to the panel
     setActive((cur) => {
-      const next = cur === pk && !oneGame ? null : pk   // the lone game never closes: with no strip there would be nothing to reopen it
+      const next = cur === pk ? null : pk
       if (next != null) setTimeout(() => {
         const el = gameRefs.current[pk]
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -831,9 +829,8 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           off-the-bot strip — the card itself started a full screen down.
           These fold into one closed line on a phone; desktop is unchanged
           (MobileFold renders its children bare there). */}
-      {!(oneGame && mode !== 'lineups') && (
       <MobileFold title="Sort & filters" summary={sortBy === 'time' ? 'first-pitch order' : `sorted by ${sortBy}`} accent={C.orange} maxWidth={760}>
-      {mode !== 'lineups' && !oneGame && (
+      {mode !== 'lineups' && (
         <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
           <span style={{ fontSize: TYPE.label, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Sort</span>
           {[['time', 'Time'], ['gs', 'Score'], ['air', 'Best air'], ['set', 'Lineups in'], ['hr9', 'Worst HR/9'], ['whip', 'Worst WHIP'], ['lowk', 'Lowest K']].map(([k, label]) => (
@@ -886,7 +883,6 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
       )}
 
       </MobileFold>
-      )}
 
       {/* ── OFF THE BOT, OUT OF "SORT & FILTERS" (2026-09-13) ───────────────
           Donovan, on the Slate page: the collapsible sections "need to be
@@ -1380,10 +1376,6 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           the grid; clicking the card (or its header) again closes it. */}
       {mode !== 'lineups' && (
         <>
-          {/* ONE GAME, ONE CARD (2026-10-22): on a one-game night (the World Series, a lone makeup) the filter rail, the sort row,
-              the games strip and the switcher all pointed at the same game the open card below already is: four rows of
-              chrome before the first lineup row. They come back the moment there are two games. */}
-          {!oneGame && (<>
           <GameFilterRail
             opts={MLB_GAME_FILTERS}
             value={gfilter}
@@ -1393,7 +1385,6 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           <StripFold isPhone={isPhone} count={games.length} summary={games.some((g) => g.game_pk === activeGame) ? null : 'tap to pick one'}>
             <GameStrip nested rawOf={rawRows} slateRows={players} slateDate={slateDate} onPlayerClick={onPlayerClick} games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} sortBy={sortBy} live={liveByPk} targets={targets} onTarget={toggleTarget} />
           </StripFold>
-          </>)}
           {/* ── THE ANSWER TO "hella scrolling" (2026-08-23) ─────────────────
               Phone only. It sits here, right under the game grid, and pins
               itself under the header the moment you scroll past — so every
@@ -1403,7 +1394,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
               handler the grid above uses, so the two selectors can never
               disagree about what selecting a game does.
               See components/GameSwitcher.js. */}
-          {!oneGame && <GameSwitcher games={games} activeGame={activeGame} onSelect={scrollTo} live={liveByPk} />}
+          <GameSwitcher games={games} activeGame={activeGame} onSelect={scrollTo} live={liveByPk} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
               {games.filter((g) => g.game_pk === activeGame).map((g) => {
                 const picks = picksFor(g)
@@ -1443,14 +1434,11 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                   >
                     {/* ── card header: matchup + duel + conditions + picks ── */}
                     <div
-                      onClick={() => setActive(isActive && !oneGame ? null : g.game_pk)}
+                      onClick={() => setActive(isActive ? null : g.game_pk)}
                       style={{ cursor: 'pointer', padding: '11px 14px 10px' }}
                       title={isActive ? 'Collapse this game' : 'Open the full read on this game'}
                     >
-                      {/* the title row: the matchup facts wrap inside their own box, the card / chevron stay at the right of the FIRST line
-                          (2026-10-22: on a phone the 📸 wrapped onto a line of its own, ~90px of nothing; KNOWN-ISSUES #45) */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px 10px', flexWrap: 'wrap', minWidth: 0, flex: '1 1 auto' }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', minWidth: 0 }}>
                         <span style={{ fontSize: TYPE.title, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '-.02em', color: past ? C.text3 : C.text }}>
                           {past ? '✓ ' : ''}<MatchLogos sport="mlb" away={g.away} home={g.home} px={26} gap={6} />
                         </span>
@@ -1472,8 +1460,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                         </span>
                         <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{localTime(g.game_time)}</span>
                         {(() => { const oc = outCounts([g.away, g.home]); return oc?.out ? <span title="Players listed out or on the injured list for these two clubs (injury report)" style={{ fontSize: TYPE.micro, color: C.yellow, fontFamily: NUM_FONT, fontWeight: 700 }}>{oc.out} out</span> : null })()}
-                      </div>
-                        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 9, fontSize: TYPE.micro, fontFamily: NUM_FONT, flexShrink: 0 }}>
+                        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 9, fontSize: TYPE.micro, fontFamily: NUM_FONT, flexShrink: 0 }}>
                           {/* Same reason as the duel below: open, the air is a
                               full sentence in GameDeepDive's AirLine. */}
                           {!isActive && temp > 0 && <span title="Game-time temperature" style={{ color: temp >= 82 ? C.orange : C.text3 }}>{Math.round(temp)}°</span>}
@@ -1481,7 +1468,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                           {!isActive && parkF > 0 && <span title="Park HR factor — above 1.00 the yard helps hitters" style={{ color: parkF >= 1.03 ? C.orange : C.text3 }}>×{parkF.toFixed(2)}</span>}
                           {/* 📸 this matchup's picks as a baseball card: the right end of the game's title row, before the open / close mark (the button never toggles the row) */}
                           <ShareCardButton icon sport="mlb" what="this game" url={shareUrl({ kind: 'game', sport: 'mlb', game: g.game_pk })} filename={`game-${slug(g.away)}-${slug(g.home)}_${stamp(gameDay(g.game_time))}.png`} />
-                          {!oneGame && <span style={{ color: isActive ? C.orange : C.text3, fontWeight: 800 }}>{isActive ? '▾' : '▸'}</span>}
+                          <span style={{ color: isActive ? C.orange : C.text3, fontWeight: 800 }}>{isActive ? '▾' : '▸'}</span>
                         </span>
                       </div>
 
@@ -1684,7 +1671,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                             in sentences) with the full dense table one pill
                             further in. Nothing about it is a Games-tab-only
                             copy, so the two surfaces cannot drift. */}
-                        <div id={`gp-lineups-${g.game_pk}`} style={{ marginTop: 4, scrollMarginTop: 160 }}>{/* it leads the open game now: no rule above it (2026-10-22) */}
+                        <div id={`gp-lineups-${g.game_pk}`} style={{ borderTop: `1px solid ${C.border}`, marginTop: 14, paddingTop: 12 }}>
                           <GameLineup players={g.players} onPlayerClick={onPlayerClick} />
                         </div>
                             </>
@@ -1976,18 +1963,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                             </>
                           ),
                         }
-                        // THE TABLE LEADS THE OPEN GAME (2026-10-22, Donovan: the Slate is the page he uses most; the first lineup row sat
-                        // ~2,350px down a phone and the desktop's first screen was half empty). The lineups table (with the live Status) comes
-                        // first and the read (the air, both starters, how to attack them, the storylines) sits beside it on a wide screen
-                        // (app/globals.css .game-lead), under it on a phone. Every other section keeps the registry's order after them.
-                        const lead = ['lineups', 'read']
-                        return (<>
-                          <div className="game-lead">
-                            <div className="game-lead-table">{SECTIONS.lineups?.()}</div>
-                            <div className="game-lead-read">{SECTIONS.read?.()}</div>
-                          </div>
-                          {gameSections('mlb', 'slate').filter((sec) => !lead.includes(sec.id)).map((sec) => <Fragment key={sec.id}>{SECTIONS[sec.id]?.()}</Fragment>)}
-                        </>)
+                        return gameSections('mlb', 'slate').map((sec) => <Fragment key={sec.id}>{SECTIONS[sec.id]?.()}</Fragment>)
                         })()}
                       </div>
                     )}
