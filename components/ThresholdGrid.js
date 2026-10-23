@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { thresholdRates, lastSeasonRates, teamAbbrs, starterHands, starterIds, starterRanks, RANK_WORD, streakRuns, MARKETS } from '../lib/gamelogs'
 import StreakRibbon, { StreakLine } from './StreakRibbon'
 import PropBars, { TeamTap } from './player/PropBars'
+import { propLanesOf } from '../lib/propLanes'
 import { gridQuote, fairOdds, fmtOdds } from '../lib/odds'
 import { verdictInk, verdictWash } from '../lib/scales'
 import FiltersSheet from './player/FiltersSheet'
@@ -55,19 +56,12 @@ const priceTone = (row) => {
   return { fg: C.text, bg: 'transparent' }
 }
 
-const LINES = { hit: [1, 2], tb2: [2, 3, 4], hr: [1, 2], hrr: [1, 2, 3], run: [1, 2], rbi: [1, 2], bb: [1, 2], k1: [1, 2] }
-const SHORT = { hit: 'Hit', tb2: 'TB', hr: 'HR', hrr: 'HRR', run: 'Run', rbi: 'RBI', bb: 'BB', k1: 'K' }
-const VAL = {
-  hit: (g) => g.h, tb2: (g) => g.tb, hr: (g) => g.hr,
-  run: (g) => g.r, rbi: (g) => g.rbi, hrr: (g) => g.h + g.r + g.rbi,
-  // Walks (2026-08-12): reads the same as every non-K lane — higher is
-  // better for the bat. bb rides the gameLog fetch lib/gamelogs.js already
-  // makes; no new data for this grid to show it.
-  bb: (g) => g.bb,
-  // K reads INVERTED from every other lane: a high K rate is the pitcher's
-  // prop, not the hitter's — the grid shades it the same, the read flips.
-  k1: (g) => g.k,
-}
+// the lines, short words and values per lane: ONE list per sport (lib/propLanes.js, 2026-10-22). K reads inverted (the pitcher's
+// prop) -- the grid shades it the same, the read flips; walks read like every other bat lane.
+const LANE = Object.fromEntries(propLanesOf('mlb').map((l) => [l.key, l]))
+const LINES = Object.fromEntries(Object.values(LANE).map((l) => [l.key, l.lines]))
+const SHORT = Object.fromEntries(Object.values(LANE).map((l) => [l.key, l.word]))
+const VAL = Object.fromEntries(Object.values(LANE).map((l) => [l.key, l.stat]))
 
 // ⚡ THE STREAK LENS'S FIVE CELLS.
 //

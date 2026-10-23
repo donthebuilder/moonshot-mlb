@@ -23,15 +23,16 @@ import { sitUrl, parseSitRows, SIT_LABELS } from '../PlayerSplits'
 const CODES = ['vl', 'vr', 'risp', 'risp2', 'h', 'a', 'd', 'n', 'ac', 'bc', 'ec', '2s', 'fc', 'r0', 'ron', 'ron2', 'r123', 'o0', 'o1', 'o2']
 const WINDOWS = [['L7', 7], ['L15', 15], ['L30', 30]]
 
+// the situations (a menu, not table columns): id + the chip's word
 const SITS = [
-  { key: 'tonight', label: 'Tonight', games: true },
-  { key: 'hand', label: 'Hand', codes: ['vr', 'vl'] },
-  { key: 'recent', label: 'Recent', games: true },
-  { key: 'ha', label: 'Home/Away', codes: ['h', 'a'] },
-  { key: 'dn', label: 'Day/Night', codes: ['d', 'n'] },
-  { key: 'count', label: 'Count', codes: ['ac', 'ec', 'bc', '2s', 'fc'] },
-  { key: 'runners', label: 'Runners', codes: ['r0', 'ron', 'risp', 'risp2', 'ron2', 'r123'] },
-  { key: 'outs', label: 'Outs', codes: ['o0', 'o1', 'o2'] },
+  { id: 'tonight', word: 'Tonight', games: true },
+  { id: 'hand', word: 'Hand', codes: ['vr', 'vl'] },
+  { id: 'recent', word: 'Recent', games: true },
+  { id: 'ha', word: 'Home/Away', codes: ['h', 'a'] },
+  { id: 'dn', word: 'Day/Night', codes: ['d', 'n'] },
+  { id: 'count', word: 'Count', codes: ['ac', 'ec', 'bc', '2s', 'fc'] },
+  { id: 'runners', word: 'Runners', codes: ['r0', 'ron', 'risp', 'risp2', 'ron2', 'r123'] },
+  { id: 'outs', word: 'Outs', codes: ['o0', 'o1', 'o2'] },
 ]
 
 // a slash-line rate the way baseball prints it: .221, 1.012
@@ -79,7 +80,7 @@ export default function SplitsPanel({ player, accent = C.orange }) {
     return () => { alive = false }
   }, [armF, hands, pid])
 
-  const spec = SITS.find((s) => s.key === sit) || SITS[0]
+  const spec = SITS.find((s) => s.id === sit) || SITS[0]
   const filtered = useMemo(() => (log || []).filter((g) => {
     if (haF !== 'ALL' && (haF === 'home') !== (g.home === true)) return false
     if (armF !== 'ALL') { const h = hands?.[g.gamePk]; if (!h || h !== armF) return false }
@@ -105,15 +106,15 @@ export default function SplitsPanel({ player, accent = C.orange }) {
   }
 
   const rows = useMemo(() => {
-    if (spec.key === 'tonight') {
+    if (spec.id === 'tonight') {
       const hand = arm === 'L' ? ['vl', 'vr'] : ['vr', 'vl']
       return [...hand.map(codeRow), ...gameRows, codeRow('risp')].filter(Boolean)
     }
-    if (spec.key === 'recent') return gameRows
+    if (spec.id === 'recent') return gameRows
     return spec.codes.map(codeRow).filter(Boolean)
   }, [spec, live, gameRows, arm])   // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loading = spec.games ? (log === null || (spec.key === 'tonight' && live === null)) : live === null
+  const loading = spec.games ? (log === null || (spec.id === 'tonight' && live === null)) : live === null
   const waitingHands = armF !== 'ALL' && hands === null
   const chip = (on) => ({ ...flatChip(on, accent, C, NUM_FONT), padding: '2px 8px', fontSize: 9.5 })
 
@@ -129,7 +130,7 @@ export default function SplitsPanel({ player, accent = C.orange }) {
       {/* one row that scrolls sideways: the situation, then (for the game windows) the game filters, never a wall */}
       <div style={{ display: 'flex', gap: 4, flexWrap: 'nowrap', overflowX: 'auto', scrollbarWidth: 'none', marginBottom: 6, paddingBottom: 1 }}>
         {SITS.map((s) => (
-          <button key={s.key} type="button" className={FLAT_CHIP_CLASS} aria-pressed={sit === s.key} onClick={() => setSit(s.key)} style={{ ...chip(sit === s.key), flex: '0 0 auto', whiteSpace: 'nowrap' }}>{s.label}</button>
+          <button key={s.id} type="button" className={FLAT_CHIP_CLASS} aria-pressed={sit === s.id} onClick={() => setSit(s.id)} style={{ ...chip(sit === s.id), flex: '0 0 auto', whiteSpace: 'nowrap' }}>{s.word}</button>
         ))}
       </div>
       {spec.games && (
