@@ -1846,7 +1846,7 @@ async function mlbTick(request) {
           await db.from('homer_feed_posts').update({ payload: patch.payload }).match({ day, kind })
           // MLB KEEPS ITS FREE POST PER GAME (Donovan, 2026-10-09: "keep MLB exactly how it is"): every game still goes to the free
           // feed channels as before; #members gets every game too (additive).
-          const d = await postToDiscord(discordText, {}, FEED_WEBHOOKS())
+          const d = await postToDiscord(discordText, { kind, sportKey: 'mlb' }, FEED_WEBHOOKS())
           if (d.ok) patch.discord_sent = true
           patch.payload = { ...patch.payload, kickoff: call.time, text_full: discordText, free: true, free_sent: Boolean(d?.ok), members_sent: await sendMembers(discordText, { sport: 'mlb', kind }), members_tries: 1 }
           if (hasX() && await xOk(db, { day, kind, ids: callNamed, repeat: false })) {

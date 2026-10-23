@@ -582,6 +582,7 @@ await ok('xfail: settleAlert -- success keeps the id; account/content close; tra
 await ok('xfail: postOnce -- a channel hiccup with nothing else sent releases the claim (a few tries); one that X carried does not', async () => {
   F._resetXFail(); PC._resetTakenForTests(); reset()
   process.env.DISCORD_HOMER_WEBHOOK = 'https://discord.com/api/webhooks/123456/TESTTOKEN'
+  process.env.DISCORD_NHL_WEBHOOKS = process.env.DISCORD_HOMER_WEBHOOK      // the routing table sends list_nhl to #lamp-nhl (lib/dash/routing.js)
   const day = '2026-10-12'
   const build = async () => ({ text: 'Test post for the claim release', payload: {} })
   try {

@@ -1,75 +1,83 @@
 #!/usr/bin/env node
-// Writes .claude-notes/routing-table.html: one self-contained phone-friendly page showing where every kind of post goes.
-//   node --no-warnings --import ./scripts/_esm-resolve.mjs scripts/build-routing-preview.mjs
-// Reads lib/dash/routing.js + lib/dash/routingUnrouted.js + xSchedule KIND_TAGS. No send counts (not known here), no external libs. Nothing is sent.
+// THE DISCORD MAP: where every post goes, in plain words, built from the one table (lib/dash/routing.js). Nothing is sent or read.
+//   node --no-warnings --import ./scripts/_esm-resolve.mjs scripts/build-routing-preview.mjs [--out <file>]
+// Default out: .claude-notes/routing-table.html. Grouped by channel; posts that share one rule share one row (the product chips say which).
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const { ROUTES, PREFIX_ROUTES } = await import('../lib/dash/routing.js')
-const { UNROUTED } = await import('../lib/dash/routingUnrouted.js')
-const { KIND_TAGS } = await import('../lib/dash/xSchedule.js')
+const args = process.argv.slice(2)
+const outArg = args.includes('--out') ? args[args.indexOf('--out') + 1] : null
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
-const WHO = { everyone: 'everyone', members: 'members only', me: 'Donovan only' }
-const ROOM_TITLE = {
-  feed: ['The public feed', 'DISCORD_HOMER_WEBHOOK, the other server'],
-  sport: ['Sport channels', '#moonshot-mlb, #tuddy-nfl, #lamp-nhl, BUCKETS its own'],
-  receipts: ['#called-it', 'DISCORD_RECEIPTS_WEBHOOK'],
-  members: ['#members', 'DISCORD_MEMBERS_WEBHOOK, private'],
-  donovan: ["Donovan's server", 'DISCORD_DONOVAN_WEBHOOK, nothing is sent when unset'],
-  off: ['CUT', 'no Discord delivery; the row is still recorded so grading and receipts keep working'],
-  old: ['Old rule (kept on purpose)', "the poster's own room rule, unchanged; each has a reason"],
-}
-const groups = { feed: [], sport: [], receipts: [], members: [], donovan: [], off: [], old: [] }
-const sportOf = (k) => KIND_TAGS[k]?.sport && KIND_TAGS[k].sport !== 'all' ? KIND_TAGS[k].sport.toUpperCase() : ''
-const place = (kind, r, family = false) => {
-  const row = { kind: family ? `${kind}*` : kind, who: WHO[r.who] || r.who, how: r.how || '', sport: sportOf(kind) }
-  for (const room of r.rooms) groups[room]?.push(row)
-}
-for (const [k, r] of Object.entries(ROUTES)) place(k, r)
-for (const [p, r] of PREFIX_ROUTES) place(p, r, true)
-for (const [k, v] of Object.entries(UNROUTED)) groups.old.push({ kind: k, who: WHO[v.who] || v.who, how: v.why, sport: sportOf(k) })
-
-const sections = Object.keys(groups).map((room) => {
-  const rows = groups[room].sort((a, b) => a.kind.localeCompare(b.kind))
-  const [title, sub] = ROOM_TITLE[room]
-  const body = rows.map((r) => `<tr><td class="k">${esc(r.kind)}${r.sport ? ` <span class="sp">${esc(r.sport)}</span>` : ''}</td><td class="w">${esc(r.who)}</td><td class="h">${esc(r.how)}</td></tr>`).join('')
-  return `<section class="${room === 'off' ? 'cut' : ''}"><h2>${esc(title)} <span class="n">${rows.length}</span></h2><p class="sub">${esc(sub)}</p>${rows.length ? `<div class="scroll"><table><thead><tr><th>Kind</th><th>Who sees it</th><th>How</th></tr></thead><tbody>${body}</tbody></table></div>` : '<p class="none">Nothing routed here yet.</p>'}</section>`
-}).join('\n')
-
-const SWITCHES = [
-  ['RECAP_POSTS_ON', 'Off by default. On: one night-recap post per sport per night in #called-it (who was called and cleared, misses listed). Discord only, never X.'],
-  ['MEMBERS_FOLDS_ON', 'Off by default. On: #members gets one daily briefing plus one write-up roundup per sport and night instead of a post per game; the per-game rows are still written.'],
-  ['SPORT_PLANS_ON', "Off by default. On: each sport room gets one 'Tonight's plays' post a day (the free lead pick plus a site link); card, list, slate and board posts are still recorded but not delivered to Discord. X is untouched."],
-  ['PUSH_FOLDS_ON', 'Off by default. On: phone pushes are folded (for example a scratch push goes only for a CALLED pick). Off: pushes are exactly as before.'],
-  ['PEN_DOOR_FOLD_ON', "Named in the brief but not found in this branch's code, so it does nothing here yet."],
-  ['DISCORD_EVENTS', "Unset means 'called': live goal/touchdown/homer events post only for called picks. Set to 'all' to bring back the every-event feed."],
-  ['DISCORD_DONOVAN_WEBHOOK', "The 'donovan' room: Donovan's own server. Unset means nothing is sent there."],
-  ['DISCORD_OPS_WEBHOOK', "Donovan's ops channel: gets one plain message when X starts refusing posts (credits, key or limit). Unset means log only."],
+const CHANNELS = [
+  ['members', '#members', 'Paying members. Today\'s picks, more picks, wins, the morning grade, the roundups.'],
+  ['sport', 'The product channels', '#moonshot-mlb · #tuddy-nfl · #lamp-nhl · #buckets. Free. The lead pick, the live CALLED moments, the results.'],
+  ['network', '#dash-network', 'Free. The posts that cover every product. Until its webhook is set, these post in #moonshot-mlb.'],
+  ['receipts', '#called-it', 'Free. The receipts: hits and misses, out loud.'],
+  ['x', 'X only', 'Never on Discord, by design.'],
+  ['off', 'Not sent', 'Cut or phone-only. The record is still kept.'],
 ]
-const sw = SWITCHES.map(([n, d]) => `<tr><td class="k">${esc(n)}</td><td class="h">${esc(d)}</td></tr>`).join('')
+const PRODUCT = { mlb: 'MOONSHOT', nfl: 'TUDDY', nhl: 'LAMP', nba: 'BUCKETS' }
+const OWN = { td: 'nfl', sunday_sheet: 'nfl', alert_nflboardred: 'nfl', nhlgoal: 'nhl', nhlhardest: 'nhl', nba30: 'nba', homer: 'mlb', multi_club: 'mlb' }
+const productOf = (k) => OWN[k] || (/(^|_)nfl(_|$)/.test(k) ? 'nfl' : /(^|_)nhl(_|$)/.test(k) ? 'nhl' : /(^|_)nba(_|$)/.test(k) ? 'nba' : 'mlb')
+// the time of night a post belongs to, read from its own words
+const PHASE = (when) => {
+  if (/^Live/.test(when)) return 'During the games'
+  if (/^(Folded|Stored|Cut|Retired|Phone|A reply|LONGSHOT|Paused)/.test(when)) return 'Not sent right now'
+  if (/2\+ Club|weekday post|stat post|long shots by price|^Sunday: the network|^Friday|^Wednesday|^Monday morning|^The 1st|poll question|^Sunday morning/.test(when)) return 'Through the week'
+  if (/graded|result|answer|^After|morning after|^Next morning|^As picks grade/.test(when)) return 'After the games'
+  return 'Before the games'
+}
 
-const total = Object.values(groups).reduce((a, g) => a + g.length, 0)
-const html = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Routing table</title>
+// group rows by their rule object (posts that share one rule share one row)
+const rows = new Map()
+const add = (name, r) => { const key = r; if (!rows.has(key)) rows.set(key, { r, kinds: [] }); rows.get(key).kinds.push(name) }
+for (const [k, r] of Object.entries(ROUTES)) add(k, r)
+for (const [p, r] of PREFIX_ROUTES) if (!rows.has(r)) add(`${p}…`, r)
+
+const sectionOf = ([room, title, sub]) => {
+  const mine = [...rows.values()].filter(({ r }) => (room === 'members' ? r.rooms.includes('members') && !r.rooms.includes('sport') : room === 'sport' ? r.rooms.includes('sport') : room === 'receipts' ? r.rooms.includes('receipts') : r.rooms[0] === room))
+  if (!mine.length) return ''
+  const byPhase = {}
+  for (const m of mine) (byPhase[room === 'sport' || room === 'members' || room === 'network' ? PHASE(m.r.when) : ''] ||= []).push(m)
+  const order = ['Before the games', 'During the games', 'After the games', 'Through the week', 'Not sent right now', '']
+  const body = order.filter((p) => byPhase[p]).map((p) => `${p ? `<h3>${esc(p)}</h3>` : ''}<ul>${byPhase[p].map(({ r, kinds }) => {
+    const prods = room === 'sport' ? [...new Set(kinds.map(productOf))] : []
+    const also = r.rooms.length > 1 ? r.rooms.filter((x) => x !== room && !(room === 'sport' && x === 'members')).map((x) => ({ network: '#dash-network', receipts: '#called-it', members: '#members' }[x])).filter(Boolean) : []
+    const members = room === 'sport' && r.rooms.includes('members')
+    return `<li><div class="w">${esc(r.when)}</div><div class="m">${prods.map((p) => `<span class="chip ${p}">${PRODUCT[p]}</span>`).join('')}${members ? '<span class="chip">+ #members</span>' : ''}${also.map((a) => `<span class="chip">+ ${esc(a)}</span>`).join('')}<code>${esc(kinds.slice(0, 4).join(' · '))}${kinds.length > 4 ? ` +${kinds.length - 4}` : ''}</code></div></li>`
+  }).join('')}</ul>`).join('')
+  return `<section class="${room}"><h2>${esc(title)}</h2><p class="sub">${esc(sub)}</p>${body}</section>`
+}
+
+const total = Object.keys(ROUTES).length + PREFIX_ROUTES.length
+const html = `<title>Discord Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
 <style>
-:root{--bg:#0b0d12;--panel:#12151c;--line:#232834;--text:#e8eaf0;--mute:#9aa3b5;--accent:#7cc4ff;--cut:#ff9a8a}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:16px;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
-h1{font-size:20px;margin:0 0 4px}h2{font-size:16px;margin:0}.n{color:var(--mute);font-weight:400;font-size:13px}
-.lead,.sub{color:var(--mute);margin:2px 0 8px}section{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;margin:12px 0}
-section.cut h2{color:var(--cut)}.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
-table{border-collapse:collapse;width:100%;min-width:520px}th{font-size:12px;text-align:left;color:var(--mute);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
-td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}td.k{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:var(--accent);white-space:nowrap}
-td.w{white-space:nowrap}td.h{color:var(--mute)}.sp{font-size:11px;color:var(--mute);font-family:system-ui}.none{color:var(--mute)}
-</style></head><body>
-<h1>Routing table</h1>
-<p class="lead">Where each kind of post goes. ${total} entries, built from lib/dash/routing.js, lib/dash/routingUnrouted.js and xSchedule KIND_TAGS. A name ending in * stands for a family (name plus an id). Send counts are not shown.</p>
-${sections}
-<section><h2>Switches <span class="n">${SWITCHES.length}</span></h2><p class="sub">Environment settings that change what is delivered.</p><div class="scroll"><table><thead><tr><th>Setting</th><th>What it does</th></tr></thead><tbody>${sw}</tbody></table></div></section>
-</body></html>
+/* one column; a section per channel; inside it the posts by phase of the night */
+:root{--bg:#f4f5f8;--card:#fff;--ink:#1c1e24;--mute:#5b6070;--line:#dcdfe6;--accent:#5865f2;--mlb:#c2410c;--nfl:#15803d;--nhl:#1d4ed8;--nba:#b45309}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1e1f22;--card:#2b2d31;--ink:#e7e8ec;--mute:#a7abb6;--line:#41444c;--accent:#8c96ff;--mlb:#fb923c;--nfl:#4ade80;--nhl:#93c5fd;--nba:#fbbf24;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#1e1f22;--card:#2b2d31;--ink:#e7e8ec;--mute:#a7abb6;--line:#41444c;--accent:#8c96ff;--mlb:#fb923c;--nfl:#4ade80;--nhl:#93c5fd;--nba:#fbbf24;color-scheme:dark}
+*{box-sizing:border-box}body{background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:760px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-size:24px;margin:0 0 6px;text-wrap:balance}.lead{color:var(--mute);margin:0 0 16px}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin:0 0 14px}
+section.x,section.off{opacity:.8}h2{font-size:17px;margin:0 0 2px}h3{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin:14px 0 6px}
+.sub{color:var(--mute);margin:0 0 4px;font-size:14px}ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+li{border-top:1px solid var(--line);padding-top:8px}.w{font-weight:600}.m{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;margin-top:3px;min-width:0}
+.chip{font:600 11px/1 system-ui;padding:4px 8px;border-radius:999px;border:1px solid var(--line);color:var(--mute)}
+.chip.mlb{color:var(--mlb);border-color:var(--mlb)}.chip.nfl{color:var(--nfl);border-color:var(--nfl)}.chip.nhl{color:var(--nhl);border-color:var(--nhl)}.chip.nba{color:var(--nba);border-color:var(--nba)}
+code{font:12px ui-monospace,Menlo,monospace;color:var(--mute);overflow-wrap:anywhere}
+</style>
+<main>
+<h1>Where every Discord post goes</h1>
+<p class="lead">One table in the code (lib/dash/routing.js) decides every channel. This page is built from it. ${total} post types, every one listed. Gray names are the code's names.</p>
+${CHANNELS.map(sectionOf).join('\n')}
+</main>
 `
-const out = join(root, '.claude-notes', 'routing-table.html')
+const out = outArg || join(root, '.claude-notes', 'routing-table.html')
 mkdirSync(dirname(out), { recursive: true })
 writeFileSync(out, html)
-console.log(`wrote ${out} (${html.length} bytes, ${total} entries)`)
+console.log(`wrote ${out} (${html.length} bytes, ${total} post types)`)
