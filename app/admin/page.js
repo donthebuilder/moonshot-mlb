@@ -244,6 +244,7 @@ export default async function AdminPage() {
         {/* DISCORD CHANNELS (2026-10-02): one line per channel, wired / not wired,
             never the URL. Which var feeds which channel: lib/dash/discordChannels.js. */}
         <h2 className={start.kicker} style={{ marginTop: 18 }}>Discord channels</h2>
+        <p style={{ margin: '4px 0 0' }}><a className="tap-link" href="/admin/discord">Check every channel with Discord, or send a test →</a></p>
         <Line k="#moonshot-mlb" v={process.env.DISCORD_MLB_WEBHOOKS ? 'wired' : 'not wired'} src="DISCORD_MLB_WEBHOOKS -- MLB board, last call, scratch, board-hit homers, MLB feed posts" />
         <Line k="#tuddy-nfl" v={process.env.DISCORD_NFL_WEBHOOKS ? 'wired' : (process.env.DISCORD_MLB_WEBHOOKS ? 'not wired (football posts fall back to #moonshot-mlb)' : 'not wired')} src="DISCORD_NFL_WEBHOOKS -- kickoff, red zone, CALLED / ON THE BOARD touchdowns" />
         <Line k="#lamp-nhl" v={process.env.DISCORD_NHL_WEBHOOKS ? 'wired' : (process.env.DISCORD_MLB_WEBHOOKS ? 'not wired (hockey posts fall back to #moonshot-mlb)' : 'not wired')} src="DISCORD_NHL_WEBHOOKS -- CALLED goals" />

@@ -18,6 +18,7 @@ const CHANNELS = [
   ['receipts', '#called-it', 'Free. The receipts: hits and misses, out loud.'],
   ['x', 'X only', 'Never on Discord, by design.'],
   ['off', 'Not sent', 'Cut or phone-only. The record is still kept.'],
+  ['chosen', 'Admin', 'Only when you press a button on /admin/discord.'],
 ]
 const PRODUCT = { mlb: 'MOONSHOT', nfl: 'TUDDY', nhl: 'LAMP', nba: 'BUCKETS' }
 const OWN = { td: 'nfl', sunday_sheet: 'nfl', alert_nflboardred: 'nfl', nhlgoal: 'nhl', nhlhardest: 'nhl', nba30: 'nba', homer: 'mlb', multi_club: 'mlb' }
