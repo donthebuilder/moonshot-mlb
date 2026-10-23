@@ -20,9 +20,10 @@ import { radialTex } from '../../lib/arenaTex'
 import { C, NUM_FONT } from '../../lib/theme'
 import { gameFrom } from '../../lib/gameSim'
 import { preplayMlb, placeBalls, playWords, beatsOf, PACE } from '../../lib/preplay/mlb'
-const { PITCH_MS, HOLD_MS, INTRO_MS } = PACE
+const { PITCH_MS, HOLD_MS, INTRO_MS, HALF_MS, THROW_MS } = PACE
 import { buildTrackingPark, parkPoint, BASES, MOUND } from '../../lib/ballparkWorld'
-import { PARK_WALLS } from '../../lib/parkWalls'
+import { PARK_WALLS, PARK_POSTED } from '../../lib/parkWalls'
+import { SPORT_ACCENT } from '../../lib/sportAccent'
 import { solveFlight } from '../../lib/trajectory'
 import { makeComposer, isCoarse } from '../../lib/stadiumLook'
 import { webglOk } from '../../lib/webglOk'
@@ -153,8 +154,10 @@ function Stage({ game, pp, log, dims, heights, rec, round, when }) {
     // our own field: a dark turf with a hint of green and a dark dirt with a hint of warmth (the rink's dark ice, on grass)
     const turf = new THREE.Color(C.bg3).lerp(new THREE.Color(C.green), 0.055).multiplyScalar(1.12)
     const dirt = new THREE.Color(C.bg3).lerp(new THREE.Color(C.orange), 0.1).multiplyScalar(1.35)
-    buildTrackingPark(scene, { dims, heights, turf, dirt, line: C.text, pole: C.yellow, floor, mark: '/icon-512.png', accent: C.orange,
-      ribbon: `DASH NETWORK  ·  MOONSHOT  ·  PREPLAY  ·  ${game.away.team} @ ${game.home.team}` })
+    // the panels along the wall: our products, each in its own accent (the network's own park)
+    const panels = [['MOONSHOT', SPORT_ACCENT.mlb], ['CALLED IT', C.text], ['LAMP', SPORT_ACCENT.nhl], ['TUDDY', SPORT_ACCENT.nfl], ['BUCKETS', SPORT_ACCENT.nba], ['DASH NETWORK', C.text]].map(([text, color]) => ({ text, color }))
+    const world = buildTrackingPark(scene, { dims, heights, turf, dirt, line: C.text, pole: C.yellow, floor, mark: '/icon-512.png', accent: C.orange,
+      ribbon: `DASH NETWORK  ·  MOONSHOT  ·  PREPLAY  ·  ${game.away.team} @ ${game.home.team}`, posted: PARK_POSTED[game.venue] || null, panels })
     const camera = new THREE.PerspectiveCamera(32, W / H, 2, 5000)
     const renderer = new THREE.WebGLRenderer({ antialias: true })
     renderer.setSize(W, H); renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1))
@@ -197,6 +200,94 @@ function Stage({ game, pp, log, dims, heights, rec, round, when }) {
       return BASES[(b0 + k) % 4].clone().lerp(BASES[(b0 + k + 1) % 4], x - k)
     }
     const resultInk = (kind) => (kind === 'HR' ? C.orange : kind === 'T' || kind === 'D' ? C.amber : kind === 'S' ? C.text : C.text3)
+    // THE DEFENCE: the eight behind the pitcher at their normal spots, each chip wearing his position (the board names no
+    // fielders, so none is named). On a ball in play the one nearest where it ends runs it down; a ground-ball out is
+    // thrown to first (to second, then first, on a double play), and the first baseman takes the bag.
+    const SPOTS = { C: new THREE.Vector3(0, 0, -12), '1B': parkPoint(108, 37), '2B': parkPoint(148, 15), SS: parkPoint(148, -15), '3B': parkPoint(110, -36), LF: parkPoint(295, -27), CF: parkPoint(318, 0), RF: parkPoint(295, 27) }
+    const fielderChip = (side, pos) => { const sp = chipSprite(INK[other(side)], pos, game[other(side)].team); sp.scale.set(CHIP * 0.8, CHIP * 0.8, 1); return sp }
+    // the dugouts: the home club on the third-base side (see PREPLAY-WS-G1 found list: not verified for every park)
+    const dugoutOf = (club) => (club === 'home' ? world.DUGOUT.third : world.DUGOUT.first)
+    const ondeckOf = (club) => (club === 'home' ? world.ONDECK.third : world.ONDECK.first)
+    const chaserOf = (e) => {
+      const land = pathOf(e).at(-1)
+      if (Math.hypot(land.x, land.z) < 40) return 'C'
+      let best = null, bd = Infinity
+      for (const [pos, at] of Object.entries(SPOTS)) { if (pos === 'C') continue; const d = Math.hypot(at.x - land.x, at.z - land.z); if (d < bd) { bd = d; best = pos } }
+      return best
+    }
+    const throwBall = new THREE.Mesh(new THREE.SphereGeometry(1.6, 12, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(C.text) }))
+    throwBall.visible = false; throwBall.renderOrder = 6; scene.add(throwBall)
+    const arcAt = (a, b, f, h = 8) => a.clone().lerp(b, f).setY(4 + Math.sin(f * Math.PI) * h)
+    // THE CROWD ON A HOMER: camera flashes in the seats where it lands (white points that blink and fade)
+    const FLASH = 80
+    const flashPos = new Float32Array(FLASH * 3), flashCol = new Float32Array(FLASH * 3)
+    const flashGeo = new THREE.BufferGeometry(); flashGeo.setAttribute('position', new THREE.BufferAttribute(flashPos, 3)); flashGeo.setAttribute('color', new THREE.BufferAttribute(flashCol, 3))
+    const flashes = new THREE.Points(flashGeo, new THREE.PointsMaterial({ size: 3.2, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }))
+    flashes.visible = false; flashes.renderOrder = 7; scene.add(flashes)
+    let flashSeed = []
+    const seedFlashes = (ang, key) => {
+      let h = 2166136261 >>> 0
+      const rnd = () => { h ^= key; h = Math.imul(h, 16777619) >>> 0; h ^= h >>> 13; return (h % 10000) / 10000 }
+      flashSeed = []
+      for (let k = 0; k < FLASH; k += 1) {
+        const p = world.seatPoint(ang + (rnd() - 0.5) * 16, 2 + rnd() * 58)
+        flashPos[k * 3] = p.x; flashPos[k * 3 + 1] = p.y; flashPos[k * 3 + 2] = p.z
+        flashSeed.push({ ph: rnd() * 6.28, sp: 0.012 + rnd() * 0.02 })
+      }
+      flashGeo.attributes.position.needsUpdate = true
+    }
+    const stepFlashes = (age) => {
+      for (let k = 0; k < FLASH; k += 1) { const s0 = flashSeed[k]; const w = Math.max(0, Math.sin(s0.ph + age * s0.sp)) ** 6 * Math.max(0, 1 - age / 2600); flashCol[k * 3] = w; flashCol[k * 3 + 1] = w; flashCol[k * 3 + 2] = w }
+      flashGeo.attributes.color.needsUpdate = true
+    }
+    // THE SCOREBOARD: the line score, painted on the board over centre field after every play
+    const board = world.scoreboard
+    const paintBoard = (snap, headline = null, final = false) => {
+      if (!board) return
+      const g = board.canvas.getContext('2d'), W2 = board.canvas.width, H2 = board.canvas.height
+      g.fillStyle = C.bg; g.fillRect(0, 0, W2, H2)
+      g.strokeStyle = C.border2; g.lineWidth = 6; g.strokeRect(3, 3, W2 - 6, H2 - 6)
+      g.textBaseline = 'middle'
+      g.font = `900 34px ${NUM_FONT}`; g.textAlign = 'left'; g.fillStyle = C.orange; g.fillText('DASH NETWORK · PREPLAY', 28, 46)
+      g.textAlign = 'right'; g.fillStyle = C.text2; g.fillText(final ? 'FINAL · SIMULATION' : 'SIMULATION', W2 - 28, 46)
+      if (headline) {
+        g.textAlign = 'center'; g.fillStyle = C.orange; g.font = `900 112px ${NUM_FONT}`; g.fillText(headline[0], W2 / 2, 170)
+        g.fillStyle = C.text; g.font = `900 56px ${NUM_FONT}`; g.fillText(headline[1], W2 / 2, 272)
+      } else {
+        const inns = Math.max(9, snap.away.length, snap.home.length)
+        const x0 = 150, cw = (W2 - x0 - 190) / inns
+        g.font = `700 30px ${NUM_FONT}`; g.fillStyle = C.text3; g.textAlign = 'center'
+        for (let k = 0; k < inns; k += 1) g.fillText(String(k + 1), x0 + cw * (k + 0.5), 110)
+        g.fillText('R', W2 - 150, 110); g.fillText('H', W2 - 70, 110)
+        ;[['away', 190], ['home', 285]].forEach(([club, y]) => {
+          g.textAlign = 'left'; g.font = `900 52px ${NUM_FONT}`; g.fillStyle = INK[club]; g.fillText(game[club].team, 28, y)
+          g.textAlign = 'center'; g.font = `800 46px ${NUM_FONT}`
+          for (let k = 0; k < inns; k += 1) { const v = snap[club][k]; g.fillStyle = v ? C.text : C.text3; g.fillText(v == null ? '' : String(v), x0 + cw * (k + 0.5), y) }
+          g.fillStyle = C.text; g.font = `900 52px ${NUM_FONT}`; g.fillText(String(snap.R[club]), W2 - 150, y)
+          g.fillStyle = C.text2; g.font = `800 46px ${NUM_FONT}`; g.fillText(String(snap.H[club]), W2 - 70, y)
+        })
+      }
+      board.texture.needsUpdate = true
+    }
+    // the line score after each beat (and before the first)
+    const snaps = (() => {
+      const out = [], cur = { away: [], home: [], R: { away: 0, home: 0 }, H: { away: 0, home: 0 } }
+      const copy = () => ({ away: [...cur.away], home: [...cur.home], R: { ...cur.R }, H: { ...cur.H } })
+      for (const bt of beats) {
+        if (bt.type === 'half') cur[bt.half.side][bt.half.inning - 1] = 0
+        if (bt.type === 'play') {
+          const club = bt.half.side, k = bt.half.inning - 1, n = bt.e.scored?.length || 0
+          cur[club][k] = (cur[club][k] || 0) + n; cur.R[club] += n
+          if (['HR', 'T', 'D', 'S'].includes(bt.e.kind)) cur.H[club] += 1
+        }
+        out.push(copy())
+      }
+      return out
+    })()
+    const blankSnap = { away: [], home: [], R: { away: 0, home: 0 }, H: { away: 0, home: 0 } }
+    paintBoard(blankSnap)
+    // who is up next in a half: the on-deck hitter for the beat (the next plate appearance's man, plus one)
+    const batterAt = (k) => { for (let j = k; j < beats.length && beats[j].half === beats[k].half; j += 1) if (beats[j].type === 'play' && !['SB', 'CS', 'WP', 'ghost'].includes(beats[j].e.kind)) return beats[j].e.bi; return null }
     const ringMesh = (r0, r1, color, opacity) => {
       const m = new THREE.Mesh(new THREE.RingGeometry(r0, r1, 40), new THREE.MeshBasicMaterial({ color: new THREE.Color(color), transparent: true, opacity, side: THREE.DoubleSide, depthWrite: false }))
       m.rotation.x = -Math.PI / 2; return m
@@ -252,12 +343,25 @@ function Stage({ game, pp, log, dims, heights, rec, round, when }) {
         beatAt = i
         clearFx()
         setUi({ i, hr: false, landed: false })
+        flashes.visible = false; throwBall.visible = false
+        if (b.type === 'final') paintBoard(snaps[i], null, true)
+        else paintBoard(i > 0 ? snaps[i - 1] : blankSnap)
       }
       clearChips()
       if (b.type === 'final' || !b.half) return
       const side = b.half.side, lineup = game[side].lineup
-      chips.add(pitcherChip(side))
-      if (b.type === 'half') return
+      const defence = other(side)
+      // the defence: in their spots; at the top of a half they jog out of their dugout
+      const jog = b.type === 'half' ? ease(clamp((t - b.t0) / HALF_MS, 0, 1)) : 1
+      const from = dugoutOf(defence)
+      const placed = {}
+      for (const [pos, at] of Object.entries(SPOTS)) placed[pos] = from.clone().lerp(at, jog)
+      const pc = pitcherChip(side); pc.position.copy(from.clone().lerp(MOUND, jog)).setY(CHIP * 0.55); chips.add(pc)
+      // the on-deck hitter, in the batting club's circle
+      const upNow = batterAt(i)
+      if (upNow != null) { const nx = (upNow + (b.type === 'half' ? 0 : 1)) % lineup.length; const od = batterChip(side, nx); od.scale.multiplyScalar(0.8); od.position.copy(ondeckOf(side)).setY(CHIP * 0.45); chips.add(od) }
+      const addFielders = () => { for (const [pos, at] of Object.entries(placed)) { const sp = fielderChip(side, pos); sp.position.copy(at).setY(CHIP * 0.5); chips.add(sp) } }
+      if (b.type === 'half') { addFielders(); return }
       const e = b.e
       const runners = []
       ;(e.before || []).forEach((who, base) => { if (who != null) runners.push({ who, from: base + 1 }) })
@@ -273,7 +377,38 @@ function Stage({ game, pp, log, dims, heights, rec, round, when }) {
       const runSpan = e.kind === 'HR' ? flyMs + 1500 : e.ball ? flyMs + HOLD_MS * 0.7 : e.kind === 'K' ? 1 : 420
       const ru = ease(clamp(playMs / runSpan, 0, 1))
       // the play has happened (the ball is down, the runners have moved): the score bug, the outs and the bases change now
-      if (!fx.userData.done && (e.ball ? playMs >= flyMs : playMs >= Math.min(runSpan, 420))) { fx.userData.done = true; setUi({ i, hr: e.kind === 'HR', landed: true }) }
+      if (!fx.userData.done && (e.ball ? playMs >= flyMs : playMs >= Math.min(runSpan, 420))) {
+        fx.userData.done = true; setUi({ i, hr: e.kind === 'HR', landed: true })
+        const name = lastName(lineup[e.bi]?.name || '').toUpperCase()
+        if (e.kind === 'HR') paintBoard(snaps[i], ['HOME RUN', name])
+        else if (b.walkoff) paintBoard(snaps[i], ['WALK-OFF', `${game[side].team} WINS`])
+        else paintBoard(snaps[i])
+      }
+      // the fielding: the man nearest where the ball ends runs it down; a grounder out goes to first
+      throwBall.visible = false
+      if (e.ball && e.kind !== 'HR' && playMs > 0) {
+        const pos = chaserOf(e), land = pathOf(e).at(-1).clone().setY(0)
+        const hit = e.kind !== 'OUT'
+        placed[pos] = SPOTS[pos].clone().lerp(land, ease(clamp(playMs / (flyMs + (hit ? 300 : 0)), 0, 1)))
+        const gb = e.kind === 'OUT' && (e.how === 'gb' || e.how === 'dp')
+        if (gb && pos !== '1B') placed['1B'] = SPOTS['1B'].clone().lerp(BASES[1], ease(clamp(playMs / flyMs, 0, 1)))
+        if (gb && playMs > flyMs) {
+          const tu = (playMs - flyMs) / THROW_MS
+          if (e.how === 'dp' && tu < 1) { throwBall.visible = true; throwBall.position.copy(arcAt(land, BASES[2], tu, 5)) }
+          else if (tu < (e.how === 'dp' ? 2 : 1)) { throwBall.visible = true; throwBall.position.copy(arcAt(e.how === 'dp' ? BASES[2] : land, BASES[1], e.how === 'dp' ? tu - 1 : tu, 6)) }
+        }
+      }
+      addFielders()
+      // THE WALK-OFF: the dugout empties and the whole club meets at the plate
+      if (b.walkoff && playMs > runSpan) {
+        const mu = ease(clamp((playMs - runSpan) / 1100, 0, 1)), d0 = dugoutOf(side)
+        lineup.forEach((row, k) => {
+          const sp = batterChip(side, k), ang = (k / lineup.length) * Math.PI * 2
+          const to = new THREE.Vector3(Math.cos(ang) * (5 + (k % 3) * 2.5), 0, Math.sin(ang) * (5 + (k % 3) * 2.5) + 2)
+          const p = d0.clone().add(new THREE.Vector3((k % 3 - 1) * 8, 0, (Math.floor(k / 3) - 1) * 6)).lerp(to, mu)
+          sp.position.set(p.x, CHIP * 0.55 + (mu >= 1 ? Math.abs(Math.sin(playMs / 110 + k)) * 6 : 0), p.z); chips.add(sp)
+        })
+      }
       for (const r of runners) {
         const to = dest(r.who)
         const sp = batterChip(side, r.who)
@@ -302,9 +437,10 @@ function Stage({ game, pp, log, dims, heights, rec, round, when }) {
           fx.userData.landed = true
           const land = pts.at(-1)
           const p = ringMesh(3, 4.4, resultInk(e.kind), 0.9); p.position.set(land.x, Math.max(0.4, land.y), land.z); p.userData.born = t; fx.add(p)
-          if (e.kind === 'HR') { const q = ringMesh(4, 6, C.orange, 1); q.position.copy(p.position); q.userData.born = t; q.userData.big = true; fx.add(q) }
+          if (e.kind === 'HR') { const q = ringMesh(4, 6, C.orange, 1); q.position.copy(p.position); q.userData.born = t; q.userData.big = true; fx.add(q); seedFlashes(e.ball.ang, i + 1); fx.userData.flashAt = t; flashes.visible = true }
         }
         for (const o of fx.children) if (o.userData.born != null) { const age = (t - o.userData.born) / (o.userData.big ? 1600 : 700); o.scale.setScalar(1 + age * (o.userData.big ? 9 : 3)); o.material.opacity = Math.max(0, 1 - age) }
+        if (fx.userData.flashAt != null) stepFlashes(t - fx.userData.flashAt)
       }
       // a strikeout or a walk: a pulse at the plate
       if ((e.kind === 'K' || e.kind === 'BB' || e.kind === 'HBP') && playMs > 0 && !fx.userData.pulsed) { fx.userData.pulsed = true; const p = ringMesh(4, 5.2, e.kind === 'K' ? INK[other(side)] : INK[side], 0.9); p.position.set(0, 0.4, 0); p.userData.born = t; fx.add(p) }
@@ -317,7 +453,8 @@ function Stage({ game, pp, log, dims, heights, rec, round, when }) {
 
     // THE OPEN: a fly-in from high over centre field, round the bowl, down to the broadcast angle; the title, then the numbers
     let introAt = null, introDone = false, introPhase = null
-    const path = new THREE.CatmullRomCurve3([[0, 420, 980], [520, 300, 520], [420, 260, -120], [0, 300, -250]].map((v) => new THREE.Vector3(...v)))
+    // high and wide of the bowl the whole way (a camera that skims the ribbon board smears it across the frame)
+    const path = new THREE.CatmullRomCurve3([[0, 520, 1100], [700, 460, 620], [600, 380, -200], [0, 318, -300]].map((v) => new THREE.Vector3(...v)))
     const endIntro = () => { introAt = null; introDone = true; controls.enabled = true; frame(); setIntro(null); playingNow = true; last = nowMs() }
     const stepIntro = (t) => {
       if (introAt == null) return
@@ -325,7 +462,7 @@ function Stage({ game, pp, log, dims, heights, rec, round, when }) {
       const p = path.getPoint(Math.min(1, e / 0.85))
       if (e >= 0.85) p.lerp(broadcast(), (e - 0.85) / 0.15)
       camera.position.copy(p); camera.lookAt(TARGET)
-      const ph = u < 0.5 ? 'title' : 'data'
+      const ph = u < 0.56 ? 'title' : 'data'
       if (ph !== introPhase) { introPhase = ph; setIntro(ph) }
       if (u >= 1) endIntro()
     }
@@ -379,7 +516,7 @@ function Stage({ game, pp, log, dims, heights, rec, round, when }) {
     if (rec) tick()
     return () => {
       cancelAnimationFrame(raf); io.disconnect(); document.removeEventListener('visibilitychange', onVis); if (ro) ro.disconnect()
-      clearAll(); clearChips(); clearMarks(); trailMat.dispose(); glowTex.dispose()
+      clearAll(); clearChips(); clearMarks(); trailMat.dispose(); glowTex.dispose(); flashGeo.dispose(); throwBall.geometry.dispose()
       controls.dispose(); look.dispose?.(); renderer.dispose(); if (renderer.domElement.parentNode === el) el.removeChild(renderer.domElement)
       api.current = {}
     }
@@ -488,7 +625,8 @@ function Stage({ game, pp, log, dims, heights, rec, round, when }) {
           </div>
         ) : null}
         {/* THE SCORE BUG: both clubs, the score, the inning, the outs and who is on */}
-        <div style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', display: intro || b?.type === 'final' ? 'none' : 'flex', alignItems: 'center', gap: 10, background: C.bg2,
+        {/* top-left, under the SIMULATION tag: the park's own scoreboard stands over centre field and stays clear */}
+        <div style={{ position: 'absolute', top: 34, left: 8, display: intro || b?.type === 'final' ? 'none' : 'flex', alignItems: 'center', gap: 10, background: C.bg2,
           border: `1px solid ${C.border2}`, borderRadius: 8, padding: '4px 10px', fontFamily: NUM_FONT, pointerEvents: 'none', whiteSpace: 'nowrap', zIndex: 5 }}>
           {bugTeam('away', score.away)}
           <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 74, justifyContent: 'center' }}>
