@@ -135,6 +135,7 @@ on the pages you changed. It must be green.
   `node --import ./scripts/_esm-resolve.mjs scripts/check-bar-split.mjs` (a new bar starts a new record; old weeks stay apart),
   `node --import ./scripts/_esm-resolve.mjs scripts/check-ledger-backhalf.mjs` (the shared round-number rules match the old per-sport code),
   `node --import ./scripts/_esm-resolve.mjs scripts/check-format.mjs` (ordinal / plural helpers).
+  `node --import ./scripts/_esm-resolve.mjs scripts/check-prop-lanes.mjs` (Donovan, 2026-10-22: one list of prop lanes per sport, lib/propLanes.js; every reader still matches it).
   `node scripts/check-parity.mjs --complete nba`, `--complete nhl`, `--complete mlb` and `--complete nfl` (Donovan, 2026-10-20: each has every feature another product has, or says why not).
   Chips (Donovan, 2026-10-22: "thrown somewhere into the harness so we don't go over this again"): every small choice chip is
   `lib/chips.js` flatChip, the small even oval that matches the X cards. A push that touches UI runs
