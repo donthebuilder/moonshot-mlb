@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import PropsMatrix from '../../player/PropsMatrix'
 import { Pills } from '../ui'
-import ValueBars from '../../ValueBars'
+import PropBars, { TeamTap } from '../../player/PropBars'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { alpha } from '../../../lib/scales'
 import { GOAL_MARKETS, WINDOWS, THIN_N, thresholdRow, marketOf, val } from '../../../lib/nhl/goalLog'
@@ -11,7 +11,7 @@ import { GOAL_MARKETS, WINDOWS, THIN_N, thresholdRow, marketOf, val } from '../.
 // Every market x every window on one table, his own game log, nothing behind a
 // click: 1+ goal, 2+ shots, 1+ point ... over his last 5 / 10 / 20 and the
 // season. The same warm / cool verdict pair MOONSHOT's matrix wears (and its
-// 40% / 25% rate bands), the same value chart under it (components/ValueBars,
+// 40% / 25% rate bands), the same bar chart under it (components/player/PropBars,
 // shared with MOONSHOT and TUDDY), a tap on a row picks the bar the run and the
 // cold case read, a chip moves the line. Every cell prints its fraction, and a
 // window of fewer than five games is dimmed and says so.
@@ -29,7 +29,9 @@ export default function GoalGrid({ rows, bar, setBar, lines, setLines, seasonLab
   })
   // the chart: the active bar over his last 20 games (all of them when fewer), oldest left
   const seg = rows.slice(0, 20).reverse()
-  const games = seg.map((g, i) => ({ key: `${g.gameId ?? g.date}-${i}`, val: val(g, mk.stat), title: `${g.date} ${g.home ? 'vs' : '@'} ${g.opp} -- ${val(g, mk.stat)} ${mk.label.toLowerCase()} (${g.g}G ${g.a}A, ${g.shots} shots)` }))
+  // the shared bar chart (components/player/PropBars.js, every sport's card): date and club under each bar, his ice time under that
+  const games = seg.map((g, i) => ({ key: `${g.gameId ?? g.date}-${i}`, v: val(g, mk.stat), on: val(g, mk.stat) >= line,
+    top: String(g.date || '').slice(5), bot: <>{g.home ? '' : '@'}<TeamTap sport="nhl" code={g.opp} /></>, sub: g.toi || '', title: `${g.date} ${g.home ? 'vs' : '@'} ${g.opp} -- ${val(g, mk.stat)} ${mk.label.toLowerCase()} (${g.g}G ${g.a}A, ${g.shots} shots)` }))
   const p = games.find((x) => x.key === pin)
   const pinRow = p ? seg[games.indexOf(p)] : null
   return (
@@ -47,7 +49,7 @@ export default function GoalGrid({ rows, bar, setBar, lines, setLines, seasonLab
       {games.length > 0 && (
         <div style={{ marginTop: 10 }}>
           <div style={{ color: C.text3, font: `600 12px/1.4 ${NUM_FONT}`, marginBottom: 6 }}>{line}+ {mk.label.toLowerCase()} · {rows.length > 20 ? 'last 20' : `all ${games.length}`} games, newest right{games.length < 20 ? ' (a short log: the season so far)' : ''}</div>
-          <ValueBars games={games} thr={line} numFont={NUM_FONT} avgColor={alpha(C.ice, 0.6)} ink={{ warm: C.ice, cool: C.text3 }} selected={pin} onSelect={setPin} />
+          <PropBars games={games} line={line} C={C} NUM_FONT={NUM_FONT} accent={C.ice} selected={pin} onSelect={setPin} />
           {pinRow && (
             <div style={{ marginTop: 7, padding: '6px 10px', borderRadius: 8, font: `600 12px/1.5 ${NUM_FONT}`, color: C.text2, background: alpha(C.ice, 0.06), border: `1px solid ${C.border}`, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
               <b style={{ color: C.text }}>{pinRow.date} {pinRow.home ? 'vs' : '@'} {pinRow.opp}</b>

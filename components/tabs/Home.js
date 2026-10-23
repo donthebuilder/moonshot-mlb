@@ -2,7 +2,7 @@
 import StoryTape from '../StoryTape'
 import { computeSlateStats } from '../SlateTiles'
 import PlayerFace from '../PlayerFace'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { etToday } from '../../lib/freshness'
 import { slateWhen } from '../../lib/slateWhen'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
@@ -55,6 +55,16 @@ import { localTime } from '../../lib/localTime'
 import { sharedFetch } from '../../lib/sharedRead'
 import { ShowMoreButton } from '../ListPreview'
 import MlbOffseason from './MlbOffseason'
+import HomeGreeting from '../home/HomeGreeting'
+import SlateRow from '../home/SlateRow'
+import HomeLinks from '../home/HomeLinks'
+import RaceTracker from '../RaceTracker'
+import NetworkRow from '../NetworkRow'
+import HotNumbers from '../numerology/HotNumbers'
+import { useGameTotals } from '../GameTotalLine'
+import { useStoryCards, interleave } from '../../lib/useStoryCards'
+import { teamName } from '../../lib/mlbTeams'
+import { MLB_NAV } from '../../lib/routes'
 import { useMlbPhase } from '../../lib/mlb/usePhase'
 
 // An Eastern calendar day n days from today (YYYY-MM-DD), on etToday's clock.
@@ -270,15 +280,18 @@ function Headlines({ players = [], headline, results, isLive, airRanked = [], od
     fetch('/api/history/watch?sport=mlb').then((r) => (r.ok ? r.json() : null)).then((j) => { if (alive) setHist(j?.items?.[0] || null) }).catch(() => {})
     return () => { alive = false }
   }, [])
+  // THE STORIES RIDE IN THE STRIP (2026-10-22, every product's Home): the week's storylines as headline cards, woven in
+  const findPlayer = useCallback((id) => players.find((x) => String(x?.player_id) === String(id)) || null, [players])
+  const stories = useStoryCards('mlb', { findPlayer, color: C.orange })
   const cards = useMemo(() => {
-    const base = buildHeadlines({ players, headline, results, isLive, airRanked })
+    const base = interleave(buildHeadlines({ players, headline, results, isLive, airRanked }), stories)
     if (!hist) return base
     const p = players.find((x) => String(x?.player_id) === String(hist.player_id)) || null
     return [{ k: `hist-${hist.player_id}`, tag: 'HISTORY WATCH', icon: '📜', name: hist.name, why: `One more: ${hist.claim}.`, stat: `${hist.hr} HR`, col: C.yellow, p }, ...base]
-  }, [players, headline, results, isLive, airRanked, hist])
+  }, [players, headline, results, isLive, airRanked, hist, stories])
   const open = (c) => (c.p ? onPlayerClick?.(c.p) : c.nav ? onNavigate?.(c.nav) : null)
   const faceOf = (c) => (c.p?.player_id ? <PlayerFace sport="mlb" id={String(c.p.player_id)} name={c.name} size={22} theme={C} /> : null)
-  return <HeadlineStrip sport="mlb" cards={cards} onOpen={open} theme={C} numFont={NUM_FONT} accent={C.orange} speed={30} faceOf={faceOf} />
+  return <HeadlineStrip sport="mlb" cards={cards} onOpen={open} theme={C} numFont={NUM_FONT} accent={C.orange} speed={30} faceOf={faceOf} title="HEADLINES + STORIES" countWord="in the strip" />
 }
 
 export default function Home({
@@ -377,6 +390,7 @@ export default function Home({
   }, [mode])
 
   const games = useMemo(() => groupGames(players), [players])
+  const mlbTotals = useGameTotals('mlb')
   const clubHr = useClubHr()   // the league table the team model reads (lib/teamHr.js)
   const modelHr = useMemo(() => slateProjHr(players, clubHr), [players, clubHr])
   // LIVE MEANS THE LEAGUE SAYS SO (2026-09-26, stranger test F5). The
@@ -865,8 +879,13 @@ export default function Home({
           the storylines jumping out"): the day in one line, every product's storylines
           rolling, a line per product (components/StoryTape.js). It replaces the hero's stat
           tiles and the crawl; the rundown and the four sit right under it, as before. */}
-      <StoryTape sport="mlb" theme={C} numFont={NUM_FONT} onSeeAll={onNavigate ? () => onNavigate('storylines') : null}
-        day={{ icon, live: isLive,
+      {/* THE NUMBERS OF THE DAY, FIRST (2026-10-22, the Home rebuild every product shares) */}
+      <HotNumbers compact sport="mlb" date={slateDate} theme={C} numFont={NUM_FONT} accent={C.orange} onOpen={() => onNavigate?.('numerology')} eventWord="HRs" />
+
+      {/* THE GREETING (2026-10-22, components/home/HomeGreeting): the day, the next first pitch ("Dodgers at Blue Jays · first pitch in
+          2h 10m"), three tiles, then the headlines + stories strip -- one block, as on TUDDY's Home */}
+      {(() => {
+        const g = {  icon, live: isLive,
           eyebrow: <>{`${slateInPast ? (slateDate === etShift(-1) ? 'Last night' : 'Final') : (mode === 'tomorrow' && slateDate === etShift(0) ? 'Tonight' /* the 'Tmrw' slate after midnight is tonight (2026-10-04 day rule) */ : (dateLabel || (mode === 'today' ? 'Today' : 'Tomorrow')))}${!slateInPast && nextMlb?.round && nextMlb.date === slateDate ? ` · ${nextMlb.round}` : ''}`}{slateDate ? <>{' · '}<span style={{ color: C.orange, fontWeight: 900, fontSize: TYPE.body, letterSpacing: '.08em' }}>{slateDayLabel(slateDate)}</span></> : null}</>,
           lead: empty
           ? <>Tonight&apos;s board isn&apos;t built yet.</>
@@ -874,13 +893,28 @@ export default function Home({
             ? <>That slate is done.</>
             : <><span style={{ fontFamily: NUM_FONT }}>{games.length}</span>{games.length === 1 ? ' game' : ' games'} {slateWhen(slateDate, etToday())}{isLive && liveGames > 0 && (<>, <span style={{ fontFamily: NUM_FONT }}>{liveGames}</span> live</>)}.</>,
           accentText: [empty ? null : slateInPast ? (gradesPending ? 'Final grades post in the morning.' : 'Every pick is graded.') : (isLive ? 'Grading as they land.' : null),
-            slateInPast && nextLine(nextMlb, etToday()) ? `No games tonight · ${nextLine(nextMlb, etToday())}.` : null].filter(Boolean).join(' ') }} />
+            slateInPast && nextLine(nextMlb, etToday()) ? `No games tonight · ${nextLine(nextMlb, etToday())}.` : null].filter(Boolean).join(' ')  }
+        const now = Date.now()
+        const nextG = games.filter((x) => Date.parse(x.game_time || '') > now).sort((a, b) => Date.parse(a.game_time) - Date.parse(b.game_time))[0] || null
+        const kick = nextG ? { away: teamName(nextG.away) || nextG.away, home: teamName(nextG.home) || nextG.home, start: Date.parse(nextG.game_time) } : null
+        const later = nextG ? games.filter((x) => x !== nextG && Date.parse(x.game_time || '') > now).length : 0
+        const topHr = [...players].filter((x) => Number.isFinite(Number(x.hr_score))).sort((a, b) => b.hr_score - a.hr_score)[0] || null
+        const confirmed = games.filter((x) => x.lineup_confirmed).length
+        const tiles = empty ? [] : [
+          { label: slateInPast ? 'GAMES' : 'TONIGHT', value: games.length, sub: games.length === 1 ? 'game' : 'games' },
+          { label: 'TOP HR SCORE', value: topHr ? Math.round(topHr.hr_score) : '—', sub: topHr?.name || 'waiting for the board', dim: !topHr, onClick: topHr ? () => onPlayerClick?.(topHr) : null },
+          { label: 'LINEUPS', value: `${confirmed}/${games.length}`, sub: confirmed === games.length && games.length ? 'all confirmed' : 'confirmed so far' },
+        ]
+        return (
+          <HomeGreeting sport="mlb" theme={C} numFont={NUM_FONT} icon={g.icon} eyebrow={g.eyebrow} live={g.live} kick={slateInPast ? null : kick} verb="first pitch" more={later}
+            lead={g.lead} accentText={g.accentText} tiles={tiles}>
+            {!empty ? <Headlines players={players} headline={headline} results={results} isLive={isLive} airRanked={airRanked} odds={odds} onPlayerClick={onPlayerClick} onNavigate={onNavigate} /> : null}
+          </HomeGreeting>
+        )
+      })()}
       {!empty && (
         <div style={{ marginBottom: 12 }}>
-          <Headlines players={players} headline={headline} results={results} isLive={isLive} airRanked={airRanked} odds={odds} onPlayerClick={onPlayerClick} onNavigate={onNavigate} />
-          <div style={{ marginTop: 14 }}>
-            <BotPicksStrip players={players} graded={results?.graded_slots || null} onPlayerClick={onPlayerClick} onFullCard={onNavigate ? () => onNavigate('props') : null} />
-          </div>
+          <BotPicksStrip players={players} graded={results?.graded_slots || null} onPlayerClick={onPlayerClick} onFullCard={onNavigate ? () => onNavigate('props') : null} />
         </div>
       )}
 
@@ -889,39 +923,6 @@ export default function Home({
 
       {/* TONIGHT (2026-10-04): who went, who lines up, who's still to go (components/tonight/MlbTonight.js) */}
       <MlbTonight players={players} results={results} slateDate={slateDate} onPlayerClick={onPlayerClick} onNavigate={onNavigate} />
-
-      {/* ONE RAIL, BOTH SPORTS (round 10, 2026-09-17) -- Donovan chose merging
-          both sports into this one rail over keeping two visually-identical-
-          but-separate rails (AskUserQuestion). `computeByGame` stays the
-          default MLB reducer: MOONSHOT's own picks are the only ones this
-          page has data for, so an NFL tile here shows its real score/state
-          and nothing invented in the picks column -- lib/combinedRail.js's
-          own header comment has the full trace. */}
-      <ScoreRail
-        key={slateDate || 'today'}
-        players={players} results={results} onNavigate={onNavigate}
-        fetchGames={() => fetchCombinedGamesForMlbHome(slateDate || undefined)}
-        renderState={combinedRenderState}
-        TeamMark={CombinedTeamMark}
-        onSwitchSport={setSport}
-      />
-
-      {/* Storylines sit right under the tally (2026-09-14, Donovan: 'bring the
-          storylines out and put under 2') -- out of the More drawer. */}
-      {/* The full storyline engine — milestones, duels, revenge games,
-          birthdays, giveaways. Same panel the Scoreboard carries; collapsed
-          by default, the header counts tell you if it's worth opening. It sat
-          eight hundred lines further down, below two stat boards, which split
-          the narrative half of the page in two. It belongs next to the angles
-          it expands on.
-          results (2026-08-13): this page already holds it — see the note in
-          Storylines.js for why it used to fetch its own copy. */}
-      {/* 2026-09-27 (BATCH-STORYLINES-PAGE step 4): the story engine's rarest THREE
-          (not 5-8: no taller than what it replaced), same rows as the Storylines tab, then into it. Was the collapsed
-          panel + History Watch (283px at 390); History Watch's claims lead here
-          as the rarest stories. */}
-      <LongshotsPreview plain sport="mlb" theme={C} numFont={NUM_FONT} accent={C.orange} onSeeAll={() => onNavigate?.('longshots')}
-        onOpenPlayer={(id) => { const p = (players || []).find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) onPlayerClick?.(p) }} />
 
       {/* ⭐ YOUR PLAYERS (2026-09-03) — replaces FollowingStrip here.
           Same list, same stores, same place on the page. What changed is that
@@ -943,477 +944,18 @@ export default function Home({
       {/* ONE CALLS SURFACE (2026-10-17): tonight's calls live in The Four (the hero) -- the swipe-through cards are gone from Home. */}
 
 
-      {/* ── 💵 #34: THE MONEY ANSWER, WHERE THE CLAIM IS MADE ────────────────
-          The hero above says "every pick is graded in public." True, and the
-          receipts are real — but the measurement that says whether any of it
-          MAKES MONEY sat behind a mode pill inside a drawer tab, which is a
-          strange place to keep the answer to the question the claim invites.
-          One line here, and it goes through to the full table rather than
-          repeating it. Not folded: a site that hides this line has not really
-          made the claim above it. */}
-      <div style={{ marginBottom: 12 }}>
-        <MoneyAnswer compact onNavigate={onNavigate} />
-      </div>
       {/* FOUNDING MEMBERS (2026-10-16): the one place the site asks for the $10, after the record and the money line. */}
       <FoundingMembersCard accent={C.orange} theme={C} numFont={NUM_FONT} />
-      {/* ── THREE DOORS ──────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        {DOORS.map((d) => (
-          <button type="button" key={d.tab} onClick={() => onNavigate?.(d.tab)} style={{
-            ...BARE_BUTTON, textAlign: 'left',
-            flex: '1 1 240px', minWidth: 0, cursor: 'pointer',
-            // Flat since 2026-09-14 (the audit): the tint gradients were the one
-            // "glowing card" on the page. The door keeps its colour in the title.
-            background: C.bg2,
-            border: `1px solid ${C.border}`, borderRadius: 13, padding: '13px 15px',
-          }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5 }}>
-              <span style={{ fontSize: 15 }}>{d.icon}</span>
-              <span style={{ fontSize: TYPE.name, fontWeight: 900, color: d.color }}>{d.title}</span>
-              <span style={{ marginLeft: 'auto', fontSize: 12, color: d.color }}>→</span>
-            </span>
-            <span style={{ display: 'block', fontSize: TYPE.body, color: C.text2, lineHeight: 1.55 }}>{d.body}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* ── MORE ON TONIGHT (2026-09-14) ──────────────────────────────────
-          Donovan, on the audit: Home had twenty-two sections stacked and the
-          first real content sat ~300px down on a phone. Home is now LIVE (the
-          hero + the rundown + tonight's tally) → SIGNAL (The Four) → HISTORY
-          (the money answer + the three doors). Every other panel that used to
-          sit on the page is still here, one drawer down, closed by default —
-          the Fold renders nothing until it is opened, so a closed drawer costs
-          the phone nothing. Same panels, same code, one level deeper.
-          10-18 (Donovan: "good stuff but hidden ... behind a collapsible shade"): open again, as on TUDDY's Home; the
-          top 10s show four rows until opened, so the page stays short. */}
-      <>
-      {/* ── TONIGHT'S ANGLES — hero lines, not tables ─────────────────
-          Renamed from "storylines" in the 2026-08-09 polish pass: the full
-          Storylines engine renders directly below, and two adjacent panels
-          both called storylines made the page look like it was repeating
-          itself. These are the three hand-picked lines; that one is the
-          whole ledger. */}
-      {players.length > 0 && (
-        <>
-        <div style={{
-          background: C.bg2,
-          border: `1px solid ${C.border}`, borderRadius: 14,
-          padding: '13px 16px', marginBottom: 14,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-            <span style={{ fontSize: TYPE.label, fontWeight: 900, color: C.yellow, letterSpacing: '.1em', fontFamily: NUM_FONT }}>📖 TONIGHT&apos;S ANGLES</span>
-            <span style={{ fontSize: TYPE.micro, color: C.text3 }}>every line from tonight&apos;s own data</span>
-          </div>
-
-          {/* 🌤 BEST AIR — was a row of three tiles ("BEST AIR TONIGHT") sitting
-              below the Storylines panel, four sections under a hero that had
-              already named the best park. Same three parks, same three edge
-              percentages, same matchups, same temps and winds — now the first
-              line of the angles, in the same voice as the four beneath it, with
-              the conditions spoken by lib/conditions instead of a fifth private
-              chip strip. The old strip's caption and its honest nothing-clears-
-              neutral empty state both survive verbatim. Still taps through to
-              the full park ladder on Power. */}
-          {airRanked.length > 0 && (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: TYPE.body, lineHeight: 1.6, color: C.text2 }}>
-              <span style={{ flexShrink: 0 }}>{airRanked[0].edge >= 10 ? '🌋' : airRanked[0].edge >= 5 ? '🔥' : '🌤'}</span>
-              <span style={{ minWidth: 0 }}>
-                <b style={{ color: C.text }}>Best air</b> —{' '}
-                {airRanked[0].edge <= 0 ? (
-                  <>no park on tonight&apos;s slate is playing above neutral once its factor and air are
-                    combined; the best of the <b style={{ fontFamily: NUM_FONT }}>{airRanked.length}</b> is{' '}
-                    <b style={{ color: C.text }}>{airRanked[0].venue}</b> at{' '}
-                    <b style={{ fontFamily: NUM_FONT, color: C.text3 }}>{airRanked[0].edge.toFixed(0)}%</b>
-                    {airLine(airRanked[0]) ? <> ({airLine(airRanked[0])})</> : ''}. That is the finding, not a missing section.{' '}</>
-                ) : (
-                  <>top of the slate is{' '}
-                    {airRanked.slice(0, 3).map((g, i) => (
-                      <span key={g.venue}>
-                        {i === 1 && ', also carrying '}
-                        {i === 2 && ' and '}
-                        <button className="tap-box"
-                          onClick={() => onNavigate?.('longest')}
-                          title={`${g.matchup}${airTitle(g) ? `\n${airTitle(g)}` : ''}\nPark factor plus the published weather effect, as a percentage swing on home-run rate — tap for the full park ladder.`}
-                          style={{
-                            background: 'none', border: 'none', padding: '3px 1px', cursor: 'pointer',
-                            fontSize: TYPE.body, fontWeight: 800, color: i === 0 ? '#FB923C' : C.text,
-                            textDecoration: 'underline', textDecorationColor: 'rgba(249,115,22,.35)',
-                          }}
-                        >{g.venue}</button>
-                        <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}> {g.matchup}</span>
-                        {' at '}
-                        <b style={{ fontFamily: NUM_FONT, color: '#FB923C' }}>+{g.edge.toFixed(0)}%</b>
-                        {/* CONDITIONS ON THE LEADER ONLY (2026-08-23). Three
-                            full weather parentheticals in one sentence is most
-                            of a phone screen for a line that is meant to be
-                            read in a glance. The other two keep theirs in the
-                            tooltip the button already carries. */}
-                        {i === 0 && airLine(g) ? <span style={{ color: C.text3 }}> ({airLine(g)})</span> : ''}
-                      </span>
-                    ))}
-                    .{' '}</>
-                )}
-                <span style={{ fontSize: TYPE.micro, color: C.text3 }}>
-                  Park factor plus published weather, as a swing on the rate — not a chance of one. Tap a park for the ladder.
-                </span>
-              </span>
-            </div>
-          )}
-
-          {/* Trimmed 2026-09-13 (Donovan: "the litte helper text ... does not
-              [h]elp"). Was a 5-line run-on explaining why each of 3 checks
-              came back empty. Same meaning, one line — the full detail is
-              still available in each check's own tooltip once it fires. */}
-          {!b2b.length && !fenceRider && !pens.length && !nearMiss && (
-            <div style={{ fontSize: TYPE.body, color: C.text3, lineHeight: 1.6, padding: '2px 0' }}>
-              Beyond the air, nothing else fired tonight — no back-to-back bat, fence rider, or
-              bullpen alert cleared the bar. Empty because the checks came back empty, not
-              because anything's broken.
-            </div>
-          )}
-
-          {/* 🌙 DAY-OFF SPLIT, CARRIED HERE TOO (2026-08-30, Donovan:
-              "wondering where[] the other[] looks a[r]e[] on here for the
-              b2b watch and such"). HitsHRR.js's B2B WATCH card split strict
-              back-to-backs from day-off returns; this line was still one
-              flat list. Same _b2bGapDays tag backToBack() already attaches
-              (this call already passes b2bDateKey, so it's already there —
-              this is a display-only change), split the same way, so a
-              hitter's Home mention and his HitsHRR mention read the same
-              claim instead of two different-looking ones. */}
-          {b2b.length > 0 && (() => {
-            const strict = b2b.filter((p) => (p._b2bGapDays ?? 1) <= 1)
-            const dayOff = b2b.filter((p) => (p._b2bGapDays ?? 1) > 1 && (p._b2bGapDays ?? 1) <= 3)   // a real day off only (not 'homered 12 games ago')
-            const nameList = (arr) => arr.slice(0, 3).map((p, i) => (
-              <span key={i}>
-                {i > 0 && ', '}
-                <button className="tap-box" onClick={() => onPlayerClick?.(p)} style={{
-                  background: 'none', border: 'none', padding: '3px 1px', cursor: 'pointer',
-                  fontSize: TYPE.body, fontWeight: 800, color: C.red, textDecoration: 'underline', textDecorationColor: 'rgba(248,113,113,.35)',
-                }}>{nameOf(p)}</button>
-                <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}> <TeamTap abbr={teamOf(p)} /></span>
-              </span>
-            ))
-            return (
-              <>
-                {strict.length > 0 && (
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: TYPE.body, lineHeight: 1.6, color: C.text2 }}>
-                    <span style={{ flexShrink: 0 }}>🔁</span>
-                    <span style={{ minWidth: 0 }}>
-                      <b style={{ color: C.text }}>Back-to-back watch</b> —{' '}
-                      {nameList(strict)}
-                      {strict.length > 3 && <span style={{ color: C.text3 }}> and {strict.length - 3} more</span>}
-                      {/* Names the actual day. "last game" was the ambiguity the bug
-                          hid behind — on a rebuilt slate his last game is today. */}
-                      {' '}went deep {isTmrwSlate ? 'today' : 'last night'} — {isTmrwSlate ? 'tomorrow' : 'tonight'} is the encore try.
-                      <span title="Every name here is checked against the graded results for that night, by player id. If that file hasn't published, this line doesn't render at all."
-                        style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginLeft: 5, cursor: 'default' }}>✓ verified</span>
-                    </span>
-                  </div>
-                )}
-                {dayOff.length > 0 && (
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: TYPE.body, lineHeight: 1.6, color: C.text2 }}>
-                    <span style={{ flexShrink: 0 }}>🌙</span>
-                    <span style={{ minWidth: 0 }}>
-                      <b style={{ color: C.text }}>Returning from a day off</b> —{' '}
-                      {nameList(dayOff)}
-                      {dayOff.length > 3 && <span style={{ color: C.text3 }}> and {dayOff.length - 3} more</span>}
-                      {' '}homered in his last game, then sat — {isTmrwSlate ? 'tomorrow' : 'tonight'} is his first shot back.
-                      <span title="Validated against the graded archive: a day-off return clears at about the same rate as a literal back-to-back, both a touch under the baseline for any graded slot. Not an edge, just tracked the same way."
-                        style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginLeft: 5, cursor: 'default' }}>✓ verified</span>
-                    </span>
-                  </div>
-                )}
-              </>
-            )
-          })()}
-
-          {fenceRider && (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: TYPE.body, lineHeight: 1.6, color: C.text2 }}>
-              <span style={{ flexShrink: 0 }}>🧱</span>
-              <span style={{ minWidth: 0 }}>
-                <b style={{ color: C.text }}>Tonight&apos;s fence rider</b> —{' '}
-                <button className="tap-box" onClick={() => onPlayerClick?.(fenceRider.p)} style={{
-                  background: 'none', border: 'none', padding: '3px 1px', cursor: 'pointer',
-                  fontSize: TYPE.body, fontWeight: 800, color: C.orange, textDecoration: 'underline', textDecorationColor: 'rgba(249,115,22,.35)',
-                }}>{fenceRider.r.name}</button>
-                <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}> {fenceRider.r.team}</span>
-                {' '}has <b style={{ fontFamily: NUM_FONT, color: C.green }}>{fenceRider.r.over_ct}</b> balls over 375ft
-                and <b style={{ fontFamily: NUM_FONT, color: C.orange }}>{fenceRider.r.fence_ct}</b> pulled into the wall-scraper zone
-                in his last <span style={{ fontFamily: NUM_FONT }}>{fenceRider.r.games}</span> games — measured landing data, all wall, no feel.
-              </span>
-            </div>
-          )}
-
-          {/* 🧱 the drought whose contact says it's ending (2026-08-15) —
-              the Scoreboard's near-miss board, reduced to its single best
-              case. Same statcast fields, a higher bar (close ≥ 3). */}
-          {nearMiss && (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: TYPE.body, lineHeight: 1.6, color: C.text2 }}>
-              <span style={{ flexShrink: 0 }}>🧱</span>
-              <span style={{ minWidth: 0 }}>
-                <b style={{ color: C.text }}>Near-miss watch</b> —{' '}
-                <button className="tap-box" onClick={() => onPlayerClick?.(nearMiss.p)} style={{
-                  background: 'none', border: 'none', padding: '3px 1px', cursor: 'pointer',
-                  fontSize: TYPE.body, fontWeight: 800, color: C.amber, textDecoration: 'underline', textDecorationColor: 'rgba(252,211,77,.35)',
-                }}>{nameOf(nearMiss.p)}</button>
-                <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}> <TeamTap abbr={teamOf(nearMiss.p)} /></span>
-                {' '}is <b style={{ fontFamily: NUM_FONT, color: nearMiss.since >= 10 ? C.red : C.orange }}>{nearMiss.since} games</b> without
-                a homer, but his recent window holds a <b style={{ fontFamily: NUM_FONT }}>{Math.round(nearMiss.d)} ft</b> ball
-                {nearMiss.e > 0 && <> at <b style={{ fontFamily: NUM_FONT }}>{nearMiss.e.toFixed(0)} mph</b></>}
-                {nearMiss.w > 0 && <> and <b style={{ fontFamily: NUM_FONT, color: C.amber }}>{nearMiss.w} wall-scraper{nearMiss.w > 1 ? 's' : ''}</b></>}
-                {' '}— drought, not decline. The full board lives on the Scoreboard.
-              </span>
-            </div>
-          )}
-
-          {pens.length > 0 && (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: TYPE.body, lineHeight: 1.6, color: C.text2 }}>
-              <span style={{ flexShrink: 0 }}>🚪</span>
-              <span style={{ minWidth: 0 }}>
-                <b style={{ color: C.text }}>Pen door</b> —{' '}
-                {pens.slice(0, 3).map((x, i) => (
-                  <span key={x.ab}>
-                    {i > 0 && ', '}
-                    <b style={{ color: x.tier.col }}><TeamTap abbr={x.ab}>{x.ab}</TeamTap></b>
-                    <span title={`${x.ab} bullpen yesterday: ${x.t.used} relievers, ${x.t.pitches} pitches — ${(x.t.names || []).map((r2) => `${String(r2.name).split(' ').slice(-1)[0]} ${r2.pitches}p`).join(', ')}`}
-                      style={{ fontSize: TYPE.micro, fontFamily: NUM_FONT, color: C.text3 }}> {x.tier.icon} {x.t.used} arms / {x.t.pitches}p yesterday</span>
-                  </span>
-                ))}
-                {' '}— tired relief gives up homers; the late innings are the window.
-              </span>
-            </div>
-          )}
-        </div>
-        </>
-      )}
-
-
-      {/* ── TOP WEATHER GAMES lived here until 2026-08-16 ───────────────
-             Three tiles, ~60 lines, printing the same three parks the hero had
-             already named four sections above — the literal scroll-down-then-
-             back-up complaint. It is now the first line of TONIGHT'S ANGLES,
-             which is where a fact about tonight belongs, and lib/conditions
-             speaks the temp/wind/park/humidity/rain/roof clause it used to
-             hand-roll. Nothing was dropped: the three edge percentages, the
-             matchups, the temps, the winds, the caption, the tap-through to
-             the Power ladder and the "nothing clears neutral" empty state all
-             moved with it. ── */}
-
-      {/* ── TONIGHT'S TOP TENS, then the arms they attack ──────────────
-             Order swapped 2026-08-16. The arms panel used to sit above the
-             two top-ten boards, which put the answer to "who do I look at"
-             below the answer to "who is he facing" — and every top-ten row
-             already prints the arm's HR/9, so you read a name, scrolled UP to
-             find that arm in the leak table, then back DOWN for the next name.
-             Names first, arms directly under them: the two panels that get
-             read together now touch. ── */}
-
-      {/* ── TONIGHT'S TOP 10s (2026-08-08, Donovan: "top 10 hits and hr for
-          the home page, awesome but digestible") — two clean boards, ranked
-          by the site's own scores, with the ARM each bat gets to attack:
-          ★ = weak lineup spot vs this starter, red HR/9 = a leaking arm. */}
-      {players.length > 0 && (
-        <>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
-          {[
-            { title: '💣 Top 10 — HR plays', col: '#FB923C', score: hrScore, door: 'fullboard' },
-            { title: '🎯 Top 10 — Hit plays', col: C.blue, score: hitScore, door: 'hitshrr' },
-          ].map(({ title, col, score, door }) => {
-            const rows = [...players].sort((a, b) => score(b) - score(a)).slice(0, 10)
-            const max = score(rows[0]) || 1
-            // OPEN ON HOME, FOUR ROWS (10-18, the TUDDY Home rule): the top four, then all ten in one tap
-            const shownRows = top10All ? rows : rows.slice(0, 4)
-            return (
-              <div key={title} style={{
-                flex: '1 1 340px', minWidth: 0,
-                background: C.bg2,
-                border: `1px solid ${C.border}`, borderRadius: 12, padding: '10px 13px',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7 }}>
-                  <span style={{ fontSize: TYPE.name, fontWeight: 900 }}>{title}</span>
-                  <button className="tap-box" type="button" onClick={() => onNavigate?.(door)} style={{ ...BARE_BUTTON, marginLeft: 'auto', padding: '5px 3px', fontSize: TYPE.micro, color: C.text3, cursor: 'pointer', fontFamily: NUM_FONT }}>full board →</button>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {shownRows.map((p, i) => {
-                    const s = score(p)
-                    const hr9 = n(p?.pitcher_hr9, 0)
-                    const leaky = isLeaky(hr9)
-                    return (
-                      <button type="button" key={i} onClick={() => onPlayerClick?.(p)} className="tap-row" style={{
-                        ...BARE_BUTTON, width: '100%', textAlign: 'left',
-                        display: 'flex', gap: 7, alignItems: 'center', cursor: 'pointer',
-                        padding: '6px 5px', borderRadius: 6, minWidth: 0,
-                        background: i === 0 ? `${col}12` : 'transparent',
-                      }}>
-                        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: i < 3 ? col : C.text3, fontWeight: 900, width: 16, flexShrink: 0 }}>
-                          {i + 1}
-                        </span>
-                        <span style={{ fontSize: TYPE.body, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1 }}>
-                          {nameOf(p)}
-                          {p?.weak_spot_flag ? <span title="Weak lineup spot vs this starter" style={{ fontSize: TYPE.micro }}> ★</span> : null}
-                        </span>
-                        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                          vs {clean(p?.pitcher_name, 'TBD').split(' ').slice(-1)[0]}
-                          {hr9 > 0 && <b style={{ color: leaky ? C.red : C.text3 }} title={leaky ? 'This arm leaks homers — 1.40+ HR/9' : 'Starter HR/9'}> {hr9.toFixed(2)}</b>}
-                        </span>
-                        <span style={{ display: 'block', flex: '0 0 46px', height: 5, background: 'rgba(255,255,255,.06)', borderRadius: 3, overflow: 'hidden' }}>
-                          <span style={{ display: 'block', width: `${Math.min(100, (100 * s) / max)}%`, height: '100%', background: col, opacity: i < 3 ? 1 : 0.55 }} />
-                        </span>
-                        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 900, color: i < 3 ? col : C.text2, width: 24, textAlign: 'right', flexShrink: 0 }}>
-                          {s.toFixed(0)}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-                <ShowMoreButton open={top10All} restN={rows.length - shownRows.length} total={rows.length} toggle={() => setTop10All((v) => !v)} />
-                <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
-                  Ranked by the site&apos;s own score · ★ weak spot vs tonight&apos;s starter ·{' '}
-                  <b style={{ color: C.red }}>red HR/9</b> = a leaking arm. Tap a name for his card.
-                </div>
-              </div>
-            )
-          })}
-        </div>
-        </>
-      )}
-
-      {/* ── WEAKEST ARMS TONIGHT (2026-08-08, Donovan: "top weakest pitchers
-          or weak-trending pitchers on the home page") — the attack map. Two
-          reads from published fields only: season HR/9 (who always leaks)
-          and 📉 last-3-starts HR/9 vs season / the bot's own trend direction
-          (who's leaking RIGHT NOW). */}
-      {players.length > 0 && (
-        <>
-      {(() => {
-        const arms = new Map()
-        players.forEach((p) => {
-          const nm = clean(p?.pitcher_name, '')
-          if (!nm || nm === 'TBD') return
-          if (!arms.has(nm)) {
-            arms.set(nm, {
-              nm, hr9: n(p?.pitcher_hr9, 0), whip: n(p?.pitcher_whip, 0),
-              l3hr9: n(p?.pitcher_l3_hr9, null), trend: clean(p?.pitcher_trend_direction, ''),
-              vs: teamOf(p), weak: 0, sample: p,
-            })
-          }
-          if (p?.weak_spot_flag) arms.get(nm).weak += 1
-        })
-        const all = [...arms.values()].filter((a) => a.hr9 > 0)
-        // RANKED ON MORE THAN ONE NUMBER (2026-08-09). This panel sorted by
-        // season HR/9 alone — the right headline and a poor ranking: it moves
-        // slowly, it's blind to contact quality, and it can't tell a fly-ball
-        // arm in a bandbox from the same HR/9 in a pitcher's park. lib/armLeak
-        // blends eight published fields, ranked against tonight's other
-        // starters, and hands back the two terms driving each one. HR/9 stays
-        // on the row, so nothing that was readable before got hidden.
-        const ranked = rankArms(players)
-        const leakBy = new Map(ranked.map((a) => [a.name, a]))
-        const weakest = ranked.length
-          ? ranked.slice(0, 5).map((a) => ({ ...(arms.get(a.name) || {}), ...a }))
-          : [...all].sort((a, b) => b.hr9 - a.hr9).slice(0, 5)
-        const trending = all
-          .filter((a) => a.trend === 'worsening' || (a.l3hr9 != null && a.hr9 > 0 && a.l3hr9 >= a.hr9 + 0.4))
-          .sort((a, b) => (b.l3hr9 ?? b.hr9) - (a.l3hr9 ?? a.hr9)).slice(0, 4)
-        if (!weakest.length) {
-          // Honest empty state: the slate exists but no starter carries a
-          // published HR/9 yet — usually TBD starters early in the morning.
-          if (!players.length) return null
-          return (
-            <div style={{
-              background: C.bg2, border: `1px dashed ${C.border2}`, borderRadius: 12,
-              padding: '10px 14px', marginBottom: 14, fontSize: TYPE.body, color: C.text3, lineHeight: 1.6,
-            }}>
-              🩹 <b style={{ color: C.text2 }}>Weakest arms tonight</b> — no starter on this slate
-              carries a published HR/9 yet, which usually means the probables are still TBD. The
-              board fills in on its own as they&apos;re announced.
-            </div>
-          )
-        }
-        const Arm = ({ a, i, showTrend }) => (
-          <button type="button" onClick={() => onNavigate?.('pitchers')} className="tap-row" style={{
-            ...BARE_BUTTON, width: '100%', textAlign: 'left',
-            display: 'flex', gap: 7, alignItems: 'baseline', cursor: 'pointer',
-            padding: '6px 5px', borderRadius: 6, minWidth: 0,
-          }} title={`${a.nm} vs ${a.vs}: ${a.hr9.toFixed(2)} HR/9 season${a.l3hr9 != null ? `, ${a.l3hr9.toFixed(2)} over his last 3 starts` : ''}${a.weak ? ` · ${a.weak} weak lineup spots against him` : ''} — tap for the Pitchers workbench`}>
-            <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, fontWeight: 900, color: i === 0 ? C.red : C.text3, width: 14, flexShrink: 0 }}>{i + 1}</span>
-            <span style={{ fontSize: TYPE.body, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1 }}>
-              {a.nm}
-              <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, marginLeft: 5 }}>vs {a.vs}</span>
-            </span>
-            {showTrend && a.l3hr9 != null && (
-              <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.red, flexShrink: 0 }}>L3 {a.l3hr9.toFixed(2)}</span>
-            )}
-            {/* 1.6-or-red / else-orange was a private two-step nobody else
-                used; the shared line decides now (2026-09-03). */}
-            <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 900, color: hr9Color(a.hr9, C.text2), flexShrink: 0 }}>
-              {a.hr9.toFixed(2)}
-            </span>
-            {/* The blended rank, plus the one term carrying it — so a row that
-                outranks a bigger HR/9 explains itself on the row. */}
-            {leakBy.get(a.nm)?.leak != null && (
-              <span
-                title={`Leak score ${leakBy.get(a.nm).leak}/100 — ranked against tonight's ${ranked.length} starters only, not the league. Built from ${leakBy.get(a.nm).scoredOn} published fields: ${leakBy.get(a.nm).terms.map((t) => `${t.label} ${t.text}`).join(' · ')}.${leakBy.get(a.nm).thin ? ' Small Statcast sample — the contact-quality terms are thin.' : ''} Display ranking only; it never touches a pick.`}
-                style={{
-                  fontFamily: NUM_FONT, fontSize: TYPE.micro, fontWeight: 900, flexShrink: 0, cursor: 'default',
-                  color: C.red, border: '1px solid rgba(248,113,113,.4)', background: 'rgba(248,113,113,.1)',
-                  borderRadius: 999, padding: '0 6px',
-                }}>
-                {leakBy.get(a.nm).leak}{leakBy.get(a.nm).thin ? '·' : ''}
-              </span>
-            )}
-            {leakBy.get(a.nm)?.drivers?.[0] && (
-              <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>
-                {leakBy.get(a.nm).drivers[0].label} {leakBy.get(a.nm).drivers[0].text}
-              </span>
-            )}
-            {a.weak > 0 && <span style={{ fontSize: TYPE.micro, flexShrink: 0 }} title={`${a.weak} weak spots in the lineup he faces`}>★{a.weak}</span>}
-          </button>
-        )
-        return (
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
-            <div style={{
-              flex: '1 1 300px', minWidth: 0,
-              background: C.bg2,
-              border: `1px solid ${C.border}`, borderRadius: 12, padding: '10px 13px',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: TYPE.name, fontWeight: 900 }}>🩹 Weakest arms tonight</span>
-                <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}
-                  title="Ranked by a blend of eight published fields — season HR/9, last three starts, barrels and hard contact allowed, fly-ball rate, meatball rate, tonight's park and fastball velocity against his own baseline — each ranked against tonight's other starters, not the league. Hover any arm's red number for its full breakdown. Display ranking only; nothing here feeds a pick.">
-                  leak score · HR/9 · ★N weak spots vs him
-                </span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {weakest.map((a, i) => <Arm key={a.nm} a={a} i={i} />)}
-              </div>
-            </div>
-            {trending.length > 0 && (
-              <div style={{
-                flex: '1 1 300px', minWidth: 0,
-                background: C.bg2,
-                border: `1px solid ${C.border}`, borderRadius: 12, padding: '10px 13px',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
-                  <span style={{ fontSize: TYPE.name, fontWeight: 900 }}>📉 Trending weak</span>
-                  <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>last 3 starts leaking harder than his season</span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {trending.map((a, i) => <Arm key={a.nm} a={a} i={i} showTrend />)}
-                </div>
-              </div>
-            )}
-          </div>
-        )
-      })()}
-        </>
-      )}
-
-      {/* SIMPLIFY (2026-10-17, Donovan): the fold is three sub-folds -- angles, top 10s, weakest arms. The snapshot, steal looks, the game to circle, The Read, October odds,
-          the Comeback board, the empty moneyline fold and Your night left Home; each is still reachable (Steals, Games, Bot, Leaders, Watchlist -> My picks). */}
-      </>
+      {/* THE RACES, THE SLATE, THE LINKS, THE NETWORK (2026-10-22): the bottom every product's Home shares. Tonight's angles, the
+          two Top 10s, the weak arms and the rest of "more on tonight" are one tap away; the money answer is on Results. */}
+      <RaceTracker sport="mlb" theme={C} numFont={NUM_FONT} onOpen={() => onNavigate?.('leaders')} />
+      <SlateRow sport="mlb" theme={C} numFont={NUM_FONT} games={games.map((x) => ({ id: x.game_pk, away: x.away, home: x.home, start: Date.parse(x.game_time || ''), state: 'pre' }))} totals={mlbTotals} title={slateInPast ? 'THE GAMES' : 'TONIGHT'} />
+      <HomeLinks sport="mlb" theme={C} nav={MLB_NAV} setTab={onNavigate} label="More on MOONSHOT" links={[
+        { tab: 'fullboard', sub: 'every hitter, ranked' }, { tab: 'games', sub: 'game by game' }, { tab: 'leaders', sub: 'odds, awards' },
+        { tab: 'pitchers', sub: 'the weak arms' }, { tab: 'ledger', sub: 'who homered' }, { tab: 'odds', sub: 'prices, longshots' },
+        { tab: 'results', sub: 'every pick graded' }, { tab: 'combos', sub: 'pairs and pools' }, { tab: 'storylines', sub: 'every story' },
+      ]} />
+      <NetworkRow sport="mlb" theme={C} numFont={NUM_FONT} />
 
       {/* ── NOTHING BUILT YET. One honest card instead of eight strips each
              quietly rendering nothing — an empty page that says why is a

@@ -12,6 +12,7 @@ import { scoreboardFor, reduceScoreboard, nbaGet, reduceBox, reduceShots, firstB
 import { easternToday, shiftDay } from '../../../../lib/data'
 import { storiesTick } from '../../../../lib/stories/record'
 import { writeFirstFeed, FIRST_KIND } from '../../../../lib/nba/firstFeed'
+import { writeOpening } from '../../../../lib/nba/openings'
 import { readNbaBoard } from '../../../../lib/nba/boardRead'
 import { runNbaWriteups } from '../../../../lib/writeups/post'
 import { recordNbaLanes, gradeNbaLanes } from '../../../../lib/numerology/nbaTick'
@@ -159,6 +160,10 @@ export async function GET(request) {
     // the first basket, on file for the Ledger's First scorers (lib/nba/firstFeed; never posts)
     const ff = await writeFirstFeed(db, { gameId: p.game_id, gameDate: p.game_date, seasonType: p.season_type, summary: s })
     if (ff) out.skipped.push({ game: p.game_id, why: `first basket: ${ff}` })
+    // THE OPENING (2026-10-22, lib/nba/openings.js): the tip, the first shot and basket, every man's first 3 / 6 minutes and Q1,
+    // once, from the same summary. Its own failure is logged and never holds the game open (a re-grade would write it again).
+    const op = await writeOpening(db, s, { gameId: p.game_id, gameDate: p.game_date, season: p.season, seasonType: p.season_type, home: p.home, away: p.away }).catch((e) => String(e?.message || e))
+    if (op) out.skipped.push({ game: p.game_id, why: `opening: ${op}` })
     const closed = await db.from('buckets_games').update({ graded_at: gradedAt, state: 'final' }).eq('game_id', p.game_id)
     if (closed.error) { out.skipped.push({ game: p.game_id, why: `close: ${closed.error.message}` }); continue }
     // the lane nights of that game, graded from the same box (open switch only; never blocks the grade)

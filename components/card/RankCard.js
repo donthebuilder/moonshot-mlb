@@ -163,7 +163,7 @@ export default function RankCard({
     <div className="rc-foot" onClick={(e) => e.stopPropagation()} style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: compact ? 'nowrap' : 'wrap', padding: compact ? '6px 12px 8px' : '4px 12px 8px' }}>
       <style>{'.rc-foot button{min-height:44px;min-width:44px}'}</style>
       {back && (
-        <button type="button" onClick={stop(() => setFlip(true))} aria-label="Flip the card: the stat table" title="Flip the card: the stat table" style={{ background: 'transparent', border: `1px solid ${alpha(accent, 0.4)}`, borderRadius: 8, color: accent, font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.06em', padding: compact ? '0 10px' : '0 12px', cursor: 'pointer', whiteSpace: 'nowrap', flex: '0 0 auto' }}>{compact ? <><span style={{ fontSize: 17, lineHeight: 1 }}>⟲</span><span className="rc-fliptxt"> Flip</span></> :'⟲ Flip: stat table'}</button>
+        <button type="button" data-tile="cta" onClick={stop(() => setFlip(true))} aria-label="Flip the card: the stat table" title="Flip the card: the stat table" style={{ background: 'transparent', border: `1px solid ${alpha(accent, 0.4)}`, borderRadius: 8, color: accent, font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.06em', padding: compact ? '0 10px' : '0 12px', cursor: 'pointer', whiteSpace: 'nowrap', flex: '0 0 auto' }}>{compact ? <><span style={{ fontSize: 17, lineHeight: 1 }}>⟲</span><span className="rc-fliptxt"> Flip</span></> :'⟲ Flip: stat table'}</button>
       )}
       {foot}
     </div>

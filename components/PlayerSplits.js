@@ -52,10 +52,10 @@ const THIN_PA = 100
 // to carry, not something the bot-ship pipeline needs to pull. Full code list
 // confirmed directly against MLB's own meta endpoint
 // (statsapi.mlb.com/api/v1/situationCodes) rather than assumed.
-const SIT_LABELS = {
+export const SIT_LABELS = {
   vl: 'vs LHP', vr: 'vs RHP', risp: 'RISP', risp2: 'RISP · 2 out',
   o0: 'No outs', o1: '1 out', o2: '2 outs',
-  d: 'Day', n: 'Night',
+  d: 'Day', n: 'Night', h: 'Home', a: 'Away',
   ac: 'Ahead in count', bc: 'Behind in count', ec: 'Even count',
   '2s': '2 strikes', fc: 'Full count',
   r0: 'Bases empty', r1: 'Runner on 1st', r2: 'Runner on 2nd', r3: 'Runner on 3rd',
@@ -66,7 +66,7 @@ const SIT_LABELS = {
 // Order matters within a group (display order), group order is tab order.
 // 'platoon' is the existing front-door group -- unchanged default, unchanged
 // hero tiles above it. Everything else is new, reachable via the pill row.
-const LIVE_SIT_GROUPS = [
+export const LIVE_SIT_GROUPS = [
   { key: 'platoon', label: 'Platoon + RISP', codes: ['vl', 'vr', 'risp', 'risp2'],
     caption: 'The most decision-relevant table on this tab: which ARM he punishes, and what he does with runners in scoring position. Season-long samples, live from the StatsAPI — check the PA column, then check which hand tonight’s starter throws with.' },
   { key: 'outs', label: 'Outs', codes: ['o0', 'o1', 'o2'],
@@ -270,8 +270,22 @@ export function GroupPicker({ groups, active, onPick }) {   // exported (10-19):
 
 // statSplits JSON -> the live rows the tables draw. ONE season's rows keep the league's own rate strings
 // (as this tab always has); `counts` rides along so two seasons can be SUMMED and the rates recomputed.
-function parseSitRows(j) {
-  return (j?.stats?.[0]?.splits || []).map((sp) => {
+// A TRADED HITTER (2026-10-22, found on Patrick Bailey, SF then CLE): the league answers one row per club AND a
+// total (the row with numTeams and no team) for every code. A find() on the code took the first club's row, so his
+// "vs LHP" read 19 PA instead of his 58. One row per code: the total when there is one, else the biggest sample.
+function oneRowPerCode(splits) {
+  const best = new Map()
+  for (const sp of splits) {
+    const code = sp?.split?.code || ''
+    const cur = best.get(code)
+    const total = (x) => !x?.team || Number(x?.numTeams) > 1
+    const pa = (x) => Number(x?.stat?.plateAppearances) || 0
+    if (!cur || (total(sp) && !total(cur)) || (total(sp) === total(cur) && pa(sp) > pa(cur))) best.set(code, sp)
+  }
+  return [...best.values()]
+}
+export function parseSitRows(j) {
+  return oneRowPerCode(j?.stats?.[0]?.splits || []).map((sp) => {
     const st = sp?.stat || {}
     const code = sp?.split?.code || ''
     const pa = n(st.plateAppearances, 0)
@@ -296,7 +310,7 @@ function parseSitRows(j) {
     }
   })
 }
-const sitUrl = (pid, yr) => `https://statsapi.mlb.com/api/v1/people/${pid}/stats?stats=statSplits&group=hitting&season=${yr}&sitCodes=${LIVE_SIT_CODES.join(',')}&fields=stats,splits,split,code,description,stat,avg,obp,slg,ops,homeRuns,plateAppearances,gamesPlayed,strikeOuts,hits,atBats,doubles,triples,rbi,baseOnBalls,totalBases,hitByPitch,sacFlies`
+export const sitUrl = (pid, yr, codes = LIVE_SIT_CODES) => `https://statsapi.mlb.com/api/v1/people/${pid}/stats?stats=statSplits&group=hitting&season=${yr}&sitCodes=${codes.join(',')}&fields=stats,splits,team,numTeams,split,code,description,stat,avg,obp,slg,ops,homeRuns,plateAppearances,gamesPlayed,strikeOuts,hits,atBats,doubles,triples,rbi,baseOnBalls,totalBases,hitByPitch,sacFlies`
 
 export default function PlayerSplits({ player, slateMode }) {
   const [data, setData] = useState(null)

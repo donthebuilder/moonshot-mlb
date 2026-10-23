@@ -1,4 +1,5 @@
 'use client'
+import { flatChip, CHIP_MARK } from '../../lib/chips'
 import { useState } from 'react'
 import { WhatThis } from '../ui'
 import { explain } from '../../lib/explain'
@@ -177,7 +178,7 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
                   {/* On a phone, collapsed lanes offer the rest behind one tap. */}
                   {collapsePhone && rest.length > 0 && (
                     <button type="button" className="hp-more" onClick={() => toggle(f.key)} aria-expanded={isOpen}
-                      style={{ display: 'none', marginTop: 6, alignSelf: 'flex-start', minHeight: 44, padding: '4px 12px', borderRadius: 8, border: `1px solid ${f.color}4d`, background: 'transparent', color: f.color, fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT, cursor: 'pointer' }}>
+                      style={{ ...flatChip(false, f.color, theme || {}, NUM_FONT), ...CHIP_MARK, display: 'none', marginTop: 6, alignSelf: 'flex-start', color: f.color, borderColor: `${f.color}4d` }}>{/* the site's one chip (10-22) */}
                       {isOpen ? 'Hide #2 and #3' : `#2 and #3 ▾`}
                     </button>
                   )}

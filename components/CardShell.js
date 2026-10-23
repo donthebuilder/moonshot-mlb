@@ -12,7 +12,8 @@ import { SportTheme } from './SportTheme'
 // `inline` renders the same content as a plain panel instead of a popup.
 // The Player tab needs exactly this view but sitting still on the page --
 // a modal is a bad place to read for five minutes.
-export default function CardShell({ inline, onClose, width, children: kids, label, theme = MLB_C, accent }) {
+// fill: the box takes the screen's full height too (the MLB player card, 2026-10-22); the rest keep 90vh
+export default function CardShell({ inline, onClose, width, children: kids, label, theme = MLB_C, accent, fill = false }) {
   const C = theme
   // TUDDY / LAMP: MOONSHOT's parts inside the card read the sport's theme
   // (components/SportTheme.js). MOONSHOT passes no theme, so nothing changes.
@@ -57,7 +58,7 @@ export default function CardShell({ inline, onClose, width, children: kids, labe
         style={{
           ...dialogProps.style,
           background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 18,
-          width, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch',
+          width, maxWidth: '100%', maxHeight: fill ? 'calc(100vh - 32px)' : '90vh', ...(fill ? { height: 'calc(100vh - 32px)' } : null), overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch',
           transition: 'width .15s',
         }}
       >

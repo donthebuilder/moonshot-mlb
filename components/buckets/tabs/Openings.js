@@ -1,0 +1,158 @@
+'use client'
+import { useMemo, useState } from 'react'
+import PageHeader from '../../PageHeader'
+import BucketsTable from '../BucketsTable'
+import FiltersSheet from '../../player/FiltersSheet'
+import { PillRow } from '../../Filters'
+import { C, NUM_FONT } from '../../../lib/nba/theme'
+import { useLiveFetch } from '../../../lib/useLiveFetch'
+import { useBucketsScores } from '../../../lib/nba/useBuckets'
+import { useHashLens } from '../../../lib/useHashLens'
+import { DelayedBanner, Loading, EmptyState } from '../ui'
+
+// 🏀 OPENINGS (2026-10-22, Donovan: "researching the first basket ... team tip win rate, who gets the first shots, position and
+// players, how many shots they take in the first 3 minutes, usage in that first 3 minutes, points ... first baskets for their
+// team and/or the game" + "the first six minutes ... for first quarter tickets"). The research page for the opening of a game:
+//   TONIGHT   each game's two clubs: tip record, their usual jumper, how often they score first, the man who takes their first
+//             shot most, and their first-3-minute and Q1 scoring (answer first)
+//   TEAMS / PLAYERS  every club and every player, sorted by the lane you pick (first basket · first 3 min · first 6 min · Q1)
+// Counts from /api/buckets/openings (opening_games / opening_players: every game since 2025-26, written once at grade time).
+// Nothing here is a chance: what happened, and how often. The tip is credited to the club that got the ball.
+// each lane: its word and the column it sorts by on each table
+const LANES = {
+  first: { word: 'First basket', team: 'firstPct', player: 'firstFgPct' },
+  w1: { word: 'First 3 min', team: 'w1For', player: 'w1Use' },
+  w2: { word: 'First 6 min', team: 'w2For', player: 'w2Use' },
+  q1: { word: 'Q1', team: 'q1For', player: 'q1Pts' },
+}
+const VIEWS = ['teams', 'players']
+const f1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : '—')
+const pc = (v) => (Number.isFinite(v) ? `${v.toFixed(0)}%` : '—')
+
+export default function Openings({ date, onOpenPlayer, onOpenTeam, onOpenGame }) {
+  const [view, setView] = useHashLens(VIEWS, 'players')
+  const [lane, setLane] = useState('first')
+  const [season, setSeason] = useState('both')
+  const [where, setWhere] = useState('all')
+  const [last, setLast] = useState('all')
+  const url = `/api/buckets/openings?season=${season}&where=${where}${last === 'all' ? '' : `&last=${last}`}`
+  const { data, error, loading } = useLiveFetch(url)
+  const { data: sb } = useBucketsScores(date)
+  const L = LANES[lane] || LANES.first
+  // a rate on a handful of games is noise: 20+ games across seasons, anyone this early in this season alone
+  const minGp = season === 'this' ? 1 : 20
+
+  const teamsBy = useMemo(() => new Map((data?.teams || []).map((t) => [t.team, t])), [data])
+  const players = useMemo(() => (data?.players || []).filter((p) => p.gp >= minGp), [data, minGp])
+  // each club's man who takes its first shot most (the same games floor as the table)
+  const firstShooter = useMemo(() => {
+    const m = new Map()
+    for (const p of players) if (p.gp >= minGp && (!m.has(p.team) || p.firstShotPct > m.get(p.team).firstShotPct)) m.set(p.team, p)
+    return m
+  }, [players, minGp])
+
+  // TONIGHT: two rows a game (away first), the clubs' own records
+  const tonight = useMemo(() => (sb?.games || []).flatMap((g) => ['away', 'home'].map((s) => {
+    const t = g[s]?.abbrev
+    const T = teamsBy.get(t) || {}
+    const fs = firstShooter.get(t)
+    return { _id: `${g.id}-${s}`, gameId: g.id, game: s === 'away' ? `${g.away?.abbrev} @ ${g.home?.abbrev}` : '', team: t, ...T,
+      jumperTxt: T.jumper ? `${T.jumper} ${T.jumperW}-${T.jumperJ - T.jumperW}` : '—', shooter: fs?.name || '—', shooterId: fs?.playerId || null, shooterPct: fs?.firstShotPct ?? null }
+  })), [sb, teamsBy, firstShooter])
+
+  const tonightCols = [
+    { key: 'game', label: 'Game', group: 'Game', w: 92, heat: false, sticky: true, bold: true, link: (r) => (onOpenGame && r.game ? () => onOpenGame(r.gameId) : null) },
+    { key: 'team', label: 'Tm', group: 'Game', w: 52, heat: false, mono: true, teamMark: 'nba', link: (r) => (onOpenTeam ? () => onOpenTeam(r.team) : null) },
+    { key: 'tipPct', label: 'TIP %', group: 'The tip', w: 56, fmt: pc, primary: true, title: 'How often his club got the opening tip' },
+    { key: 'jumperTxt', label: 'Jumper', group: 'The tip', w: 150, heat: false, numeric: false, link: (r) => (onOpenPlayer && r.jumperId ? () => onOpenPlayer(r.jumperId) : null), title: 'The man who jumps for them most, and his tip record (won-lost)' },
+    { key: 'firstPct', label: '1ST SCORE %', group: 'First basket', w: 78, fmt: pc, title: 'How often his club made the first basket' },
+    { key: 'shooter', label: 'Takes 1st shot', group: 'First basket', w: 150, heat: false, numeric: false, link: (r) => (onOpenPlayer && r.shooterId ? () => onOpenPlayer(r.shooterId) : null), title: 'The player who takes his club’s first shot most often' },
+    { key: 'shooterPct', label: '%', group: 'First basket', w: 44, fmt: pc, title: 'How often he took the game’s first shot' },
+    { key: 'w1For', label: '3 MIN', group: 'Scoring', w: 52, fmt: f1, title: 'Points a game in the first 3 minutes' },
+    { key: 'q1For', label: 'Q1', group: 'Scoring', w: 48, fmt: f1, title: 'Points a game in the first quarter' },
+    { key: 'q1Ag', label: 'Q1 AG', group: 'Scoring', w: 52, fmt: f1, invert: true, title: 'Points a game allowed in the first quarter' },
+  ]
+  const teamCols = [
+    { key: 'team', label: 'Team', group: 'Team', w: 60, heat: false, sticky: true, bold: true, mono: true, teamMark: 'nba', link: (r) => (onOpenTeam ? () => onOpenTeam(r.team) : null) },
+    { key: 'gp', label: 'GP', group: 'Team', w: 40, heat: false },
+    { key: 'tipPct', label: 'TIP %', group: 'The tip', w: 56, fmt: pc, primary: lane === 'first' },
+    { key: 'jumper', label: 'Jumper', group: 'The tip', w: 140, heat: false, numeric: false, link: (r) => (onOpenPlayer && r.jumperId ? () => onOpenPlayer(r.jumperId) : null) },
+    { key: 'jumperRec', label: 'W-L', group: 'The tip', w: 56, heat: false, numeric: false },
+    { key: 'firstPct', label: '1ST SCORE %', group: 'First basket', w: 78, fmt: pc, primary: lane === 'first' },
+    { key: 'firstWhenTipPct', label: 'AFTER TIP %', group: 'First basket', w: 78, fmt: pc, title: 'How often they scored first in games they won the tip' },
+    { key: 'w1For', label: 'FOR', group: 'First 3 min', w: 48, fmt: f1, primary: lane === 'w1' },
+    { key: 'w1Ag', label: 'AG', group: 'First 3 min', w: 44, fmt: f1, invert: true },
+    { key: 'w2For', label: 'FOR', group: 'First 6 min', w: 48, fmt: f1, primary: lane === 'w2' },
+    { key: 'w2Ag', label: 'AG', group: 'First 6 min', w: 44, fmt: f1, invert: true },
+    { key: 'q1For', label: 'FOR', group: 'Q1', w: 48, fmt: f1, primary: lane === 'q1' },
+    { key: 'q1Ag', label: 'AG', group: 'Q1', w: 44, fmt: f1, invert: true },
+  ]
+  const playerCols = [
+    { key: 'name', label: 'Player', group: 'Player', w: 150, heat: false, sticky: true, bold: true },
+    { key: 'team', label: 'Tm', group: 'Player', w: 52, heat: false, mono: true, teamMark: 'nba', link: (r) => (onOpenTeam ? () => onOpenTeam(r.team) : null) },
+    { key: 'pos', label: 'Pos', group: 'Player', w: 40, heat: false, numeric: false, dim: true },
+    { key: 'gp', label: 'GP', group: 'Sample', w: 40, heat: false },
+    { key: 'gs', label: 'GS', group: 'Sample', w: 40, heat: false, title: 'Games he started' },
+    { key: 'firstShotPct', label: '1ST SHOT %', group: 'First basket', w: 72, fmt: pc, title: 'How often he took the game’s first shot' },
+    { key: 'top3ShotPct', label: 'TOP-3 %', group: 'First basket', w: 60, fmt: pc, title: 'How often he took one of the game’s first three shots' },
+    { key: 'firstFg', label: '1ST FG', group: 'First basket', w: 52, title: 'First baskets of the game he made' },
+    { key: 'firstFgPct', label: '1ST FG %', group: 'First basket', w: 64, fmt: pc, primary: lane === 'first' },
+    { key: 'w1Fga', label: 'FGA', group: 'First 3 min', w: 44, fmt: f1 },
+    { key: 'w1Pts', label: 'PTS', group: 'First 3 min', w: 44, fmt: f1 },
+    { key: 'w1Use', label: 'USG %', group: 'First 3 min', w: 56, fmt: f1, primary: lane === 'w1', title: 'His share of his club’s shots, free throws and turnovers in the first 3 minutes' },
+    { key: 'w2Fga', label: 'FGA', group: 'First 6 min', w: 44, fmt: f1 },
+    { key: 'w2Pts', label: 'PTS', group: 'First 6 min', w: 44, fmt: f1 },
+    { key: 'w2Use', label: 'USG %', group: 'First 6 min', w: 56, fmt: f1, primary: lane === 'w2' },
+    { key: 'q1Pts', label: 'PTS', group: 'Q1', w: 44, fmt: f1, primary: lane === 'q1' },
+    { key: 'q1Reb', label: 'REB', group: 'Q1', w: 44, fmt: f1 },
+    { key: 'q1Ast', label: 'AST', group: 'Q1', w: 44, fmt: f1 },
+    { key: 'q1Ra', label: 'R+A', group: 'Q1', w: 44, fmt: f1 },
+    { key: 'q1Use', label: 'USG %', group: 'Q1', w: 56, fmt: f1 },
+  ]
+  const teamRows = useMemo(() => (data?.teams || []).map((t) => ({ ...t, _id: t.team, jumperRec: t.jumper ? `${t.jumperW}-${t.jumperJ - t.jumperW}` : '—' }))
+    .sort((a, b) => (b[L.team] ?? -1) - (a[L.team] ?? -1)), [data, L])
+  const playerRows = useMemo(() => players.map((p) => ({ ...p, _id: p.playerId })).sort((a, b) => (b[L.player] ?? -1) - (a[L.player] ?? -1)), [players, L])
+  const seasonOpts = (data?.seasons?.length ? [{ value: 'both', label: 'Both seasons' }, { value: 'this', label: 'This season' }, { value: 'last', label: 'Last season' }] : [{ value: 'both', label: 'Both seasons' }])
+  const sample = (data?.seasons || []).map((s) => `${s.label} ${s.games} games`).join(' · ')
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <PageHeader eyebrow="BUCKETS · OPENINGS" title="The tip, the first basket, the first quarter"
+        note={sample ? `What happened in the opening of every game: ${sample}. Counts, not a chance.` : 'What happened in the opening of every game. Counts, not a chance.'}
+        theme={C} numFont={NUM_FONT} accent={C.purple} />
+      <DelayedBanner error={error} what="the openings" />
+      {loading && !data ? <Loading what="every game's opening" /> : null}
+      {data && !data.games ? <EmptyState title="NO OPENINGS ON FILE YET" note="Each game's opening is written when it's graded. This fills as the season plays." /> : null}
+
+      {data?.games > 0 && tonight.length > 0 && (
+        <section aria-label="Tonight's openings">
+          <div style={{ color: C.text2, font: `900 12px/1.2 ${NUM_FONT}`, letterSpacing: '.08em', margin: '0 0 6px' }}>TONIGHT · WHO WINS THE TIP, WHO SCORES FIRST</div>
+          <BucketsTable rows={tonight} columns={tonightCols} heatMode="primary" maxRows={12} maxHeight={9999}
+            caption="Each club's record in the games on file. The tip goes to the club that got the ball; the first basket is the first made field goal." />
+        </section>
+      )}
+
+      {data?.games > 0 && (
+        <>
+          <PillRow tall label="View" value={view} onChange={setView} options={[{ key: 'players', label: 'Players' }, { key: 'teams', label: 'Teams' }]} />
+          <PillRow label="Sort by" value={lane} onChange={setLane} options={[{ key: 'first', label: LANES.first.word }, { key: 'w1', label: LANES.w1.word }, { key: 'w2', label: LANES.w2.word }, { key: 'q1', label: LANES.q1.word }]} />
+          <FiltersSheet
+            onReset={() => { setSeason('both'); setWhere('all'); setLast('all') }}
+            groups={[
+              { key: 'season', label: 'Season', value: season, defaultValue: 'both', onChange: setSeason, options: seasonOpts },
+              { key: 'where', label: 'Home / away', value: where, defaultValue: 'all', onChange: setWhere, options: [{ value: 'all', label: 'All' }, { value: 'home', label: 'Home' }, { value: 'away', label: 'Away' }] },
+              { key: 'last', label: 'Window', value: last, defaultValue: 'all', onChange: setLast, options: [{ value: 'all', label: 'Every game' }, { value: '10', label: 'Last 10' }, { value: '20', label: 'Last 20' }] },
+            ]} />
+          {view === 'teams'
+            ? <BucketsTable rows={teamRows} columns={teamCols} heatMode="primary" maxRows={12} maxHeight={9999}
+                caption={`Every club, sorted by ${L.word.toLowerCase()}. FOR / AG = points a game scored / allowed in that stretch.`} />
+            : playerRows.length
+              ? <BucketsTable nameCell="player" faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })} rows={playerRows} columns={playerCols} heatMode="primary" maxRows={12} maxHeight={9999}
+                  onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)}
+                  caption={`Players with ${minGp}+ games, sorted by ${L.word.toLowerCase()}. USG % = his share of his club's shots, free throws and turnovers in that stretch.`} />
+              : <EmptyState title="NOT ENOUGH GAMES YET" note={`Nobody has ${minGp}+ games in this window yet. Try both seasons.`} />}
+        </>
+      )}
+    </div>
+  )
+}

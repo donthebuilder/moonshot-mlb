@@ -7,12 +7,13 @@ import { NBA_MARKETS } from '../../lib/nba/model'
 import { useLiveFetch } from '../../lib/useLiveFetch'
 import { C, NUM_FONT } from '../../lib/nba/theme'
 
-export default function BucketsSlipAdd({ id, name, team = null, opp = null, style = null }) {
+// even / lead / pickCode / pickLine pass through to SlipAdd (the card's even watch + slip row, 2026-10-22)
+export default function BucketsSlipAdd({ id, name, team = null, opp = null, style = null, ...row }) {
   const { data: odds } = useLiveFetch('/api/odds/latest?sport=nba')
   const game = team && opp ? { key: [team, opp].sort().join('-'), label: [team, opp].sort().join(' · ') } : null
   const legs = Object.keys(NBA_ODDS_KEY).map((m) => {
     const q = nbaQuote(odds, id, m)
     return q ? { key: `${id}|${m}`, id: String(id), name, team, market: NBA_MARKETS[m]?.label || m, line: `o${q.line}`, side: 'over', price: Number(q.best_over ?? q.over), game } : null
   }).filter(Boolean)
-  return <SlipAdd sport="nba" legs={legs} C={C} NUM_FONT={NUM_FONT} accent={C.purple} style={style} />
+  return <SlipAdd sport="nba" legs={legs} C={C} NUM_FONT={NUM_FONT} accent={C.purple} style={style} {...row} />
 }

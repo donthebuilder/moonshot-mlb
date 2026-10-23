@@ -1,4 +1,5 @@
 'use client'
+import { flatChip, CHIP_MARK } from '../lib/chips'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import {
@@ -569,12 +570,8 @@ export default function GameLineup({ players, onPlayerClick }) {
   if (!players.length) return null
 
   const lit = (k) => rows.filter((r) => r[k]).length
-  const pill = (on) => ({
-    padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
-    border: `1px solid ${on ? C.orange : C.border}`,
-    background: on ? 'rgba(249,115,22,.12)' : 'transparent',
-    color: on ? C.orange : C.text3,
-  })
+  // the site's one chip (lib/chips.js flatChip, the oval; 10-22); CHIP_MARK gives the 44px tap on a phone
+  const pill = (on) => ({ ...flatChip(on, C.orange, C, NUM_FONT), ...CHIP_MARK })
 
   return (
     <div style={{ marginBottom: 14 }}>

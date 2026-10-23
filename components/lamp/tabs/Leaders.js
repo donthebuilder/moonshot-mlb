@@ -1,4 +1,6 @@
 'use client'
+import ChampionshipFold from '../../ChampionshipFold'
+import AwardRaces from '../../AwardRaces'
 import { useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import LeaderTile, { LEADER_GRID } from '../../LeaderTile'
@@ -250,6 +252,11 @@ export default function Leaders({ onOpenPlayer }) {
           />
         ))}
 
+        {/* FROM HOME (2026-10-22): Stanley Cup odds and the award races (MOONSHOT and TUDDY keep theirs on Leaders too) */}
+        <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
+          <ChampionshipFold sport="nhl" />
+          <AwardRaces sport="nhl" onOpenPlayer={onOpenPlayer} />
+        </div>
       </div>
     </SportTheme>
   )

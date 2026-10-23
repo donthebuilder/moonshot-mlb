@@ -51,6 +51,7 @@ const Numerology = dynamic(() => import('./tabs/Numerology'), { loading: TabLoad
 const Watchlist = dynamic(() => import('./tabs/Watchlist'), { loading: TabLoading })
 const StorylinesPage = dynamic(() => import('../StorylinesPage'), { loading: TabLoading })
 const Team = dynamic(() => import('./tabs/Team'), { loading: TabLoading })
+const Openings = dynamic(() => import('./tabs/Openings'), { loading: TabLoading })
 const Players = dynamic(() => import('./tabs/Players'), { loading: TabLoading })
 const Player = dynamic(() => import('./tabs/Player'), { loading: TabLoading })
 // next/dynamic returns a wrapper that does not carry the module's statics, so the flag PlayerPeek reads (the page holds the card's one toolbar and the close in its header) is set on the wrapper itself
@@ -158,6 +159,7 @@ export default function BucketsDashboard() {
             {tab === 'team' && <Team abbrev={teamKey} {...nav} backLabel={backLabel('standings')} onBack={() => goBack('standings')} />}
             {tab === 'players' && <Players {...nav} />}
             {tab === 'player' && <Player id={playerId} {...nav} onStep={stepPlayer} backLabel={backLabel('players')} onBack={() => goBack('players')} />}
+            {tab === 'openings' && <Openings date={date} {...nav} />}
             {tab === 'power' && <Power date={date} setDate={setDate} {...nav} />}
             {tab === 'pairs' && <Pairs onOpenPlayer={peekPlayer} />}
             {tab === 'leaders' && <Leaders {...nav} />}

@@ -21,7 +21,8 @@ import { asLogos } from './TeamMark'
 // to back for a seamless loop, the echo hidden from screen readers.
 // faceOf(card) -> node | null (BATCH-FACES step 8): a small face beside the
 // name on a card about one player. Absent, the card draws exactly as before.
-export default function HeadlineStrip({ cards = [], onOpen = null, theme = null, numFont = null, accent = null, speed = 30, faceOf = null, sport = null, onOpenGame = null }) {
+// title / countWord: the strip's own words (2026-10-22: TUDDY's Home strip carries the storylines too, so it says so)
+export default function HeadlineStrip({ cards = [], onOpen = null, theme = null, numFont = null, accent = null, speed = 30, faceOf = null, sport = null, onOpenGame = null, title = 'HEADLINES', countWord = 'headlines' }) {
   const C = theme || MLB_C
   const NUM_FONT = numFont || MLB_NUM
   const stripRef = useRef(null)
@@ -62,9 +63,9 @@ export default function HeadlineStrip({ cards = [], onOpen = null, theme = null,
   return (
     <div className="home-headlines" style={{ margin: '2px 0 0' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
-        <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.16em', fontFamily: NUM_FONT, color: C.text3 }}>HEADLINES</span>
+        <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.16em', fontFamily: NUM_FONT, color: C.text3 }}>{title}</span>
         <span style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${accent || C.orange}66, transparent)` }} />
-        <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{cards.length} headlines</span>
+        <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{cards.length} {countWord}</span>
       </div>
       {/* #97: WebkitOverflowScrolling:'touch' dropped here too -- see the
           matching note in components/Header.js. Same useAutoScroll hook,

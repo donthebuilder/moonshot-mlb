@@ -13,7 +13,7 @@ const nflIdOf = (x) => String(x?.player_id ?? '')
 import { C, NUM_FONT, MARKETS, MARKET_SHORT, gradeFor } from '../../lib/nfl/theme'
 import { STAT_KEY } from './HitRate'
 import SlipAdd from '../SlipAdd'
-import PriceHistory from '../PriceHistory'
+import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 import PlayerNotes from '../PlayerNotes'
 import HisNumbers from '../HisNumbers'
 import InTheLedger from '../ledger/InTheLedger'
@@ -414,23 +414,19 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
   const whyExplain = [...whyLines, ...bullets.map((b) => b.text)].join('  ')
   const showSeason = ['splits', 'gamelog'].includes(tab) && seasonOpts.length > 0
 
-  // THE WATCH ROW, MOONSHOT's: Watch, ADD TO SLIP with a + for every market the book actually prices for him (no price, no button), and TUDDY's pick.
+  // THE WATCH ROW, MOONSHOT's (2026-10-22, the even row): Watch and a + for every market the book actually prices for him (no price,
+  // no button) as equal cells in one row; TUDDY's pick is a ★ on its cell, and the sentence shows only when no cell carries it.
   const watchRow = (
-  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', margin: '4px 0 10px' }}>
-    <button type="button" onClick={() => watchlist.toggle(player)} aria-pressed={saved}
-      aria-label={saved ? `Remove ${player.name} from watchlist` : `Save ${player.name} to watchlist`}
-      title={saved ? 'Remove from watchlist' : 'Add to watchlist'}
-      style={{
-        minHeight: 44, padding: '0 11px', fontSize: 13, fontWeight: 800, borderRadius: 10, cursor: 'pointer', fontFamily: NUM_FONT,
-        border: `1px solid ${saved ? C.green : C.border}`, background: saved ? `${C.green}24` : 'transparent', color: saved ? C.green : C.text3,
-      }}>{saved ? '★ Watching' : '☆ Watch'}</button>
-    {!defender && <SlipAdd sport="nfl" legs={legs} C={C} NUM_FONT={NUM_FONT} accent={C.green} style={{ margin: 0, gap: 6 }} />}
-    {!defender && Number.isFinite(s0) && (
-      <span style={{ fontSize: 12, color: C.text3 }}>
-        TUDDY&apos;s pick: <b style={{ color: C.text2 }}>{pickWord}</b>
-      </span>
-    )}
-  </div>
+    <SlipAdd sport="nfl" legs={legs} C={C} NUM_FONT={NUM_FONT} accent={C.green} style={{ margin: '4px 0 10px' }} even
+      pickCode={pickWord === 'Anytime TD' ? 'TD' : null}
+      pickLine={!defender && Number.isFinite(s0) ? <>TUDDY&apos;s pick: <b style={{ color: C.text2 }}>{pickWord}</b></> : null}
+      lead={(
+        <button type="button" onClick={() => watchlist.toggle(player)} aria-pressed={saved}
+          aria-label={saved ? `Remove ${player.name} from watchlist` : `Save ${player.name} to watchlist`}
+          title={saved ? 'Remove from watchlist' : 'Add to watchlist'}
+          className={FLAT_CHIP_CLASS} style={{ ...flatChip(saved, C.green, C, NUM_FONT), justifyContent: 'center', minWidth: 0 }}
+        >{saved ? '★ Watching' : '☆ Watch'}</button>
+      )} />
   )
 
   return (
@@ -529,7 +525,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         {/* THE PRICE: the line for the market on screen, the best book, the break-even. */}
         {(() => {
           const q = cardLocked ? null : quoteFor(odds, player, market)
-          if (!q) return cardLocked ? null : <PriceHistory quote={null} marketLabel={spec?.short || market} theme={C} numFont={NUM_FONT} />
+          if (!q) return null
           return (<>
             <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', margin: '4px 0 6px', fontSize: 12, color: C.text2, fontFamily: NUM_FONT }}>
               <b style={{ color: C.text3, fontSize: 11, letterSpacing: '.08em' }}>PRICE</b>
@@ -540,8 +536,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
               {q.matches !== false && <LineMoveChip quote={q} theme={C} numFont={NUM_FONT} />}
               {!q.matches && <span style={{ color: C.yellow }}>a different line from the bar</span>}
             </div>
-            {/* MOONSHOT's price timeline (components/OddsTimeline.js), the book's opening price to now */}
-            <PriceHistory quote={q.matches !== false ? q : null} marketLabel={spec?.short || market} theme={C} numFont={NUM_FONT} />
+            {/* NO PRICE TIMELINE (2026-10-21, Donovan: "remove the price timeline inside of the player model ... remove it") */}
           </>)
         })()}
       </>}

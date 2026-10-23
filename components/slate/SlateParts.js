@@ -1,9 +1,9 @@
 'use client'
+import { FLAT_CHIP_CLASS, flatChip } from '../../lib/chips'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { alpha } from '../../lib/scales'
 import { btnStyle } from '../ui'
 import { FilterPill } from '../Filters'
-import { useSportTheme } from '../SportTheme'
 import MobileFold from '../MobileFold'
 import { MatchLogos } from '../TeamMark'
 import Rail from '../Rail'
@@ -24,17 +24,11 @@ import SlateCard from './SlateCard'
 //   PrevNextGame     ‹ previous · 3 / 15 · next ›
 
 export function ViewPills({ views, view, setView, accent = C.orange }) {
-  const themed = !!useSportTheme()?.themed   // 44px on a touch screen in TUDDY / LAMP / BUCKETS (.fp-themed); MOONSHOT unchanged
   return (
     <div style={{ display: 'flex', gap: 5, marginBottom: 10, flexWrap: 'wrap' }}>
       {views.map(([k, label]) => (
-        <button key={k} className={themed ? 'fp-themed' : undefined} onClick={() => setView(k)} style={{
-          padding: '4px 13px', borderRadius: 999, cursor: 'pointer', fontSize: TYPE.body,
-          fontWeight: 800, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
-          border: `1px solid ${view === k ? accent : C.border}`,
-          background: view === k ? alpha(accent, 0.14) : 'transparent',
-          color: view === k ? accent : C.text3,
-        }}>{label}</button>
+        // the site's one chip (lib/chips.js flatChip, the oval; 10-22 chip audit); the 44px tap is .tap-box's
+        <button key={k} type="button" className={FLAT_CHIP_CLASS} aria-pressed={view === k} onClick={() => setView(k)} style={flatChip(view === k, accent, C, NUM_FONT)}>{label}</button>
       ))}
     </div>
   )
@@ -71,8 +65,8 @@ export function GameFilterRail({ value, onChange, counts, opts = BASE_GAME_FILTE
  *  builds its cards in GameStrip and keeps doing so. */
 export function SlateStrip({ sport, isPhone, rememberKey, accent, theme, open = null, cards, activeId, onSelect, legend }) {
   return (
-    <StripFold isPhone={isPhone} count={cards.length} rememberKey={rememberKey} accent={accent}
-      summary={open ? <>reading <MatchLogos sport={sport} away={open.away} home={open.home} px={14} gap={3} /></> : 'tap to pick one'}>
+    <StripFold isPhone={isPhone} rememberKey={rememberKey} accent={accent}
+      summary={open ? null : 'tap to pick one'}>
       <div style={{ marginBottom: 16 }}>
         <style>{'@keyframes gsLivePulse{0%,100%{opacity:1}50%{opacity:.3}}'}</style>
         <Rail itemMin={296} gap={8} wheelScroll={false}>   {/* 296 (was 264): a wider card is a shorter one (10-19) */}
@@ -84,7 +78,11 @@ export function SlateStrip({ sport, isPhone, rememberKey, accent, theme, open = 
   )
 }
 
-export function StripFold({ isPhone, count, summary, rememberKey = 'moonshot_games_fold_v1', accent = C.orange, children }) {
+// SAID ONCE (layout sweep, 2026-10-22, Donovan: "repeated data of the line before"): the fold's title no longer carries the
+// game count (the lit All / Live / Upcoming / Final chip right above it says it) or "reading NYM @ WSH" (the lit card in the
+// strip, the lit chip in the phone's game switcher and the open game's own header all say it). `count` is accepted and unused.
+// MOONSHOT's Games page shows the count again (Donovan 10-22: MLB's slate back to how it was); SlateStrip's products pass none.
+export function StripFold({ isPhone, count = null, summary, rememberKey = 'moonshot_games_fold_v1', accent = C.orange, children }) {
   return (
     <MobileFold
       title="🏟 All games"
@@ -121,15 +119,12 @@ export function GamePanelPills({ panels, subs = {}, badges = {}, panel, setPanel
           return (
             <button
               key={k}
+              type="button"
+              className={FLAT_CHIP_CLASS}
+              aria-pressed={on}
               onClick={(e) => { e.stopPropagation(); jump(k) }}
               title={subs[k]}
-              style={{
-                padding: '4px 12px', borderRadius: 999, cursor: 'pointer', fontSize: TYPE.body,
-                fontWeight: 800, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
-                border: `1px solid ${on ? accent : C.border}`,
-                background: on ? alpha(accent, 0.14) : 'transparent',
-                color: on ? accent : C.text3,
-              }}
+              style={flatChip(on, accent, C, NUM_FONT)}   // the site's one chip (10-22)
             >
               {label}
               {badges[k] && (

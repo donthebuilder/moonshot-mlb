@@ -1,42 +1,25 @@
 'use client'
 
-import Tap from '../../Tap'
-import { playerHref, teamHref } from '../../../lib/routes'
-import { fmtCountdown } from '../../../lib/headlines'
-import { dayLine } from '../../../lib/dayLine'
-import StoryTape from '../../StoryTape'
 import PlayerFace from '../../PlayerFace'
-import { useCallback, useMemo, useRef, useState, useEffect } from 'react'
-import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
+import { useMemo, useState, useEffect } from 'react'
+import { C, NUM_FONT } from '../../../lib/nfl/theme'
 import NflYourPlayers from '../NflYourPlayers'
 import { useResultsDigest, seasonTotals, grandTotal, lineTotals } from '../../../lib/nfl/resultsArchive'
 import { ledgerTotals } from '../../../lib/nfl/myPicks'
-import TeamMark from '../../TeamMark'  // the shared club mark (R1: was FRANCHISE's roster badge)
-import TeamPower from '../TeamPower'
-import StartSit from '../StartSit'
 import Fold from '../../Fold'
-import { usePreview, ShowMoreButton } from '../../ListPreview'
-import { BigPlayWatch } from './Explosive'
 import TonightsCalls from '../../phone/TonightsCalls'
-import ScoreRail from '../../ScoreRail'
-import { useLockOf } from '../../MemberGate'
-import { fetchNflLive, lineFor, tdsIn } from '../../../lib/nfl/liveSlate'
-import { scheduleFor, slateDay } from '../../../lib/boxscore'
-import { setSport } from '../../../lib/sport'
-// ONE RAIL, BOTH SPORTS (round 10, 2026-09-17) -- see lib/combinedRail.js's
-// own header comment for the full trace. `NflRailTeamMark`/local
-// `nflRenderState` (both below, previously) are now `CombinedTeamMark`/
-// `combinedRenderState` from there, shared with MOONSHOT's own Home.js
-// instead of two copies of the same dispatch logic.
-import { toRailGame, toMlbRailGames, mergeGamesSorted, combinedRenderState, CombinedTeamMark } from '../../../lib/combinedRail'
 // Shared, sport-agnostic self-scroll hook -- components/Header.js and
 // components/nfl/NflHeader.js's ticker both already use it.
 // The NFL twin of MOONSHOT Home's buildHeadlines() -- same real signals
 // that now also ride TUDDY's own header ticker (2026-09-16).
 import NflHeadlineStrip from '../NflHeadlineStrip'
+import { dayLine } from '../../../lib/dayLine'
+import NflSlateRow from '../NflSlateRow'
+import NetworkRow from '../../NetworkRow'
+import RaceTracker from '../../RaceTracker'
+import { fmtCountdown } from '../../../lib/headlines'
 import HeadlinePicks from '../../headline/HeadlinePicks'
 import { kickoffFor } from '../../../lib/nfl/kickoff'
-import { defenseLeaks } from '../../../lib/nfl/defenseLeaks'
 import PageHeader from '../../PageHeader'
 import { NFL_NAV } from '../../../lib/routes'
 import HotNumbers from '../../numerology/HotNumbers'
@@ -46,8 +29,6 @@ import { milestoneOf, milestoneCount, milestoneWords } from '../../../lib/nfl/mi
 import { baselineFor } from '../ScoreAnatomy'
 import { regradeNotes } from '../../../lib/nfl/regrades'
 import NflTonight from '../../tonight/NflTonight'
-import ChampionshipFold from '../../ChampionshipFold'
-import AwardRaces from '../../AwardRaces'
 
 const SIX = [
   ['TD', 'ATD', 'Touchdown'],
@@ -186,100 +167,14 @@ function TheSix({ picks, playersById, games = [], players = [], markets = [], on
   )
 }
 
-function TouchdownLedger({ results, playersById, onPlayerClick }) {
-  const scorers = useMemo(() => Object.entries(results?.lines || {})
-    .map(([playerId, line]) => ({ playerId, touchdowns: number(line?.TD), player: playersById[playerId] }))
-    .filter((row) => row.touchdowns > 0)
-    .sort((a, b) => b.touchdowns - a.touchdowns), [results, playersById])
-  const total = scorers.reduce((sum, row) => sum + row.touchdowns, 0)
-  const pv = usePreview(scorers)   // 10-18: open on Home, four names, then all of them
 
-  return (
-    <section className="tuddy-panel">
-      <SectionTitle eyebrow="BUILDS AS GAMES PLAY" title="Touchdown ledger" />
-      <div className="tuddy-ledger-total"><strong>{total}</strong><span>touchdowns recorded<br/>in the latest graded week</span></div>
-      <div className="tuddy-ledger-list">
-        {/* A NAME IS A LINK (0g A1, 2026-10-01): his card when he is on this
-            week's slate, else his player page. */}
-        {pv.shown.map((row) => <div key={row.playerId}><TeamMark sport="nfl" variant="logo" px={26} abbr={row.player?.team || 'FA'} /><b>{(() => {
-          const name = row.player?.name || results?.names?.[row.playerId] || row.playerId
-          return row.player && onPlayerClick
-            ? <Tap onClick={() => onPlayerClick(row.player)}>{name}</Tap>
-            : <a href={playerHref('nfl', row.playerId)} style={{ color: 'inherit', textDecoration: 'none' }}>{name}</a>
-        })()}</b><em>{row.touchdowns} TD{row.touchdowns === 1 ? '' : 's'}</em></div>)}
-        {!scorers.length && <p>Kickoff hasn’t produced a graded touchdown yet. This ledger fills from the public results feed.</p>}
-      </div>
-      <ShowMoreButton open={pv.open} restN={pv.restN} toggle={pv.toggle} total={pv.total} itemWord="scorers" />
-    </section>
-  )
-}
 
-// defenseLeaks moved to lib/nfl/defenseLeaks.js (shared with the Ledger tab, 2026-09-27).
-function LookOut({ matchup, games }) {
-  const leaks = useMemo(() => defenseLeaks(matchup, games), [matchup, games])
-  return (
-    <section className="tuddy-panel tuddy-lookout">
-      <SectionTitle eyebrow="BEFORE IT HAPPENS" title="The Look-Out" />
-      <h3>Defenses leaking touchdowns</h3>
-      <div className="tuddy-leaks">
-        {leaks.map((row) => <div key={`${row.team}-${row.role}`}><b><a className="tap-box" href={teamHref('nfl', row.team)} aria-label={`Open ${row.team}`} style={{ color: 'inherit', textDecoration: 'none', display: 'inline-flex' }}><TeamMark sport="nfl" abbr={row.team} variant="logo" px={22} /></a></b><span>{row.role}</span><em>#{row.td_rank} TD matchup · {number(row.td).toFixed(0)} allowed</em></div>)}
-        {!leaks.length && <p>The slate has no top-eight TD matchup flagged in the published defense table.</p>}
-      </div>
-      {/* "Who needs what" is gone (HISTORY WATCH 2 step 5, 2026-09-27): every
-          5 TDs / 50 catches / 500 yards with no claim behind it. The History
-          Watch in the headline strip above is the countdown with a reason. */}
-    </section>
-  )
-}
-
-function Angles({ players, matchup, onPlayerClick }) {
-  const eligible = players.filter((player) => !player.low_sample)
-  const best = (field, label, suffix = '') => eligible
-    .filter((player) => Number.isFinite(Number(player.stats?.[field])))
-    .sort((a, b) => number(b.stats[field]) - number(a.stats[field]))[0]
-    ? ((player) => ({ label, player, value: `${number(player.stats[field]).toFixed(field.includes('%') || field === 'WOPR' ? 3 : 1)}${suffix}` }))
-      (eligible.filter((player) => Number.isFinite(Number(player.stats?.[field]))).sort((a, b) => number(b.stats[field]) - number(a.stats[field]))[0])
-    : null
-  const rows = [
-    best('GL', 'Goal-line work'), best('RZ', 'Red-zone volume'),
-    best('WOPR', 'Passing-game gravity'), best('AIRYD', 'Air-yards pressure'),
-  ].filter(Boolean)
-  void matchup
-  return (
-    <section className="tuddy-angles">
-      <SectionTitle eyebrow="FROM THIS SLATE'S DATA" title="Angles worth opening" />
-      <div>{rows.map((row, index) => <article key={row.label}><span>0{index + 1}</span><div><small>{row.label}</small><b>{onPlayerClick ? <Tap onClick={() => onPlayerClick(row.player)}>{row.player.name}</Tap> : row.player.name}</b><p>{row.player.team ? <a className="tap-box" href={teamHref('nfl', row.player.team)} style={{ color: 'inherit', textDecoration: 'none' }}>{row.player.team}</a> : null} vs {row.player.opp ? <a className="tap-box" href={teamHref('nfl', row.player.opp)} style={{ color: 'inherit', textDecoration: 'none' }}>{row.player.opp}</a> : '—'} · published rate {row.value}</p></div></article>)}</div>
-    </section>
-  )
-}
 
 // "Full board" opens the Board hub on THAT market (2026-09-26): the hub
 // reads m= / view= off the hash, and setTab keeps them.
-function boardOpener(setTab) {
-  return (market) => {
-    try { const h = new URLSearchParams(window.location.hash.slice(1)); h.set('m', market); h.set('view', 'board'); window.history.replaceState(null, '', `#${h.toString()}`) } catch { /* ignore */ }
-    setTab?.('research')
-  }
-}
 
-function MiniBoard({ market, title, players, onPlayerClick, onBoards }) {
-  const rows = [...players].filter((player) => Number.isFinite(player.scores?.[market]) && !player.low_sample)
-    .sort((a, b) => b.scores[market] - a.scores[market]).slice(0, 10)
-  const pv = usePreview(rows)   // 10-18: open on Home, the top four, then the ten
-  return (
-    <section className="tuddy-mini-board">
-      <SectionTitle eyebrow="POWER RANKINGS" title={title} action="Full board" onAction={onBoards} />
-      {pv.shown.map((player, index) => {
-        const grade = gradeFor(player.scores[market])
-        return <button key={player.player_id} onClick={() => onPlayerClick?.(player, market)}><span>{index + 1}</span><TeamMark sport="nfl" variant="logo" px={22} abbr={player.team} /><b>{player.name}</b><em>{player.position}</em><strong style={{ color: grade.color }}>{Math.round(player.scores[market])}</strong></button>
-      })}
-      <ShowMoreButton open={pv.open} restN={pv.restN} toggle={pv.toggle} total={pv.total} />
-    </section>
-  )
-}
 
 export default function Home({ data, picks, results, matchup, logs, onPlayerClick, onOpenTeam = null, setTab, liveSnap = null }) {
-  const openBoard = boardOpener(setTab)
   // THE RECORD, ON THE FRONT PAGE (2026-09-05). MOONSHOT's Home leads with
   // "graded x% over N nights"; TUDDY's had a player-pool count in that slot,
   // which nobody bets on. Season to date from the harvested weekly files,
@@ -300,236 +195,90 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
   const players = data?.players || []
   const playersById = useMemo(() => Object.fromEntries(players.map((player) => [String(player.player_id), player])), [players])
 
-  // ── THE SCORE RAIL, FOR REAL (round 5, "shell it out," 2026-09-16) ────────
-  // Donovan: "would it be best to full delete the nfl side, or shell it out
-  // so we have the same exact components... just branded for nfl and tuddy."
-  // ScoreRail (components/ScoreRail.js) is now the ONE score rail both
-  // products render -- SlateStrip (removed) was a 20-line placeholder with
-  // none of the "does it matter to me" column MOONSHOT's rail has always had.
-  //
-  // Game list/scores/state come from `games` above (data.games) -- the exact
-  // same live-refreshing source the snapshot tiles below already trust for
-  // "live"/"final". Whether a designated pick actually CLEARED needs the
-  // live per-player STAT LINE, which data.games/data.players don't carry --
-  // fetchNflLive() is the shared, TTL-cached snapshot NflYourPlayers and the
-  // header ticker already poll on this exact page, so this adds no new
-  // fetch, it just reads the same one again.
-  const gamesRef = useRef(games)
-  useEffect(() => { gamesRef.current = games })
-  const nflSnapRef = useRef(null)
-
-  // ONE RAIL, BOTH SPORTS (round 10, 2026-09-17). The NFL half is exactly
-  // what this function always built (now via the shared `toRailGame`
-  // instead of an inline copy of the same mapping -- lib/combinedRail.js);
-  // the MLB half is new, additive, and degrades to an empty list on its own
-  // if the fetch fails, same as the NFL half already did -- neither can
-  // break the other. `nflSnapRef`'s stash for `nflComputeByGame` below is
-  // untouched.
-  const nflFetchGames = useCallback(() => {
-    const nflList = (gamesRef.current || []).map(toRailGame)
-    const nflPromise = fetchNflLive().then((snap) => { nflSnapRef.current = snap; return nflList }).catch(() => nflList)
-    const mlbPromise = scheduleFor(slateDay(0)).then(toMlbRailGames).catch(() => [])
-    return Promise.all([nflPromise, mlbPromise]).then(mergeGamesSorted)
-  }, [])
-
-  // "The bot's picks in that game" -- TUDDY's designated calls are the TD
-  // market's rungs (the same ladder Picks/TheSix read), each already carrying
-  // its own team, so no name/id join is needed to place one in a game. Real,
-  // per-game touchdown clearance from the live snapshot (lineFor/tdsIn), the
-  // same rule NflYourPlayers uses for "did he clear a bar" -- not invented
-  // here a second time.
-  const lockOf = useLockOf()
-  const nflComputeByGame = useCallback(() => {
-    const out = new Map()
-    const rungs = picks?.card?.TD?.rungs || []
-    const rawGames = gamesRef.current || []
-    const snap = nflSnapRef.current
-    rungs.forEach((r) => {
-      const g = rawGames.find((gm) => gm.away === r.team || gm.home === r.team)
-      if (!g) return
-      // MEMBERS GATE (2026-10-17): a pick a non-member may not read is not counted in its game's tile (a count beside a visible list could point at him)
-      if (lockOf({ status: 'called', key: String(r.player_id), time: g.kickoff }).locked) return
-      const key = g.game_id
-      const rec = out.get(key) || { n: 0, ok: 0, live: 0, names: [] }
-      rec.n += 1
-      const line = snap ? lineFor(snap, { name: r.name, team: r.team }) : null
-      const tds = line ? tdsIn(line) : 0
-      if (tds > 0) { rec.ok += 1; rec.names.push(`${r.name} TD ✓`) }
-      else if (!(g.completed || g.state === 'post')) rec.live += 1
-      out.set(key, rec)
-    })
-    return out
-  }, [picks, lockOf])
   const live = games.filter((game) => game.state === 'in').length
   const final = games.filter((game) => game.completed || game.state === 'post').length
   const topTd = [...players].filter((player) => Number.isFinite(player.scores?.TD)).sort((a, b) => b.scores.TD - a.scores.TD)[0]
-  // THE DAY, NOT A GREETING (2026-09-28, DAY-AWARE-OPENERS-PLAN). Donovan: "these
-  // on each page should know the day and what games are on." Today's games by
-  // their own ET date, the week's label from the week file, the next game day
-  // from the same schedule -- lib/dayLine.js says it; DayHero (MOONSHOT's hero)
-  // draws it. "Good morning. Football is on the board. / 6 POINTS ONE TUDDY"
-  // had no job and is gone.
+  // THE GREETING (2026-09-28 DAY-AWARE-OPENERS-PLAN; back 2026-10-22, Donovan: "I still want a greeting ... the headlines and the stuff
+  // kind of still need to be all in a greeting"): today's games by their own ET date, the week's label, the next game day; lib/dayLine says it.
   const todayET = easternToday()
-  const normGame = (g) => ({ away: g.away, home: g.home, start: Date.parse(g.kickoff || ''), state: g.state === 'in' ? 'live' : (g.completed || g.state === 'post') ? 'final' : g.state === 'postponed' ? 'postponed' : 'pre' })
-  const weekGames = (games || []).map(normGame).filter((g) => Number.isFinite(g.start))
+  const nick = (full, abbr) => String(full || '').trim().split(/\s+/).pop() || abbr   // 'Chicago Bears' -> 'Bears'
+  const normGame = (g) => ({ away: g.away, home: g.home, awayNick: nick(g.away_name, g.away), homeNick: nick(g.home_name, g.home), start: Date.parse(g.kickoff || ''), state: g.state === 'in' ? 'live' : (g.completed || g.state === 'post') ? 'final' : g.state === 'postponed' ? 'postponed' : 'pre' })
+  const weekGames = games.map(normGame).filter((g) => Number.isFinite(g.start))
   const todays = weekGames.filter((g) => easternDate(g.start) === todayET)
   const laterDays = [...new Set(weekGames.map((g) => easternDate(g.start)).filter((d) => d > todayET))].sort()
   const nextDay = laterDays[0] ? { date: laterDays[0], games: weekGames.filter((g) => easternDate(g.start) === laterDays[0]) } : null
-  const hadYesterday = weekGames.some((g) => easternDate(g.start) < todayET && easternDate(g.start + 36 * 3600e3) >= todayET)
   const dl = dayLine(todays, { sport: 'nfl', date: todayET, label: data?.label || '', next: nextDay })
   const todayLive = todays.filter((g) => g.state === 'live').length
-  const todayFinal = todays.filter((g) => g.state === 'final').length
-  const edition = todays.length ? 'GAME DAY' : hadYesterday ? 'MORNING AFTER' : 'MIDWEEK'
+  // THE NEXT KICKOFF (2026-10-22, Donovan: "where it has the game ... logos and then time to kick off"): the week's next game not yet on,
+  // its two clubs as logos and a clock to kickoff (ticks every 30 s). Its day's other games ride as "+N more that day".
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => { const id = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(id) }, [])
+  const nextKick = weekGames.filter((g) => g.state === 'pre' && g.start > now).sort((a, b) => a.start - b.start)[0] || null
+  const sameDay = nextKick ? weekGames.filter((g) => g !== nextKick && g.state === 'pre' && easternDate(g.start) === easternDate(nextKick.start)).length : 0
+  const kickWord = nextKick ? (nextKick.start - now < 48 * 3600e3 ? `kicks off in ${fmtCountdown(nextKick.start - now)}` : new Date(nextKick.start).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' })) : ''
 
-  // ── THREE DOORS, TUDDY'S OWN (parity pass, 2026-09-16) ────────────────────
-  // MOONSHOT's own Scoreboard/Games/Results triad, same idea, TUDDY's own
-  // destinations: lib/routes.js's 2026-09-13 note already establishes
-  // Touchdowns as TUDDY's actual "the board" -- the tab that leads the rail
-  // the same way MOONSHOT's HR board does -- not the demoted Boards tab.
-  const TUDDY_DOORS = [
-    { tab: 'research', icon: '\u{1F3C8}', title: 'The Touchdown Board', color: C.green,
-      body: 'Every player, ranked by touchdown score.' },
-    { tab: 'games', icon: '\u{1F3DF}️', title: 'Game by game', color: C.green,
-      body: 'Each matchup, and each side\u2019s touchdown board.' },
-    { tab: 'accountability', icon: '✅', title: 'The record', color: C.green,
-      body: 'Every call graded, wins and losses.' },
-  ]
+  // ── THE LINKS (2026-10-22, Donovan: "this needs to be a home page, not some random shit"): what used to stack on Home is one tap
+  // away, three across. Offense ranked, Super Bowl odds and Award races live on Leaders (MOONSHOT keeps its odds and awards there).
+  const LINKS = [
+    { tab: 'research', sub: 'every player, by TD score' }, { tab: 'games', sub: 'each matchup' }, { tab: 'leaders', sub: 'offense, odds, awards' },
+    { tab: 'ledger', sub: 'who scored' }, { tab: 'matchups', sub: 'defenses that leak' }, { tab: 'explosive', sub: '20+ yard plays' },
+    { tab: 'accountability', sub: 'every call graded' }, { tab: 'players', sub: 'find anyone' }, { tab: 'storylines', sub: 'every story' },
+  ].filter((l) => NFL_NAV[l.tab])
 
   return (
     <div className="tuddy-home">
-      {/* THE TAPE (2026-10-20): components/StoryTape.js, as on LAMP */}
-      <StoryTape sport="nfl" theme={C} numFont={NUM_FONT} onSeeAll={() => setTab('storylines')}
-        day={{ icon: '🏈', eyebrow: dl.eyebrow, live: todayLive > 0, lead: dl.lead, accentText: String(dl.accent || '').replace(/^(Next: [A-Za-z]+): /, '$1, ') }} />
+      {/* THE NUMBERS OF THE DAY, FIRST (2026-10-22, Donovan: "the numbers need to be at the top") */}
+      <HotNumbers compact sport="nfl" date={nextGameDay} theme={C} numFont={NUM_FONT} accent={C.green} onOpen={() => setTab('numerology')} eventWord="TDs" />
+
+      {/* THE GREETING (2026-10-22): the day and what is on, the record tiles, then the headlines and the week's storylines as one strip -- one block */}
+      <section aria-label="This week on TUDDY" className="tuddy-greeting">
+        <div className="tuddy-greeting-eyebrow"><span aria-hidden="true">🏈</span><span>{dl.eyebrow}</span>{todayLive ? <b>● LIVE</b> : null}</div>
+        {nextKick && !todayLive ? (
+          <h2 className="tuddy-kick"><span>{nextKick.awayNick} at {nextKick.homeNick}</span>
+            <span style={{ color: C.green }}>{kickWord}</span>{sameDay ? <small>+{sameDay} more that day</small> : null}</h2>
+        ) : (
+          <h2>{dl.lead}{dl.accent ? <span style={{ color: C.green }}>{' '}{String(dl.accent).replace(/^(Next: [A-Za-z]+): /, '$1, ')}</span> : null}</h2>
+        )}
+      <section className="tuddy-snapshot">
+        <button onClick={() => setTab('accountability')} title={recLoading ? 'Loading the season record' : recFailed ? "The season record could not be loaded. Tap to open the record page." : record.n ? `${record.hit} of ${record.n} card rungs this season cleared their own bar — every market blended, ${keys.length} graded week${keys.length === 1 ? '' : 's'}. Anytime TD on its own: ${tdRec?.hit ?? 0} of ${tdRec?.n ?? 0}.${bookLine.n ? ` Against the book's own line (weeks ${bookLine.from}–${bookLine.to}): ${bookLine.hit} of ${bookLine.n}.` : ''} Tap for every market's record.${regradeNotes(keys).map((t) => ` ${t}`).join('')}` : undefined}><small>RECORD · ALL</small><strong style={{ color: recLoading || recFailed || record.pct == null ? C.text3 : record.pct >= 55 ? C.green : record.pct < 45 ? C.text3 : C.text }}>{recLoading || recFailed || record.pct == null ? '—' : `${record.pct}%`}</strong><span>{recLoading ? 'loading' : recFailed ? "couldn't load" : record.n ? <>{record.hit}/{record.n} · own bar</> : 'nothing graded yet'}</span></button>
+        <button onClick={() => topTd && onPlayerClick?.(topTd, 'TD')}><small>TOP TD SCORE</small><strong>{topTd ? Math.round(topTd.scores.TD) : '—'}</strong><span>{topTd?.name || 'awaiting slate'}</span></button>
+        <div><small>{live ? 'LIVE' : final ? 'FINAL' : 'SLATE'}</small><strong>{live || final || games.length}</strong><span>{live ? 'games on now' : final ? `of ${games.length} games` : 'games this week'}</span></div>
+      </section>
+        <NflHeadlineStrip players={players} games={games} markets={data?.markets} matchup={matchup} logs={logs} week={data}
+          onPlayerClick={onPlayerClick} setTab={setTab} stories extras={false} />
+      </section>
+
+      <TheSix picks={picks} playersById={playersById} games={data?.games || []} players={players} markets={data?.markets || []} onPlayerClick={onPlayerClick} onPicks={() => setTab('picks')} totals={seasonTotals(keys.map((k) => archive[k]))} logs={logs} />
 
       {/* TONIGHT (2026-10-04): who went, who lines up, who's still to go (components/tonight/NflTonight.js) */}
       <NflTonight data={data} picks={picks} results={results} liveSnap={liveSnap} onPlayerClick={onPlayerClick} setTab={setTab} />
-
-      {/* THE PEOPLE, ONE TAP IN (2026-09-26, stranger test: players sat
-          behind More). One line; the page's name comes from the registry. */}
-      <button type="button" className="tap-box" onClick={() => setTab?.('players')}
-        style={{ alignSelf: 'flex-start', background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.green, font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>
-        {NFL_NAV.players.icon} Find a player — {NFL_NAV.players.label} ›
-      </button>
-
-      <NflHeadlineStrip players={players} games={games} markets={data?.markets} matchup={matchup} logs={logs} week={data}
-        onPlayerClick={onPlayerClick} setTab={setTab} />
-
-      {/* ONE RAIL, BOTH SPORTS (round 10, 2026-09-17) -- see lib/combinedRail.js's
-          own header comment for the full trace. `computeByGame` stays TUDDY's
-          own reducer: this page only has NFL picks data, so an MLB tile here
-          shows its real score/state and nothing invented in the picks column. */}
-      <ScoreRail
-        sport="nfl"
-        theme={{ C, NUM_FONT }}
-        TeamMark={CombinedTeamMark}
-        players={players}
-        results={results}
-        fetchGames={nflFetchGames}
-        computeByGame={nflComputeByGame}
-        renderState={combinedRenderState}
-        label="This week"
-        moreLabel="full box scores →"
-        moreTarget="scores"
-        onNavigate={setTab}
-        onSwitchSport={setSport}
-      />
-      <section className="tuddy-snapshot">
-        <div><small>SLATE</small><strong>{games.length}</strong><span>games</span></div>
-        <div><small>STATE</small><strong>{live || final}</strong><span>{live ? 'live now' : final ? 'final' : 'awaiting kickoff'}</span></div>
-        <button onClick={() => setTab('accountability')} title={recLoading ? 'Loading the season record' : recFailed ? "The season record could not be loaded. Tap to open the record page." : record.n ? `${record.hit} of ${record.n} card rungs this season cleared their own bar — every market blended, ${keys.length} graded week${keys.length === 1 ? '' : 's'}. Anytime TD on its own: ${tdRec?.hit ?? 0} of ${tdRec?.n ?? 0}.${bookLine.n ? ` Against the book's own line (weeks ${bookLine.from}–${bookLine.to}): ${bookLine.hit} of ${bookLine.n}.` : ''} Tap for every market's record.${regradeNotes(keys).map((t) => ` ${t}`).join('')}` : undefined}><small>RECORD · ALL</small><strong style={{ color: recLoading || recFailed || record.pct == null ? C.text3 : record.pct >= 55 ? C.green : record.pct < 45 ? C.text3 : C.text }}>{recLoading || recFailed || record.pct == null ? '—' : `${record.pct}%`}</strong><span>{recLoading ? 'loading' : recFailed ? "couldn't load" : record.n ? <>{record.hit}/{record.n} · own bar</> : 'nothing graded yet'}</span>{!recLoading && !recFailed && bookLine.n ? <span>book line {Math.round(bookLine.pct)}% · wk {bookLine.from}{bookLine.to !== bookLine.from ? `–${bookLine.to}` : ''}</span> : null}</button>
-        <button onClick={() => topTd && onPlayerClick?.(topTd, 'TD')}><small>TOP TD SCORE</small><strong>{topTd ? Math.round(topTd.scores.TD) : '—'}</strong><span>{topTd?.name || 'awaiting slate'}</span></button>
-      </section>
-      <TheSix picks={picks} playersById={playersById} games={data?.games || []} players={players} markets={data?.markets || []} onPlayerClick={onPlayerClick} onPicks={() => setTab('picks')} totals={seasonTotals(keys.map((k) => archive[k]))} logs={logs} />
-      {/* TONIGHT'S NUMBERS (numerology v2 step 6b): one line under the calls, taps to Numerology. */}
-      <HotNumbers compact sport="nfl" date={nextGameDay} theme={C} numFont={NUM_FONT} accent={C.green} onOpen={() => setTab('numerology')} eventWord="TDs" />
-
-      {/* ── STORYLINES, ON THE FRONT PAGE (parity pass, 2026-09-16) ───────
-          MOONSHOT's Home embeds Storylines directly, right after The Four —
-          not just a tab you have to remember exists. TUDDY had the same
-          full Storylines page (components/nfl/tabs/Storylines.js) built
-          09-12, never mounted here. Same props Home already has in scope
-          (data/logs/results/onPlayerClick/setTab) — nothing new fetched. */}
-      {/* 2026-09-27 (BATCH-STORYLINES-PAGE step 4): the story engine's rarest six
-          on games still to come, then the by-game Storylines tab. Was the whole
-          Storylines view embedded here (2,759px at 390). */}
-
-      {/* ⭐ YOUR PLAYERS (2026-09-16, parity pass) -- replaces the old
-          FollowingStrip mount, and moves to MOONSHOT's own shelf for it:
-          right after Storylines, ahead of the accountability claim below.
-          Same reason MOONSHOT gave for the same move on 2026-09-03: a
-          followed player used to be a name and nothing else; this says what
-          he actually did this week. See NflYourPlayers.js's own header for
-          why TUDDY only needs ONE store here, not MOONSHOT's two. */}
       <NflYourPlayers players={players} onPlayerClick={onPlayerClick} />
 
       {/* THIS WEEK'S CALLS AS CARDS (2026-10-18, PHONE-PARITY 9a): MOONSHOT's swipe deck (components/phone/TonightsCalls.js), shut by default: one 44px row, no request until opened */}
       <Fold id="tuddy-calls" title="🃏 This week's calls" meta="swipe the real cards"><TonightsCalls sport="nfl" /></Fold>
 
-      {/* THE GOOD STUFF, OPEN (Donovan 10-18: "good stuff but hidden ... behind a collapsible shade"). Power rankings,
-          the touchdown ledger and the Look-Out, the angles, the two top 10s and Big Play Watch were inside a fold inside
-          a fold ("More on this slate"). They are open now, each a short preview (four rows, then "All N"), so the page
-          is a research tool you can read at a glance, not a feed you scroll forever. */}
-      <TeamPower players={players} statSeason={data?.stat_season} onPlayerClick={onPlayerClick} preview={4} />
-      <div className="tuddy-home-split"><TouchdownLedger results={results} playersById={playersById} onPlayerClick={onPlayerClick}/><LookOut matchup={matchup} games={games}/></div>
-      <Angles players={players} matchup={matchup} onPlayerClick={onPlayerClick}/>
-      <div className="tuddy-board-split"><MiniBoard market="TD" title="Top 10 · Anytime TD" players={players} onPlayerClick={onPlayerClick} onBoards={() => openBoard('TD')}/><MiniBoard market="REC_YDS" title="Top 10 · Receiving" players={players} onPlayerClick={onPlayerClick} onBoards={() => openBoard('REC_YDS')}/></div>
-      <BigPlayWatch data={data} onPlayerClick={onPlayerClick} limit={4} />
+      {/* THE RACES (2026-10-22): who leads the Super Bowl race and the first three awards; the full races are on Leaders */}
+      <RaceTracker sport="nfl" theme={C} numFont={NUM_FONT} onOpen={() => setTab('leaders')} />
 
-      {/* —— THE MONEY-ANSWER SLOT (parity pass, 2026-09-16) ————————————
-          MOONSHOT puts a compact MoneyAnswer right here -- one bordered
-          claim, one button through to the full page -- reading a real
-          odds_history.json archive of $-return by market. TUDDY keeps no
-          NFL equivalent of that archive, and project rule #16 is never
-          invent the number that would go in that slot. What TUDDY already
-          has for this exact job is this section: a REAL, already-computed
-          accuracy record (grandTotal over the harvested weekly files)
-          making the same claim -- "here's the receipt for what we said
-          would happen" -- measured in hit rate instead of ROI. Repositioned
-          into MOONSHOT's slot rather than left at the bottom of the page,
-          where it read as an afterthought instead of the answer to the
-          claim the hero makes. */}
-      <section className="tuddy-receipts"><div><small>THE RECORD</small><h2>Every call gets a receipt.</h2><p>Hits, misses and voids, in public.{mine?.n ? <> <b style={{ color: C.text2 }}>Your week:</b> {mine.w}–{mine.l}{mine.t ? `–${mine.t}` : ''} on {mine.n} calls{mine.overrides ? `, ${mine.overrides} override${mine.overrides === 1 ? '' : 's'}` : ''} — you {mine.minePct != null && mine.botPct != null ? (mine.minePct > mine.botPct ? 'beat' : mine.minePct < mine.botPct ? 'trail' : 'match') : 'vs'} TUDDY.</> : null}</p></div><button className="tap-box" onClick={() => setTab('accountability')}>Receipts →</button></section>
+      {/* THE SLATE (2026-10-22): every game's expected touchdowns, lower down (the header and Slate tab reach the games anywhere) */}
+      <NflSlateRow week={data} logs={logs} />
 
-      {/* —— THREE DOORS (parity pass, 2026-09-16) ————————————————————
-          MOONSHOT's own three nav cards, same slot: right after the money
-          claim, right before the deep-dive fold. */}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        {TUDDY_DOORS.map((d) => (
-          <button type="button" key={d.tab} onClick={() => setTab(d.tab)} style={{
-            display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer',
-            flex: '1 1 240px', minWidth: 0, font: 'inherit', color: 'inherit',
-            background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 13, padding: '13px 15px',
-          }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5 }}>
-              <span style={{ fontSize: 15 }}>{d.icon}</span>
-              <span style={{ fontSize: 14, fontWeight: 900, color: d.color }}>{d.title}</span>
-              <span style={{ marginLeft: 'auto', fontSize: 12, color: d.color }}>→</span>
-            </span>
-            <span style={{ display: 'block', fontSize: 12, color: C.text2, lineHeight: 1.55 }}>{d.body}</span>
+      <section aria-label="More on TUDDY" className="tuddy-links">
+        {LINKS.map((l) => (
+          <button type="button" key={l.tab} data-tile="link" onClick={() => setTab(l.tab)}>
+            <b>{NFL_NAV[l.tab].icon ? `${NFL_NAV[l.tab].icon} ` : ''}{NFL_NAV[l.tab].label}</b><span>{l.sub}</span>
           </button>
         ))}
-      </div>
+      </section>
 
-      {/* Start/Sit is a tool, not a list: it keeps its fold (the sections that were beside it are open above, 10-18). */}
-      <Fold id="tuddy-startsit" title="⚖️ Start/Sit compare" meta="pick two names">
-        <StartSit players={players} onPlayerClick={onPlayerClick} />
-      </Fold>
-
-      {/* SUPER BOWL ODDS (2026-10-13): MOONSHOT's October fold for the NFL (components/PennantRace.js). Not drawn until the bot has published the file. */}
-      <ChampionshipFold sport="nfl" />
-      {/* AWARD RACES (2026-10-20, lib/nfl/awards.js): MVP, OPOY, DPOY and the rookies, from a model of past AP votes. A name opens
-          his card when he is on TUDDY's board this week (passers, runners, catchers); the rest are plain text, never a dead tap.
-          A club opens its team page. */}
-      <AwardRaces sport="nfl" onOpenTeam={onOpenTeam}
-        canOpenPlayer={(id) => (data?.players || []).some((x) => String(x.player_id) === id)}
-        onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) onPlayerClick?.(p, 'TD') }} />
+      <NetworkRow sport="nfl" theme={C} numFont={NUM_FONT} />
 
       <style>{`
-        .tuddy-home{display:flex;flex-direction:column;gap:12px}.tuddy-hero{position:relative;display:flex;align-items:center;justify-content:space-between;min-height:220px;padding:28px;border:1px solid rgba(0,245,173,.32);border-radius:18px;overflow:hidden;background:radial-gradient(circle at 82% 18%,rgba(0,245,173,.16),transparent 30%),radial-gradient(circle at 8% 100%,rgba(0,245,173,.14),transparent 38%),${C.bg2}}.tuddy-hero:after{content:'';position:absolute;inset:auto -8% -44% 42%;height:190px;border:1px solid rgba(0,245,173,.18);border-radius:50%}.tuddy-hero>div:first-child{position:relative;z-index:1}.tuddy-hero small,.tuddy-six-head small{font:900 8px/1 ${NUM_FONT};letter-spacing:.14em;color:${C.green}}.tuddy-hero h1{max-width:760px;margin:10px 0 9px;font-size:clamp(34px,6vw,67px);line-height:.95;letter-spacing:-.06em}.tuddy-hero p{margin:0;color:${C.text2};font-size:12px}.tuddy-hero-mark{position:relative;z-index:1;display:flex;align-items:center;gap:12px;padding:15px 19px;border:1px solid rgba(0,245,173,.28);border-radius:18px;background:rgba(7,13,12,.66)}.tuddy-hero-mark span{font:900 58px/.8 ${NUM_FONT};color:${C.green}}.tuddy-hero-mark small{color:${C.text2};line-height:1.35}.tuddy-slate-strip{display:flex;gap:6px;overflow-x:auto;padding:2px 0 4px;scrollbar-width:none}.tuddy-slate-strip>div{flex:0 0 150px;padding:9px 11px;border:1px solid ${C.border};border-radius:10px;background:${C.bg2}}.tuddy-slate-strip>div.is-live{border-color:rgba(0,245,173,.45);box-shadow:inset 0 0 22px rgba(0,245,173,.05)}.tuddy-slate-strip span{display:block;color:${C.text3};font:800 8px/1 ${NUM_FONT}}.tuddy-slate-strip .is-live span{color:${C.green}}.tuddy-slate-strip b{display:inline-block;margin-top:6px;color:${C.text};font:900 10px/1 ${NUM_FONT}}.tuddy-slate-strip b i{color:${C.text3};font-style:normal}.tuddy-slate-strip em{margin-left:5px;color:${C.text};font:900 10px/1 ${NUM_FONT};font-style:normal}.tuddy-snapshot{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.tuddy-snapshot>div,.tuddy-snapshot>button{display:flex;flex-direction:column;align-items:flex-start;min-height:84px;padding:12px 14px;border:1px solid ${C.border};border-radius:11px;background:${C.bg2};color:inherit;text-align:left}.tuddy-snapshot>button{cursor:pointer}.tuddy-snapshot small{color:${C.text3};font:900 8px/1 ${NUM_FONT};letter-spacing:.08em}.tuddy-snapshot strong{margin-top:7px;color:${C.green};font:900 24px/1 ${NUM_FONT}}.tuddy-snapshot span{margin-top:5px;color:${C.text2};font-size:10px}.tuddy-six{overflow:hidden;border:1px solid rgba(0,245,173,.25);border-radius:16px;background:linear-gradient(155deg,rgba(0,245,173,.06),rgba(0,245,173,.025)),${C.bg2}}.tuddy-six-head{display:flex;align-items:flex-end;justify-content:space-between;padding:19px 20px;border-bottom:1px solid ${C.border}}.tuddy-six-head h2{margin:5px 0 2px;font-size:30px;letter-spacing:-.04em}.tuddy-six-head p{margin:0;color:${C.text3};font-size:10px}.tuddy-six-head button,.tuddy-panel-action,.tuddy-receipts button{border:0;background:transparent;padding:8px 6px;margin:-8px -6px;color:${C.green};font:900 9px/1 ${NUM_FONT};cursor:pointer}.tuddy-six-grid{display:grid;grid-template-columns:repeat(3,1fr)}.tuddy-six-grid>button{position:relative;display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:9px;min-height:94px;padding:14px;border:0;border-right:1px solid ${C.border};border-bottom:1px solid ${C.border};background:transparent;color:inherit;text-align:left;cursor:pointer}.tuddy-six-grid>button:disabled{cursor:default}.tuddy-six-grid>button:hover:not(:disabled){background:color-mix(in srgb,var(--market) 7%,transparent)}.tuddy-six-number{color:var(--market);font:900 10px/1 ${NUM_FONT}}.tuddy-six-grid small{display:block;color:var(--market);font:900 8px/1 ${NUM_FONT}}.tuddy-six-grid strong{display:block;margin-top:6px;font-size:13px}.tuddy-six-grid em{display:block;margin-top:4px;color:${C.text3};font-size:9px;font-style:normal}.tuddy-six-score{text-align:center}.tuddy-six-score b{display:block;font:900 20px/1 ${NUM_FONT}}.tuddy-six-score span{font:900 8px/1 ${NUM_FONT}}.tuddy-six-headliner{position:relative;display:grid;grid-template-columns:1fr auto;align-items:center;gap:16px;width:calc(100% - 40px);margin:14px 20px 0;padding:16px 20px;overflow:hidden;border:1px solid color-mix(in srgb,var(--market) 40%,transparent);border-radius:13px;background:linear-gradient(155deg,color-mix(in srgb,var(--market) 12%,transparent),${C.bg2} 62%);color:inherit;text-align:left;cursor:pointer}.tuddy-six-headliner:disabled{cursor:default}.tuddy-six-ghost{position:absolute;right:6px;top:50%;transform:translateY(-50%);font:900 96px/1 ${NUM_FONT};color:color-mix(in srgb,var(--market) 10%,transparent);pointer-events:none;z-index:0}.tuddy-six-headliner-body{position:relative;z-index:1;min-width:0}.tuddy-six-headliner-body small{display:block;color:var(--market);font:900 9px/1 ${NUM_FONT};letter-spacing:.1em}.tuddy-six-headliner-body strong{display:block;margin-top:6px;font-size:20px;font-weight:900;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tuddy-six-headliner-body em{display:block;margin-top:4px;color:${C.text3};font-size:10.5px;font-style:normal}.tuddy-six-headliner-score{position:relative;z-index:1;text-align:right;flex-shrink:0}.tuddy-six-headliner-score b{display:block;font:900 34px/1 ${NUM_FONT}}.tuddy-six-headliner-score span{font:900 9px/1 ${NUM_FONT}}.tuddy-home-split,.tuddy-board-split{display:grid;grid-template-columns:1fr 1fr;gap:10px}.tuddy-panel,.tuddy-angles,.tuddy-mini-board{padding:15px;border:1px solid ${C.border};border-radius:13px;background:${C.bg2}}.tuddy-ledger-total{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid rgba(0,245,173,.18);border-radius:10px;background:rgba(0,245,173,.04)}.tuddy-ledger-total strong{color:${C.green};font:900 36px/1 ${NUM_FONT}}.tuddy-ledger-total span{color:${C.text3};font-size:9px;line-height:1.4}.tuddy-ledger-list{margin-top:8px}.tuddy-ledger-list>div{display:grid;grid-template-columns:36px 1fr auto;align-items:center;gap:8px;padding:7px 3px;border-bottom:1px solid ${C.border}}.tuddy-ledger-list span,.tuddy-ledger-list em{color:${C.text3};font:800 8px/1 ${NUM_FONT};font-style:normal}.tuddy-ledger-list b{font-size:11px}.tuddy-ledger-list p,.tuddy-leaks p,.tuddy-milestones p{color:${C.text3};font-size:10px;line-height:1.5}.tuddy-lookout h3{margin:13px 0 6px;color:${C.text2};font:900 9px/1 ${NUM_FONT};letter-spacing:.08em;text-transform:uppercase}.tuddy-leaks>div,.tuddy-milestones>div{display:grid;grid-template-columns:44px 1fr auto;gap:7px;padding:6px 0;border-bottom:1px solid ${C.border};align-items:center}.tuddy-leaks b{color:${C.text3};font:900 10px/1 ${NUM_FONT}}.tuddy-leaks span,.tuddy-milestones b{font-size:10px}.tuddy-leaks em,.tuddy-milestones em{color:${C.text3};font:700 8px/1 ${NUM_FONT};font-style:normal}.tuddy-milestones>div{grid-template-columns:1fr auto auto}.tuddy-milestones span{color:${C.yellow};font-size:9px}.tuddy-angles>div:last-child{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.tuddy-angles article{display:flex;gap:9px;padding:12px;border:1px solid ${C.border};border-radius:10px;background:rgba(255,255,255,.025)}.tuddy-angles article>span{color:${C.green};font:900 9px/1 ${NUM_FONT}}.tuddy-angles article small{color:${C.text3};font:800 8px/1 ${NUM_FONT}}.tuddy-angles article b{display:block;margin-top:7px;font-size:11px}.tuddy-angles article p{margin:4px 0 0;color:${C.text3};font-size:9px}.tuddy-mini-board>button{display:grid;grid-template-columns:20px 24px 1fr auto 34px;align-items:center;gap:8px;width:100%;min-height:44px;padding:7px 4px;border:0;border-top:1px solid ${C.border};background:transparent;color:inherit;text-align:left;cursor:pointer}.tuddy-mini-board>button>span{color:${C.text3};font:800 9px/1 ${NUM_FONT}}.tuddy-mini-board>button>b{font-size:11px}.tuddy-mini-board>button>em{color:${C.text3};font:700 8px/1 ${NUM_FONT};font-style:normal}.tuddy-mini-board>button>strong{text-align:right;font:900 13px/1 ${NUM_FONT}}.tuddy-receipts{display:flex;align-items:center;justify-content:space-between;padding:20px 22px;border:1px solid rgba(167,139,250,.28);border-radius:14px;background:radial-gradient(circle at 90% 20%,rgba(167,139,250,.11),transparent 35%),${C.bg2}}.tuddy-receipts small{color:${C.text2};font:900 8px/1 ${NUM_FONT};letter-spacing:.1em}.tuddy-receipts h2{margin:6px 0 4px;font-size:21px}.tuddy-receipts p{margin:0;color:${C.text3};font-size:10px}.tuddy-receipts button{color:${C.text2}}
+        .tuddy-home{display:flex;flex-direction:column;gap:12px}.tuddy-hero{position:relative;display:flex;align-items:center;justify-content:space-between;min-height:220px;padding:28px;border:1px solid rgba(0,245,173,.32);border-radius:18px;overflow:hidden;background:radial-gradient(circle at 82% 18%,rgba(0,245,173,.16),transparent 30%),radial-gradient(circle at 8% 100%,rgba(0,245,173,.14),transparent 38%),${C.bg2}}.tuddy-hero:after{content:'';position:absolute;inset:auto -8% -44% 42%;height:190px;border:1px solid rgba(0,245,173,.18);border-radius:50%}.tuddy-hero>div:first-child{position:relative;z-index:1}.tuddy-hero small,.tuddy-six-head small{font:900 8px/1 ${NUM_FONT};letter-spacing:.14em;color:${C.green}}.tuddy-hero h1{max-width:760px;margin:10px 0 9px;font-size:clamp(34px,6vw,67px);line-height:.95;letter-spacing:-.06em}.tuddy-hero p{margin:0;color:${C.text2};font-size:12px}.tuddy-hero-mark{position:relative;z-index:1;display:flex;align-items:center;gap:12px;padding:15px 19px;border:1px solid rgba(0,245,173,.28);border-radius:18px;background:rgba(7,13,12,.66)}.tuddy-hero-mark span{font:900 58px/.8 ${NUM_FONT};color:${C.green}}.tuddy-hero-mark small{color:${C.text2};line-height:1.35}.tuddy-slate-strip{display:flex;gap:6px;overflow-x:auto;padding:2px 0 4px;scrollbar-width:none}.tuddy-slate-strip>div{flex:0 0 150px;padding:9px 11px;border:1px solid ${C.border};border-radius:10px;background:${C.bg2}}.tuddy-slate-strip>div.is-live{border-color:rgba(0,245,173,.45);box-shadow:inset 0 0 22px rgba(0,245,173,.05)}.tuddy-slate-strip span{display:block;color:${C.text3};font:800 8px/1 ${NUM_FONT}}.tuddy-slate-strip .is-live span{color:${C.green}}.tuddy-slate-strip b{display:inline-block;margin-top:6px;color:${C.text};font:900 10px/1 ${NUM_FONT}}.tuddy-slate-strip b i{color:${C.text3};font-style:normal}.tuddy-slate-strip em{margin-left:5px;color:${C.text};font:900 10px/1 ${NUM_FONT};font-style:normal}.tuddy-snapshot{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.tuddy-snapshot>div,.tuddy-snapshot>button{display:flex;flex-direction:column;align-items:flex-start;min-height:58px;padding:8px 10px;border:1px solid ${C.border};border-radius:10px;background:${C.bg2};color:inherit;text-align:left;min-width:0}.tuddy-snapshot>button{cursor:pointer}.tuddy-snapshot small{color:${C.text3};font:900 8px/1 ${NUM_FONT};letter-spacing:.08em}.tuddy-snapshot strong{margin-top:5px;color:${C.green};font:900 18px/1 ${NUM_FONT}}.tuddy-snapshot span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}.tuddy-greeting{display:grid;grid-template-columns:minmax(0,1fr);min-width:0;gap:10px;padding:12px;border:1px solid ${C.border};border-radius:14px;background:${C.bg2}}.tuddy-greeting-eyebrow{display:flex;align-items:center;gap:8px;color:${C.text3};font:700 11px/1 ${NUM_FONT};letter-spacing:.06em;text-transform:uppercase}.tuddy-greeting-eyebrow b{color:${C.green};font-weight:900}.tuddy-greeting h2{margin:0;font-size:20px;font-weight:900;line-height:1.25;letter-spacing:-.01em;color:${C.text}}.tuddy-links{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.tuddy-links>button{position:relative;overflow:hidden;display:grid;gap:3px;align-content:center;min-height:60px;padding:9px 8px;border:1px solid color-mix(in srgb,${C.green} 22%,${C.border});border-radius:12px;background:linear-gradient(160deg,color-mix(in srgb,${C.green} 9%,transparent),${C.bg2} 65%);color:inherit;text-align:center;cursor:pointer;min-width:0;transition:border-color .15s,transform .15s}.tuddy-links>button:hover{border-color:${C.green};transform:translateY(-1px)}.tuddy-links>button:after{content:'›';position:absolute;right:8px;top:6px;color:${C.green};font-weight:900;font-size:12px}.tuddy-links b{font-size:12px;font-weight:900;color:${C.text}}.tuddy-links span{font-size:11px;color:${C.text3}}.tuddy-kick{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.tuddy-kick>span:first-of-type{color:${C.text}}.tuddy-kick small{flex-basis:100%;font:700 11px/1 ${NUM_FONT};color:${C.text3}}.tuddy-snapshot span{margin-top:5px;color:${C.text2};font-size:10px}.tuddy-six{overflow:hidden;border:1px solid rgba(0,245,173,.25);border-radius:16px;background:linear-gradient(155deg,rgba(0,245,173,.06),rgba(0,245,173,.025)),${C.bg2}}.tuddy-six-head{display:flex;align-items:flex-end;justify-content:space-between;padding:19px 20px;border-bottom:1px solid ${C.border}}.tuddy-six-head h2{margin:5px 0 2px;font-size:30px;letter-spacing:-.04em}.tuddy-six-head p{margin:0;color:${C.text3};font-size:10px}.tuddy-six-head button,.tuddy-panel-action,.tuddy-receipts button{border:0;background:transparent;padding:8px 6px;margin:-8px -6px;color:${C.green};font:900 9px/1 ${NUM_FONT};cursor:pointer}.tuddy-six-grid{display:grid;grid-template-columns:repeat(3,1fr)}.tuddy-six-grid>button{position:relative;display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:9px;min-height:94px;padding:14px;border:0;border-right:1px solid ${C.border};border-bottom:1px solid ${C.border};background:transparent;color:inherit;text-align:left;cursor:pointer}.tuddy-six-grid>button:disabled{cursor:default}.tuddy-six-grid>button:hover:not(:disabled){background:color-mix(in srgb,var(--market) 7%,transparent)}.tuddy-six-number{color:var(--market);font:900 10px/1 ${NUM_FONT}}.tuddy-six-grid small{display:block;color:var(--market);font:900 8px/1 ${NUM_FONT}}.tuddy-six-grid strong{display:block;margin-top:6px;font-size:13px}.tuddy-six-grid em{display:block;margin-top:4px;color:${C.text3};font-size:9px;font-style:normal}.tuddy-six-score{text-align:center}.tuddy-six-score b{display:block;font:900 20px/1 ${NUM_FONT}}.tuddy-six-score span{font:900 8px/1 ${NUM_FONT}}.tuddy-six-headliner{position:relative;display:grid;grid-template-columns:1fr auto;align-items:center;gap:16px;width:calc(100% - 40px);margin:14px 20px 0;padding:16px 20px;overflow:hidden;border:1px solid color-mix(in srgb,var(--market) 40%,transparent);border-radius:13px;background:linear-gradient(155deg,color-mix(in srgb,var(--market) 12%,transparent),${C.bg2} 62%);color:inherit;text-align:left;cursor:pointer}.tuddy-six-headliner:disabled{cursor:default}.tuddy-six-ghost{position:absolute;right:6px;top:50%;transform:translateY(-50%);font:900 96px/1 ${NUM_FONT};color:color-mix(in srgb,var(--market) 10%,transparent);pointer-events:none;z-index:0}.tuddy-six-headliner-body{position:relative;z-index:1;min-width:0}.tuddy-six-headliner-body small{display:block;color:var(--market);font:900 9px/1 ${NUM_FONT};letter-spacing:.1em}.tuddy-six-headliner-body strong{display:block;margin-top:6px;font-size:20px;font-weight:900;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tuddy-six-headliner-body em{display:block;margin-top:4px;color:${C.text3};font-size:10.5px;font-style:normal}.tuddy-six-headliner-score{position:relative;z-index:1;text-align:right;flex-shrink:0}.tuddy-six-headliner-score b{display:block;font:900 34px/1 ${NUM_FONT}}.tuddy-six-headliner-score span{font:900 9px/1 ${NUM_FONT}}.tuddy-home-split,.tuddy-board-split{display:grid;grid-template-columns:1fr 1fr;gap:10px}.tuddy-panel,.tuddy-angles,.tuddy-mini-board{padding:15px;border:1px solid ${C.border};border-radius:13px;background:${C.bg2}}.tuddy-ledger-total{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid rgba(0,245,173,.18);border-radius:10px;background:rgba(0,245,173,.04)}.tuddy-ledger-total strong{color:${C.green};font:900 36px/1 ${NUM_FONT}}.tuddy-ledger-total span{color:${C.text3};font-size:9px;line-height:1.4}.tuddy-ledger-list{margin-top:8px}.tuddy-ledger-list>div{display:grid;grid-template-columns:36px 1fr auto;align-items:center;gap:8px;padding:7px 3px;border-bottom:1px solid ${C.border}}.tuddy-ledger-list span,.tuddy-ledger-list em{color:${C.text3};font:800 8px/1 ${NUM_FONT};font-style:normal}.tuddy-ledger-list b{font-size:11px}.tuddy-ledger-list p,.tuddy-leaks p,.tuddy-milestones p{color:${C.text3};font-size:10px;line-height:1.5}.tuddy-lookout h3{margin:13px 0 6px;color:${C.text2};font:900 9px/1 ${NUM_FONT};letter-spacing:.08em;text-transform:uppercase}.tuddy-leaks>div,.tuddy-milestones>div{display:grid;grid-template-columns:44px 1fr auto;gap:7px;padding:6px 0;border-bottom:1px solid ${C.border};align-items:center}.tuddy-leaks b{color:${C.text3};font:900 10px/1 ${NUM_FONT}}.tuddy-leaks span,.tuddy-milestones b{font-size:10px}.tuddy-leaks em,.tuddy-milestones em{color:${C.text3};font:700 8px/1 ${NUM_FONT};font-style:normal}.tuddy-milestones>div{grid-template-columns:1fr auto auto}.tuddy-milestones span{color:${C.yellow};font-size:9px}.tuddy-angles>div:last-child{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.tuddy-angles article{display:flex;gap:9px;padding:12px;border:1px solid ${C.border};border-radius:10px;background:rgba(255,255,255,.025)}.tuddy-angles article>span{color:${C.green};font:900 9px/1 ${NUM_FONT}}.tuddy-angles article small{color:${C.text3};font:800 8px/1 ${NUM_FONT}}.tuddy-angles article b{display:block;margin-top:7px;font-size:11px}.tuddy-angles article p{margin:4px 0 0;color:${C.text3};font-size:9px}.tuddy-mini-board>button{display:grid;grid-template-columns:20px 24px 1fr auto 34px;align-items:center;gap:8px;width:100%;min-height:44px;padding:7px 4px;border:0;border-top:1px solid ${C.border};background:transparent;color:inherit;text-align:left;cursor:pointer}.tuddy-mini-board>button>span{color:${C.text3};font:800 9px/1 ${NUM_FONT}}.tuddy-mini-board>button>b{font-size:11px}.tuddy-mini-board>button>em{color:${C.text3};font:700 8px/1 ${NUM_FONT};font-style:normal}.tuddy-mini-board>button>strong{text-align:right;font:900 13px/1 ${NUM_FONT}}.tuddy-receipts{display:flex;align-items:center;justify-content:space-between;padding:20px 22px;border:1px solid rgba(167,139,250,.28);border-radius:14px;background:radial-gradient(circle at 90% 20%,rgba(167,139,250,.11),transparent 35%),${C.bg2}}.tuddy-receipts small{color:${C.text2};font:900 8px/1 ${NUM_FONT};letter-spacing:.1em}.tuddy-receipts h2{margin:6px 0 4px;font-size:21px}.tuddy-receipts p{margin:0;color:${C.text3};font-size:10px}.tuddy-receipts button{color:${C.text2}}
         @media(max-width:800px){.tuddy-hero{min-height:190px;padding:22px}.tuddy-six-ghost{font-size:72px}.tuddy-hero-mark{display:none}.tuddy-six-grid{grid-template-columns:1fr 1fr}.tuddy-home-split,.tuddy-board-split{grid-template-columns:1fr}.tuddy-angles>div:last-child{grid-template-columns:1fr 1fr}}
         @media(max-width:520px){.tuddy-hero h1{font-size:36px}.tuddy-six-headliner{grid-template-columns:1fr;width:calc(100% - 24px);margin:12px 12px 0;padding:14px}.tuddy-six-headliner-score{text-align:left}.tuddy-six-ghost{display:none}.tuddy-six-grid{grid-template-columns:1fr}.tuddy-six-head{align-items:flex-start;gap:12px}.tuddy-six-head button{max-width:90px}.tuddy-angles>div:last-child{grid-template-columns:1fr}.tuddy-receipts{align-items:flex-start;gap:16px}.tuddy-receipts button{max-width:90px}.tuddy-leaks>div,.tuddy-milestones>div{grid-template-columns:42px 1fr}.tuddy-leaks em,.tuddy-milestones em{grid-column:2}}
 
-        .tuddy-six-picks{grid-template-columns:repeat(3,minmax(0,1fr))!important}@media(max-width:800px){.tuddy-six-picks{grid-template-columns:repeat(2,minmax(0,1fr))!important}}@media(max-width:560px){.tuddy-six-picks{grid-template-columns:1fr!important}}
+        .tuddy-six-picks{grid-template-columns:repeat(3,minmax(0,1fr))!important}@media(max-width:800px){.tuddy-six-picks{grid-template-columns:repeat(2,minmax(0,1fr))!important}}@media(max-width:560px){.tuddy-six-picks{grid-template-columns:repeat(2,minmax(0,1fr))!important}}@media(max-width:380px){.tuddy-six-picks{grid-template-columns:1fr!important}}
         .tuddy-six-dot{display:inline-block;width:6px;height:6px;margin-right:6px;border-radius:50%;background:var(--market);vertical-align:middle;animation:tuddyPulseDot 2s infinite}
         .tuddy-six-pulse{position:absolute;right:38px;top:50%;width:64px;height:64px;margin-top:-32px;border-radius:50%;border:1.5px solid var(--market);opacity:0;pointer-events:none;z-index:0;animation:tuddyPulseRing 2.6s ease-out infinite}
         @keyframes tuddyPulseDot{0%,100%{opacity:1}50%{opacity:.35}}

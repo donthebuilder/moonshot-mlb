@@ -49,7 +49,6 @@ import PlayerSplits from '../PlayerSplits'
 import GoalTracking from '../GoalTracking'
 import { PlayerDepthToggle } from '../NhlDepth'
 import LampSlipAdd from '../LampSlipAdd'
-import LampPriceHistory from '../LampPriceHistory'
 import PlayerInjuryChip from '../../injuries/PlayerInjuryChip'
 
 // 🏒 PLAYER — one man's file, at a stable address (#sport=nhl&tab=player&
@@ -314,16 +313,14 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
         {stale && <div style={{ marginTop: 8 }}><StaleSeasonNote label={f.seasonLabel} opens={p.opens} what="line" /></div>}
       </div>
 
-      {/* WATCH + ADD TO SLIP + the pick (MOONSHOT's row): the star, a + button per market the books price for him (no price, no button), LAMP's word */}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        <FollowButton sport="nhl" id={String(p.id)} name={p.name} team={p.team} position={p.pos} />
-        {!goalie && <LampSlipAdd id={String(p.id)} name={p.name} team={p.team} opp={oppCode} style={{ margin: 0 }} compact />}
-        {!goalie && shownStatus && (
-          <span style={{ fontSize: 12, color: C.text3 }}>
-            LAMP&apos;s pick: <b style={{ color: C.text2, fontWeight: 700 }}>{pickWord}</b>
-          </span>
-        )}
-      </div>
+      {/* WATCH + ADD TO SLIP + the pick (MOONSHOT's row, 2026-10-22 the even row): Watch and a + per market the books price for him
+          (no price, no button) as equal cells; LAMP's pick is a ★ on the Goal cell, the sentence only when no cell carries it */}
+      {goalie
+        ? <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 160px)' }}><FollowButton sport="nhl" id={String(p.id)} name={p.name} team={p.team} position={p.pos} cell /></div>
+        : <LampSlipAdd id={String(p.id)} name={p.name} team={p.team} opp={oppCode} style={{ margin: 0 }} even
+            lead={<FollowButton sport="nhl" id={String(p.id)} name={p.name} team={p.team} position={p.pos} cell />}
+            pickCode={shownStatus === 'called' ? 'GOAL' : null}
+            pickLine={shownStatus ? <>LAMP&apos;s pick: <b style={{ color: C.text2, fontWeight: 700 }}>{pickWord}</b></> : null} />}
 
       {/* THE PILL TABS (MOONSHOT's TabBtn row), the tab in the address as view=; the row stays under the top as the page scrolls */}
       <div className="chip-row" role="tablist" aria-label="Player tabs" style={{ position: 'sticky', top: peek ? 0 : 'var(--lamp-sticky, 0px)', zIndex: 20, background: C.bg2, display: 'flex', gap: 5, flexWrap: 'nowrap', overflowX: 'auto', padding: '4px 2px 8px', margin: '0 -2px', borderBottom: `1px solid ${C.border}` }}>
@@ -338,7 +335,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
           <PlayerNotes playerId={String(p.id)} scope="nhl" accent={C.ice} />
           {!goalie && <InTheLedger sport="nhl" id={p.id} name={p.name} jersey={p.number} birthDate={p.birthDate} next={nextG} date={etToday()} />}
           {!goalie && <HisNumbers name={p.name} jersey={p.number} birthDate={p.birthDate} next={nextG} career={Number.isFinite(p.career?.regular?.g) ? p.career.regular.g + 1 : null} nextWord="goal" date={etToday()} theme={C} accent={C.ice} numFont={NUM_FONT} />}
-          {!goalie && !locked && <LampPriceHistory id={String(p.id)} />}
+          {/* NO PRICE TIMELINE (2026-10-21, Donovan: "remove the price timeline inside of the player model ... remove it") */}
           {/* NO MORE FOLD (Donovan 10-20): what it held sits on the page -- the props grid, last five, star memory, multi-goal and the bio */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, margin: '4px 0' }}>
             {!goalie && <LampPropsMatrix logThis={logThis} logLast={logLast} seasonThis={f.seasonLabel} seasonLast={p.logPrev?.seasonLabel} />}

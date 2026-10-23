@@ -10,6 +10,7 @@ import { hrGateVerdict } from '../lib/hrGate'
 import { hrOverlayRead } from '../lib/hrOverlay'
 import { Chip, Card, RoleTag } from './ui'
 import StatStrip, { SlashLine } from './StatStrip'
+import { statLineFor } from '../lib/statline'
 import { InfoDot } from './Explain'
 import RankCard from './card/RankCard'
 import { gameDayOf } from './card/useStamps'
@@ -98,7 +99,7 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
   const score     = scoreFor(p, type)
   const grade     = gradeFor(p, type)
   const risk      = riskPill(p, C, type)
-  const pills     = signalPills(p, C, type)
+  const pills     = signalPills(p, C, type, { shown: statLineFor(p, type, 4).map((s) => s.id) })   // the strip below shows these 4
   const bet       = bestBet(p, type)
 
   const isHardAvoid = p?.true_avoid_hr === true
