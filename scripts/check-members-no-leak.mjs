@@ -134,7 +134,7 @@ for (const [label, v] of [[',', ','], ['", ,\n,"', ', ,\n,'], ['not a URL', 'hel
     check(`F. postOnce webhooks=${JSON.stringify(w)} -> nothing sent, nothing claimed`, calls.length === 0 && db.rows.length === 0, `result "${out}"`)
   }
   setEnv(); calls.length = 0
-  const out = await postOnce(fakeDb(), { day: '2099-03-31', kind: 'pregame', build: async () => ({ text: 'TEST', payload: {} }) })
+  const out = await postOnce(fakeDb(), { day: '2099-03-31', kind: 'test_unlisted_kind', build: async () => ({ text: 'TEST', payload: {} }) })
   check('F. a normal public post (webhooks left out) still goes to the public feed', calls.length > 0 && out === 'posted', `${calls.length} call(s), "${out}"`)
 }
 
@@ -158,11 +158,11 @@ for (const [label, v] of [[',', ','], ['", ,\n,"', ', ,\n,'], ['not a URL', 'hel
   setEnv({ NEXT_PUBLIC_SUPABASE_URL: 'https://test-project.invalid', SUPABASE_SERVICE_ROLE_KEY: 'TEST-SERVICE-KEY' })
   _resetDiscordSends(); calls.length = 0
   const hooks = [PUBLIC_ENV.DISCORD_HOMER_WEBHOOK, PUBLIC_ENV.DISCORD_NFL_WEBHOOKS].join(',')
-  const r = await postToDiscord('TEST POST', { kind: 'pregame', sportKey: 'nfl' }, hooks)
+  const r = await postToDiscord('TEST POST', { kind: 'test_unlisted_kind', sportKey: 'nfl' }, hooks)
   check('G. the send still succeeds when one hook 404s (ok = any)', r.ok === true && calls.length === 2)
   check('G. exactly one insert per hook attempt', inserts.length === 2, `${inserts.length}`)
   const rows = inserts.flat()
-  check('G. rows carry the env KEY NAME, hook index, kind, sport, status', rows[0].channel_key === 'DISCORD_HOMER_WEBHOOK' && rows[1].channel_key === 'DISCORD_NFL_WEBHOOKS' && rows[0].hook_index === 0 && rows[1].hook_index === 1 && rows[0].kind === 'pregame' && rows[0].sport === 'nfl' && rows[0].ok === true && rows[0].http_status === 204 && rows[1].ok === false && rows[1].http_status === 404)
+  check('G. rows carry the env KEY NAME, hook index, kind, sport, status', rows[0].channel_key === 'DISCORD_HOMER_WEBHOOK' && rows[1].channel_key === 'DISCORD_NFL_WEBHOOKS' && rows[0].hook_index === 0 && rows[1].hook_index === 1 && rows[0].kind === 'test_unlisted_kind' && rows[0].sport === 'nfl' && rows[0].ok === true && rows[0].http_status === 204 && rows[1].ok === false && rows[1].http_status === 404)
   const blob = JSON.stringify(rows)
   check('G. no URL, id or token is ever stored', !/https?:|TEST-TOKEN|\/webhooks|100[0-9]/.test(blob), blob.length ? 'checked' : '')
   // table missing -> no throw, send unaffected, and the instance stops trying

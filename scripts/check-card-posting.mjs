@@ -107,7 +107,7 @@ const fakeDb = () => {
   check(/attachment:\/\/card\.png/.test(JSON.stringify(payload.embeds || [])) || payload.embeds?.some((e) => e.image?.url === 'attachment://card.png'), 'C: the image sits under the embed as attachment://card.png')
   // a FREE post (not membersOnly) whose builder returns a membersImage must NOT send it anywhere
   setEnv({ X_API_KEY: 'k', X_API_SECRET: 's', X_ACCESS_TOKEN: 't', X_ACCESS_SECRET: 'a' }); calls.length = 0
-  await postOnce(fakeDb(), { day: '2026-02-01', kind: 'card_result_nhl', envGate: false, webhooks: FREE, toX: false, build: async () => ({ text: 'free post', membersImage: png('members-day') }) })
+  await postOnce(fakeDb(), { day: '2026-02-01', kind: 'card_result_nhl', sport: 'nhl', envGate: false, webhooks: FREE, toX: false, build: async () => ({ text: 'free post', membersImage: png('members-day') }) })
   check(calls.length === 1 && calls[0].url === FREE && !isMultipart(calls[0]) && !calls.some((c) => c.url.includes('api.x.com')), 'C: a free-channel post that is handed a members image sends it NOWHERE (plain JSON, no file)')
   calls.length = 0
   await postOnce(fakeDb(), { day: '2026-02-02', kind: 'card_members_nhl', envGate: false, webhooks: MEMBERS, toX: false, build: async () => ({ text: 'not marked members', membersImage: png('members-day') }) })
@@ -117,10 +117,10 @@ const fakeDb = () => {
 // ── D. a free post's card goes to its channel and to X; an upload that fails leaves the text ──
 {
   setEnv({ DISCORD_NHL_WEBHOOKS: FREE }); calls.length = 0
-  await postOnce(fakeDb(), { day: '2026-02-03', kind: 'card_result_nhl', envGate: false, webhooks: FREE, toX: false, build: async () => ({ text: 'free post with a card', png: png('straight-front') }) })
+  await postOnce(fakeDb(), { day: '2026-02-03', kind: 'card_result_nhl', sport: 'nhl', envGate: false, webhooks: FREE, toX: false, build: async () => ({ text: 'free post with a card', png: png('straight-front') }) })
   check(calls.length === 1 && calls[0].url === FREE && cardPart(calls[0]) && !calls.some((c) => c.url.includes('api.x.com')), 'D: a free post\'s card is attached to its channel post as card.png')
   setEnv(); calls.length = 0
-  await postOnce(fakeDb(), { day: '2026-02-04', kind: 'card_result_nhl', envGate: false, webhooks: FREE, toX: false, build: async () => ({ text: 'text only' }) })
+  await postOnce(fakeDb(), { day: '2026-02-04', kind: 'card_result_nhl', sport: 'nhl', envGate: false, webhooks: FREE, toX: false, build: async () => ({ text: 'text only' }) })
   check(calls.length === 1 && !isMultipart(calls[0]), 'D: no picture -> the channel post is the JSON post it always was')
 }
 

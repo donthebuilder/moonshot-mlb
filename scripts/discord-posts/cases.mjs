@@ -531,7 +531,24 @@ const winsCases = [{
   },
 }]
 
-export const CASES = [...winsCases, ...nflWeekCases, ...nbaCases, ...donPlaysCases, ...lampExtraCases, ...momentCases, ...pollCases, ...multiCases, ...writeupCases, ...slateCases, ...showCases, ...membersCases, ...cardCases, ...receiptCases, ...alertCases]
+// ── LIVE-ROOM ALERTS (lib/dash/discordAlerts.js, from lib/dash/pushRules.js). Built from a live game state with no stored input, so these render
+// the copy's own TEST samples (lib/copy/notifications.js CATALOG): the WORDS are checked, the data is labelled TEST.
+const copy = await import('../../lib/copy/notifications.js')
+const roomText = (e) => (e.title ? `**${e.title}**\n${e.body || ''}` : String(e.body || ''))
+const roomAlertCases = [{
+  kinds: ['alert_nflboardred', 'alert_scratched'],
+  load: async (ctx) => {
+    const out = []
+    const red = copy.nfl.boardRedZone({ team: 'TST', men: [{ name: 'Test Back', rank: 3, called: true }, { name: 'Test End', rank: 9, called: false }], down: '2nd & 4 at TST 8', clock: 'Q3 4:12', game: { away: 'TST', home: 'EXA' } })
+    out.push({ kind: 'alert_nflboardred', sport: 'nfl', day: ctx.today, label: 'TEST copy (built live)', text: roomText(red), hooks: feedHooks('nfl') })
+    for (const row of copy.CATALOG.filter((r) => r.key === 'scratched' && r.sport === 'mlb' && !r.cut).slice(0, 1)) {
+      out.push({ kind: `alert_${row.key}`, sport: 'mlb', day: ctx.today, label: `TEST copy: ${row.variant || row.key} (only with DISCORD_BOARD_ROOM_ALERTS=on)`, text: roomText(row.render()), hooks: feedHooks('mlb') })
+    }
+    return out
+  },
+}]
+
+export const CASES = [...roomAlertCases, ...winsCases, ...nflWeekCases, ...nbaCases, ...donPlaysCases, ...lampExtraCases, ...momentCases, ...pollCases, ...multiCases, ...writeupCases, ...slateCases, ...showCases, ...membersCases, ...cardCases, ...receiptCases, ...alertCases]
 
 /** Kinds that can reach Discord but are not rendered, each with the reason. */
 export const NOT_RENDERED = Object.freeze({
