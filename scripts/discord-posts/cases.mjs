@@ -173,7 +173,7 @@ const rl = await import('../../lib/posts/receiptLoad.js')
 const recap = await import('../../lib/posts/recapPost.js')
 const receiptCases = [
   {
-    kinds: ['receipt'],
+    kinds: ['receipt', 'receipt_nocash'],
     load: async (ctx) => {
       for (const day of ctx.days.slice(1)) {
         const { data } = await ctx.db.from('homer_feed_posts').select('kind, x_post_id, payload').eq('day', day)
@@ -182,7 +182,7 @@ const receiptCases = [
         if (!named.players?.length) continue
         const read = await rl.receiptLoader(ctx.db, { day })(named.players, rows)
         const a = rc.assembleReceipt({ day, rows, results: read.results, games: read.games, now: Date.now() })
-        if (a.state === 'none' && a.discordText) return [{ kind: 'receipt', sport: 'all', day, label: 'no cash night: #called-it only', text: a.discordText, embed: a.discordEmbed || null, hooks: receiptsHooks() }]
+        if (a.state === 'none' && a.discordText) return [{ kind: 'receipt_nocash', sport: 'all', day, label: 'no cash night: #called-it only', text: a.discordText, embed: a.discordEmbed || null, hooks: receiptsHooks() }]
         if (a.state !== 'go') continue
         return [{ kind: 'receipt', sport: 'all', day, text: a.text, embed: a.embed || null, png: true, hooks: withReceipts(feedHooks('mlb')) }]
       }
@@ -224,10 +224,11 @@ const alertCases = [
   {
     kinds: ['homer'],
     load: async (ctx) => {
-      const { data } = await ctx.db.from('homer_feed').select('*').gte('day', recentDays(30).at(-1)).order('created_at', { ascending: false }).limit(200)
+      const { data, error } = await ctx.db.from('homer_feed').select('*').gte('day', recentDays(30).at(-1)).order('day', { ascending: false }).limit(200)
+      if (error) throw new Error(error.message)
       const rows = (data || []).filter((r) => cs.callStatus(r) === 'called').slice(0, 2)
       // the tick sends with no hook list: postToDiscord's default, DISCORD_HOMER_WEBHOOK only
-      return rows.map((row) => { const ev = { ...row, _roles: row.role || '' }; return { kind: 'homer', sport: 'mlb', day: row.day, label: row.name || row.player_name, text: hf.postText(ev), embed: hf.homerEmbed(ev, { extra: [], at: row.created_at }), png: true, hooks: process.env.DISCORD_HOMER_WEBHOOK || '' } })
+      return rows.map((row) => { const ev = { ...row, _roles: row.role || '' }; return { kind: 'homer', sport: 'mlb', day: row.day, label: row.name || row.player_name, text: hf.postText(ev), embed: hf.homerEmbed(ev, { extra: [], at: row.created_at }), png: true, hooks: feedHooksFor('mlb', cs.callStatus(row)) } })
     },
   },
   {
@@ -497,8 +498,7 @@ const lampExtraCases = [
         const { data } = await ctx.db.from('lamp_shot_speed').select('*').eq('game_date', day).order('speed', { ascending: false }).limit(1)
         const m = (data || [])[0]
         if (!m) continue
-        // postHardestOnce passes no sport: postOnce's default feedHooks('mlb')
-        return [{ kind: 'nhlhardest', sport: 'nhl', day, text: hard.hardestText(m), hooks: feedHooks('mlb') }]
+        return [{ kind: 'nhlhardest', sport: 'nhl', day, text: hard.hardestText(m), hooks: feedHooks('nhl') }]
       }
       return []
     },

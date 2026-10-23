@@ -209,7 +209,7 @@ const slabStub = (bytes = 'SLAB') => async (o) => { askedSlab.push(o); return Bu
   const hook = calls.find((c) => c.url === FREE)
   const lt = (await import('../lib/card/text.js')).longShotResultText({ sport: 'nhl', day: '2026-01-02', row: ls, rec: { graded: 4, hits: 1, voids: 0, pushes: 0 } }).text
   check(!t && hook && filesOf(hook).length === 1 && lt.includes('Test Nine') && !/units|ROI|\bunit\b/i.test(lt), 'F: the Long Shot result post: the free channel carries it with the slab, no X post; its text names its man, no units / ROI')
-  setEnv({ ...XENV, DISCORD_HOMER_WEBHOOK: FREE }); calls.length = 0; askedSlab.length = 0
+  setEnv({ ...XENV, DISCORD_HOMER_WEBHOOK: FREE, DISCORD_MLB_WEBHOOKS: FREE }); calls.length = 0; askedSlab.length = 0   // the Double result is a network-room post: #moonshot-mlb until DISCORD_OVERVIEW_WEBHOOK is set
   const dbl = mkRow({ sport: 'all', product: 'double', result: 'miss', leg_results: [{ result: 'hit' }, { result: 'miss' }], legs: [{ ...leg('P1', 'Test One'), sport: 'nhl' }, { ...leg('P7', 'Test Seven'), sport: 'mlb' }] })
   const r2 = await POST.postDoubleResult(richDb(), { day: '2026-01-02', row: dbl, slab: slabStub('dbl') })
   check(/^posted/.test(r2) && askedSlab[0]?.sport === 'all' && askedSlab[0].product === 'double' && askedSlab[0].date === '2026-01-02', 'F: the Double result asks for the double slab (sport all, both legs named by the text)')

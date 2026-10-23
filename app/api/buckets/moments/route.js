@@ -87,7 +87,7 @@ export async function GET(request) {
       const hooks = feedHooksFor('nba', r.status)
       let discord = false
       // a card linked to him on BUCKETS, in BUCKETS' colour (2026-10-04)
-      if (hooks) discord = await postToDiscord(text, { sport: 'nba', link: r.player_id ? playerHref('nba', r.player_id) : null }, hooks).then((r) => Boolean(r?.ok)).catch((e) => { console.error(`[buckets moments] discord: ${e?.message || e}`); return false })
+      if (hooks) discord = await postToDiscord(text, { sport: 'nba', kind: 'nba30', link: r.player_id ? playerHref('nba', r.player_id) : null }, hooks).then((r) => Boolean(r?.ok)).catch((e) => { console.error(`[buckets moments] discord: ${e?.message || e}`); return false })
       let id = 'skipped'
       if (r.status === 'called' && hasX()) {
         const q = quoteOf({ day: r.game_date || r.day, playerId: r.player_id, gameId: r.game_id })

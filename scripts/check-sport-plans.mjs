@@ -64,11 +64,11 @@ check('slate guards the Discord send', /foldedForDiscord\(KIND\) \? \{ ok: false
 check('lampSlate guards the Discord send', /foldedForDiscord\(KIND\) \? \{ ok: false \}/.test(src('lib/posts/lampSlate.js')))
 // the BOARD kinds: Discord delivery folds with the switch, the row is still claimed and written, X is untouched, off = the old send
 const mlbTick = src('app/api/dash/homers/tick/route.js'), nflTick = src('app/api/dash/nfl/tick/route.js')
-check('mlb board: Discord send is guarded by foldedForDiscord("board")', /foldedForDiscord\('board'\) \? \{ ok: false \} : await postToDiscord\(text, \{\}, FEED_WEBHOOKS\(\)\)/.test(mlbTick))
+check('mlb board: Discord send is guarded by foldedForDiscord("board")', /foldedForDiscord\('board'\) \? \{ ok: false \} : await postToDiscord\(text, \{ kind: 'board', sportKey: 'mlb' \}, FEED_WEBHOOKS\(\)\)/.test(mlbTick))
 check('mlb board: the claim comes BEFORE the guarded send (row still claimed)', mlbTick.indexOf("claimSlot(db, day, 'board')") > 0 && mlbTick.indexOf("claimSlot(db, day, 'board')") < mlbTick.indexOf("foldedForDiscord('board')"))
 check('mlb board: row still written after the send', /update\(patch\)\.match\(\{ day, kind: 'board' \}\)/.test(mlbTick))
 check('mlb board: X post is not behind the guard', /if \(hasX\(\)\) \{\s*const r = await postToX\(text, \{ kind: 'board' \}\)/.test(mlbTick))
-check('nfl board: Discord send is guarded by foldedForDiscord(sl.kind)', /foldedForDiscord\(sl\.kind\) \? false[^\n]*\n\s*: \(await postToDiscord\(text, \{ png \}, FEED_WEBHOOKS\(\)\)\)\.ok/.test(nflTick))
+check('nfl board: Discord send is guarded by foldedForDiscord(sl.kind)', /foldedForDiscord\(sl\.kind\) \? false[^\n]*\n\s*: \(await postToDiscord\(text, \{ png, kind: sl\.kind, sportKey: 'nfl' \}, FEED_WEBHOOKS\(\)\)\)\.ok/.test(nflTick))
 check('nfl board: the claim comes BEFORE the guarded send', nflTick.indexOf('await claimSlot(db, day, sl.kind)') > 0 && nflTick.indexOf('await claimSlot(db, day, sl.kind)') < nflTick.indexOf('foldedForDiscord(sl.kind)'))
 check('nfl board: the guard cannot touch another slot (nothing else is folded in the NFL slots)', !['nfl_whyboard', 'nfl_milestone', 'nfl_results', 'nfl_spotlight', 'nfl_bigweek', 'nfl_redzone', 'nfl_goalline', 'nfl_tdhistory', 'nfl_longshots', 'nfl_multi_club'].some(P.foldedForDiscord))
 check('nfl board: row still written after the send', /update\(patch\)\.match\(\{ day, kind: sl\.kind \}\)/.test(nflTick))

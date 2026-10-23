@@ -470,6 +470,7 @@ const load = (sports) => async () => sports
 await ok('post: claims once, stores `named`, goes to X as plain text and mirrors to the free Discord channels; a second try does nothing', async () => {
   reset()
   const db = fakeDb({ homer_feed_posts: [] })
+  process.env.DISCORD_MLB_WEBHOOKS = 'https://discord.test/hook'      // the network room is #moonshot-mlb until DISCORD_OVERVIEW_WEBHOOK is set (lib/dash/routeHooks.js)
   const r = await S.postSlateOnce(db, { day: DAY, load: load(sportsOf()), hooks: 'https://discord.test/hook', now: NOW })
   assert.equal(r, 'posted')
   assert.equal(tweets.length, 1)

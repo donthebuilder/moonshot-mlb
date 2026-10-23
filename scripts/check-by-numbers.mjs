@@ -9,6 +9,7 @@ const { SWEARS, OVERCLAIM } = await import('../lib/facts/check.js')
 const { kindInfo } = await import('../lib/dash/xSchedule.js')
 const { tierOf } = await import('../lib/dash/xPolicy.js')
 const { UNROUTED } = await import('../lib/dash/routingUnrouted.js')
+const { routeOf } = await import('../lib/dash/routing.js')
 
 let bad = 0, n = 0
 const ok = (c, m) => { n += 1; if (!c) { bad += 1; console.log('FAIL ' + m) } }
@@ -165,7 +166,7 @@ ok(sql.includes("''by_numbers''") && /\) not valid'/.test(sql), 'the kind migrat
 const route = fs.readFileSync(new URL('../app/api/dash/homers/tick/route.js', import.meta.url), 'utf8')
 ok(/out\.by_numbers = await postNumbersOnce\(db, \{ day: clock\.day, hooks: FEED_WEBHOOKS\(\) \}\)/.test(route), 'tried from the receipt step')
 ok(kindInfo('by_numbers')?.tag === 'FUN' && tierOf('by_numbers') === 'fact', `tagged FUN, the fact tier (${JSON.stringify(kindInfo('by_numbers'))} ${tierOf('by_numbers')})`)
-ok(Object.keys(UNROUTED).includes('by_numbers'), 'routing knows it')
+ok(Object.keys(UNROUTED).includes('by_numbers') || Boolean(routeOf('by_numbers')), 'routing knows it')
 const card = fs.readFileSync(new URL('../lib/cards/byNumbersCard.js', import.meta.url), 'utf8')
 ok(!/ESPN/.test(card.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n')), 'the card never prints a source name')
 
