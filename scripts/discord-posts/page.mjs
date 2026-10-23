@@ -12,12 +12,13 @@ const ROOM = {
   DISCORD_NHL_WEBHOOKS: ['#lamp', 'NHL, free'],
   DISCORD_NBA_WEBHOOKS: ['#buckets', 'NBA, free'],
   DISCORD_OVERVIEW_WEBHOOK: ['#dash-network', 'the whole network'],
-  DISCORD_RECEIPTS_WEBHOOK: ['#called-it', 'receipts'],
+  DISCORD_PARTNER_WEBHOOKS: ['Partner servers', 'the free feed in other Discords'],
+  DISCORD_RECEIPTS_WEBHOOK: ['#called-it', 'retired: merged into #dash-network'],
   DISCORD_HOMER_WEBHOOK: ['old feed', 'the other server'],
   nowhere: ['Reaches no channel', 'built, but no webhook is set for it'],
   held: ['Not delivered', 'cut or folded on purpose: the row is recorded, nothing is sent'],
 }
-const ORDER = ['DISCORD_MEMBERS_WEBHOOK', 'DISCORD_MLB_WEBHOOKS', 'DISCORD_NFL_WEBHOOKS', 'DISCORD_NHL_WEBHOOKS', 'DISCORD_NBA_WEBHOOKS', 'DISCORD_OVERVIEW_WEBHOOK', 'DISCORD_RECEIPTS_WEBHOOK', 'DISCORD_HOMER_WEBHOOK', 'nowhere', 'held']
+const ORDER = ['DISCORD_MEMBERS_WEBHOOK', 'DISCORD_MLB_WEBHOOKS', 'DISCORD_NFL_WEBHOOKS', 'DISCORD_NHL_WEBHOOKS', 'DISCORD_NBA_WEBHOOKS', 'DISCORD_OVERVIEW_WEBHOOK', 'DISCORD_PARTNER_WEBHOOKS', 'DISCORD_RECEIPTS_WEBHOOK', 'DISCORD_HOMER_WEBHOOK', 'nowhere', 'held']
 
 function post(o) {
   const p = o.payload || {}

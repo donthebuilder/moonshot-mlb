@@ -4,7 +4,7 @@
 const { ROUTES, PREFIX_ROUTES, routeOf, isCut, roomsOf, GRADING_KIND } = await import('../lib/dash/routing.js')
 let fail = 0
 const check = (name, ok, extra = '') => { if (!ok) fail += 1; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${extra ? `  -- ${extra}` : ''}`) }
-const ROOMS = new Set(['feed', 'sport', 'receipts', 'members', 'donovan', 'network', 'chosen', 'x', 'off'])
+const ROOMS = new Set(['feed', 'sport', 'receipts', 'members', 'donovan', 'network', 'partner', 'chosen', 'x', 'off'])
 const all = [...Object.entries(ROUTES), ...PREFIX_ROUTES.map(([p, r]) => [p, r])]
 for (const [k, r] of all) {
   check(`rooms known: ${k}`, r.rooms.every((x) => ROOMS.has(x)), r.rooms.join(','))
@@ -24,18 +24,22 @@ check('cut kind sends nothing and is flagged cut', (() => { const r = routeHooks
 check('unlisted kind keeps every hook', (() => { const r = routeHooks('not_a_kind_test', 'mlb', hooksAll); return !r.routed && r.hooks.length === 6 })())
 check('card_today (sport room) narrows to the sport channel only', (() => { const r = routeHooks('card_today', 'mlb', [U(1), U(2)]); return r.routed && r.hooks.join() === U(2) })())
 check('nhl_slate (sport room) never reaches the public feed', (() => { const r = routeHooks('nhl_slate', 'nhl', [U(1), U(4)]); return r.hooks.join() === U(4) })())
-check('recap goes to the receipts room only', (() => { const r = routeHooks('recap_nhl', 'nhl', hooksAll); return r.hooks.join() === U(5) })())
+check('recap goes to the network room only (#called-it merged in, 10-23; #moonshot-mlb until DISCORD_OVERVIEW_WEBHOOK is set)', (() => { const r = routeHooks('recap_nhl', 'nhl', hooksAll); return r.hooks.join() === U(2) })())
 check('members roundup goes to #members only', (() => { const r = routeHooks('members_roundup_nhl', 'nhl', [U(6)]); return r.hooks.join() === U(6) })())
 check('a members kind sent with public hooks reaches nothing (never a free room)', routeHooks('members_roundup_nhl', 'nhl', [U(2), U(4)]).hooks.length === 0)
 check('a moment: the free send lands in its product channel only, the #members send in #members only', routeHooks('moment_nhl_8478_20260201_ht3', 'nhl', [U(1), U(4)]).hooks.join() === U(4) && routeHooks('moment_nhl_8478_20260201_ht3', 'nhl', [U(6)]).hooks.join() === U(6))
 check('X-only kinds are cut on Discord', isCut('card_ls_tuesday') && isCut('miss_reply') && !isCut('card_ls_result_nhl'))
 check('the TUDDY kickoff alert is phone only; TUDDY WATCH goes to the product channel', isCut('alert_nflkick') && roomsOf('alert_nflboardred')?.join() === 'sport')
 // THE NETWORK ROOM and the table deciding (2026-10-23)
-check('receipt: the network room (#moonshot-mlb until DISCORD_OVERVIEW_WEBHOOK is set) + #called-it', (() => { const r = routeHooks('receipt', 'mlb', [U(1), U(2), U(5)]); return r.hooks.sort().join() === [U(2), U(5)].sort().join() })())
+check('receipt: the network room only (#moonshot-mlb until DISCORD_OVERVIEW_WEBHOOK is set), never #called-it', (() => { const r = routeHooks('receipt', 'mlb', [U(1), U(2), U(5)]); return r.hooks.join() === U(2) })())
 process.env.DISCORD_OVERVIEW_WEBHOOK = U(7)
-check('receipt: with the network channel set, the network channel + #called-it, never #moonshot-mlb', (() => { const r = routeHooks('receipt', 'mlb', [U(1), U(2), U(5)]); return r.hooks.sort().join() === [U(5), U(7)].sort().join() })())
+check('receipt: with the network channel set, the network channel only, never #moonshot-mlb', (() => { const r = routeHooks('receipt', 'mlb', [U(1), U(2), U(5)]); return r.hooks.join() === U(7) })())
+process.env.DISCORD_PARTNER_WEBHOOKS = `${U(8)},${U(9)}`
+check('receipt: and every partner server when they are set', (() => { const r = routeHooks('receipt', 'mlb', [U(2)]); return r.hooks.sort().join() === [U(7), U(8), U(9)].sort().join() })())
+check('partner picks / top 5: the partner servers only', ['partner_picks', 'partner_top5'].every((k) => routeHooks(k, 'mlb', [U(8), U(9)]).hooks.sort().join() === [U(8), U(9)].join()))
+delete process.env.DISCORD_PARTNER_WEBHOOKS
 check('slate / the five / film room / by the numbers: the network channel only', ['slate', 'the_five', 'film_room', 'by_numbers', 'card_double_result'].every((k) => routeHooks(k, 'mlb', [U(2)]).hooks.join() === U(7)))
-check('a no-cash receipt: #called-it only', routeHooks('receipt_nocash', 'mlb', [U(5)]).hooks.join() === U(5))
+check('a no-cash receipt: the network room only', routeHooks('receipt_nocash', 'mlb', [U(5)]).hooks.join() === U(7))
 delete process.env.DISCORD_OVERVIEW_WEBHOOK
 check('the hardest shot: #lamp, never #moonshot-mlb', routeHooks('nhlhardest', 'nhl', [U(1), U(2)]).hooks.join() === U(4))
 check('no fallback: an unset product room sends nowhere', (() => { const k = process.env.DISCORD_NHL_WEBHOOKS; delete process.env.DISCORD_NHL_WEBHOOKS; const r = routeHooks('nhl_slate', 'nhl', [U(2)]); process.env.DISCORD_NHL_WEBHOOKS = k; return r.hooks.length === 0 })())

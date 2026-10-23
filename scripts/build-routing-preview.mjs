@@ -14,8 +14,8 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 const CHANNELS = [
   ['members', '#members', 'Paying members. Today\'s picks, more picks, wins, the morning grade, the roundups.'],
   ['sport', 'The product channels', '#moonshot-mlb · #tuddy-nfl · #lamp-nhl · #buckets. Free. The lead pick, the live CALLED moments, the results.'],
-  ['network', '#dash-network', 'Free. The posts that cover every product. Until its webhook is set, these post in #moonshot-mlb.'],
-  ['receipts', '#called-it', 'Free. The receipts: hits and misses, out loud.'],
+  ['network', '#dash-network', 'Free. Every product in one place: the slate before the games, the receipts after, the weekly shows. (#called-it merged in here.)'],
+  ['partner', 'Partner servers', 'Other Discords you are in. Tonight\'s picks (straights + parlay), the top 5 per product, the receipt. Each links to the site.'],
   ['x', 'X only', 'Never on Discord, by design.'],
   ['off', 'Not sent', 'Cut or phone-only. The record is still kept.'],
   ['chosen', 'Admin', 'Only when you press a button on /admin/discord.'],
@@ -39,7 +39,7 @@ for (const [k, r] of Object.entries(ROUTES)) add(k, r)
 for (const [p, r] of PREFIX_ROUTES) if (!rows.has(r)) add(`${p}…`, r)
 
 const sectionOf = ([room, title, sub]) => {
-  const mine = [...rows.values()].filter(({ r }) => (room === 'members' ? r.rooms.includes('members') && !r.rooms.includes('sport') : room === 'sport' ? r.rooms.includes('sport') : room === 'receipts' ? r.rooms.includes('receipts') : r.rooms[0] === room))
+  const mine = [...rows.values()].filter(({ r }) => (room === 'members' ? r.rooms.includes('members') && !r.rooms.includes('sport') : room === 'sport' ? r.rooms.includes('sport') : room === 'partner' ? r.rooms.includes('partner') : r.rooms[0] === room))
   if (!mine.length) return ''
   const byPhase = {}
   for (const m of mine) (byPhase[room === 'sport' || room === 'members' || room === 'network' ? PHASE(m.r.when) : ''] ||= []).push(m)

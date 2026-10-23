@@ -257,9 +257,10 @@ await ok('no cash = no post: a night where no one was named has no receipt at al
 const missNight = () => mixed({ homered: [], nhl: { h2: { graded_at: 'x', dressed: true, hit: false } } })
 const twoCalls = () => [callRow(), nhlWriteup()]
 const CALLED_IT = 'https://discord.test/called-it'
+const NET = 'https://discord.test/dash-network'      // #dash-network: #called-it merged in (2026-10-23), every receipt goes here
 const pastSettle = T0 + RC.SETTLE_MS + 1
 // the routing table decides the rooms from the env keys (lib/dash/routeHooks.js, 2026-10-23): the test URLs are the env keys, as in production
-process.env.DISCORD_RECEIPTS_WEBHOOK = CALLED_IT; process.env.DISCORD_MLB_WEBHOOKS = 'https://discord.test/feed'
+process.env.DISCORD_RECEIPTS_WEBHOOK = CALLED_IT; process.env.DISCORD_MLB_WEBHOOKS = 'https://discord.test/feed'; process.env.DISCORD_OVERVIEW_WEBHOOK = NET
 await ok('called-it: 2 called / 0 landed -> a Discord-only receipt with both misses, to #called-it only, not X, not the feed, once', async () => {
   reset()
   const a = RC.assembleReceipt({ day: DAY, rows: twoCalls(), ...missNight(), now: T0 })
@@ -275,7 +276,7 @@ await ok('called-it: 2 called / 0 landed -> a Discord-only receipt with both mis
   // X: no receipt post, only each miss's clean reply under the post that named him (2026-10-20)
   assert.ok(tweets.length <= 2 && tweets.every((t) => t.reply?.in_reply_to_tweet_id), JSON.stringify(tweets.map((t) => t.text)))
   assert.equal(db.tables.homer_feed_posts.find((r) => r.kind === 'receipt').payload.miss_recap ? 1 : 0, tweets.length)
-  assert.equal(discords.length, 1); assert.equal(discords[0].url, CALLED_IT); assert.equal(discords[0].body.content, undefined)   // 10-10: the Discord copy is the DASH card, not the text
+  assert.equal(discords.length, 1); assert.equal(discords[0].url, NET); assert.equal(discords[0].body.content, undefined)   // 10-10: the Discord copy is the DASH card, not the text
   assert.match(discords[0].body.embeds[0].title, /^\u{1F9FE} Receipt · /u); assert.match(discords[0].body.embeds[0].description, /· 0 for 2$/)
   assert.ok(discords[0].body.embeds[0].fields.some((f) => /\u2717 Test Hitter Two, home run: missed/.test(f.value)))
   const row = db.tables.homer_feed_posts.find((r) => r.kind === 'receipt')
@@ -321,13 +322,13 @@ await ok('called-it: a cash night is unchanged -- X plus the feed hooks, #called
   await RC.postReceiptOnce(db, { day: DAY, load: load(mixed()), hooks, receiptsHook: CALLED_IT, now: T0 })
   assert.equal(await RC.postReceiptOnce(db, { day: DAY, load: load(mixed()), hooks, receiptsHook: CALLED_IT, now: pastSettle }), 'posted')
   assert.equal(tweets.length, 1)
-  assert.equal(discords.filter((d) => d.url === CALLED_IT).length, 1); assert.equal(discords.length, 2)
+  assert.equal(discords.filter((d) => d.url === NET).length, 1); assert.equal(discords.length, 1)      // one room since 10-23: #dash-network
   assert.equal(await RC.postReceiptOnce(db, { day: DAY, load: load(mixed()), hooks, receiptsHook: CALLED_IT, now: pastSettle + 1e7 }), 'already-posted')
-  assert.equal(discords.length, 2)
+  assert.equal(discords.length, 1)
 })
-await ok('called-it: the tick passes #called-it alone as receiptsHook', () => {
+await ok('called-it: the tick passes the network room (#dash-network) as receiptsHook (#called-it merged in, 10-23)', () => {
   const route = fs.readFileSync('app/api/dash/homers/tick/route.js', 'utf8')
-  assert.match(route, /receiptsHook: receiptsHooks\(\)/)
+  assert.match(route, /receiptsHook: networkHooks\(\)/)
 })
 
 // ═══ 6. WHEN: ALL GAMES FINAL ═══════════════════════════════════════════════
@@ -389,7 +390,7 @@ await ok('post: quotes the Slate through the X API field, is plain text, logs PO
   assert.equal(tweets[0].quote_tweet_id, '7001')
   assert.ok(!BANNED.test(tweets[0].text), tweets[0].text)
   // the routing table (2026-10-23): the network room (#moonshot-mlb until DISCORD_OVERVIEW_WEBHOOK is set) and #called-it; never the dead old feed
-  assert.deepEqual(discords.map((d) => d.url).sort(), [CALLED_IT, 'https://discord.test/feed'].sort())
+  assert.deepEqual(discords.map((d) => d.url), [NET])
   assert.equal(discords[0].body.content, undefined)   // 10-10: Discord gets the DASH card; X keeps the text
   assert.match(discords[0].body.embeds[0].title, /^\u{1F9FE} Receipt · /u)
   const row = db.tables.homer_feed_posts.find((x) => x.kind === 'receipt')
@@ -544,7 +545,7 @@ await ok('weekly / monthly post on their own claim: Monday, once, quote-free, IN
   assert.equal(await RC.postPeriodOnce(db, { period, hooks: 'https://discord.test/a', now: Date.parse('2026-10-12T15:00:00Z') }), 'posted')
   assert.equal(tweets.length, 1); assert.equal(tweets[0].quote_tweet_id, undefined)
   assert.match(tweets[0].text, /WEEK OF OCT 5/)
-  assert.deepEqual(discords.map((d) => d.url).sort(), [CALLED_IT, 'https://discord.test/feed'].sort())   // the network room + #called-it (routing.js)
+  assert.deepEqual(discords.map((d) => d.url), [NET])   // the network room (routing.js)
   const row = db.tables.homer_feed_posts.find((r) => r.kind === 'weekly')
   assert.equal(row.day, '2026-10-12'); assert.match(row.x_post_id, /^\d+$/)
   assert.equal(await RC.postPeriodOnce(db, { period, hooks: '', now: Date.parse('2026-10-12T16:00:00Z') }), 'already-posted')
@@ -626,7 +627,7 @@ await ok('slab: a cash night -> Discord carries the slab of EVERY graded call (t
   const byKey = new Map(xQ.results.map((r) => [`${r.sport}:${r.player_id}`, r.name]))
   for (const k of xQ.only) assert.ok(tweets[0].text.includes(byKey.get(k)), `X text names ${byKey.get(k)}`)
   assert.equal(uploads.length, 1); assert.deepEqual(tweets[0].media?.media_ids, ['media-1'])
-  assert.equal(discords.length, 2); assert.ok(discords.every((d) => d.files.length === 1 && d.body.embeds[0].image?.url === 'attachment://card.png'))   // the network room + #called-it
+  assert.equal(discords.length, 1); assert.ok(discords.every((d) => d.files.length === 1 && d.body.embeds[0].image?.url === 'attachment://card.png'))   // the network room
   assert.ok(allQ.results.every((r) => ['cashed', 'missed', 'void'].includes(r.outcome)))      // real outcomes only, never a grade
   setOff()
 })
@@ -638,7 +639,7 @@ await ok('slab: no-cash night (#called-it, Discord only) -> the slab of the grad
   assert.equal(asked.length, 1); assert.equal(asked[0].kind, 'receipt'); assert.equal(asked[0].only, null); assert.equal(asked[0].results.length, 2)
   assert.ok(asked[0].results.every((r) => r.outcome === 'missed'))
   assert.equal(tweets.length, 0); assert.equal(uploads.length, 0)
-  assert.equal(discords.length, 1); assert.equal(discords[0].url, CI); assert.equal(discords[0].files.length, 1)
+  assert.equal(discords.length, 1); assert.equal(discords[0].url, NET); assert.equal(discords[0].files.length, 1)
   const missShape = Object.keys(asked[0]).sort().join()
   reset(); PI._resetPostImages(); asked.length = 0
   await settle(fakeDb({ homer_feed_posts: posts() }), { m: mixed(), slab: slabWith(stub()) })
