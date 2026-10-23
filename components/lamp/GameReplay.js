@@ -121,6 +121,7 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
   const [intro, setIntro] = useState(null)   // the open: 'title' (the fly-in), 'data' (the numbers light up), or null
   const [gsUi, setGsUi] = useState(0)        // the game clock as the replay runs (the score bug ticks between events)
   const [done, setDone] = useState(false)     // the final horn: the end card shows
+  const [pick, setPick] = useState(null)      // a tap: { kind: 'player', k, role, who } or { kind: 'tower' }
   // ONE END EACH, ALL GAME (2026-10-23, the bubble dome: its figures ride fixed slots, so the home club always defends -x).
   // The clubs switch ends every period on a real rink; a period where the home club shot at -x is turned round (x and y
   // both), so every spot stays where it was relative to its net.
@@ -208,33 +209,46 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
     for (const k of ['home', 'away']) {
       slotsFor(k === 'home' ? -1 : 1, k === 'home' ? 1 : -1).forEach((sl) => {
         const f = makeSkater({ ...kit(k), accent: C.ice, pose: sl[0] === 'G' ? 'goalie' : 'stride' })
+        f.userData.slotRef = { k, j: roster[k].length }
         scene.add(f); const mid = onSlot(sl, 0, 0)
-        roster[k].push({ slot: sl, blank: f, fig: f, spin: 0, x: mid.x, y: mid.y })
+        // pin: a spot he's been sent to (a faceoff, a hit, a block) for a moment; wob / hop: when he last rocked / jumped;
+        // sunk: his rod is pulled (a penalty)
+        roster[k].push({ slot: sl, blank: f, fig: f, spin: 0, x: mid.x, y: mid.y, who: null, pin: null, wob: -1e9, hop: -1e9, sunk: false })
       })
     }
     const numCache = new Map()
-    const wear = (k, j, num) => {
+    const wear = (k, j, num, who = null) => {
       const r = roster[k][j]
+      if (who != null) r.who = who
       let f = r.blank
       if (num != null) {
         const key = `${k}|${num}|${j}`
         f = numCache.get(key)
-        if (!f) { f = makeSkater({ ...kit(k), accent: C.ice, num, pose: r.slot[0] === 'G' ? 'goalie' : 'stride' }); f.visible = false; numCache.set(key, f); scene.add(f) }
+        if (!f) { f = makeSkater({ ...kit(k), accent: C.ice, num, pose: r.slot[0] === 'G' ? 'goalie' : 'stride' }); f.userData.slotRef = { k, j }; f.visible = false; numCache.set(key, f); scene.add(f) }
       }
       if (r.fig !== f) { r.fig.visible = false; f.visible = true; r.fig = f }
     }
     const actorOf = (k, x, y, goalie = false) => {
       let best = 0, bd = Infinity
-      roster[k].forEach((r, j) => { if (goalie !== (r.slot[0] === 'G')) return; const d = onSlot(r.slot, x, y).d; if (d < bd) { bd = d; best = j } })
+      roster[k].forEach((r, j) => { if (goalie !== (r.slot[0] === 'G') || r.sunk) return; const d = onSlot(r.slot, x, y).d; if (d < bd) { bd = d; best = j } })
       return best
     }
-    const moveFigures = (px, py, dt) => {
+    const pinTo = (r, x, y, ms) => { r.pin = { x, y, until: nowMs() + ms } }
+    const moveFigures = (px, py, dt, t = nowMs()) => {
       for (const k of ['home', 'away']) for (const r of roster[k]) {
-        const tgt = onSlot(r.slot, px, py), sp = 75 * dt, dx = tgt.x - r.x, dy = tgt.y - r.y, d = Math.hypot(dx, dy)
-        if (d > sp) { r.x += (dx / d) * sp; r.y += (dy / d) * sp } else { r.x = tgt.x; r.y = tgt.y }
+        let tx, ty
+        if (r.sunk) { tx = r.slot[1]; ty = r.slot[2] }                                   // a pulled rod: back to his own end
+        else if (r.pin && t < r.pin.until) { tx = r.pin.x; ty = r.pin.y }               // sent somewhere for a moment
+        else { r.pin = null; const o = onSlot(r.slot, px, py); tx = o.x; ty = o.y }      // riding his slot after the puck
+        const sp = (r.pin ? 170 : 75) * dt, dx = tx - r.x, dy = ty - r.y, d = Math.hypot(dx, dy)
+        if (d > sp) { r.x += (dx / d) * sp; r.y += (dy / d) * sp } else { r.x = tx; r.y = ty }
         if (r.spin > 0) r.spin = Math.max(0, r.spin - dt * 16)
-        r.fig.position.copy(rinkPoint(r.x, r.y, 0))
-        r.fig.rotation.y = Math.atan2(py - r.y, px - r.x) + r.spin
+        const ha = (t - r.hop) / 1100, hop = ha >= 0 && ha < 1 ? Math.abs(Math.sin(ha * Math.PI * 3)) * 2.4 * (1 - ha) : 0
+        r.fig.position.copy(rinkPoint(r.x, r.y, (r.sunk ? -2.6 : 0) + hop))
+        r.fig.rotation.y = Math.atan2(py - r.y, px - r.x) + r.spin + (r.sunk ? Math.PI : 0)
+        // a rock on his base after a hit or a stop
+        const wa = (t - r.wob) / 700, body = r.fig.userData.body
+        if (body) body.rotation.x = wa >= 0 && wa < 1 ? Math.sin(wa * Math.PI * 6) * 0.32 * (1 - wa) : 0
       }
     }
     moveFigures(0, 0, 10)   // on their slots, facing the dot
@@ -282,12 +296,12 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
     }
     // THE GOAL: the net's mesh bulges back and settles; a red light washes the crease
     let ripple = null
-    const rippleNet = (sx, t) => { const n = rink.nets?.[sx]; if (n?.userData.mesh) ripple = { mesh: n.userData.mesh, born: t } }
+    const rippleNet = (sx, t, amp = 0.35) => { const n = rink.nets?.[sx]; if (n?.userData.mesh) ripple = { mesh: n.userData.mesh, born: t, amp } }
     const stepRipple = (t) => {
       if (!ripple) return
       const age = (t - ripple.born) / 900
       if (age >= 1) { ripple.mesh.scale.set(1, 1, 1); ripple = null; return }
-      const bulge = 1 + Math.sin(age * Math.PI) * 0.35 * (1 - age)
+      const bulge = 1 + Math.sin(age * Math.PI) * ripple.amp * (1 - age)
       ripple.mesh.scale.set(bulge, 1, 1 + (bulge - 1) * 0.3)
     }
     const live = []   // { obj, born, life, kind }
@@ -311,24 +325,48 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
       m.rotation.x = -Math.PI / 2; m.position.copy(rinkPoint(x, y, 0.08)); return m
     }
     const add = (obj, life, kind) => { marks.add(obj); live.push({ obj, born: nowMs(), life, kind }) }
+    // EVERY EFFECT OF A GAME, INSIDE THE LITTLE RINK (Donovan 2026-10-23): each event, the way the toy would do it
+    let lampOn = null, flashAt = -1e9, dropAt = -1e9
+    const other = (k) => (k === 'home' ? 'away' : 'home')
     const showEvent = (e) => {
-      const ink = INK[side(e.team)]
-      const otherInk = INK[side(e.team) === 'home' ? 'away' : 'home']
-      void otherInk
+      const ink = INK[side(e.team)], t = nowMs()
       // the man this is about: the figure whose slot runs nearest the spot, in his real number, on the spot
+      let act = null
       if (e.team) {
         const k = side(e.team), j = actorOf(k, e.x, e.y), r = roster[k][j], on = onSlot(r.slot, e.x, e.y)
-        wear(k, j, data.players?.[e.who]?.num ?? null); r.x = on.x; r.y = on.y
-        if (e.kind === 'sog' || e.kind === 'goal' || e.kind === 'miss') r.spin = Math.PI * 2
+        wear(k, j, data.players?.[e.who]?.num ?? null, e.who ?? null); r.x = on.x; r.y = on.y; act = r
+        if (e.kind === 'sog' || e.kind === 'goal' || e.kind === 'miss') r.spin = Math.PI * 2       // the shot: a spin on his rod
+        if (e.kind === 'giveaway' || e.kind === 'takeaway') r.spin = Math.PI                       // the puck changes sticks
       }
+      // the other man in it: the faceoff's loser, the man hit, the shot-blocker
+      if (act && e.vs && ['faceoff', 'hit', 'block'].includes(e.kind)) {
+        const k2 = other(side(e.team)), j2 = actorOf(k2, e.x, e.y), r2 = roster[k2][j2]
+        wear(k2, j2, data.players?.[e.vs]?.num ?? null, e.vs)
+        const d = side(e.team) === 'home' ? 1 : -1
+        if (e.kind === 'faceoff') { pinTo(act, e.x - d * 2.8, e.y, 650); pinTo(r2, e.x + d * 2.8, e.y, 650) }   // square up on the dot
+        if (e.kind === 'hit') { pinTo(act, e.x, e.y, 380); pinTo(r2, e.x + d * 2.2, e.y + 1.2, 520); r2.wob = t; act.wob = t + 120 }
+        if (e.kind === 'block') { pinTo(r2, e.x, e.y, 600); r2.wob = t }
+      }
+      // a faceoff at centre ice: the puck drops from the tower (after every goal, and to start every period)
+      if (e.kind === 'faceoff' && Math.abs(e.x) < 1 && Math.abs(e.y) < 1) dropAt = t
       if (e.kind === 'faceoff') add(pulse(e.x, e.y, C.text, 2), 700, 'pulse')
       if (e.kind === 'sog' || e.kind === 'miss' || e.kind === 'goal') add(shotLine(e, ink), e.kind === 'goal' ? 1800 : 650, 'line')
       // the goalie: on a save or a goal his chip shows in the crease (goalieInNetId from the feed)
       if ((e.kind === 'sog' || e.kind === 'goal') && e.vs && data.players?.[e.vs]) {
-        const gk = side(e.team) === 'home' ? 'away' : 'home'; wear(gk, actorOf(gk, e.x, e.y, true), data.players[e.vs].num)
+        // the goalie slides across to it and rocks with the stop
+        const gk = other(side(e.team)), jg = actorOf(gk, e.x, e.y, true), g = roster[gk][jg]
+        wear(gk, jg, data.players[e.vs].num, e.vs); pinTo(g, g.slot[1], Math.max(-5, Math.min(5, e.y * 0.14)), 700); g.wob = t + 150
+        if (e.kind === 'sog') kick(Math.sign(e.x || 1) * (GOAL_X - 4), e.y * 0.1, 14, 0.8)
         if (e.kind === 'sog') add(pulse(Math.sign(e.x || 1) * (GOAL_X - 3.2), 0, C.text, 1.2), 450, 'pulse')
       }
-      if (e.kind === 'goal') { const sx = Math.sign(e.x || 1), p = pulse(sx * GOAL_X, 0, C.lamp, 3); add(p, 1600, 'goal'); rippleNet(sx, nowMs()); kick(sx * (GOAL_X - 2), 0, 26, 1.3) }
+      if (e.kind === 'goal') {
+        const sx = Math.sign(e.x || 1), p = pulse(sx * GOAL_X, 0, C.lamp, 3); add(p, 1600, 'goal'); rippleNet(sx, nowMs()); kick(sx * (GOAL_X - 2), 0, 26, 1.3)
+        // the lamp behind that net, the tower flashes the new score, the scorer spins and hops, his mates turn to him
+        lampOn = { s: sx, t }; flashAt = t
+        if (act) { act.hop = t; act.spin = Math.PI * 4; for (const r of roster[side(e.team)]) if (r !== act && r.slot[0] !== 'G') r.spin = Math.PI }
+      }
+      // off the iron: the post flashes and the net rings
+      if (e.kind === 'miss' && /post|crossbar/.test(String(e.reason || ''))) { const end = shotEnd(e), m = pulse(end.x, -end.z, C.text, 0.8); m.position.y = end.y; m.rotation.x = 0; m.rotation.y = Math.PI / 2; add(m, 500, 'pulse'); rippleNet(Math.sign(e.x || 1), t, 0.12) }
       if (e.kind === 'hit') kick(e.x, e.y, 22, 1.1)
       if (e.kind === 'block' || e.kind === 'takeaway') kick(e.x, e.y, 10, 0.7)
       if (e.kind === 'hit' || e.kind === 'takeaway' || e.kind === 'giveaway' || e.kind === 'block') add(pulse(e.x, e.y, ink, 1.2), 450, 'pulse')
@@ -368,22 +406,24 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
       const f = new THREE.Mesh(new THREE.PlaneGeometry(12, 4.8), new THREE.MeshBasicMaterial({ color: new THREE.Color(INK[sideKey]), transparent: true, opacity: 0, depthWrite: false }))
       f.rotation.x = -Math.PI / 2; f.position.copy(rinkPoint(x0, BOX_Y, 0.08)); scene.add(f); boxFill[sideKey] = f
     }
-    const boxed = new Map()   // penalty index -> disc sprite
+    // A PENALTY: his rod is pulled -- his figure slides back to its own end of the slot, sinks and turns away, until the
+    // penalty ends (a minor ends early on a power-play goal: penaltyStretches knows)
+    const sunkBy = new Map()   // penalty index -> the roster entry whose rod is pulled
+    let towerStatus = '', endUntil = -1e9
     const stepBox = (g, t) => {
-      const lit = { away: 0, home: 0 }
       penalties.forEach((p, k) => {
-        const on = g >= p.start && g < p.end
-        const sideKey = side(p.team)
-        if (on) {
-          lit[sideKey] += 1
-          if (!boxed.has(k)) { const d = new THREE.Object3D(); d.material = { dispose() {} }; boxed.set(k, d) }
-          const n = [...boxed.keys()].filter((j) => side(penalties[j].team) === sideKey).indexOf(k)
-          boxed.get(k).position.copy(rinkPoint(boxAt[sideKey] - 3 + n * 4.5, BOX_Y, 2.6))
-        } else if (boxed.has(k)) { const d = boxed.get(k); scene.remove(d); d.material.dispose(); boxed.delete(k) }
+        const on = g >= p.start && g < p.end, club = side(p.team)
+        if (on && !sunkBy.has(k)) {
+          const r = roster[club].find((x) => x.who === p.who && !x.sunk && x.slot[0] !== 'G') || roster[club][actorOf(club, 0, 0)]
+          if (r) { r.sunk = true; sunkBy.set(k, r) }
+        } else if (!on && sunkBy.has(k)) { sunkBy.get(k).sunk = false; sunkBy.delete(k) }
       })
       for (const sideKey of ['away', 'home']) boxFill[sideKey].material.opacity = 0
       // the man advantage: from the strength code of the last event shown
       const cur = idx >= 0 ? events[idx] : null, pp = powerPlayAt(cur)
+      // the tower's middle: END n for a beat at a period's end, else PP and the man-up club, else nothing
+      const want = t < endUntil ? towerStatus : pp ? `PP ${data[pp].abbrev}` : ''
+      if (want !== rink.statusNow) { rink.statusNow = want; rink.setStatus(want) }
       for (const sx of [-1, 1]) ppZones[sx].visible = false
       if (pp && cur) {
         const sx = attackSign(cur.period, data[pp].abbrev), z = ppZones[sx]
@@ -394,16 +434,16 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
     // THE CLOCK: replay time -> game seconds; the puck between event i and i+1 (unless play restarted before i+1)
     let gs = 0, last = nowMs(), idx = -1, playingNow = false, holdUntil = 0, uiAt = 0
     const at = (i) => rinkPoint(events[i].x, events[i].y, 0.4)
+    let perNow = 1
     const seek = (g) => {
-      gs = Math.max(0, Math.min(total, g)); idx = -1
+      gs = Math.max(0, Math.min(total, g)); idx = -1; lampOn = null; rink.lamp(-1, 0); rink.lamp(1, 0); rink.flash(0); rink.dim(1)
+      for (const k of ['home', 'away']) for (const r of roster[k]) { r.sunk = false; r.pin = null } sunkBy.clear(); endUntil = -1e9
       while (idx + 1 < events.length && gameSec(events[idx + 1]) <= gs) idx += 1
       for (const m of live) { marks.remove(m.obj) } live.length = 0
       resetTail()
       setNow({ i: idx, score: idx >= 0 ? events[idx].score : [0, 0] }); setDone(false); rink.setScore(...(idx >= 0 ? events[idx].score : [0, 0]))
+      perNow = idx >= 0 ? events[idx].period : 1
     }
-    // THE OPEN (Donovan 2026-10-22: "a video game first and then next gen stats ... welcome to the world ... boom"): the
-    // camera comes in low behind one net, sweeps round the rink and settles on the broadcast angle; the title, then the
-    // game's numbers, ride on top; then the puck drops at centre ice and play starts.
     let introAt = null, introDone = false, introPhase = null
     // THE OPEN (2026-10-23, Donovan: "yes to the puck drop"): the DASH sting; low inside the dome at centre ice, the two
     // centres squared up on the dot, the camera circling them; tilt up the dome to the scoreboard tower; the puck drops
@@ -450,6 +490,11 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
         gs += dt * GAME_S * speedRef.current
         let moved = false
         while (idx + 1 < events.length && gameSec(events[idx + 1]) <= gs) {
+          // A PERIOD'S END: the tower reads END n and the room dims a beat before the next period's drop
+          if (events[idx + 1].period > perNow) {
+            towerStatus = `END ${perNow > 3 ? 'OT' : perNow}`; endUntil = t + 1600; perNow = events[idx + 1].period
+            holdUntil = t + 1300; gs = gameSec(events[idx + 1]) - 0.01; break
+          }
           idx += 1; showEvent(events[idx]); moved = true
           // the clock stops on a goal: the replay holds on it too, so the goal can be seen before the next faceoff
           if (events[idx].kind === 'goal') { holdUntil = t + GOAL_HOLD_MS; gs = gameSec(events[idx]); break }
@@ -467,17 +512,45 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
           p = from.clone().lerp(at(idx + 1), f)
         }
         puck.position.set(p.x, 0.4, p.z)
+        // the drop from the tower at a centre-ice faceoff: it falls through the dome onto the dot
+        const da = (t - dropAt) / 520
+        if (da >= 0 && da < 1 && events[idx].kind === 'faceoff') { puck.position.set(0, rink.towerTop.y - (rink.towerTop.y - 0.4) * da * da, 0); if (da > 0.92) kick(0, 0, 10, 0.6) }
         // the event before only when the puck plausibly carried from it (a long cross-ice jump reads as an error, not a pass)
         const prev0 = idx > 0 && !cur.fresh ? at(idx - 1) : null
         const prev = prev0 && prev0.distanceTo(from) < 55 ? prev0 : null
         if (p.distanceTo(from) > 0.5 || prev) setTail([...(prev ? [prev] : []), from, p]); else resetTail()
       }
       stepSpray(dt); stepRipple(t); stepBox(gs, t)
-      if (introAt == null) moveFigures(puck.visible ? puck.position.x : 0, puck.visible ? -puck.position.z : 0, dt)
+      // the goal lamp: it glows and turns (a pulse) for the goal's hold; the tower flashes the new score
+      if (lampOn) { const a = (t - lampOn.t) / GOAL_HOLD_MS; if (a >= 1) { rink.lamp(lampOn.s, 0); lampOn = null } else rink.lamp(lampOn.s, (0.65 + 0.35 * Math.sin(t / 70)) * (a < 0.85 ? 1 : (1 - a) / 0.15)) }
+      const fa = (t - flashAt) / 1600; rink.flash(fa >= 0 && fa < 1 ? Math.max(0, Math.sin(fa * Math.PI * 5)) * (1 - fa) : 0)
+      // the room dims for the period break
+      const ea = endUntil - t; rink.dim(ea <= 0 ? 1 : ea > 400 ? 0.55 : 0.55 + 0.45 * (1 - ea / 400))
+      if (introAt == null) moveFigures(puck.visible ? puck.position.x : 0, puck.visible ? -puck.position.z : 0, dt, t)
       look.focus.copy(puck.visible ? puck.position : new THREE.Vector3())
       if (t - uiAt > 200) { uiAt = t; setGsUi(gs) }
       fade(t); if (introAt == null) controls.update(); look.render(); if (!rec) raf = requestAnimationFrame(tick)
     }
+    // TAPS (2026-10-23, "make it very interactive"): a figure -> the man on that rod; the tower -> the box score; a handle ->
+    // its man spins. A drag still turns the camera (a tap is a press that didn't move).
+    const ray = new THREE.Raycaster(), ndc = new THREE.Vector2()
+    let downAt = null
+    const onDown = (ev) => { downAt = [ev.clientX, ev.clientY] }
+    const onUp = (ev) => {
+      if (!downAt || Math.hypot(ev.clientX - downAt[0], ev.clientY - downAt[1]) > 6) return
+      const rc = renderer.domElement.getBoundingClientRect()
+      ndc.set(((ev.clientX - rc.left) / rc.width) * 2 - 1, -((ev.clientY - rc.top) / rc.height) * 2 + 1)
+      ray.setFromCamera(ndc, camera)
+      const targets = [...roster.home.map((r) => r.fig), ...roster.away.map((r) => r.fig), rink.tower, ...(rink.knobs || [])].filter(Boolean)
+      let o = ray.intersectObjects(targets, true)[0]?.object
+      while (o && !o.userData.slotRef && !o.userData.tower && !o.userData.knob) o = o.parent
+      if (!o) { setPick(null); return }
+      if (o.userData.knob) { const { club: kk, j } = o.userData.knob; roster[kk][j].spin = Math.PI * 2; return }
+      if (o.userData.tower) { setPick({ kind: 'tower' }); return }
+      const { k, j } = o.userData.slotRef, r = roster[k][j]
+      setPick({ kind: 'player', k, role: r.slot[0], who: r.who })
+    }
+    if (!rec) { renderer.domElement.addEventListener('pointerdown', onDown); renderer.domElement.addEventListener('pointerup', onUp) }
     let raf = 0, onScreen = true
     const io = new IntersectionObserver(([e]) => { if (rec) return; onScreen = e.isIntersecting; cancelAnimationFrame(raf); if (onScreen && !document.hidden) { last = nowMs(); raf = requestAnimationFrame(tick) } })
     io.observe(el)
@@ -515,6 +588,7 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
     if (ro) ro.observe(el)
     return () => {
       cancelAnimationFrame(raf); io.disconnect(); document.removeEventListener('visibilitychange', onVis); if (ro) ro.disconnect()
+      renderer.domElement.removeEventListener('pointerdown', onDown); renderer.domElement.removeEventListener('pointerup', onUp)
       for (const m of live) { m.obj.geometry?.dispose?.(); m.obj.material?.dispose?.() }
       puck.geometry.dispose(); tailGeo.dispose(); sprayGeo.dispose(); for (const d of boxed.values()) d.material.dispose()
       controls.dispose(); look.dispose?.(); rink.dispose?.(); renderer.dispose(); if (renderer.domElement.parentNode === el) el.removeChild(renderer.domElement)
@@ -679,6 +753,60 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
                 <div aria-label="Called it" style={{ position: 'absolute', top: -14, right: -8, transform: 'rotate(8deg)', border: `3px solid ${C.ice}`, color: C.ice, background: C.bg,
                   padding: '3px 10px', fontSize: 16, fontWeight: 900, letterSpacing: 3, borderRadius: 4 }}>CALLED IT</div>
               ) : label === 'board' ? <div style={{ marginTop: 8 }}><CallStatusBadge status="board" theme={C} numFont={NUM_FONT} /></div> : null}
+            </div>
+          )
+        })() : null}
+        {/* A TAP'S CARD: the man on the rod you tapped (his game so far, counted from the events up to now), or the tower's
+            box score. Every number is a count of the feed's own events. */}
+        {pick ? (() => {
+          const upto = events.slice(0, Math.max(0, now.i) + 1)
+          const close = <button type="button" onClick={() => setPick(null)} aria-label="Close" style={{ position: 'absolute', top: 4, right: 4, minWidth: 44, minHeight: 44, background: 'none', border: 0, color: C.text2, fontSize: 18, cursor: 'pointer' }}>×</button>
+          const box = { position: 'absolute', top: 52, right: 8, zIndex: 6, width: 'min(88%, 300px)', background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 10, padding: '10px 12px', fontFamily: NUM_FONT, pointerEvents: 'auto' }
+          if (pick.kind === 'tower') {
+            const per = [...new Set(upto.map((e) => e.period))]
+            const cnt = (k, p, kinds) => upto.filter((e) => e.period === p && side(e.team) === k && kinds.includes(e.kind)).length
+            return (
+              <div style={box}>
+                {close}
+                <div style={{ fontSize: 11, color: C.ice, letterSpacing: 2, fontWeight: 900 }}>THE TOWER · SO FAR</div>
+                <table style={{ marginTop: 6, borderCollapse: 'collapse', fontSize: 12, color: C.text, width: '100%' }}>
+                  <thead><tr><th style={{ textAlign: 'left', color: C.text3, fontWeight: 700 }} />{per.map((p) => <th key={p} style={{ color: C.text3, fontWeight: 700 }}>{p > 3 ? 'OT' : `P${p}`}</th>)}<th style={{ color: C.text3, fontWeight: 700 }}>SOG</th></tr></thead>
+                  <tbody>{['away', 'home'].map((k) => (
+                    <tr key={k}>
+                      <td style={{ fontWeight: 900, color: INK[k], padding: '3px 4px 3px 0' }}>{data[k].abbrev}</td>
+                      {per.map((p) => <td key={p} style={{ textAlign: 'center' }}>{cnt(k, p, ['goal'])}</td>)}
+                      <td style={{ textAlign: 'center', color: C.text2 }}>{upto.filter((e) => side(e.team) === k && ['sog', 'goal'].includes(e.kind)).length}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+                <div style={{ fontSize: 11, color: C.text3, marginTop: 6 }}>Goals by period and shots on goal, up to this moment.</div>
+              </div>
+            )
+          }
+          const pl = pick.who ? data.players?.[pick.who] : null
+          const role = { G: 'goalie', D: 'defence', W: 'wing', C: 'centre' }[pick.role] || ''
+          if (!pl) return <div style={box}>{close}<div style={{ fontSize: 13, color: C.text, fontWeight: 800 }}>{data[pick.k].abbrev} · the {role}&apos;s rod</div><div style={{ fontSize: 12, color: C.text2, marginTop: 4 }}>Nobody has played the puck on this rod yet.</div></div>
+          const n = (f) => upto.filter(f).length
+          const line = [['G', n((e) => e.kind === 'goal' && e.who === pick.who)], ['A', n((e) => e.kind === 'goal' && (e.a1 === pick.who || e.a2 === pick.who))],
+            pick.role === 'G' ? ['SV', n((e) => e.kind === 'sog' && e.vs === pick.who)] : ['SOG', n((e) => ['sog', 'goal'].includes(e.kind) && e.who === pick.who)],
+            ['HITS', n((e) => e.kind === 'hit' && e.who === pick.who)], ['BLK', n((e) => e.kind === 'block' && e.vs === pick.who)], ['FOW', n((e) => e.kind === 'faceoff' && e.who === pick.who)]]
+          return (
+            <div style={box}>
+              {close}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {pl.face ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={pl.face} alt="" width={48} height={48} style={{ display: 'block', borderRadius: '50%', background: C.bg3, border: `2px solid ${INK[pick.k]}`, flex: '0 0 auto' }} />
+                ) : null}
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 900, color: C.text }}>{pl.name}{pl.num != null ? <span style={{ color: INK[pick.k] }}> #{pl.num}</span> : null}</div>
+                  <div style={{ fontSize: 11, color: C.text2 }}>{data[pick.k].abbrev} · on the {role}&apos;s rod</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
+                {line.map(([lab, v]) => <div key={lab} style={{ textAlign: 'center' }}><div style={{ fontSize: 18, fontWeight: 900, color: C.text, lineHeight: 1 }}>{v}</div><div style={{ fontSize: 10, color: C.ice, letterSpacing: 1, fontWeight: 800 }}>{lab}</div></div>)}
+              </div>
+              <div style={{ fontSize: 11, color: C.text3, marginTop: 6 }}>His game so far, up to this moment.</div>
             </div>
           )
         })() : null}

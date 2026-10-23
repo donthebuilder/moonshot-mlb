@@ -21,7 +21,7 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js'
 import { C, NUM_FONT, FIELD3D, TABLETOP as T } from '../../lib/nfl/theme'
 import { YD, FIELD_L, FIELD_W } from '../../lib/fieldWorld'
 import { buildElectricBoard, BOARD } from '../../lib/tabletop/electricBoard'
-import { makeFigure, FORMATION } from '../../lib/tabletop/figures'
+import { makeFigure, FORMATION, poseFor } from '../../lib/tabletop/figures'
 import { makeTabletopLook } from '../../lib/tabletop/look'
 import { playsFromSummary, playPath, ballAt, playWords, downText, shortKey, beatsOf, scoreAt, patPlay, HOLD } from '../../lib/nfl/drives'
 import { isCoarse } from '../../lib/stadiumLook'
@@ -102,7 +102,7 @@ function DriveStage({ data, rec = false }) {
     // THE WORLD: the electric board on a walnut table, a night game under four little light towers
     buildElectricBoard(scene, { home: data.home, away: data.away, accent: C.green })
     // THE SWITCH on the near rim: a tin box, a lever, a pilot light. The open flips it ON; it is the board's motor
-    const SW = new THREE.Vector3(-118, 3, BOARD.W / 2 + BOARD.RIM - 4)
+    const SW = new THREE.Vector3(-118, 3, BOARD.W / 2 + BOARD.RIM + 7)   // just outside the near rail, its plate to the camera
     // (a rounded tin box with OFF / ON stamped on its face plate, a chrome lever with a ball knob, a red pilot that glows)
     const swPlate = (() => {
       const cv = document.createElement('canvas'); cv.width = 256; cv.height = 128; const g = cv.getContext('2d')
@@ -112,10 +112,12 @@ function DriveStage({ data, rec = false }) {
     })()
     const swBox = new THREE.Mesh(new THREE.CapsuleGeometry(2.4, 7, 6, 16), new THREE.MeshStandardMaterial({ color: new THREE.Color(T.tinDark), metalness: 0.8, roughness: 0.3 }))
     swBox.rotation.z = Math.PI / 2; swBox.scale.set(1, 1, 1.25); swBox.position.copy(SW); swBox.castShadow = true; scene.add(swBox)
+    // (it sits on a little tin post off the table, outside the rail)
+    const swPost = new THREE.Mesh(new THREE.BoxGeometry(7, 9, 4), new THREE.MeshStandardMaterial({ color: new THREE.Color(T.tinDark), metalness: 0.6, roughness: 0.4 })); swPost.position.set(SW.x, SW.y - 5.6, SW.z); swPost.castShadow = true; scene.add(swPost)
     const face = new THREE.Mesh(new THREE.PlaneGeometry(9, 4.5), new THREE.MeshStandardMaterial({ map: swPlate, metalness: 0.6, roughness: 0.35 }))
     face.position.set(SW.x, SW.y + 0.4, SW.z + 3.05); scene.add(face)
     const lever = new THREE.Group(); lever.position.set(SW.x, SW.y + 2.2, SW.z)
-    const chrome = new THREE.MeshStandardMaterial({ color: new THREE.Color(T.enamel), metalness: 0.95, roughness: 0.15 })
+    const chrome = new THREE.MeshStandardMaterial({ color: new THREE.Color(T.enamel), metalness: 0.55, roughness: 0.28 })   // satin: it reads in a dark room
     const leverArm = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 4.6, 12), chrome); leverArm.position.y = 2.3; lever.add(leverArm)
     const knob = new THREE.Mesh(new THREE.SphereGeometry(0.9, 16, 12), chrome); knob.position.y = 4.7; lever.add(knob)
     lever.rotation.z = 0.6; lever.traverse((o) => { o.castShadow = true }); scene.add(lever)
@@ -193,20 +195,30 @@ function DriveStage({ data, rec = false }) {
     const colors = (k) => k === 'home'
       ? { jersey: data.home.color || T.paint2, pants: T.enamel, helmet: data.home.color || T.ink, mask: data.home.alt || T.enamel, numInk: T.enamel }
       : { jersey: T.enamel, pants: T.enamel, helmet: data.away.color || T.ink, mask: data.away.alt || T.ink, numInk: data.away.color || T.ink }
-    const squads = { home: [], away: [] }
-    for (const k of ['home', 'away']) for (let i = 0; i < 11; i += 1) { const f = makeFigure({ ...colors(k), accent: C.green }); f.visible = false; scene.add(f); squads[k].push(f) }
-    const numbered = new Map()
-    const numberedFig = (k, num, arm) => {
-      const key = `${k}|${num}|${arm}`
+    // (a pool of blank figures per club and pose, made as a formation first needs them; numbered men cached by club,
+    // number and pose)
+    const pool = new Map(), used = new Map(), numbered = new Map()
+    const blankFig = (k, pose) => {
+      const key = `${k}|${pose}`, list = pool.get(key) || [], n = used.get(key) || 0
+      if (!list[n]) { const f = makeFigure({ ...colors(k), accent: C.green, pose }); f.visible = false; scene.add(f); list[n] = f; pool.set(key, list) }
+      used.set(key, n + 1)
+      return list[n]
+    }
+    const numberedFig = (k, num, pose) => {
+      const key = `${k}|${num}|${pose}`
       let f = numbered.get(key)
-      if (!f) { f = makeFigure({ ...colors(k), accent: C.green, num, arm }); f.visible = false; scene.add(f); numbered.set(key, f) }
+      if (!f) { f = makeFigure({ ...colors(k), accent: C.green, num, pose }); f.visible = false; scene.add(f); numbered.set(key, f) }
       return f
     }
     let cast = [], castOff = 'home'
+    // the man with the ball: a lit ring round his base, so he stands out of the pile at the line
+    const carryRing = new THREE.Mesh(new THREE.TorusGeometry(4.2, 0.35, 8, 40), new THREE.MeshStandardMaterial({ color: new THREE.Color(C.green), emissive: new THREE.Color(C.green), emissiveIntensity: 1.1, roughness: 0.3 }))
+    carryRing.rotation.x = -Math.PI / 2; carryRing.visible = false; scene.add(carryRing)
     // put the 22 in their places for one play (a formation, drawn; the carrier and the passer real)
     const stage = (p, path, dir) => {
-      for (const k of ['home', 'away']) for (const f of squads[k]) f.visible = false
+      for (const list of pool.values()) for (const f of list) f.visible = false
       for (const f of numbered.values()) f.visible = false
+      used.clear(); carryRing.visible = false
       cast = []
       const off = side(p.team), def = off === 'home' ? 'away' : 'home'
       castOff = off
@@ -228,12 +240,15 @@ function DriveStage({ data, rec = false }) {
         if (fg && k === off) { if (i === 9) { b = 7; a = 0 } if (i === 10) { b = 9.5; a = -1.5 } if (i === 6) a = -6; if (i === 7) a = 6; if (i === 8) a = -4.6 }
         let x = k === off ? p.from - dir * b : p.from + dir * b
         if (role === 'KR' && landX != null) x = landX
-        let fig = squads[k][i], num = null, arm = 'down'
-        if (k === carrySide && i === carryIdx && carryNum != null) num = carryNum
-        if (k === off && i === 9 && !kick && !fg && qbNum != null && carryIdx !== 9) { num = qbNum; arm = p.kind === 'pass' || p.kind === 'int' ? 'throw' : 'down' }
-        if (k === off && i === 9 && p.kind === 'sack' && qbNum != null) num = qbNum
-        if (k === off && ((fg && i === 10) || (kick && role === 'K')) && kickerNum != null) num = kickerNum
-        if (num != null) fig = numberedFig(k, num, arm)
+        // THE POSE: by his role (linemen down in a three-point stance, DBs backpedalling...); the man with the ball runs, the
+        // passer has it cocked on a pass and stands ready on a run, the kicker's leg goes through it
+        let num = null, pose = poseFor(role)
+        if (k === carrySide && i === carryIdx) { pose = 'run'; if (carryNum != null) num = carryNum }
+        if (k === off && i === 9 && !kick && !fg && carryIdx !== 9) { pose = p.kind === 'pass' || p.kind === 'int' ? 'qb' : 'ready'; if (qbNum != null) num = qbNum }
+        if (k === off && i === 9 && p.kind === 'sack') { pose = 'run'; if (qbNum != null) num = qbNum }
+        if (k === off && ((fg && i === 10) || (kick && role === 'K'))) { pose = 'kick'; if (kickerNum != null) num = kickerNum }
+        if (fg && k === off && i === 9) pose = 'stance3'   // the holder, down on one knee
+        const fig = num != null ? numberedFig(k, num, pose) : blankFig(k, pose)
         fig.visible = true
         cast.push({ fig, k, i, x0: wx(clamp(x, -9, 109)), z0: a * YD * dir, face: (k === off ? dir : -dir) > 0 ? 0 : Math.PI,
           carrier: k === carrySide && i === carryIdx, qb: k === off && i === 9 && !kick, ph: (i + (k === 'home' ? 0 : 11)) * 1.7 })
@@ -259,6 +274,7 @@ function DriveStage({ data, rec = false }) {
           if (c.k !== castOff) { x += (bp.x - x) * u * 0.28; z += (bp.z - z) * u * 0.28 }
         }
         const j = buzzing ? 1 : 0
+        if (c.carrier) { carryRing.visible = true; carryRing.position.set(x, 0.5, z) }
         c.fig.position.set(x + j * Math.sin(t * 0.061 + c.ph) * 0.35, 0, z + j * Math.sin(t * 0.047 + c.ph * 1.3) * 0.35)
         c.fig.rotation.y = c.face + j * Math.sin(t * 0.033 + c.ph) * 0.12
         c.fig.userData.body.position.y = j * Math.abs(Math.sin(t * 0.09 + c.ph)) * 0.22
