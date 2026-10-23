@@ -91,6 +91,8 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
     ),
     'stage-pre': () => (
       <>
+      {/* PREPLAY (2026-10-22): before the puck drops the stage plays one of the simulator's runs (only behind ?look=tracking) */}
+      <GameReplay game={g} />
       {/* THE RINK (Wave 6): before the puck drops it leads (the tables below are empty); once there are goals and periods the tables lead and it follows the goals */}
       <GameRink game={g} />
       </>
