@@ -1,11 +1,8 @@
 'use client'
-import { QMark } from './NflNote'
-import { useState } from 'react'
 import TeamMark from '../TeamMark'
 import { nflNickname } from '../../lib/nfl/teams'
 import PlayerFace from '../PlayerFace'
 import Tap from '../Tap'
-import { Dial } from '../VerdictHero'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { receiverEdge } from '../../lib/nfl/gameMatchup'
 import { attackRows } from '../../lib/nfl/attackSheet'
@@ -14,7 +11,6 @@ import { factsNote } from './tabs/Matchups'
 import { softRole, softLine } from '../../lib/nfl/dvpSignal'
 import { mostWord } from '../../lib/format'
 import { Kicker } from './Kicker'
-import { TD_WORD } from '../../lib/nfl/teamTdModel'
 import { roleLabel } from '../../lib/nfl/roles'
 import { sideFor } from '../../lib/nfl/whoLines'
 import NflTable from './NflTable'
@@ -26,45 +22,6 @@ import NflTable from './NflTable'
 // this." Order on the page: GAME header, OFFENSE vs DEFENSE (GameOffDef), KEY
 // PLAYERS, MATCHUP scoreboard, IMPORTANT STATS, then the research. Every number
 // here is one the page already had; only the words and the sizes changed.
-
-// ── 1. THE GAME, ONCE ───────────────────────────────────────────────────────
-// CLUBS ARE LOGOS (scripts/check-logos.mjs, 10-19): the 44px logo is the club; its code rides the logo's title / alt.
-export function GameHeader({ game: g, when, air, xtd, heat, past, onOpenTeam, outLine = null, action = null }) {
-  const live = g.state === 'in'
-  const Team = ({ t }) => (
-    <Tap onClick={onOpenTeam && (() => onOpenTeam(t))} title={`Open ${t}`} style={{ minHeight: 48, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-      <TeamMark sport="nfl" abbr={t} variant="logo" px={44} />
-    </Tap>
-  )
-  return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
-          <Team t={g.away} />
-          <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 16 }}>@</span>
-          <Team t={g.home} />
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, width: 84 }} title={xtd == null ? TD_WORD : `${xtd.toFixed(1)} ${TD_WORD} between the two teams: each club's touchdown rate against the other's defense. The ring shows where it sits among all matchups in the league.`}>
-          <Dial value={xtd} dp={1} pct={100 * heat} col={C.green} size={64} title={xtd == null ? TD_WORD : `${xtd.toFixed(1)} ${TD_WORD} in this game`} />
-          <span style={{ fontSize: 12, lineHeight: 1.25, color: C.text2, textAlign: 'center' }}>{TD_WORD}</span>
-        </div>
-      </div>
-      <div style={{ marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'baseline', fontSize: TYPE.name, color: C.text, fontWeight: 700 }}>
-        <span style={{ fontFamily: NUM_FONT, color: live ? C.green : C.text }}>{live ? (g.detail || 'LIVE') : g.completed ? 'FINAL' : when}</span>
-        {(live || g.completed) && <span style={{ fontFamily: NUM_FONT, fontWeight: 900 }}>{g.away} {g.away_score ?? 0}–{g.home_score ?? 0} {g.home}</span>}
-        {g.venue && <span style={{ color: C.text2, fontWeight: 600 }}>· {g.venue}</span>}
-        {air && <span style={{ color: C.text2, fontWeight: 600 }}>· {air}</span>}
-        {outLine && <span style={{ color: C.text2, fontWeight: 600 }}>· {outLine}</span>}
-        {action ? <span style={{ marginLeft: 'auto', alignSelf: 'center' }}>{action}</span> : null}
-      </div>
-      {live && (g.down_distance || g.possession) && (
-        <div style={{ marginTop: 4, color: C.green, fontSize: 12, fontWeight: 800, fontFamily: NUM_FONT }}>
-          {g.possession ? `${g.possession} ball` : ''}{g.possession && g.down_distance ? ' · ' : ''}{g.down_distance || ''}{g.red_zone ? ' · RED ZONE' : ''}
-        </div>
-      )}
-    </div>
-  )
-}
 
 // ── 4. KEY PLAYERS: WHO GETS THE BALL, AND THE CORNERS THEY FACE ────────────
 const SLOT_WORD = { LCB: 'Left corner', RCB: 'Right corner', NB: 'Slot corner' }
