@@ -8,7 +8,6 @@ import { useLampHotSticks } from '../../../lib/nhl/useLamp'
 import { DelayedBanner, Loading, StaleSeasonNote, EmptyState, fmtSec } from '../ui'
 import { Para, Num, ConvictionClause, PowerLead, LensRow } from '../../power/PowerParts'
 import { convictionOf, percentileOf } from '../../../lib/whyPick'
-import { btnStyle } from '../../ui'
 import { PillRow } from '../../Filters'
 import { useHashLens } from '../../../lib/useHashLens'
 import HotSticks from './HotSticks'
@@ -126,8 +125,7 @@ function Shooters({ onOpenPlayer }) {
       )}
       {rows.length > 0 && (
         <>
-          <LensRow theme={C} lenses={LENSES} value={view} onChange={setView}
-            btn={(color, on) => ({ ...btnStyle(color, on), border: `1px solid ${on ? `${color}99` : C.border}`, color: on ? color : C.text2 })} />
+          <LensRow theme={C} numFont={NUM_FONT} lenses={LENSES} value={view} onChange={setView} />
           <LampTable nameCell="player" faceOf={(r) => ({ sport: 'nhl', photo: nhlMugLatest(r.id), name: r.name })} rows={board} columns={columns} heatMode="primary" maxRows={12 /* 0g E3 */} maxHeight={9999}
             onRowClick={(r) => onOpenPlayer?.(r.id)} />
         </>

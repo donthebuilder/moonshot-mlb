@@ -7,7 +7,6 @@ import { useBucketsHot } from '../../../lib/nba/useBuckets'
 import { DelayedBanner, Loading, EmptyState, LastSeasonNote, DayPager, fmtDay } from '../ui'
 import { Para, Num, ConvictionClause, PowerLead, LensRow } from '../../power/PowerParts'
 import { convictionOf, percentileOf } from '../../../lib/whyPick'
-import { btnStyle } from '../../ui'
 import { PillRow } from '../../Filters'
 import { useHashLens } from '../../../lib/useHashLens'
 import Hot from './Hot'
@@ -121,8 +120,7 @@ function Scorers({ date, setDate, onOpenPlayer, onOpenTeam }) {
       )}
       {rows.length > 0 && (
         <>
-          <LensRow theme={C} lenses={LENSES} value={view} onChange={setView}
-            btn={(color, on) => ({ ...btnStyle(color, on), border: `1px solid ${on ? `${color}99` : C.border}`, color: on ? color : C.text2, minHeight: 44, fontSize: 12, cursor: 'pointer' })} />
+          <LensRow theme={C} numFont={NUM_FONT} lenses={LENSES} value={view} onChange={setView} />
           <BucketsTable nameCell="player" faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })} rows={board} columns={columns} heatMode="primary" maxRows={12} maxHeight={9999}
             onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)}
             caption={`${lens.label}: ${lens.tag}. Column headers sort; each row opens that player.`} />
