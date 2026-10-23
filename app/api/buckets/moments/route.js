@@ -89,7 +89,8 @@ export async function GET(request) {
       // a card linked to him on BUCKETS, in BUCKETS' colour (2026-10-04)
       if (hooks) discord = await postToDiscord(text, { sport: 'nba', kind: 'nba30', link: r.player_id ? playerHref('nba', r.player_id) : null }, hooks).then((r) => Boolean(r?.ok)).catch((e) => { console.error(`[buckets moments] discord: ${e?.message || e}`); return false })
       let id = 'skipped'
-      if (r.status === 'called' && hasX()) {
+      // X carries the 30 PIECE and the triple-double; a double-double stays in #buckets-nba (Donovan, 2026-10-23 volume review)
+      if (r.status === 'called' && r.kind !== DD_KIND && hasX()) {
         const q = quoteOf({ day: r.game_date || r.day, playerId: r.player_id, gameId: r.game_id })
         const x = await postToX(q ? `${text}\n\n${receiptLineOf(q, { sport: 'nba', key: `${r.game_id}:${r.player_id}:${r.kind}` })}` : text, { kind: 'nba30', ...(q ? { quoteId: q.id } : {}) }).catch((e) => ({ ok: false, error: e?.message }))
         id = x?.ok && x.id ? String(x.id) : 'skipped'
