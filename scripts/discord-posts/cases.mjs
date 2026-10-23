@@ -548,7 +548,14 @@ const roomAlertCases = [{
   },
 }]
 
-export const CASES = [...roomAlertCases, ...winsCases, ...nflWeekCases, ...nbaCases, ...donPlaysCases, ...lampExtraCases, ...momentCases, ...pollCases, ...multiCases, ...writeupCases, ...slateCases, ...showCases, ...membersCases, ...cardCases, ...receiptCases, ...alertCases]
+// ── THE /ADMIN TEST LINE (lib/dash/discordWire.js) ───────────────────────────────────────────────────────────────────────────────
+const wire = await import('../../lib/dash/discordWire.js')
+const adminCases = [{
+  kinds: ['admin_test'],
+  load: async (ctx) => [{ kind: 'admin_test', sport: 'all', day: ctx.today, label: 'to #buckets-nba, as picked on /admin/discord', text: wire.TEST_TEXT, hooks: sportHooks('nba').join(',') || process.env.DISCORD_MLB_WEBHOOKS || '' }],
+}]
+
+export const CASES = [...adminCases, ...roomAlertCases, ...winsCases, ...nflWeekCases, ...nbaCases, ...donPlaysCases, ...lampExtraCases, ...momentCases, ...pollCases, ...multiCases, ...writeupCases, ...slateCases, ...showCases, ...membersCases, ...cardCases, ...receiptCases, ...alertCases]
 
 /** Kinds that can reach Discord but are not rendered, each with the reason. */
 export const NOT_RENDERED = Object.freeze({

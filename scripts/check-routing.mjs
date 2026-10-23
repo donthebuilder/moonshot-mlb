@@ -4,7 +4,7 @@
 const { ROUTES, PREFIX_ROUTES, routeOf, isCut, roomsOf, GRADING_KIND } = await import('../lib/dash/routing.js')
 let fail = 0
 const check = (name, ok, extra = '') => { if (!ok) fail += 1; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${extra ? `  -- ${extra}` : ''}`) }
-const ROOMS = new Set(['feed', 'sport', 'receipts', 'members', 'donovan', 'network', 'x', 'off'])
+const ROOMS = new Set(['feed', 'sport', 'receipts', 'members', 'donovan', 'network', 'chosen', 'x', 'off'])
 const all = [...Object.entries(ROUTES), ...PREFIX_ROUTES.map(([p, r]) => [p, r])]
 for (const [k, r] of all) {
   check(`rooms known: ${k}`, r.rooms.every((x) => ROOMS.has(x)), r.rooms.join(','))

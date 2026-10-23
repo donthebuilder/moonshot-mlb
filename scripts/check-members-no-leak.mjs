@@ -94,7 +94,7 @@ check('A. membersWebhook() is "" when unset', (setEnv(), membersWebhook() === ''
     }
   }
   walk(join(root, 'app')); walk(join(root, 'lib'))
-  const allowed = new Set(['lib/dash/membersPost.js', 'app/admin/page.js', 'lib/dash/discordChannels.js', 'lib/dash/routeHooks.js'])
+  const allowed = new Set(['lib/dash/membersPost.js', 'app/admin/page.js', 'lib/dash/discordChannels.js', 'lib/dash/routeHooks.js', 'lib/dash/discordWire.js'])   // discordWire: the /admin check, which reads #members only through membersWebhook()
   const extra = hits.filter((h) => !allowed.has(h))
   check('C. only membersPost.js (and the /admin status line) read DISCORD_MEMBERS_WEBHOOK', extra.length === 0, extra.length ? `also: ${extra.join(', ')}` : hits.join(', '))
 }
