@@ -5,7 +5,7 @@ import SplitChips from '../player/SplitChips'
 import { tagGames, barChips, applyChips, marginOf, chipKey } from '../../lib/barFilters'
 import { minutesInBlowouts } from '../../lib/blowout'
 import { C, NUM_FONT } from '../../lib/nba/theme'
-import { tensIn } from '../../lib/nba/ddtd'
+import { propLanesOf } from '../../lib/propLanes'
 import { useBucketsDefPos } from '../../lib/nba/useBuckets'
 import { posView, posKeyFor } from '../../lib/nba/defPos'
 import Tap from '../Tap'
@@ -20,15 +20,8 @@ import { Kicker, Pills, fmtTip, gameDay } from './ui'
 // R:N = the opponent's rank of 30 at giving the stat up to his position (G/F/C, buckets_defpos season table, only when it
 // is the log's own season); lit = a top-10 giver. The split chips (components/player/SplitChips + lib/barFilters, shared)
 // filter his games first; the window chips then count the newest N of what is left.
-const MARKETS = [
-  { k: 'pts', label: 'PTS', lines: [10, 15, 20, 25, 30], first: 15, val: (g) => g.pts, rank: 'pts' },
-  { k: 'reb', label: 'REB', lines: [4, 6, 8, 10], first: 6, val: (g) => g.reb, rank: 'reb' },
-  { k: 'ast', label: 'AST', lines: [3, 5, 8], first: 5, val: (g) => g.ast, rank: 'ast' },
-  { k: '3pm', label: '3PM', lines: [1, 2, 3, 4], first: 2, val: (g) => g.tpm, chance: (g) => g.tpa, rank: 'tpm' },
-  { k: 'pra', label: 'PRA', lines: [20, 25, 30, 35, 40], first: 25, val: (g) => (g.pts == null ? null : (g.pts ?? 0) + (g.reb ?? 0) + (g.ast ?? 0)), rank: 'pra' },
-  { k: 'dd', label: 'DD', lines: [2], first: 2, val: (g) => tensIn(g), word: 'cats at 10+' },
-  { k: 'td', label: 'TD', lines: [3], first: 3, val: (g) => tensIn(g), word: 'cats at 10+' },
-]
+// BUCKETS' lanes with bars, from the one list per sport (lib/propLanes.js, 2026-10-22), in the shape this page reads
+const MARKETS = propLanesOf('nba').filter((l) => l.bars !== false).map((l) => ({ k: l.key, label: l.label, lines: l.lines, first: l.first, val: l.stat, chance: l.chance, rank: l.rank, word: l.word }))
 const WINDOWS = [['L5', 5], ['L10', 10], ['L20', 20], ['Season', Infinity]]
 const SOFT = 10
 const md = (iso) => { try { return new Date(`${gameDay(iso)}T12:00:00Z`).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', timeZone: 'UTC' }) } catch { return '' } }
