@@ -88,6 +88,7 @@ const Pairs = dynamic(() => import('./tabs/Pairs'), { loading: TabLoading })
 const Bot = dynamic(() => import('./tabs/Bot'), { loading: TabLoading })
 const OddsBoard = dynamic(() => import('./tabs/OddsBoard'), { loading: TabLoading })
 const Pitchers = dynamic(() => import('./tabs/Pitchers'), { loading: TabLoading })
+const Openings = dynamic(() => import('./tabs/Openings'), { loading: TabLoading })   // 10-22: 1st inning, first hit, first run, first homer
 const Matchups = dynamic(() => import('./tabs/Matchups'), { loading: TabLoading })
 const PropsGrid = dynamic(() => import('./tabs/PropsGrid'), { loading: TabLoading })
 const Longshots = dynamic(() => import('./Longshots'), { loading: TabLoading })
@@ -1045,6 +1046,7 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'games'       && <CardSection sport="mlb" compact />}
             {tab === 'pitchers'    && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'matchups'    && <Matchups players={players} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
+            {tab === 'openings'    && <Openings players={allPlayers} games={headerGames} onPlayerClick={setModalPlayer} />}
             {/* PROPS GRID — the mobile pilot page (2026-08-23). Its own tab
                 per Donovan's sequencing call: the grid stays an entry point,
                 the drill-down is the existing player modal on top of it. */}
