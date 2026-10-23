@@ -55,7 +55,7 @@ export async function GET(request) {
   const now = Date.now()
   const due = sb.filter((g) => g.state === 'pre' && Date.parse(g.start) > now && Date.parse(g.start) - now <= LOCK_MS)
   if (due.length) {
-    const night = await buildNbaNight(date).catch((e) => { out.skipped.push({ why: `build: ${e?.message}` }); return null })
+    const night = await buildNbaNight(date, { db }).catch((e) => { out.skipped.push({ why: `build: ${e?.message}` }); return null })
     for (const g of night ? due : []) {
       // an unread injury report or an empty roster is a hole in the snapshot, not a snapshot: wait for the next tick
       const gap = night.injuriesOk === false ? 'injury report unread' : night.gaps?.find((x) => x.gameId === g.id)?.why
