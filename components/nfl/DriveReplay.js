@@ -1,17 +1,16 @@
 'use client'
-// 🏈 THE GAME, PLAY BY PLAY, ON THE FIELD (2026-10-22, TUDDY; the twin of LAMP's GameReplay and MOONSHOT's PreplayPark).
-// Donovan: "after this, we can start building the other world so that way we can just have that all set up to go." The
-// football world: the DASH field (lib/fieldWorld.js) inside the DASH building (lib/rinkWorld.js buildDashBowl, sized to the
-// field), and every play of one game from ESPN's play-by-play (lib/nfl/drives.js) played on it in order: the line of
-// scrimmage and the line to gain, the chains on the sideline, the throw in the air, the run, the kick, the drive drawn on
-// the grass as it goes, a touchdown lighting its end zone.
+// 🏈 THE GAME, PLAY BY PLAY, ON THE ELECTRIC BOARD (TUDDY; the twin of LAMP's GameReplay and MOONSHOT's PreplayPark).
+// 2026-10-22: built on the DASH field. 2026-10-23, Donovan: it looked "exactly like the others ... make it better ...
+// make that shit look like" the vibrating electric football game. So the world is a 70s electric board on a table, a
+// night game (lib/tabletop/electricBoard.js), the 22 are painted figures on bases in their clubs' colours, every base in
+// TUDDY's accent (lib/tabletop/figures.js), the board hums while a play runs and goes quiet between snaps, and the camera
+// shoots it the way NFL Films shoots a game: long lens, shallow focus, the background melting (lib/tabletop/look.js).
 //
-// REAL: every yard line, down, distance, gain, clock, score, name and number. DRAWN: the ball's path inside a play (across
-// the field from the feed's own "short right", air yards from "short" / "deep"); each club drives the same way all game.
-// The caption says both. When the TUDDY simulator lands (PREPLAY's football engine), its games play on this same stage.
+// REAL: every yard line, down, distance, gain, clock, score, name and number (ESPN's play-by-play, lib/nfl/drives.js);
+// the man the play is about wears his real number. DRAWN: where the other 21 stand (a standard formation), the ball's
+// path inside a play (across the field from the feed's own "short right", air yards from "short" / "deep"), and each club
+// drives the same way all game. The caption says so. The TUDDY simulator's games will play on this same board.
 //
-// A new stage rather than a generalised one: the job (a 3D game replay) exists on MOONSHOT and LAMP as sport-built
-// stages, each on its own world; this follows their structure, chips, open, score bug, ticker, end card and record handle.
 // Behind ?look=tracking (lib/three/look.js) while Donovan judges it. ?record=1 is the video layout (window.__tuddyReplay).
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
@@ -19,74 +18,29 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { Line2 } from 'three/examples/jsm/lines/Line2.js'
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js'
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js'
-import { C, NUM_FONT, FIELD3D } from '../../lib/nfl/theme'
-import { buildField, YD, FIELD_L, FIELD_W } from '../../lib/fieldWorld'
-import { buildDashBowl } from '../../lib/rinkWorld'
+import { C, NUM_FONT, FIELD3D, TABLETOP as T } from '../../lib/nfl/theme'
+import { YD, FIELD_L, FIELD_W } from '../../lib/fieldWorld'
+import { buildElectricBoard, BOARD } from '../../lib/tabletop/electricBoard'
+import { makeFigure, FORMATION } from '../../lib/tabletop/figures'
+import { makeTabletopLook } from '../../lib/tabletop/look'
 import { playsFromSummary, playPath, ballAt, playWords, downText, shortKey, beatsOf, scoreAt, patPlay, HOLD } from '../../lib/nfl/drives'
-import { makeComposer, isCoarse } from '../../lib/stadiumLook'
+import { isCoarse } from '../../lib/stadiumLook'
 import { webglOk } from '../../lib/webglOk'
 import { lookParam } from '../../lib/three/look'
 import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 import { ChartEmpty } from '../charts'
 
 const SUMMARY = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary'
-// the two clubs: the product's accent and the field's cream (both these clubs could wear red; ink you can tell apart)
+// the two clubs' ink in the overlays: the product's accent and cream (both clubs may wear the same hue)
 const INK = { away: C.green, home: C.cream }
 const SPEEDS = [[1, '1x'], [2, '2x'], [4, '4x']]
-const CHIP = 9                     // a chip, in feet
-const INTRO_MS = 6400
+const INTRO_MS = 7600
 const boxH = (w, rec = false) => (rec ? Math.round(w * 9 / 16) : Math.max(260, Math.round(w * (w < 640 ? 0.68 : 0.46))))
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v))
 const ease = (u) => (u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2)
 const wx = (x) => (x - 50) * YD                       // field yards (from the home goal line) -> world feet
 const clockText = (p) => (p ? `${p.period > 4 ? 'OT' : `Q${p.period}`} ${Math.floor((p.clock ?? 0) / 60)}:${String((p.clock ?? 0) % 60).padStart(2, '0')}` : 'Q1 15:00')
-
-/** A chip: a dark disc ringed in the club's colour, its logo and the man's number. Cached per club + number. */
-const chipCache = new Map()
-const logoCache = new Map()
-function clubLogo(url) {
-  if (!url || typeof Image === 'undefined') return null
-  let img = logoCache.get(url)
-  if (!img) { img = new Image(); img.crossOrigin = 'anonymous'; img.decoding = 'async'; img.src = url; logoCache.set(url, img) }
-  return img
-}
-function chipSprite(hex, label, logoUrl) {
-  const key = `${hex}|${label ?? ''}|${logoUrl || ''}`
-  let tex = chipCache.get(key)
-  if (!tex) {
-    const cv = document.createElement('canvas'); cv.width = 160; cv.height = 160
-    const draw = (logo) => {
-      const g = cv.getContext('2d')
-      g.clearRect(0, 0, 160, 160)
-      g.beginPath(); g.arc(80, 80, 72, 0, Math.PI * 2); g.fillStyle = C.bg2; g.fill()
-      g.lineWidth = 12; g.strokeStyle = hex; g.stroke()
-      const has = logo?.complete && logo.naturalWidth
-      if (has) { try { g.drawImage(logo, 40, label != null ? 14 : 40, 80, 80) } catch { /* a logo that will not draw: the chip without it */ } }
-      g.fillStyle = hex; g.font = `900 ${has ? 42 : 64}px ${NUM_FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'
-      if (label != null) g.fillText(String(label), 80, has ? 122 : 84)
-    }
-    const logo = clubLogo(logoUrl)
-    draw(logo)
-    tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace
-    if (logo && !(logo.complete && logo.naturalWidth)) logo.addEventListener('load', () => { draw(logo); tex.needsUpdate = true }, { once: true })
-    chipCache.set(key, tex)
-  }
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false }))
-  sp.scale.set(CHIP, CHIP, 1); sp.renderOrder = 6
-  return sp
-}
-
-/** A word painted on the grass (an end zone's club): a canvas texture on a flat plane. */
-function paintPlane(text, color, w, h, { font = '900 120px SF Mono, Menlo, monospace', opacity = 0.55 } = {}) {
-  if (typeof document === 'undefined') return null
-  const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 256
-  const g = cv.getContext('2d'); g.clearRect(0, 0, 1024, 256)
-  g.fillStyle = color; g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 512, 136)
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity, depthWrite: false }))
-  m.rotation.x = -Math.PI / 2
-  return m
-}
+const SCRIM = ['pass', 'rush', 'sack', 'int', 'fumble', 'penalty']
 
 export default function DriveReplay({ game }) {
   const [on, setOn] = useState(false)
@@ -122,7 +76,7 @@ function DriveStage({ data, rec = false }) {
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState(2)
   const speedRef = useRef(speed); speedRef.current = speed
-  const [view, setView] = useState('all22')            // 'all22' follows the ball high off the sideline; 'rafters' the whole field
+  const [view, setView] = useState('board')            // 'board': the long lens above the play; 'eye': figure eye level
   const viewRef = useRef(view); viewRef.current = view
   const [now, setNow] = useState({ b: -1 })           // the beat on screen
   const [intro, setIntro] = useState(null)
@@ -130,7 +84,6 @@ function DriveStage({ data, rec = false }) {
   const plays = data.plays
   const { beats, total } = useMemo(() => beatsOf(plays), [plays])
   const side = (abbrev) => (abbrev === data.home.abbrev ? 'home' : 'away')
-  const clubOf = (k) => data[k]
   const man = (team, short) => (short ? data.players[`${team}|${shortKey(short)}`] || null : null)
   const tallies = useMemo(() => {
     const tds = plays.filter((p) => p.td).length
@@ -146,65 +99,59 @@ function DriveStage({ data, rec = false }) {
     if (!webglOk()) { setOk(false); return undefined }
     const W = el.clientWidth || 640, H = boxH(W, rec)
     const scene = new THREE.Scene()
-    scene.background = new THREE.Color(C.bg)
-    scene.add(new THREE.AmbientLight(0xffffff, 0.7)); const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(-200, 400, 300); scene.add(sun)
-    // THE WORLD: the field centred on the 50 (buildField puts its middle 15 yards past `los`)
-    buildField(scene, { los: -15 * YD })
-    const floor = new THREE.Color(C.bg3).multiplyScalar(1.6)
-    buildDashBowl(scene, { floor, line: C.text, accent: C.green, ribbon: `DASH NETWORK  ·  TUDDY  ·  ${data.away.abbrev} @ ${data.home.abbrev}`, size: { a: FIELD_L / 2 + 52, b: FIELD_W / 2 + 32, r: 40 } })
-    // the end zones wear the club that defends them (each club drives at the other's), the DASH mark sits on the 50
-    for (const [k, x] of [['home', -55], ['away', 55]]) {
-      const m = paintPlane(clubOf(k).abbrev, INK[k], FIELD_W * 0.8, 20)
-      if (m) { m.position.set(x * YD, 0.06, 0); m.rotation.z = k === 'home' ? -Math.PI / 2 : Math.PI / 2; scene.add(m) }
-    }
-    if (typeof window !== 'undefined') {
-      new THREE.TextureLoader().load('/icon-512.png', (t) => {
-        t.colorSpace = THREE.SRGBColorSpace
-        const m = new THREE.Mesh(new THREE.PlaneGeometry(26, 26), new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false }))
-        m.rotation.x = -Math.PI / 2; m.position.set(0, 0.07, 0); scene.add(m)
-      }, undefined, () => {})
-    }
-    // THE SIDELINES: each club's team area between the 30s on opposite sides (the visitors' on the far side, where the chain
-    // crew works), a faint box outlined in its ink -- marked, not lit
-    for (const [k, s] of [['home', 1], ['away', -1]]) {
-      const z = s * (FIELD_W / 2 + 15), L = 40 * YD, D = 12
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(L, D), new THREE.MeshBasicMaterial({ color: new THREE.Color(INK[k]), transparent: true, opacity: 0.05, depthWrite: false }))
-      m.rotation.x = -Math.PI / 2; m.position.set(0, 0.05, z); scene.add(m)
-      const edge = [[-L / 2, -D / 2], [L / 2, -D / 2], [L / 2, D / 2], [-L / 2, D / 2]].map(([x, dz]) => new THREE.Vector3(x, 0.07, z + dz))
-      scene.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(edge), new THREE.LineBasicMaterial({ color: new THREE.Color(INK[k]), transparent: true, opacity: 0.45 })))
-    }
-    // pylons at the eight corners of the end zones
-    const pylonMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(FIELD3D.post) })
-    for (const x of [-150, -180, 150, 180]) for (const z of [-FIELD_W / 2, FIELD_W / 2]) { const m = new THREE.Mesh(new THREE.BoxGeometry(1.2, 3, 1.2), pylonMat); m.position.set(x, 1.5, z); scene.add(m) }
+    // THE WORLD: the electric board on a walnut table, a night game under four little light towers
+    buildElectricBoard(scene, { home: data.home, away: data.away, accent: C.green })
+    // THE SWITCH on the near rim: a tin box, a lever, a pilot light. The open flips it ON; it is the board's motor
+    const SW = new THREE.Vector3(-118, 3, BOARD.W / 2 + BOARD.RIM - 4)
+    // (a rounded tin box with OFF / ON stamped on its face plate, a chrome lever with a ball knob, a red pilot that glows)
+    const swPlate = (() => {
+      const cv = document.createElement('canvas'); cv.width = 256; cv.height = 128; const g = cv.getContext('2d')
+      g.fillStyle = T.tin; g.fillRect(0, 0, 256, 128); g.fillStyle = T.ink; g.font = '900 40px Impact, "Arial Narrow", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'
+      g.fillText('OFF', 64, 66); g.fillText('ON', 192, 66); g.fillRect(12, 10, 232, 4); g.fillRect(12, 114, 232, 4)
+      const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t
+    })()
+    const swBox = new THREE.Mesh(new THREE.CapsuleGeometry(2.4, 7, 6, 16), new THREE.MeshStandardMaterial({ color: new THREE.Color(T.tinDark), metalness: 0.8, roughness: 0.3 }))
+    swBox.rotation.z = Math.PI / 2; swBox.scale.set(1, 1, 1.25); swBox.position.copy(SW); swBox.castShadow = true; scene.add(swBox)
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(9, 4.5), new THREE.MeshStandardMaterial({ map: swPlate, metalness: 0.6, roughness: 0.35 }))
+    face.position.set(SW.x, SW.y + 0.4, SW.z + 3.05); scene.add(face)
+    const lever = new THREE.Group(); lever.position.set(SW.x, SW.y + 2.2, SW.z)
+    const chrome = new THREE.MeshStandardMaterial({ color: new THREE.Color(T.enamel), metalness: 0.95, roughness: 0.15 })
+    const leverArm = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 4.6, 12), chrome); leverArm.position.y = 2.3; lever.add(leverArm)
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.9, 16, 12), chrome); knob.position.y = 4.7; lever.add(knob)
+    lever.rotation.z = 0.6; lever.traverse((o) => { o.castShadow = true }); scene.add(lever)
+    const pilot = new THREE.Mesh(new THREE.SphereGeometry(0.75, 16, 12), new THREE.MeshStandardMaterial({ color: new THREE.Color(T.tinDark), emissive: new THREE.Color(C.red), emissiveIntensity: 0, roughness: 0.2 }))
+    pilot.position.set(SW.x + 5.6, SW.y + 1.6, SW.z + 1.2); scene.add(pilot)
+    const setMotor = (onNow) => { lever.rotation.z = onNow ? -0.6 : 0.6; pilot.material.emissiveIntensity = onNow ? 4 : 0 }
 
-    const camera = new THREE.PerspectiveCamera(30, W / H, 1, 3000)
-    const renderer = new THREE.WebGLRenderer({ antialias: true })
+    const camera = new THREE.PerspectiveCamera(26, W / H, 1, 3000)
+    const renderer = new THREE.WebGLRenderer({ antialias: false })
     renderer.setSize(W, H); renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1))
     el.appendChild(renderer.domElement)
     const controls = new OrbitControls(camera, renderer.domElement)
-    controls.enableDamping = true; controls.enablePan = false; controls.maxPolarAngle = Math.PI * 0.44; controls.minDistance = 80; controls.maxDistance = 900
+    controls.enableDamping = true; controls.enablePan = false; controls.maxPolarAngle = Math.PI * 0.47; controls.minDistance = 30; controls.maxDistance = 900
     if (isCoarse()) { controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_ROTATE }; renderer.domElement.style.touchAction = 'pan-y' }
-    const look = makeComposer(renderer, scene, camera, W, H, { ao: false, scale: 0.4 })
-    // THE CAMERAS: All-22 rides the ball high off the near sideline, ~55 yards in frame; Rafters holds the whole field
-    let camX = 0
+    const look = makeTabletopLook(renderer, scene, camera, W, H)
+    // THE CAMERAS: Board (the long lens above the play, riding the ball) and Eye level (behind the offence, figure height)
+    let camX = 0, curPath = null, curDir = 1, curPlay = null
     const pullOf = () => Math.max(1, 1.9 / camera.aspect)
-    const camAt = (x, v = viewRef.current) => {
+    const camAt = (x, v = viewRef.current, dir = curDir) => {
       const pull = pullOf()
-      return v === 'rafters'
-        ? { pos: new THREE.Vector3(0, 300 * pull, 330 * pull), tgt: new THREE.Vector3(0, 0, 0) }
-        : { pos: new THREE.Vector3(x, 225 * pull, 200 * pull), tgt: new THREE.Vector3(x, 0, 6) }
+      return v === 'eye'
+        ? { pos: new THREE.Vector3(x - dir * 62, 13, 22 * dir), tgt: new THREE.Vector3(x + dir * 40, 3, 0) }
+        : { pos: new THREE.Vector3(x - 18, 128 * pull, 172 * pull), tgt: new THREE.Vector3(x, 0, 2) }
     }
+    const camClamp = (x) => clamp(x, -FIELD_L / 2 + 60, FIELD_L / 2 - 60)
     const frame = () => { const c = camAt(camX); camera.position.copy(c.pos); controls.target.copy(c.tgt); controls.update() }
     frame()
     let userMoved = false
     controls.addEventListener('start', () => { userMoved = true })
 
-    // THE BALL, its shadow, the throw / kick trail, the drive on the grass, the lines, the chains
-    const ball = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), new THREE.MeshBasicMaterial({ color: new THREE.Color(C.text) }))
-    ball.scale.set(1.9, 1.15, 1.15); ball.visible = false; scene.add(ball)
-    const shadow = new THREE.Mesh(new THREE.CircleGeometry(1.6, 24), new THREE.MeshBasicMaterial({ color: new THREE.Color(C.bg), transparent: true, opacity: 0.55, depthWrite: false }))
+    // THE BALL: the felt ball, its soft shadow, the throw / kick trail
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), new THREE.MeshStandardMaterial({ color: new THREE.Color(T.card), roughness: 1, metalness: 0 }))
+    ball.scale.set(1.7, 1.0, 1.0); ball.castShadow = true; ball.visible = false; scene.add(ball)
+    const shadow = new THREE.Mesh(new THREE.CircleGeometry(1.6, 24), new THREE.MeshBasicMaterial({ color: new THREE.Color(T.night), transparent: true, opacity: 0.35, depthWrite: false }))
     shadow.rotation.x = -Math.PI / 2; shadow.visible = false; scene.add(shadow)
-    const trailMat = new LineMaterial({ vertexColors: true, linewidth: 3, transparent: true, opacity: 1, worldUnits: false, depthWrite: false })
+    const trailMat = new LineMaterial({ vertexColors: true, linewidth: 2.4, transparent: true, opacity: 0.9, worldUnits: false, depthWrite: false })
     trailMat.resolution.set(W, H)
     let trail = null
     const SAMPLES = 48
@@ -222,28 +169,102 @@ function DriveStage({ data, rec = false }) {
       trail.geometry.instanceCount = 0
     }
     const showTrail = (u) => { if (!trail) return; const f = trail.userData.from; trail.geometry.instanceCount = Math.max(0, Math.round(SAMPLES * clamp((u - f) / (1 - f), 0, 1))) }
-    // THE DRIVE CHART, on the grass along the near sideline: each finished play a stroke from where it started to where it
-    // ended, one lane per play (the broadcast drive tracker), cleared when the ball changes hands
+    // THE DRIVE CHART, painted along the near sideline: each finished play a stroke, cleared when the ball changes hands
     const driveGroup = new THREE.Group(); scene.add(driveGroup)
     let driveId = -1
     const addDriveStroke = (p) => {
       if (!['pass', 'rush', 'sack', 'int', 'fumble'].includes(p.kind) || p.incomplete) return
       const ink = INK[side(p.team)], a = wx(p.from), b = wx(p.to)
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(Math.max(0.8, Math.abs(b - a)), 2.2), new THREE.MeshBasicMaterial({ color: new THREE.Color(ink), transparent: true, opacity: p.gain < 0 ? 0.25 : 0.6, depthWrite: false }))
-      m.rotation.x = -Math.PI / 2; m.position.set((a + b) / 2, 0.09, FIELD_W / 2 - 8 - (driveGroup.children.length % 8) * 2.8); driveGroup.add(m)
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(Math.max(0.8, Math.abs(b - a)), 1.2), new THREE.MeshBasicMaterial({ color: new THREE.Color(ink), transparent: true, opacity: p.gain < 0 ? 0.25 : 0.5, depthWrite: false }))
+      m.rotation.x = -Math.PI / 2; m.position.set((a + b) / 2, 0.09, FIELD_W / 2 - 6 - (driveGroup.children.length % 8) * 2.8); driveGroup.add(m)
     }
     const clearDrive = () => { for (const m of driveGroup.children) { m.geometry.dispose(); m.material.dispose() } driveGroup.clear() }
-    const bar = (color, op) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.9, FIELD_W), new THREE.MeshBasicMaterial({ color: new THREE.Color(color), transparent: true, opacity: op, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.y = 0.1; m.visible = false; scene.add(m); return m }
-    const losBar = bar(C.losBlue, 0.9), gainBar = bar(FIELD3D.post, 0.9)
-    // the chain crew on the far sideline: a pole at the line of scrimmage, a pole at the line to gain, the down box
-    const poleMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(FIELD3D.post) })
-    const pole = () => { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 7, 8), poleMat); m.position.set(0, 3.5, -(FIELD_W / 2 + 5)); m.visible = false; scene.add(m); return m }
+    // the line of scrimmage and the line to gain, painted thin; the chain crew's two tin poles on the far side
+    const bar = (color, op) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.7, FIELD_W), new THREE.MeshBasicMaterial({ color: new THREE.Color(color), transparent: true, opacity: op, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.y = 0.1; m.visible = false; scene.add(m); return m }
+    const losBar = bar(C.losBlue, 0.75), gainBar = bar(FIELD3D.post, 0.75)
+    const poleMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(FIELD3D.post), metalness: 0.5, roughness: 0.4 })
+    const pole = () => { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 8, 8), poleMat); m.position.set(0, 4, -(FIELD_W / 2 + 6)); m.castShadow = true; m.visible = false; scene.add(m); return m }
     const chainA = pole(), chainB = pole()
-    const chain = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(1, 0, 0)]), new THREE.LineBasicMaterial({ color: new THREE.Color(C.text2) }))
+    const chain = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(1, 0, 0)]), new THREE.LineBasicMaterial({ color: new THREE.Color(T.tin) }))
     chain.visible = false; scene.add(chain)
-    // chips: the passer (stays at his drop), the man with the ball (follows it)
-    let qbChip = null, carryChip = null
-    const dropChip = (c) => { if (c) { scene.remove(c); c.material.dispose() } return null }
+
+    // THE FIGURES: eleven a club in its colours (the home club in its colour, the visitors in white, as on a Sunday),
+    // every base in TUDDY's accent; the man the play is about is swapped for one wearing his real number
+    const colors = (k) => k === 'home'
+      ? { jersey: data.home.color || T.paint2, pants: T.enamel, helmet: data.home.color || T.ink, mask: data.home.alt || T.enamel, numInk: T.enamel }
+      : { jersey: T.enamel, pants: T.enamel, helmet: data.away.color || T.ink, mask: data.away.alt || T.ink, numInk: data.away.color || T.ink }
+    const squads = { home: [], away: [] }
+    for (const k of ['home', 'away']) for (let i = 0; i < 11; i += 1) { const f = makeFigure({ ...colors(k), accent: C.green }); f.visible = false; scene.add(f); squads[k].push(f) }
+    const numbered = new Map()
+    const numberedFig = (k, num, arm) => {
+      const key = `${k}|${num}|${arm}`
+      let f = numbered.get(key)
+      if (!f) { f = makeFigure({ ...colors(k), accent: C.green, num, arm }); f.visible = false; scene.add(f); numbered.set(key, f) }
+      return f
+    }
+    let cast = [], castOff = 'home'
+    // put the 22 in their places for one play (a formation, drawn; the carrier and the passer real)
+    const stage = (p, path, dir) => {
+      for (const k of ['home', 'away']) for (const f of squads[k]) f.visible = false
+      for (const f of numbered.values()) f.visible = false
+      cast = []
+      const off = side(p.team), def = off === 'home' ? 'away' : 'home'
+      castOff = off
+      const kick = p.kind === 'kickoff' || p.kind === 'punt', fg = p.kind === 'fg' || p.kind === 'xp'
+      const offForm = kick ? FORMATION.kick : FORMATION.offense, defForm = kick ? FORMATION.receive : FORMATION.defense
+      let carrySide = off, carryIdx = null
+      if (p.kind === 'rush' || (p.kind === 'fumble' && !/\bpass\b/i.test(p.text))) carryIdx = 10
+      else if (p.kind === 'pass' || p.kind === 'fumble') carryIdx = p.lane === 'L' ? 6 : p.lane === 'R' ? 7 : 8
+      else if (p.kind === 'sack') carryIdx = 9
+      else if (p.kind === 'int') { carrySide = def; carryIdx = p.lane === 'L' ? 7 : p.lane === 'R' ? 8 : 4 }
+      else if (kick) { carrySide = def; carryIdx = 10 }
+      const carryShort = kick ? p.ret : p.kind === 'int' ? null : p.who
+      const carryNum = carryShort ? man(data[carrySide].abbrev, carryShort)?.jersey ?? null : null
+      const qbNum = p.qb ? man(data[off].abbrev, p.qb)?.jersey ?? null : null
+      const kickerNum = (kick || fg) && p.kind !== 'xp' ? man(data[off].abbrev, p.who)?.jersey ?? null : null
+      const landX = kick && path?.kickTo != null ? ballAt(path, path.kickTo).x : null
+      const place = (k, form) => form.forEach(([role, back, across], i) => {
+        let b = back, a = across
+        if (fg && k === off) { if (i === 9) { b = 7; a = 0 } if (i === 10) { b = 9.5; a = -1.5 } if (i === 6) a = -6; if (i === 7) a = 6; if (i === 8) a = -4.6 }
+        let x = k === off ? p.from - dir * b : p.from + dir * b
+        if (role === 'KR' && landX != null) x = landX
+        let fig = squads[k][i], num = null, arm = 'down'
+        if (k === carrySide && i === carryIdx && carryNum != null) num = carryNum
+        if (k === off && i === 9 && !kick && !fg && qbNum != null && carryIdx !== 9) { num = qbNum; arm = p.kind === 'pass' || p.kind === 'int' ? 'throw' : 'down' }
+        if (k === off && i === 9 && p.kind === 'sack' && qbNum != null) num = qbNum
+        if (k === off && ((fg && i === 10) || (kick && role === 'K')) && kickerNum != null) num = kickerNum
+        if (num != null) fig = numberedFig(k, num, arm)
+        fig.visible = true
+        cast.push({ fig, k, i, x0: wx(clamp(x, -9, 109)), z0: a * YD * dir, face: (k === off ? dir : -dir) > 0 ? 0 : Math.PI,
+          carrier: k === carrySide && i === carryIdx, qb: k === off && i === 9 && !kick, ph: (i + (k === 'home' ? 0 : 11)) * 1.7 })
+      })
+      place(off, offForm); place(def, defForm)
+    }
+    // move the 22 at u of the play: the carrier on his route then with the ball, the passer to his drop, the rest drift
+    // (the offence ahead, the defence at the ball); the buzz shivers them all while the motor runs
+    const moveCast = (u, t, buzzing) => {
+      const bp = ball.position
+      for (const c of cast) {
+        let x = c.x0, z = c.z0
+        const fwd = c.k === castOff ? curDir : -curDir
+        if (c.carrier && curPath && !curPath.kick) {
+          const cu = curPath.incomplete ? 0.78 : curPath.carrier
+          if (cu < 1 && u >= cu && !curPath.incomplete) { x = bp.x; z = bp.z }
+          else if (cu > 0) { const at = ballAt(curPath, Math.min(cu, 1)), f = ease(clamp(u / cu, 0, 1)); x = c.x0 + (wx(at.x) - c.x0) * f; z = c.z0 + (at.z * YD * curDir - c.z0) * f }
+        } else if (c.qb && curPath && curPath.throwAt != null) {
+          const d = ballAt(curPath, curPath.throwAt), f = ease(clamp(u / curPath.throwAt, 0, 1))
+          x = c.x0 + (wx(d.x) - c.x0) * f; z = c.z0 + (d.z * YD * curDir - c.z0) * f
+        } else {
+          x += fwd * u * 3.3
+          if (c.k !== castOff) { x += (bp.x - x) * u * 0.28; z += (bp.z - z) * u * 0.28 }
+        }
+        const j = buzzing ? 1 : 0
+        c.fig.position.set(x + j * Math.sin(t * 0.061 + c.ph) * 0.35, 0, z + j * Math.sin(t * 0.047 + c.ph * 1.3) * 0.35)
+        c.fig.rotation.y = c.face + j * Math.sin(t * 0.033 + c.ph) * 0.12
+        c.fig.userData.body.position.y = j * Math.abs(Math.sin(t * 0.09 + c.ph)) * 0.22
+      }
+    }
+
     // pulses and flashes that fade
     const live = []
     const addLive = (obj, life, grow = 0) => { scene.add(obj); live.push({ obj, born: nowMs(), life, grow }) }
@@ -255,21 +276,20 @@ function DriveStage({ data, rec = false }) {
         if (m.grow) m.obj.scale.setScalar(1 + a * m.grow)
       }
     }
+    const clearLive = () => { for (const m of live) { scene.remove(m.obj); m.obj.geometry?.dispose?.(); m.obj.material?.dispose?.() } live.length = 0 }
     const ring = (x, z, color, r0 = 3) => { const m = new THREE.Mesh(new THREE.RingGeometry(r0, r0 + 0.8, 48), new THREE.MeshBasicMaterial({ color: new THREE.Color(color), transparent: true, depthWrite: false, side: THREE.DoubleSide })); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.12, z); m.userData.op = 0.9; return m }
-    // a touchdown: the end zone it was scored in lights in TUDDY's accent (the moment's colour, as the card's word) and fades
+    // a touchdown: the end zone it was scored in lights in TUDDY's accent and fades
     const endzoneFlash = (dir) => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(10 * YD, FIELD_W), new THREE.MeshBasicMaterial({ color: new THREE.Color(C.green), transparent: true, depthWrite: false }))
-      m.rotation.x = -Math.PI / 2; m.position.set(dir * 55 * YD, 0.11, 0); m.userData.op = 0.2; addLive(m, HOLD.td)
+      m.rotation.x = -Math.PI / 2; m.position.set(dir * 55 * YD, 0.11, 0); m.userData.op = 0.22; addLive(m, HOLD.td)
     }
-    const clearLive = () => { for (const m of live) { scene.remove(m.obj); m.obj.geometry?.dispose?.(); m.obj.material?.dispose?.() } live.length = 0 }
-    const flag = (x, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.3, 1.6), new THREE.MeshBasicMaterial({ color: new THREE.Color(C.yellow), transparent: true })); m.position.set(x, 0.3, z); m.userData.op = 1; addLive(m, 1600) }
+    const flag = (x, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.3, 1.6), new THREE.MeshStandardMaterial({ color: new THREE.Color(C.yellow), transparent: true })); m.position.set(x, 0.3, z); m.userData.op = 1; addLive(m, 1600) }
 
     // ── THE CLOCK ──
-    let bt = 0, bIdx = -1, playingNow = false, last = nowMs(), introAt = null, introDone = false, introPhase = null
-    let curPath = null, curDir = 1, curPlay = null
+    let bt = 0, bIdx = -1, playingNow = false, last = nowMs(), introAt = null, introDone = false, introPhase = null, motor = false
     const beatAt = (time) => { let lo = 0, hi = beats.length - 1; while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (beats[mid].t <= time) lo = mid; else hi = mid - 1 } return lo }
     const setLines = (p) => {
-      const scrim = p && p.down >= 1 && ['pass', 'rush', 'sack', 'int', 'fumble', 'penalty'].includes(p.kind)
+      const scrim = p && p.down >= 1 && SCRIM.includes(p.kind)
       losBar.visible = gainBar.visible = chainA.visible = chainB.visible = chain.visible = false
       if (!scrim) return
       const dir = side(p.team) === 'home' ? 1 : -1, gainX = p.from + dir * p.dist
@@ -278,7 +298,7 @@ function DriveStage({ data, rec = false }) {
       if (gainX > 0 && gainX < 100) {
         gainBar.position.x = wx(gainX); gainBar.visible = true
         chainB.position.x = wx(gainX); chainB.visible = true
-        chain.geometry.setFromPoints([new THREE.Vector3(wx(p.from), 4.5, -(FIELD_W / 2 + 5)), new THREE.Vector3(wx(gainX), 4.5, -(FIELD_W / 2 + 5))]); chain.visible = true
+        chain.geometry.setFromPoints([new THREE.Vector3(wx(p.from), 6, -(FIELD_W / 2 + 6)), new THREE.Vector3(wx(gainX), 6, -(FIELD_W / 2 + 6))]); chain.visible = true
       }
     }
     // enter a beat: set up what it draws (once), then `drawBeat` moves it
@@ -287,55 +307,43 @@ function DriveStage({ data, rec = false }) {
       const b = beats[k], p = plays[b.i]
       curPlay = b.type === 'pat' ? patPlay(p, data) : p
       curDir = side(p.team) === 'home' ? 1 : -1
-      const ink = INK[side(p.team)], logo = data[side(p.team)].logo
+      const ink = INK[side(p.team)]
       if (b.type === 'play' || b.type === 'pat') {
         if (p.drive !== driveId && b.type === 'play') { driveId = p.drive; clearDrive() }
         curPath = playPath(curPlay, data)
         setLines(b.type === 'play' ? p : null)
-        qbChip = dropChip(qbChip); carryChip = dropChip(carryChip)
+        stage(curPlay, curPath, curDir)
         if (curPath.throwAt != null) makeTrail(curPath, curDir, ink, curPath.throwAt)
         else if (curPath.kickAt != null) makeTrail(curPath, curDir, ink, 0)
         else dropTrail()
-        if (b.type === 'play' && p.qb && curPath.throwAt != null) { const m = man(p.team, p.qb); qbChip = chipSprite(ink, m?.jersey ?? null, logo); scene.add(qbChip) }
         if (curPlay.kind === 'penalty') flag(wx(p.from) + curDir * 4, 6)
       }
-      if (b.type === 'td') {
-        endzoneFlash(curDir)
-        addLive(ring(wx(p.to), 0, ink, 4), 1400, 5)
-      }
+      if (b.type === 'td') { endzoneFlash(curDir); addLive(ring(wx(p.to), 0, ink, 4), 1400, 5) }
       if (b.type === 'fg') addLive(ring(wx(curDir > 0 ? 110 : -10), 0, ink, 3), 900, 4)
       if (b.type === 'turnover') addLive(ring(wx(p.to), 0, INK[side(p.team) === 'home' ? 'away' : 'home'], 3), 900, 4)
       if (b.type === 'gap' && (p.kind !== 'pass' || !p.incomplete)) addDriveStroke(p)
       setNow({ b: k })
     }
-    const drawBeat = (u) => {
+    const drawBeat = (u, t) => {
       const b = beats[bIdx]
       if (!b) return
       const p = plays[b.i]
-      if ((b.type === 'play' || b.type === 'pat') && curPath) {
+      const running = b.type === 'play' || b.type === 'pat'
+      // the motor: on while a play runs, off between snaps (the board goes quiet, the figures still)
+      if (running !== motor) { motor = running; setMotor(motor) }
+      if (running && curPath) {
         const e = ease(u), at = ballAt(curPath, b.type === 'play' && curPath.throwAt == null && curPath.kickAt == null ? e : u)
         const X = wx(at.x), Z = at.z * YD * curDir
         ball.visible = shadow.visible = true
         ball.position.set(X, Math.max(1, at.h), Z)
-        ball.rotation.set(0, 0, 0); ball.rotation.y = 0
         shadow.position.set(X, 0.08, Z); shadow.scale.setScalar(1 + Math.min(4, at.h / 10))
         showTrail(u)
-        if (qbChip) { const d = ballAt(curPath, curPath.throwAt); qbChip.position.set(wx(d.x), CHIP * 0.65, d.z * YD * curDir) }
-        // the man with the ball from the moment he has it
-        const has = b.type === 'play' && u >= curPath.carrier && curPath.carrier < 1 && !curPath.incomplete && !curPath.kick
-        if (has && !carryChip) {
-          const k = curPath.returner ? (side(p.team) === 'home' ? 'away' : 'home') : curPath.turnover && p.kind === 'int' ? (side(p.team) === 'home' ? 'away' : 'home') : side(p.team)
-          const short = curPath.returner ? p.ret : p.kind === 'int' ? null : p.who
-          const m = man(data[k].abbrev, short)
-          if (!curPath.returner || short) { carryChip = chipSprite(INK[k], m?.jersey ?? null, data[k].logo); scene.add(carryChip) }
-        }
-        if (carryChip) carryChip.position.set(X, at.h + CHIP * 0.75, Z)
-      } else if (b.type === 'gap' || b.type === 'quarter') {
-        qbChip = dropChip(qbChip)
-      }
-      // the camera rides the ball (All-22) unless someone has taken it
+        moveCast(u, t, true)
+      } else moveCast(1, t, false)
+      look.focus.copy(ball.visible ? ball.position : new THREE.Vector3(wx(p.from), 0, 0))
+      // the camera rides the ball unless someone has taken it
       if (!userMoved) {
-        const want = clamp(ball.visible ? ball.position.x : wx(p.from), -FIELD_L / 2 + 70, FIELD_L / 2 - 70)
+        const want = camClamp(ball.visible ? ball.position.x : wx(p.from))
         camX += (want - camX) * 0.08
         const c = camAt(camX)
         camera.position.lerp(c.pos, 0.12); controls.target.lerp(c.tgt, 0.12)
@@ -345,36 +353,59 @@ function DriveStage({ data, rec = false }) {
       bt = clamp(ms, 0, total - 1)
       const k = beatAt(bt)
       clearDrive(); driveId = plays[beats[k].i].drive
-      // the drive so far (the plays before this one in the same drive)
       for (let j = 0; j < k; j += 1) if (beats[j].type === 'gap' && plays[beats[j].i].drive === driveId) addDriveStroke(plays[beats[j].i])
-      // land inside a play's hold (its touchdown, its try): draw the play itself to its end first, so the trail, chips and
-      // lines on screen are that play's, never the last place the stage was
-      clearLive(); dropTrail(); qbChip = dropChip(qbChip); carryChip = dropChip(carryChip)
+      // land inside a play's hold: draw the play itself to its end first, so what's on the board is that play's
+      clearLive(); dropTrail()
       let k0 = k
       while (k0 > 0 && beats[k0].type !== 'play' && beats[k0 - 1].i === beats[k].i) k0 -= 1
-      if (k0 < k && beats[k0].type === 'play') { enterBeat(k0); drawBeat(1); for (let j = k0 + 1; j < k; j += 1) enterBeat(j) }
-      enterBeat(k); drawBeat(clamp((bt - beats[k].t) / beats[k].dur, 0, 1))
-      // a jump lands with the camera already on the ball (no glide across the field)
-      if (!userMoved) { camX = clamp(ball.visible ? ball.position.x : wx(plays[beats[k].i].from), -FIELD_L / 2 + 70, FIELD_L / 2 - 70); frame() }
+      if (k0 < k && beats[k0].type === 'play') { enterBeat(k0); drawBeat(1, nowMs()); for (let j = k0 + 1; j < k; j += 1) enterBeat(j) }
+      enterBeat(k); drawBeat(clamp((bt - beats[k].t) / beats[k].dur, 0, 1), nowMs())
+      if (!userMoved) { camX = camClamp(ball.visible ? ball.position.x : wx(plays[beats[k].i].from)); frame() }
       setDone(false)
     }
-    const flight = new THREE.CatmullRomCurve3([[-300, 18, 0], [-230, 60, 160], [-80, 140, 240]].map((v) => new THREE.Vector3(...v)))
-    const endIntro = (t) => {
-      introAt = null; introDone = true; controls.enabled = true; setIntro(null)
-      camX = clamp(wx(plays[0].from), -FIELD_L / 2 + 70, FIELD_L / 2 - 70); frame()
-      playingNow = true; last = t
-    }
+
+    // THE OPEN, shot like NFL Films on a tabletop: the DASH sting; a macro on the switch, it flips ON, the pilot lights and
+    // the figures start to shiver; a slow dolly down the kicking line at figure eye level, the focus racking man to man;
+    // then up to the board as the ball is kicked off
+    const first = plays[0], firstPath = playPath(first, data), firstDir = side(first.team) === 'home' ? 1 : -1
+    const kx = wx(first.from)
     const stepIntro = (t) => {
       if (introAt == null) return
-      const u = Math.min(1, (t - introAt) / INTRO_MS), e = ease(u)
-      const end = camAt(clamp(wx(plays[0].from), -FIELD_L / 2 + 70, FIELD_L / 2 - 70), 'all22')
-      const p = flight.getPoint(Math.min(1, e / 0.8))
-      if (e >= 0.8) p.lerp(end.pos, (e - 0.8) / 0.2)
-      camera.position.copy(p); camera.lookAt(new THREE.Vector3(0, 0, 0).lerp(end.tgt, e))
-      const ph = u < 0.18 ? 'ident' : u < 0.6 ? 'title' : 'data'
+      const u = Math.min(1, (t - introAt) / INTRO_MS)
+      const ph = u < 0.12 ? 'ident' : u < 0.62 ? 'title' : 'data'
       if (ph !== introPhase) { introPhase = ph; setIntro(ph) }
+      if (u < 0.4) {
+        // the macro: in close on the switch, drifting; the lever flips at 0.27
+        const f = clamp((u - 0.12) / 0.28, 0, 1)
+        camera.position.set(SW.x - 20 + f * 7, SW.y + 8 - f * 2, SW.z + 27 - f * 4); camera.lookAt(SW.x + 2, SW.y + 1, SW.z - 4)
+        look.focus.set(SW.x, SW.y + 2, SW.z)
+        const on = u >= 0.27
+        if (on !== motor) { motor = on; setMotor(on) }
+        moveCast(0, t, on)
+      } else if (u < 0.8) {
+        // the dolly: low, behind the kicking team, sliding across the line
+        const f = ease((u - 0.4) / 0.4), z = 70 - f * 116
+        camera.position.set(kx - firstDir * 34, 9, z); camera.lookAt(kx + firstDir * 30, 4, z * 0.5)
+        look.focus.set(kx, 4, clamp(z * 0.8, -72, 72))
+        moveCast(0, t, true)
+      } else {
+        // up to the board
+        const f = ease((u - 0.8) / 0.2), end = camAt(camClamp(kx), 'board', firstDir)
+        camera.position.lerpVectors(new THREE.Vector3(kx - firstDir * 34, 9, -46), end.pos, f)
+        camera.lookAt(new THREE.Vector3(kx + firstDir * 50, 4, -18).lerp(end.tgt, f))
+        look.focus.lerpVectors(new THREE.Vector3(kx, 4, -46), end.tgt, f)
+        moveCast(0, t, true)
+      }
       if (u >= 1) endIntro(t)
     }
+    const endIntro = (t) => {
+      introAt = null; introDone = true; controls.enabled = true; setIntro(null)
+      camX = camClamp(kx); frame()
+      playingNow = true; last = t
+    }
+    // before anything plays: the opening kickoff set on the board, motor off
+    curDir = firstDir; curPath = firstPath; stage(first, firstPath, firstDir); moveCast(0, 0, false)
+    camX = camClamp(kx); frame(); look.focus.set(kx, 0, 0)
     const tick = () => {
       const t = nowMs(), dt = Math.min(0.1, (t - last) / 1000); last = t
       stepIntro(t)
@@ -383,7 +414,7 @@ function DriveStage({ data, rec = false }) {
         if (bt >= total) { bt = total - 1; playingNow = false; setPlaying(false); setDone(true) }
         const k = beatAt(bt)
         while (bIdx < k) enterBeat(bIdx + 1)
-        drawBeat(clamp((bt - beats[bIdx].t) / beats[bIdx].dur, 0, 1))
+        drawBeat(clamp((bt - beats[bIdx].t) / beats[bIdx].dur, 0, 1), t)
       }
       fade(t); if (introAt == null) controls.update(); look.render(); if (!rec) raf = requestAnimationFrame(tick)
     }
@@ -400,7 +431,10 @@ function DriveStage({ data, rec = false }) {
         step: (ms) => { vt += ms; tick() },
         done: () => bt >= total - 1 && !playingNow,
         jump: (ms) => { if (!introDone) { introAt = null; introDone = true; controls.enabled = true; setIntro(null) } playingNow = false; seek(ms); tick() },
+        // a still of the open at u (0..1), for checking frames
+        openAt: (u) => { introAt = nowMs() - u * INTRO_MS; introDone = false; stepIntro(nowMs()); look.render(); introAt = null },
         scores: () => beats.filter((b) => b.type === 'td' || b.type === 'fg').map((b) => b.t),
+        motor: () => motor,
         total: () => total,
         game: () => data.id,
       }
@@ -412,7 +446,7 @@ function DriveStage({ data, rec = false }) {
         playingNow = true; last = nowMs()
       },
       skipIntro: () => { if (introAt != null) endIntro(nowMs()) },
-      pause: () => { playingNow = false; if (introAt != null) { introAt = null; introDone = true; controls.enabled = true; frame(); setIntro(null) } },
+      pause: () => { playingNow = false; if (motor) { motor = false; setMotor(false) } if (introAt != null) { introAt = null; introDone = true; controls.enabled = true; frame(); setIntro(null) } },
       seekPlay: (i) => { const k = beats.findIndex((b) => b.type === 'play' && b.i === i); if (k >= 0) { seek(beats[k].t); tick() } },
       nextScore: () => { const k = beats.findIndex((b, j) => j > bIdx && b.type === 'play' && plays[b.i].scoring); if (k >= 0) { seek(Math.max(0, beats[k].t - 1)); tick() } },
       view: () => { userMoved = false; frame() },
@@ -422,8 +456,8 @@ function DriveStage({ data, rec = false }) {
     if (ro) ro.observe(el)
     return () => {
       cancelAnimationFrame(raf); io.disconnect(); document.removeEventListener('visibilitychange', onVis); if (ro) ro.disconnect()
-      for (const m of live) { m.obj.geometry?.dispose?.(); m.obj.material?.dispose?.() }
-      dropTrail(); clearDrive(); dropChip(qbChip); dropChip(carryChip)
+      clearLive(); dropTrail(); clearDrive()
+      scene.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m.map) m.map.dispose(); m.dispose() }) })
       controls.dispose(); look.dispose?.(); renderer.dispose(); if (renderer.domElement.parentNode === el) el.removeChild(renderer.domElement)
       api.current = {}
     }
@@ -461,7 +495,7 @@ function DriveStage({ data, rec = false }) {
           <button key={v} type="button" className={FLAT_CHIP_CLASS} aria-pressed={speed === v} style={flatChip(speed === v, C.green, C, NUM_FONT)} onClick={() => setSpeed(v)}>{label}</button>
         ))}
         <button type="button" className={FLAT_CHIP_CLASS} style={flatChip(false, C.green, C, NUM_FONT)} onClick={() => api.current.nextScore?.()}>Next score</button>
-        {[['all22', 'All-22'], ['rafters', 'Rafters']].map(([v, label]) => (
+        {[['board', 'Board'], ['eye', 'Eye level']].map(([v, label]) => (
           <button key={v} type="button" className={FLAT_CHIP_CLASS} aria-pressed={view === v} style={flatChip(view === v, C.green, C, NUM_FONT)} onClick={() => { setView(v); api.current.view?.() }}>{label}</button>
         ))}
       </div>
@@ -478,9 +512,11 @@ function DriveStage({ data, rec = false }) {
                 <div style={{ fontFamily: NUM_FONT, fontSize: 18, fontWeight: 900, letterSpacing: 8, color: C.text, animation: 'tdUp .45s .45s both' }}>REPLAY</div>
               </div>
             ) : intro === 'title' ? (
-              <div style={{ textAlign: 'center', fontFamily: NUM_FONT }}>
-                <div style={{ fontSize: 11, letterSpacing: 4, color: C.text2, fontWeight: 800, animation: 'tdUp .5s ease-out both' }}>DASH NETWORK · TUDDY</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(10px, 3vw, 26px)', marginTop: 10, justifyContent: 'center' }}>
+              // a lower third, so the shot behind it shows (the switch, the hum, the line)
+              <div style={{ position: 'absolute', left: 'clamp(12px, 3vw, 28px)', bottom: 'clamp(12px, 3vw, 26px)', fontFamily: NUM_FONT, textAlign: 'left' }}>
+                <div style={{ width: 120, height: 3, background: C.green, transformOrigin: 'left', animation: 'tdBar .5s ease-out both' }} />
+                <div style={{ fontSize: 11, letterSpacing: 4, color: C.text, fontWeight: 900, marginTop: 6, animation: 'tdUp .5s ease-out both' }}>DASH NETWORK · TUDDY · REPLAY</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(8px, 2vw, 16px)', marginTop: 6 }}>
                   {['away', 'home'].map((k, i) => (
                     <span key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: i ? 'row-reverse' : 'row', animation: `${i ? 'tdInR' : 'tdInL'} .55s cubic-bezier(.2,.9,.2,1) both` }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -489,10 +525,10 @@ function DriveStage({ data, rec = false }) {
                     </span>
                   )).reduce((a, x, i) => (i ? [...a, <span key="at" style={{ fontSize: 18, color: C.text3, fontWeight: 900, animation: 'tdUp .5s .25s both' }}>@</span>, x] : [x]), [])}
                 </div>
-                <div style={{ fontSize: 12, color: C.text2, marginTop: 10, letterSpacing: 2, animation: 'tdUp .5s .35s both' }}>{[day, 'REPLAY'].filter(Boolean).join(' · ')}</div>
+                <div style={{ fontSize: 12, color: C.text, marginTop: 6, letterSpacing: 2, fontWeight: 700, animation: 'tdUp .5s .35s both' }}>{day}</div>
               </div>
             ) : (
-              <div style={{ display: 'flex', gap: 'clamp(14px, 4vw, 34px)', fontFamily: NUM_FONT, textAlign: 'center', background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 10, padding: '12px clamp(14px, 4vw, 28px)' }}>
+              <div style={{ position: 'absolute', left: 'clamp(12px, 3vw, 28px)', bottom: 'clamp(12px, 3vw, 26px)', display: 'flex', gap: 'clamp(14px, 4vw, 34px)', fontFamily: NUM_FONT, textAlign: 'left', background: C.bg2, border: `1px solid ${C.border2}`, borderLeft: `3px solid ${C.green}`, borderRadius: 8, padding: '10px clamp(12px, 3vw, 22px)' }}>
                 {tallies.map(([n, label], k) => (
                   <div key={label} style={{ animation: `tdUp .45s ${k * 0.12}s both` }}>
                     <div style={{ fontSize: 'clamp(26px, 6vw, 44px)', fontWeight: 900, color: C.text, lineHeight: 1 }}>{n}</div>
@@ -568,7 +604,7 @@ function DriveStage({ data, rec = false }) {
       {rec ? null : <input type="range" min={0} max={plays.length - 1} value={Math.max(0, cur?.n ?? 0)} aria-label="Jump through the game"
         onChange={(e) => api.current.seekPlay?.(Number(e.target.value))} style={{ width: '100%', minHeight: 44, accentColor: C.green }} />}
       <div style={{ display: rec ? 'none' : 'block', fontSize: 11, color: C.text3, fontFamily: NUM_FONT, lineHeight: 1.5 }}>
-        REPLAY · {plays.length} plays from ESPN&apos;s play-by-play: every yard line, down, gain, clock and score is real. Drawn: the ball&apos;s path inside each play (across the field from the play&apos;s own words), and each club drives the same way all game.
+        REPLAY · {plays.length} plays from ESPN&apos;s play-by-play: every yard line, down, gain, clock and score is real, and the man each play is about wears his real number. Drawn: where the other 21 stand (a standard formation), the ball&apos;s path inside each play (across the field from the play&apos;s own words), and each club drives the same way all game.
         {' '}<b style={{ color: INK.away }}>{data.away.abbrev}</b> · <b style={{ color: INK.home }}>{data.home.abbrev}</b>
       </div>
     </section>
