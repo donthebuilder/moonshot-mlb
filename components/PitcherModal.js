@@ -2,17 +2,18 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import useScrollLock from '../lib/useScrollLock'
-import { useDialog } from '../lib/useDialog'
 import { C, NUM_FONT } from '../lib/theme'
 import { pitcherTiles } from '../lib/pitcherTiles'
 import { n, clean, nameOf } from '../lib/player'
 import { runningGame, runningGameLine } from '../lib/running'
-import { divTone, sampleDim, verdictInk } from '../lib/scales'
+import { verdictInk } from '../lib/scales'
 import { PillRow } from './Filters'
 import VerdictHero from './VerdictHero'
 import PitcherTags from './PitcherTags'
 import DenseTable from './DenseTable'
-import MatchupPitcher from './MatchupPitcher'
+import CardShell from './CardShell'
+import { mlbFaceStrict } from './PlayerFace'
+import { PitcherSplitsTable, PitcherArsenal, PitcherZones } from './player/PitcherPortal'
 import ShareCardButton from './card/ShareCardButton'
 import { shareUrl, slug, stamp } from '../lib/cards/saveCard'
 import PitcherSpots from './PitcherSpots'
@@ -21,7 +22,6 @@ import SituationalSplits from './SituationalSplits'
 import PitcherField from './PitcherField'
 import SlotDamage from './SlotDamage'
 import TeamVsStarter from './TeamVsStarter'
-import PitcherRead from './PitcherRead'
 import GameLineup from './GameLineup'
 import { PitcherSim } from './GameSimulator'
 
@@ -47,13 +47,13 @@ import { PitcherSim } from './GameSimulator'
 function Tile({ label, value, tone, tip }) {
   return (
     <span title={tip} style={{
-      display: 'flex', flexDirection: 'column', gap: 1, minWidth: 62, padding: '5px 10px',
+      display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0, padding: '5px 8px', textAlign: 'center',
       border: `1px solid ${tone === 'hot' ? 'rgba(249,115,22,.5)' : tone === 'cold' ? 'rgba(96,165,250,.45)' : C.border}`,
       background: tone === 'hot' ? 'rgba(249,115,22,.07)' : tone === 'cold' ? 'rgba(96,165,250,.06)' : 'rgba(255,255,255,.02)',
       borderRadius: 8, cursor: tip ? 'inherit' : 'default',
     }}>
-      <span style={{ fontSize: 7.5, fontWeight: 800, letterSpacing: '.08em', color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{label}</span>
-      <span style={{ fontSize: 13, fontWeight: 900, fontFamily: NUM_FONT, color: tone === 'hot' ? C.orange : tone === 'cold' ? C.blue : C.text }}>{value}</span>
+      <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.06em', color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
+      <span style={{ fontSize: 14, fontWeight: 900, fontFamily: NUM_FONT, color: tone === 'hot' ? C.orange : tone === 'cold' ? C.blue : C.text }}>{value}</span>
     </span>
   )
 }
@@ -82,207 +82,23 @@ function Tile({ label, value, tone, tip }) {
 // phone you now read one question, then the other, and the heading tells you
 // which one you are in. Nothing was removed — every tile, chip and control
 // still renders, in the band it belongs to.
-function ModalBand({ title, note, children }) {
-  return (
-    <div style={{ marginTop: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 5 }}>
-        <span style={{
-          fontSize: 8.5, fontWeight: 900, letterSpacing: '.11em', color: C.text3,
-          fontFamily: NUM_FONT, textTransform: 'uppercase', flexShrink: 0,
-        }}>{title}</span>
-        {note && (
-          <span style={{ fontSize: 9, color: C.text3, minWidth: 0 }}>{note}</span>
-        )}
-      </div>
-      {children}
-    </div>
-  )
-}
 
 const TABS = [
-  { key: 'matchup', label: '🥎 Arsenal + damage' },
+  // 2026-10-23: the front is his arsenal to each side and his zones, as tables and boxes (components/player/PitcherPortal.js)
+  { key: 'matchup', label: '🥎 Arsenal + zones' },
   { key: 'lineup',  label: '📋 Lineup he faces' },
   { key: 'profile', label: '📊 Command + splits' },
   { key: 'sim',     label: '🎮 Sim' },
 ]
 
-// ── THE SPLITS, AS A CONTROL (rebuilt 2026-08-23; 08-22 build lost) ─────────
-// The 2026-08-17 SplitsGrid answered the complaint it was given (facts were
-// scattered over three tabs) and then became the thing Donovan called
-// outdated: a 3x6 table at minWidth 460 that scrolls sideways on a phone to
-// reach WHIP, read rather than operated. Same facts, as a control: pick a
-// split, read it big.
-//
-// Pills are DATA-GATED — "a dead pill, or one that silently falls back to
-// the season line, answers a question it was not asked." Season · vs LHB ·
-// vs RHB · Last 3 come from the slate row; In park / Road / Day / Night /
-// RISP / Ahead / Behind appear only when the bot publishes
-// pitcher_situational_splits (bot commit 1e95c81 — the five axes Donovan
-// named on 2026-08-22: in park · day games · RISP · when ahead · calendar).
-//
-// `Last 3` is the "pitch decline" / "track wear and arm" ask: the bot has
-// computed l3_* and fb_velo_delta all along; the modal never showed them.
-//
-// Colour reads ONE direction end to end — warm = good for the bat — via
-// divTone against stated league anchors (HR/9 1.15 ±0.80, WHIP 1.28 ±0.45,
-// ERA 4.10 ±2.00), retiring this file's hard-coded red/green pair.
-function SplitStat({ label, value, fmt, anchor, ceiling, tip }) {
-  const v = value == null ? null : Number(value)
-  const d = divTone(v, { anchor, ceiling })
-  return (
-    <span title={tip} style={{
-      display: 'flex', flexDirection: 'column', gap: 1, minWidth: 66,
-      padding: '6px 11px', borderRadius: 8, background: d.bg,
-      border: `1px solid ${C.border}`,
-    }}>
-      <span style={{ fontSize: 7.5, fontWeight: 800, letterSpacing: '.08em', color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{label}</span>
-      <span style={{ fontSize: 14, fontWeight: 900, fontFamily: NUM_FONT, color: d.fg }}>
-        {v == null ? '—' : fmt(v)} <span style={{ fontSize: 9 }}>{d.glyph}</span>
-      </span>
-    </span>
-  )
-}
-
-// Bot situational keys → the live StatsAPI sitCode that answers the same
-// question, so the picker can always offer the split and simply prefer the
-// bot's number when it exists (validated data beats a live pull; a live pull
-// beats a dead pill).
-const SIT_TO_LIVE = { home: 'h', away: 'a', day: 'd', night: 'n', risp: 'risp', ahead: 'ac', behind: 'bc' }
-
-function SplitsControl({ src, pitcherId }) {
-  const num = (k) => { const v = Number(src(k)); return Number.isFinite(v) ? v : null }
-  const sit = src('pitcher_situational_splits') || {}
-  const f2 = (v) => v.toFixed(2)
-  const f0 = (v) => String(Math.round(v))
-  const l3n = num('pitcher_l3_starts_found') || 0
-
-  // ── ALL OF THEM (2026-08-29) ─────────────────────────────────────────────
-  // Donovan: "where are ALL of them. not just four." The seven situational
-  // pills were data-gated on the bot's pitcher_situational_splits, so on a
-  // night the bot hadn't published them the picker shrank to Season/LHB/RHB
-  // and looked like the site only knew four cuts. The StatsAPI has had every
-  // one of these all along — one batched statSplits call per pitcher (see
-  // lib/situational.js pitcherSplitBoard, fields verified live 2026-08-29) —
-  // so a split the bot hasn't published now falls back to the live number,
-  // tagged as live, instead of vanishing. Plus three cuts the bot has never
-  // published at all: pitches 1–75 / 76+ (the fatigue window) and the first
-  // inning. Bot data still wins whenever it exists.
-  const [liveBoard, setLiveBoard] = useState({})
-  useEffect(() => {
-    if (!pitcherId) return undefined
-    let alive = true
-    import('../lib/situational')
-      .then(({ pitcherSplitBoard }) => pitcherSplitBoard(pitcherId))
-      .then((b) => { if (alive) setLiveBoard(b || {}) })
-      .catch(() => {})
-    return () => { alive = false }
-  }, [pitcherId])
-
-  const SIT_LABELS = [
-    ['home', 'In park', 'his numbers at home — the "in park" split'],
-    ['away', 'Road', 'his numbers on the road'],
-    ['day', 'Day', 'day games'],
-    ['night', 'Night', 'night games'],
-    ['risp', 'RISP', 'with runners in scoring position'],
-    ['ahead', 'Ahead', 'when ahead in the count'],
-    ['behind', 'Behind', 'when behind in the count — the blowup count state'],
-  ]
-  const LIVE_ONLY = [
-    ['pi000', 'P 1–75', 'his first 75 pitches'],
-    ['pi760', 'P 76+', 'pitch 76 on — the fatigue window, a stand-in for times through the order'],
-    ['i01', '1st inn', 'the first inning — some arms bleed before they settle'],
-  ]
-  const options = [
-    { key: 'season', label: 'Season' },
-    ...(num('pitcher_hr9_vs_lhb') != null ? [{ key: 'lhb', label: 'vs LHB' }] : []),
-    ...(num('pitcher_hr9_vs_rhb') != null ? [{ key: 'rhb', label: 'vs RHB' }] : []),
-    ...(l3n > 0 ? [{ key: 'l3', label: `Last ${l3n}` }] : []),
-    ...SIT_LABELS.filter(([k]) => (sit[k] && sit[k].hr9 != null) || liveBoard[SIT_TO_LIVE[k]])
-      .map(([k, label, title]) => ({ key: `sit:${k}`, label, title })),
-    ...LIVE_ONLY.filter(([code]) => liveBoard[code])
-      .map(([code, label, title]) => ({ key: `live:${code}`, label, title })),
-  ]
-  const [split, setSplit] = useState('season')
-  if (options.length <= 1) return null
-  const active = options.some((o) => o.key === split) ? split : 'season'
-
-  let stats = []
-  let footer = null
-  if (active === 'season') {
-    stats = [
-      { label: 'HR/9', value: num('pitcher_hr9'), fmt: f2, anchor: 1.15, ceiling: 0.8, tip: 'season homers per nine — warm is a leak, good for the bat' },
-      { label: 'WHIP', value: num('pitcher_whip'), fmt: f2, anchor: 1.28, ceiling: 0.45, tip: 'season walks+hits per inning' },
-      { label: 'ERA', value: num('pitcher_era'), fmt: f2, anchor: 4.10, ceiling: 2.0, tip: 'season earned-run average' },
-      { label: 'HR', value: num('pitcher_hr_allowed'), fmt: f0, anchor: 0, ceiling: 1e9, tip: 'season homers allowed (count, not shaded)' },
-      { label: 'BB/9', value: num('pitcher_bb9'), fmt: f2, anchor: 3.2, ceiling: 1.5, tip: 'season walks per nine' },
-    ]
-  } else if (active === 'lhb' || active === 'rhb') {
-    const side = active === 'lhb' ? 'lhb' : 'rhb'
-    stats = [
-      { label: 'HR/9', value: num(`pitcher_hr9_vs_${side}`), fmt: f2, anchor: 1.15, ceiling: 0.8, tip: `HR/9 vs ${side.toUpperCase()}` },
-      { label: 'WHIP', value: num(`pitcher_whip_vs_${side}`), fmt: f2, anchor: 1.28, ceiling: 0.45, tip: `WHIP vs ${side.toUpperCase()}` },
-      { label: 'HR', value: num(`pitcher_hr_vs_${side}`), fmt: f0, anchor: 0, ceiling: 1e9, tip: 'homers allowed to this side (count)' },
-      { label: 'XBH', value: num(`pitcher_xbh_vs_${side}`), fmt: f0, anchor: 0, ceiling: 1e9, tip: 'extra-base hits allowed to this side (count)' },
-    ]
-    const mix = String(src(`pitcher_primary_mix_vs_${side}`) || '')
-    footer = mix ? `his mix that side: ${mix}` : null
-  } else if (active === 'l3') {
-    const velo = num('pitcher_fb_velo_delta')
-    stats = [
-      { label: 'HR/9', value: num('pitcher_l3_hr9'), fmt: f2, anchor: 1.15, ceiling: 0.8, tip: `last ${l3n} starts` },
-      { label: 'WHIP', value: num('pitcher_l3_whip'), fmt: f2, anchor: 1.28, ceiling: 0.45, tip: `last ${l3n} starts` },
-      { label: 'ERA', value: num('pitcher_l3_era'), fmt: f2, anchor: 4.10, ceiling: 2.0, tip: `last ${l3n} starts` },
-      { label: 'FB Δ', value: velo, fmt: (v) => `${v > 0 ? '+' : ''}${v.toFixed(1)}`, anchor: 0, ceiling: 1.5, tip: 'last start fastball vs his season average — losing velocity is the wear signal', },
-    ]
-    footer = `a direction, not a rate — ${l3n} start${l3n === 1 ? '' : 's'} is a handful of innings · trend: ${clean(src('pitcher_trend_direction'), 'unknown')}`
-  } else {
-    // sit:<key> prefers the bot's published split; live:<code> (and a sit key
-    // the bot hasn't published) reads the live board. Either way the shape is
-    // the same five tiles, and the footer says which source it is.
-    const isLiveOnly = active.startsWith('live:')
-    const sitKey = isLiveOnly ? null : active.slice(4)
-    const botRow = sitKey ? sit[sitKey] : null
-    const fromBot = !!(botRow && botRow.hr9 != null)
-    const b = fromBot ? botRow : (liveBoard[isLiveOnly ? active.slice(5) : SIT_TO_LIVE[sitKey]] || {})
-    const dim = sampleDim(b.bf, 40)
-    stats = [
-      { label: 'HR/9', value: b.hr9, fmt: f2, anchor: 1.15, ceiling: 0.8, tip: 'in this split' },
-      { label: 'WHIP', value: b.whip, fmt: f2, anchor: 1.28, ceiling: 0.45, tip: 'in this split' },
-      { label: 'OPS', value: b.ops, fmt: (v) => v.toFixed(3), anchor: 0.720, ceiling: 0.180, tip: 'OPS against, in this split' },
-      { label: 'HR', value: b.hr, fmt: f0, anchor: 0, ceiling: 1e9, tip: 'homers allowed in this split (count)' },
-      { label: 'IP', value: b.ip, fmt: (v) => v.toFixed(1), anchor: 0, ceiling: 1e9, tip: 'innings in this split (the denominator)' },
-    ]
-    const sample = dim.thin ? `${b.bf ?? 0} batters faced — ${dim.title}` : `${b.bf} batters faced`
-    footer = fromBot ? sample : `${sample} · context only, not part of any score`
-  }
-
-  return (
-    <div style={{ margin: '2px 0 12px' }}>
-      <PillRow label="Split" value={active} options={options} onChange={setSplit} />
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-        {stats.map((st) => <SplitStat key={st.label} {...st} />)}
-      </div>
-      {footer && <div style={{ fontSize: 8.5, color: C.text3, marginTop: 4 }}>{footer}</div>}
-      <div style={{ fontSize: 8.5, color: C.text3, marginTop: 2 }}>
-        warm = good news for the bat · cool = his wall · a split with no data isn&apos;t offered
-      </div>
-    </div>
-  )
-}
+// THE SPLITS (2026-10-23): one table, components/player/PitcherPortal.js PitcherSplitsTable (it was a pill picker, one split at a time).
 
 export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClick }) {
   useScrollLock(Boolean(pitcher))
-  const dialog = useDialog({ open: Boolean(pitcher), onClose, label: `${pitcher?.pitcher_name || 'Pitcher'} card` })
   const [tab, setTab] = useState('matchup')
 
   const lineup = useMemo(() => (pitcher?.lineup || []).filter(Boolean), [pitcher])
 
-  // Representative hitter for the arsenal split — the bat that matters most in
-  // this lineup, so the platoon side shown is the one worth planning around.
-  const anchor = useMemo(() => {
-    const rows = lineup.map((b) => b?.raw).filter(Boolean)
-    return [...rows].sort((a, b) => n(b?.hr_score, 0) - n(a?.hr_score, 0))[0] || null
-  }, [lineup])
 
   // A RAW row carrying the 98 pitcher_* stat fields, for the tag rules.
   const tagRow = useMemo(() => {
@@ -353,78 +169,40 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
   // high" line MatchupPitcher.js already draws on this same field; under 12 is
   // the bottom fifth of tonight's starters.
   const attackInk = verdictInk(attack == null ? null : attack >= 30 ? true : attack <= 12 ? false : null)
-  const heroLine = (() => {
-    const bits = []
-    if (hr9 != null) bits.push(`${hr9.toFixed(2)} HR/9 allowed`)
-    if (brlAllowed != null) bits.push(`${(brlAllowed * 100).toFixed(0)}% barrels`)
-    if (fbAllowed != null) bits.push(`${(fbAllowed * 100).toFixed(0)}% fly balls`)
-    if (weakSide) bits.push(`weakest vs ${weakSide}`)
-    if (!bits.length) return 'No season line for this arm yet — the panels below are pulled live.'
-    const lead = attack == null ? ''
-      : attack >= 30 ? 'A live window for the bats — '
-      : attack <= 12 ? 'A hard arm to attack — '
-      : ''
-    return `${lead}${bits.join(' · ')}.`
-  })()
   // the tiles are lib/pitcherTiles.js (shared with the server's pitcher share card)
   const tiles = pitcherTiles({ era, whip, hr9, k9, fbAllowed, hhAllowed, brlAllowed, l3hr9, l3n })
 
+  // THE RUNNING GAME (what he gives away), resolved once for the tiles
+  const rgRow = (lineup.find((b) => b?.raw?.pitcher_running_game_status) || lineup[0])?.raw
+  const rg = runningGame(rgRow)
+  const pc = (v, d = 0) => `${(v * 100).toFixed(d)}%`
+  // the hero holds his four headline numbers (the batter card's way, 2026-10-23); the rest sit in one grid under the flags
+  const headline = tiles.filter((t) => ['ERA', 'WHIP', 'HR/9', 'K/9'].includes(t.label))
+  const rest = tiles.filter((t) => !['ERA', 'WHIP', 'HR/9', 'K/9'].includes(t.label))
+  const awayTiles = rg.ok ? [
+    { label: 'Run on him', value: rg.attempts == null ? '—' : String(rg.attempts), tip: `Stolen-base attempts against him this season${rg.attempts ? ` (${rg.sb} SB · ${rg.cs} CS)` : ''}.` },
+    { label: 'Thrown out', value: rg.csRate == null ? '—' : pc(rg.csRate), tip: rg.csWhy || 'Caught stealing on those attempts -- the catcher’s number as much as his.' },
+    { label: 'WP/9', value: rg.wp9 == null ? '—' : rg.wp9.toFixed(2), tip: 'Wild pitches per nine innings.' },
+    { label: 'Pickoffs', value: rg.pickRate == null ? '—' : pc(rg.pickRate, 1), tip: rg.pickWhy || 'Share of the baserunners he allows that he picks off.' },
+    ...(rg.defence.ok && rg.defence.oaa != null ? [{ label: 'Defense', value: `${rg.defence.oaa > 0 ? '+' : ''}${rg.defence.oaa}`, tip: 'Outs Above Average for the gloves behind him (Baseball Savant). Positive = they take hits away.' }] : []),
+  ] : []
+
   return (
-    <div
-      onClick={onClose}
-      className="modal-backdrop"
-      style={{
-        // #30: the floating bottom nav sits at z-index 390 and this backdrop
-        // sat at 100, so the bar drew ON TOP of an open card -- covering the
-        // first row of the Pitch table and the bottom of the Spray chart. The
-        // suggested fix was bottom padding on the scroll container, but that
-        // treats the symptom: a modal that a global nav can be clicked
-        // through is not modal. Above the bar (390) and below the ember
-        // signature rail (400), which is 3px of chrome at the very top and
-        // has nothing to overlap.
-        position: 'fixed', inset: 0, zIndex: 395,
-        background: 'rgba(0,0,0,.75)', backdropFilter: 'blur(6px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
-      }}
-    >
-      <div
-        ref={dialog.ref}
-        {...dialog.dialogProps}
-        onClick={(e) => e.stopPropagation()}
-        className="modal-box"
-        style={{
-          ...dialog.dialogProps.style,
-          background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 18,
-          width: 1100, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch',
-        }}
-      >
-        <div className="modal-content" style={{ padding: '18px 20px 22px' }}>
-          {/* THE TOOLBAR, ON ITS OWN LINE (2026-08-23) — same reason as the
-              hitter modal: controls plus a tag badge left almost nothing for
-              the pitcher's NAME on a 430px phone, and the name has an
-              ellipsis. 📸 keeps every argument it had. */}
+    // THE BATTER CARD'S SHELL (2026-10-23): the same wide card as a hitter's (components/CardShell.js fill), so the two read as one product
+    <CardShell onClose={onClose} width={1760} fill label={`${name} card`}>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'flex-end', marginBottom: 8 }}>
             {/* 📸 his card as a baseball card: the at-a-glance tiles and his toughest lineup matchup */}
             <ShareCardButton sport="mlb" what="his card" url={shareUrl({ kind: 'pitcher', sport: 'mlb', id: pitcher?.pitcher_id })} filename={`pitcher-${slug(name, 'pitcher')}_${stamp('')}.png`} />
           </div>
 
-          {/* ── THE HERO (2026-08-23) ─────────────────────────────────────
-              Same block the Props cards and the hitter modal open with, per
-              Donovan's "upgrade both pitcher and player modals like this too".
-              Hero only: the tag row, the tabs, the arsenal, the splits control
-              and the lineup table below are all untouched.
-
-              THE DIAL IS NOT OUT OF 100 HERE, and that is deliberate.
-              `pitcher_attack_score` is not a 0-100 board score —
-              MatchupPitcher.js has it measured at 0–53.9 with a median of
-              19.5, and tonight's slate agrees (30 starters: 1.8 low, 17.8
-              median, 66.9 high). Drawn against 100 a genuinely leaky arm would
-              fill a fifth of the ring and read as harmless. The ring fills
-              against a stated 55, the PRINTED number is the real score, and
-              the tooltip says both. Warm/cool follows the site-wide verdict
-              pair: warm = good for the bats. */}
+          {/* THE TOP, THE BATTER CARD'S WAY (2026-10-23, Donovan: the pitcher card "is where this [all] stemmed from"): who he is,
+              his four numbers and his flags on the left with everything he gives up and gives away under them; every split he
+              has on the right, as one table. The sentences (the hero line, The read, the band notes) are gone. */}
+          <div className="portal-top">
+          <div className="portal-who">
           <VerdictHero
-            style={{ marginBottom: 12 }}
+            style={{ marginBottom: 10 }}
+            photo={pitcher?.pitcher_id ? mlbFaceStrict(String(pitcher.pitcher_id), 128) : null}
             col={attackInk.color}
             score={attack}
             max={55}
@@ -433,9 +211,9 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
             title={name}
             badge={attackTag && attackTag !== 'Neutral' ? attackTag : `${throws}HP`}
             badgeQuiet={!attackTag || attackTag === 'Neutral'}
-            meta={`${throws}HP · ${team}${opp ? ` vs ${opp}` : ''} · facing ${lineup.length} tracked hitter${lineup.length === 1 ? '' : 's'}${pitcher?.lineup_confirmed === false ? ' · projected lineup' : ''}`}
+            meta={`${throws}HP · ${team}${opp ? ` vs ${opp}` : ''} · ${lineup.length} hitter${lineup.length === 1 ? '' : 's'}${pitcher?.lineup_confirmed === false ? ' · projected' : ''}`}
             market="attack score"
-            line={heroLine}
+            footer={<div style={{ display: 'grid', gridTemplateColumns: `repeat(${headline.length || 1}, minmax(0, 1fr))`, gap: 4 }}>{headline.map((t) => <Tile key={t.label} {...t} />)}</div>}
             right={(
               <button onClick={onClose} aria-label="Close" style={{
                 background: 'transparent', border: 'none', color: C.text3, fontSize: 20,
@@ -444,14 +222,7 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
               }}>✕</button>
             )}
           />
-
-          {/* THE TAG ROW (rebuilt 2026-08-23) — the finding, above the
-              evidence. The old chip row (attack tag / Low K / Weak arm)
-              rides inside it as extraChips, excluded from the blowup count:
-              one finding, one surface, one vocabulary. tagRow is a RAW
-              lineup row — groupPitchers() builds identity-only objects, and
-              handing one of those to the tags renders exactly like "this
-              arm has no weaknesses" (the 08-22 bug, caught by rendering). */}
+          {/* the flags (the tag row), one row over his numbers */}
           <PitcherTags
             row={tagRow}
             extraChips={[
@@ -461,119 +232,51 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
               src('weak_pitcher_flag') ? { label: 'Weak arm', why: 'MOONSHOT’s weak-pitcher flag — fired on 37 of 59 measured arms, informative but not independent' } : null,
             ]}
           />
-
-          {/* ── BAND 1: WHAT HE GIVES UP ─────────────────────────────────
-              His season line and his recent contact — the damage half. Same
-              tiles as before, now under a heading that says which question
-              they answer. */}
-          <ModalBand title="What he gives up" note="his season line, and the contact he has been allowing">
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'stretch', marginBottom: 6 }}>
-              {tiles.map((t) => <Tile key={t.label} {...t} />)}
-            </div>
-            <div style={{ fontSize: 8.5, color: C.text3 }}>
-              <b style={{ color: C.orange }}>orange</b> = good for the bats facing him ·{' '}
-              <b style={{ color: C.blue }}>blue</b> = his strength — tap any tile for what it means
-            </div>
-          </ModalBand>
-
-          {/* ── BAND 2: WHO GETS HIM ─────────────────────────────────────
-              The splits. Same control, same tiles — but the heading is what
-              stops it reading as the previous eight numbers printed twice,
-              which is exactly how it read at 390px. */}
-          {/* ── WHAT HE GIVES AWAY (2026-08-23) ────────────────────────────
-              The same nine fields the Pitchers page card reads, in the same
-              order, from the same helper — because two surfaces computing the
-              same thing twice is how they start quietly disagreeing, which
-              this page has already paid for once with two rival attackability
-              scores. Same rules: every figure with its denominator, a refused
-              rate drawn as an em-dash and its reason, and the catcher named
-              because the caught-stealing rate is his as much as the arm's. */}
-          {(() => {
-            const rgRow = (lineup.find((b) => b?.raw?.pitcher_running_game_status) || lineup[0])?.raw
-            const rg = runningGame(rgRow)
-            if (!rg.ok) return null
-            const pc = (v, d = 0) => `${(v * 100).toFixed(d)}%`
-            const cell = (label, value, sub, tip) => (
-              <span key={label} title={tip} style={{
-                flex: '1 1 76px', minWidth: 76, padding: '5px 9px', borderRadius: 9,
-                border: `1px solid ${C.border}`, background: C.glass, cursor: 'default',
-              }}>
-                <span style={{ display: 'block', fontSize: 7.5, fontWeight: 800, letterSpacing: '.09em',
-                  color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{label}</span>
-                <span style={{ display: 'block', fontSize: 14, fontWeight: 900, fontFamily: NUM_FONT,
-                  color: C.text, lineHeight: 1.15 }}>{value}</span>
-                {sub && <span style={{ display: 'block', fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>{sub}</span>}
-              </span>
-            )
-            return (
-              <ModalBand title="What he gives away"
-                note={rg.catcher.ok && rg.catcher.name
-                  ? `${rg.catcher.name} catching${rg.catcher.source === 'roster' ? ' (roster — lineup not posted)' : ''}`
-                  : 'catcher not resolved tonight'}>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {cell('Run on him', rg.attempts == null ? '—' : String(rg.attempts),
-                    rg.attempts ? `${rg.sb} SB · ${rg.cs} CS` : null,
-                    'Stolen-base attempts against him this season, with the raw split underneath. A count rather than a rate: an arm nobody runs on and an arm with no data both read low, and only the counts separate them.')}
-                  {cell('Thrown out', rg.csRate == null ? '—' : pc(rg.csRate),
-                    rg.csWhy || (rg.cs != null && rg.attempts ? `${rg.cs} of ${rg.attempts}` : null),
-                    "Caught stealing on those attempts. This is the pair's number, not his alone — the catcher throws it, which is why the catcher is named above. Refused under five attempts.")}
-                  {cell('WP/9', rg.wp9 == null ? '—' : rg.wp9.toFixed(2),
-                    rg.wp != null ? `${rg.wp} all season` : null,
-                    'Wild pitches per nine innings, season count underneath. A ball past the catcher moves a runner up with nobody swinging.')}
-                  {cell('Pickoffs', rg.pickRate == null ? '—' : pc(rg.pickRate, 1),
-                    rg.pickWhy || (rg.pickoffs != null ? `${rg.pickoffs} all season` : null),
-                    'Share of the baserunners he allows that he picks off. Refused under twenty baserunners.')}
-                  {rg.defence.ok && rg.defence.oaa != null && cell('Defense',
-                    `${rg.defence.oaa > 0 ? '+' : ''}${rg.defence.oaa}`, 'OAA behind him',
-                    'Outs Above Average for the defense playing behind him, from Baseball Savant. Positive means the gloves have been taking hits away.')}
-                </div>
-                {runningGameLine(rg) && (
-                  <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.5, marginTop: 6 }}>
-                    {runningGameLine(rg)}
-                  </div>
-                )}
-              </ModalBand>
-            )
-          })()}
-
-          <ModalBand title="Who gets him" note="the same arm, cut by hand, park and situation">
-            <SplitsControl src={src} pitcherId={pitcher?.pitcher_id} />
-          </ModalBand>
-
-          {/* 🧭 the story in sentences — same flow pass the batter modal got
-              (2026-08-15). All from fields already resolved above. */}
-          <PitcherRead
-            name={name}
-            throws={throws}
-            lineup={lineup}
-            stats={{
-              era, whip, hr9, k9, fbAllowed, hhAllowed, brlAllowed, l3hr9, l3n, weakSide,
-              venue: clean(src('venue_name'), ''),
-              parkHr: n(src('park_hr_factor'), null),
-            }}
-          />
+          {/* what he gives up (contact) and what he gives away (the running game), one grid of tiles */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(92px, 1fr))', gap: 6, margin: '4px 0 6px' }}>
+            {rest.map((t) => <Tile key={t.label} {...t} />)}
+            {awayTiles.map((t) => <Tile key={t.label} {...t} />)}
+          </div>
+          {rg.ok && rg.catcher.ok && rg.catcher.name ? <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginBottom: 8 }}>{rg.catcher.name} catching{rg.catcher.source === 'roster' ? ' (roster)' : ''} · orange = good for the bats · blue = his strength</div> : null}
+          {/* WHO GETS HIM: tonight's lineup against him, the best bats first (the full table is the Lineup tab) */}
+          {rows.length > 0 && (
+            <section aria-label="Who gets him" style={{ marginTop: 4 }}>
+              <div style={{ font: `900 12px/1.2 ${NUM_FONT}`, letterSpacing: '.08em', color: C.text, marginBottom: 6 }}>WHO GETS HIM <span style={{ color: C.text3, fontWeight: 700, fontSize: 10 }}>tonight’s lineup, best bats first</span></div>
+              <DenseTable
+                rows={[...rows].sort((x, y) => y.hr - x.hr)}
+                columns={[
+                  { key: 'batter', label: 'Batter', group: 'Batter', w: 140, heat: false, sticky: true, bold: true, numeric: false },
+                  { key: 'spot', label: '#', group: 'Batter', w: 30, heat: false, title: 'Lineup spot' },
+                  { key: 'bats', label: 'B', group: 'Batter', w: 30, heat: false, numeric: false, title: 'Bats' },
+                  { key: 'hr', label: 'HR SCORE', group: 'Tonight', w: 70, dp: 0, primary: true, title: 'MOONSHOT’s HR score for him tonight' },
+                  { key: 'l5hr', label: 'L5 HR', group: 'Form', w: 50, title: 'Homers in his last 5 games' },
+                  { key: 'seasonHr', label: 'HR', group: 'Form', w: 40, title: 'Homers this season' },
+                ]}
+                initialSort={null} maxRows={5} maxHeight={9999}
+                onRowClick={onPlayerClick ? (r) => onPlayerClick(r?._raw ?? r) : null}
+                caption="Tap a hitter for his card." />
+            </section>
+          )}
+          </div>
+          <div className="portal-read">
+            <PitcherSplitsTable src={src} pitcherId={pitcher?.pitcher_id} />
+          </div>
+          </div>
 
           <div style={{ marginBottom: 16, borderBottom: `1px solid ${C.border}`, paddingBottom: 10 }}>
             <PillRow
               value={tab}
-              options={TABS.map((t) => ({ key: t.key, label: t.label }))}
+              options={TABS}
               onChange={setTab}
             />
           </div>
 
+          {/* THE FRONT (2026-10-23): his arsenal to each side | his zones (where he throws, where he gets hit) */}
           {tab === 'matchup' && (
-            anchor
-              ? (
-                <>
-                  <div style={{ fontSize: 10, color: C.text3, marginBottom: 8, lineHeight: 1.55 }}>
-                    Arsenal below is his mix against <b style={{ color: C.text2 }}>{clean(anchor.bats, '?')}HB</b>, taken from{' '}
-                    {clean(anchor.name, 'the top bat')} — the highest-HR-score hitter in this lineup. Open an individual
-                    hitter to see the split for the side <i>he</i> stands on.
-                  </div>
-                  <MatchupPitcher player={anchor} slateMode={slateMode} />
-                </>
-              )
-              : <div style={{ fontSize: 11.5, color: C.text3 }}>No opposing lineup yet, so there&apos;s nothing to build his profile from.</div>
+            <div className="matchup-grid">
+              <PitcherArsenal pitcherId={pitcher?.pitcher_id} slateMode={slateMode} />
+              <PitcherZones pitcherId={pitcher?.pitcher_id} name={name} />
+            </div>
           )}
 
           {tab === 'lineup' && (
@@ -628,8 +331,6 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
           )}
 
           {tab === 'sim' && <PitcherSim getStat={src} name={name} />}
-        </div>
-      </div>
-    </div>
+    </CardShell>
   )
 }

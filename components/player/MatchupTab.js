@@ -26,7 +26,7 @@ import { hr9Color } from '../../lib/hr9'
 // batter file's pitch-type profile or his Statcast balls live; MLB's hot/cold zones for both men (season). Nothing invented:
 // a missing number is a dash, a thin one is in brackets.
 
-const PITCH_NAMES = {
+export const PITCH_NAMES = {
   FF: '4-Seam', SI: 'Sinker', FC: 'Cutter', SL: 'Slider', ST: 'Sweeper', CU: 'Curve', KC: 'K-Curve', CH: 'Changeup',
   FS: 'Splitter', FA: 'Fastball', SV: 'Slurve', KN: 'Knuckle', EP: 'Eephus', FO: 'Forkball', CS: 'Slow curve',
 }
@@ -38,7 +38,7 @@ const d3 = (v) => (v == null ? '—' : v.toFixed(3).replace(/^0\./, '.'))
 const thin = (r, s) => (r?.hBbe != null && r.hBbe < MIN_BBE ? `(${s})` : s)
 
 // ── the data ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-function useArsenal(pitcherId, hand, slateMode) {
+export function useArsenal(pitcherId, hand, slateMode) {
   const [detail, setDetail] = useState(undefined)
   const [live, setLive] = useState(null)
   useEffect(() => {
@@ -195,11 +195,11 @@ function PitchByPitch({ arsenal, hitter, name, bats, arm }) {
 
 // ── the zones ──────────────────────────────────────────────────────────────────────────────────────────────────────
 // Catcher's view, zones 1-9 (MLB's numbering): 1 2 3 up, 4 5 6 middle, 7 8 9 down.
-const NINE = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
-const ZONE_WORD = { 1: 'up-in', 2: 'up', 3: 'up-away', 4: 'in', 5: 'middle', 6: 'away', 7: 'down-in', 8: 'down', 9: 'down-away' }
-const top3 = (vals) => new Set(Object.entries(vals).filter(([, v]) => v != null).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => k))
+export const NINE = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
+export const ZONE_WORD = { 1: 'up-in', 2: 'up', 3: 'up-away', 4: 'in', 5: 'middle', 6: 'away', 7: 'down-in', 8: 'down', 9: 'down-away' }
+export const top3 = (vals) => new Set(Object.entries(vals).filter(([, v]) => v != null).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => k))
 
-function Zone({ title, sub, vals, fmt, ring, accent }) {
+export function Zone({ title, sub, vals, fmt, ring, accent }) {
   const known = Object.values(vals).filter((v) => v != null)
   const lo = known.length ? Math.min(...known) : 0, hi = known.length ? Math.max(...known) : 1
   return (
