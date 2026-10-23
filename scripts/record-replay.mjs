@@ -29,7 +29,8 @@ if (sport === 'nhl' && !/^\d{10}$/.test(String(game || ''))) { console.error('us
 if (sport === 'mlb' && !/^\d{5,7}$/.test(String(game || ''))) { console.error('usage: --sport mlb --game <MLB gamePk> [--day tmrw]'); process.exit(2) }
 // each stage's page, the window handle it exposes in record mode, and the routes a local run answers itself
 const STAGE = {
-  nhl: { url: `/app?look=tracking&record=1#sport=nhl&tab=game&game=${game}`, handle: '__lampReplay', local: ['/api/lamp/gameplay'], name: 'lamp-replay' },
+  // --preplay: LAMP's PREPLAY (the simulated game) instead of the replay of a finished one
+  nhl: { url: `/app?look=tracking&record=1${process.argv.includes('--preplay') ? '&preplay=1' : ''}#sport=nhl&tab=game&game=${game}`, handle: '__lampReplay', local: ['/api/lamp/gameplay'], name: process.argv.includes('--preplay') ? 'lamp-preplay' : 'lamp-replay' },
   // the slate opens on its first upcoming game with every section stacked (a game= link opens the Lineups view instead), so
   // the MLB stage is reached through the slate; --game picks which stage on the page when a slate has more than one
   mlb: { url: `/app?look=tracking&record=1#tab=games&day=${day === 'tmrw' ? 'tmrw' : 'today'}`, handle: '__mlbPreplay', local: ['/api/postseason'], name: 'moonshot-preplay' },

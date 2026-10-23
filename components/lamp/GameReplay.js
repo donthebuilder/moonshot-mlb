@@ -21,6 +21,9 @@ import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 import { ChartEmpty } from '../charts'
 import CallStatusBadge from '../CallStatusBadge'
 import { ordinal } from '../../lib/format'
+import { preplayNhl } from '../../lib/nhl/preplay'
+import PREPLAY_CAL from '../../lib/nhl/preplayV1'
+import { preplayGameInput } from '../../lib/nhl/preplayInput'
 
 // the two clubs: the product's accent and the rink's own gold (two colours you can tell apart, Donovan 2026-10-22)
 const INK = { away: C.ice, home: RINK.kick }
@@ -86,28 +89,67 @@ export default function GameReplay({ game }) {
   const [rec, setRec] = useState(false)   // ?record=1: the video layout (16:9, no controls, a stepped clock a recorder drives)
   useEffect(() => { setOn(lookParam() === 'tracking'); try { setRec(new URLSearchParams(window.location.search).get('record') === '1') } catch { /* no window */ } }, [])
   const id = game?.id
+  // PREPLAY (2026-10-22): a game before puck drop -- or any game with ?preplay=1 -- plays one of the simulator's 2,000
+  // runs (lib/nhl/preplay.js) instead of the league's play-by-play
+  const [forcePre, setForcePre] = useState(false)
+  useEffect(() => { try { setForcePre(new URLSearchParams(window.location.search).get('preplay') === '1') } catch { /* no window */ } }, [])
+  const pre = on && (forcePre || game?.state === 'pre')
   const [data, setData] = useState(null)
   const [err, setErr] = useState(null)
   useEffect(() => {
-    if (!on || !id) return undefined
+    if (!on || !id || pre) return undefined
     let live = true
     fetch(`/api/lamp/gameplay?id=${id}`).then((r) => r.json()).then((j) => { if (!live) return; if (j?.error) setErr(j.error); else setData(j) })
       .catch(() => { if (live) setErr('LIVE DATA DELAYED') })
     return () => { live = false }
-  }, [on, id])
+  }, [on, id, pre])
   if (!on) return null
+  if (pre) return <PreplayLoader game={game} rec={rec} />
   if (err) return <ChartEmpty theme={C}>The replay is waiting on the league feed ({err}).</ChartEmpty>
   if (!data) return <ChartEmpty theme={C}>Loading the game&apos;s events…</ChartEmpty>
   if (!data.events?.length) return <ChartEmpty theme={C}>No events on the ice yet. The replay starts at puck drop.</ChartEmpty>
   return <ReplayStage data={data} goals={game?.goals || []} rec={rec} />
 }
 
-function ReplayStage({ data, goals = [], rec = false }) {
+/** PREPLAY's data: tonight's goal board game, both rosters (numbers, faces) and every skater's real shots, all from
+ *  LAMP's own public routes; then 2,000 runs and the game to show. Nothing is drawn until every piece has answered. */
+function PreplayLoader({ game, rec }) {
+  const [out, setOut] = useState(null)
+  const [err, setErr] = useState(null)
+  useEffect(() => {
+    let live = true
+    const j = (u) => fetch(u).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`${r.status}`))))
+    ;(async () => {
+      const board = await j(`/api/lamp/board?date=${encodeURIComponent(game.date)}`)
+      const bg = (board?.games || []).find((x) => String(x.game?.id) === String(game.id))
+      if (!bg) throw new Error('not on the board')
+      const [ra, rh] = await Promise.all([game.away.abbrev, game.home.abbrev].map((t) => j(`/api/lamp/team?team=${t}`).then((x) => x.roster || []).catch(() => [])))
+      const ids = [...new Set((bg.rows || []).map((r) => Number(r.playerId)).filter(Boolean))]
+      const shots = {}
+      for (let k = 0; k < ids.length; k += 6) {
+        await Promise.all(ids.slice(k, k + 6).map((pid) => j(`/api/lamp/shots?player=${pid}&season=both`).then((x) => { shots[pid] = x?.all?.recent || [] }).catch(() => { shots[pid] = [] })))
+      }
+      const input = preplayGameInput({ board: bg, rosters: { away: ra, home: rh }, shots })
+      if (!input) throw new Error('no team projection for this game yet')
+      const pp = preplayNhl(input.G)
+      if (!pp?.typical) throw new Error('the simulator could not settle this game')
+      const events = pp.typical.log.filter((e) => e.kind !== 'shootout')
+      return { pp, data: { id: game.id, date: game.date, gameType: Number(bg.game?.gameType) || 2, away: { abbrev: game.away.abbrev }, home: { abbrev: game.home.abbrev }, players: input.players, events, state: 'preplay' }, G: input.G }
+    })().then((x) => { if (live) setOut(x) }).catch((e) => { if (live) setErr(e?.message || 'LIVE DATA DELAYED') })
+    return () => { live = false }
+  }, [game.id, game.date]) // eslint-disable-line react-hooks/exhaustive-deps
+  if (err) return <ChartEmpty theme={C}>PREPLAY is waiting on tonight&apos;s board ({err}).</ChartEmpty>
+  if (!out) return <ChartEmpty theme={C}>Running the game 2,000 times…</ChartEmpty>
+  return <ReplayStage data={out.data} rec={rec} sim={out.pp} />
+}
+
+function ReplayStage({ data, goals = [], rec = false, sim = null }) {
   const mount = useRef(null)
   const api = useRef({})
   const [ok, setOk] = useState(true)
   const [playing, setPlaying] = useState(false)
-  const [speed, setSpeed] = useState(2.5)
+  // a simulated game has only its shots and goals, so it runs faster between them (4x opens)
+  const [speed, setSpeed] = useState(sim ? 4 : 2.5)
   const speedRef = useRef(speed); speedRef.current = speed
   const [now, setNow] = useState({ i: -1, score: [0, 0] })
   const [intro, setIntro] = useState(null)   // the open: 'title' (the fly-in), 'data' (the numbers light up), or null
@@ -130,8 +172,15 @@ function ReplayStage({ data, goals = [], rec = false }) {
   // the open's numbers: counted from the events, nothing else
   const tallies = useMemo(() => {
     const n = (k) => events.filter((e) => k.includes(e.kind)).length
+    if (sim) {
+      const fav = data[sim.fav].abbrev, m = sim.modal
+      return [[sim.n.toLocaleString('en-US'), 'GAMES SIMULATED'],
+        // the win share only once the simulator has passed its measured gate (lib/nhl/preplayV1.js measured); until then the count
+        PREPLAY_CAL.measured ? [`${Math.round(sim.winPct[sim.fav] * 100)}%`, `${fav} WINS`] : [Math.round(sim.winPct[sim.fav] * sim.n).toLocaleString('en-US'), `${fav} WINS OF ${sim.n.toLocaleString('en-US')}`], // allow-probability: shown only past the calibration gate
+        [m ? `${Math.max(m.away, m.home)}-${Math.min(m.away, m.home)}` : '·', 'MOST COMMON FINAL']]
+    }
     return [[events.length, 'EVENTS'], [n(['sog', 'goal']), 'SHOTS ON GOAL'], [n(['hit']), 'HITS']]
-  }, [events])
+  }, [events, sim]) // eslint-disable-line react-hooks/exhaustive-deps
   const goalLabel = (e) => {
     const secs = (mmss) => { const m = /^(\d+):(\d{2})$/.exec(String(mmss || '')); return m ? Number(m[1]) * 60 + Number(m[2]) : null }
     const g = goals.find((x) => String(x.scorer?.id) === String(e.who) && Number(x.period) === e.period && Math.abs((secs(x.time) ?? -99) - e.t) <= 10)
@@ -475,7 +524,7 @@ function ReplayStage({ data, goals = [], rec = false }) {
                     <img src={nhlLogo(data.home.abbrev, true)} alt="" width={56} height={56} />
                   </span>
                 </div>
-                <div style={{ fontSize: 12, color: C.text2, marginTop: 10, letterSpacing: 2, animation: 'lampUp .5s .35s both' }}>{data.date || ''} · REPLAY</div>
+                <div style={{ fontSize: 12, color: C.text2, marginTop: 10, letterSpacing: 2, animation: 'lampUp .5s .35s both' }}>{data.date || ''} · {sim ? 'PREPLAY · SIMULATION' : 'REPLAY'}</div>
               </div>
             ) : (
               <div style={{ display: 'flex', gap: 'clamp(14px, 4vw, 34px)', fontFamily: NUM_FONT, textAlign: 'center', background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 10, padding: '12px clamp(14px, 4vw, 28px)' }}>
@@ -493,9 +542,9 @@ function ReplayStage({ data, goals = [], rec = false }) {
         {done ? (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 4, background: `${C.bg}cc` }}>
             <div style={{ textAlign: 'center', fontFamily: NUM_FONT }}>
-              <div style={{ fontSize: 12, letterSpacing: 4, color: C.text2, fontWeight: 800 }}>FINAL{events[events.length - 1]?.pt === 'OT' ? ' / OT' : ''}</div>
+              <div style={{ fontSize: 12, letterSpacing: 4, color: C.text2, fontWeight: 800 }}>FINAL{sim ? ' · SIMULATION' : ''}{sim?.typical?.game?.last === 'SO' ? ' / SO' : events[events.length - 1]?.pt === 'OT' ? ' / OT' : ''}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(12px, 3vw, 28px)', marginTop: 10 }}>
-                {[['away', as], ['home', hs]].map(([k, sc], i) => (
+                {(sim ? [['away', sim.typical.game.away], ['home', sim.typical.game.home]] : [['away', as], ['home', hs]]).map(([k, sc], i) => (
                   <span key={k} style={{ display: 'flex', alignItems: 'center', gap: 10, flexDirection: i ? 'row-reverse' : 'row' }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={nhlLogo(data[k].abbrev, true)} alt="" width={60} height={60} />
@@ -504,10 +553,21 @@ function ReplayStage({ data, goals = [], rec = false }) {
                   </span>
                 ))}
               </div>
-              <div style={{ fontSize: 12, color: C.text2, marginTop: 12, letterSpacing: 2 }}>{data.date || ''} · REPLAY · DASH NETWORK · LAMP</div>
+              <div style={{ fontSize: 12, color: C.text2, marginTop: 12, letterSpacing: 2 }}>{data.date || ''} · {sim ? 'PREPLAY' : 'REPLAY'} · DASH NETWORK · LAMP</div>
+              {sim ? (
+                <div style={{ marginTop: 12, display: 'inline-flex', flexDirection: 'column', gap: 4, background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 10, padding: '10px 14px', textAlign: 'left' }}>
+                  <div style={{ fontSize: 11, color: C.ice, letterSpacing: 2, fontWeight: 900 }}>IN {sim.n.toLocaleString('en-US')} SIMULATED GAMES</div>
+                  {sim.modal ? <div style={{ fontSize: 14, color: C.text, fontWeight: 900 }}>Most common final: {data[sim.fav].abbrev} {Math.max(sim.modal.away, sim.modal.home)}-{Math.min(sim.modal.away, sim.modal.home)}</div> : null}
+                  <div style={{ fontSize: 13, color: C.text2, fontWeight: 700 }}>{data[sim.fav].abbrev} wins {PREPLAY_CAL.measured ? `${Math.round(sim.winPct[sim.fav] * 100)}%` : `${Math.round(sim.winPct[sim.fav] * sim.n).toLocaleString('en-US')} of ${sim.n.toLocaleString('en-US')}`} · past 60 minutes in {Math.round(sim.ot * sim.n).toLocaleString('en-US')}</div>{/* allow-probability: the share only past the calibration gate */}
+                  <div style={{ fontSize: 13, color: C.text2, fontWeight: 700 }}>On the scoresheet most: {sim.scorers.slice(0, 3).map((x) => (data.players?.[x.id]?.name || '').split(' ').slice(-1)[0]).filter(Boolean).join(' · ')}</div>
+                  <div style={{ fontSize: 12, color: C.text2, letterSpacing: 2, fontWeight: 800, marginTop: 4 }}>WE GRADE IT AFTER THE GAME</div>
+                </div>
+              ) : null}
             </div>
           </div>
         ) : null}
+        {/* SIMULATION, on every frame of a PREPLAY: a crop of the video still says what it is */}
+        {sim ? <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 5, pointerEvents: 'none', fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, letterSpacing: 2, color: C.bg, background: C.ice, borderRadius: 3, padding: '2px 6px' }}>PREPLAY · SIMULATION</div> : null}
         {rec ? (
           <div style={{ position: 'absolute', right: 10, bottom: 10, zIndex: 5, fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, letterSpacing: 2, color: C.text2, pointerEvents: 'none' }}>
             DASH NETWORK · <span style={{ color: C.ice }}>LAMP</span> · @CalledItHR
@@ -567,7 +627,7 @@ function ReplayStage({ data, goals = [], rec = false }) {
       {rec ? null : <input type="range" min={0} max={events.length - 1} value={Math.max(0, now.i)} aria-label="Jump through the game"
         onChange={(e) => api.current.seek?.(gameSec(events[Number(e.target.value)]))} style={{ width: '100%', minHeight: 44, accentColor: C.ice }} />}
       <div style={{ display: rec ? 'none' : 'block', fontSize: 11, color: C.text3, fontFamily: NUM_FONT, lineHeight: 1.5 }}>
-        REPLAY · {events.length} events from the NHL&apos;s play-by-play: every disc is a real event, where and when it happened. The puck&apos;s path between events is drawn.
+        {sim ? <>PREPLAY · SIMULATION. One of {sim.n.toLocaleString('en-US')} runs of this game, the first to land on the most common final: each club&apos;s goals and shots from LAMP&apos;s team model, who shoots from each skater&apos;s shots a game, every shot from one of his real spots this season or last. The puck&apos;s path between shots is drawn.</> : <>REPLAY · {events.length} events from the NHL&apos;s play-by-play: every disc is a real event, where and when it happened. The puck&apos;s path between events is drawn.</>}
         {' '}<b style={{ color: INK.away }}>{data.away.abbrev}</b> · <b style={{ color: INK.home }}>{data.home.abbrev}</b>
       </div>
     </section>
