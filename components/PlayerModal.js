@@ -694,6 +694,19 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   // ONE WIDTH (2026-10-21, the portal): two columns on a desktop (spray | EV log, head-to-head | props), one on a phone.
   // THE WHOLE SCREEN (2026-10-22): on a desktop the card takes nearly all of it (CardShell fill); a phone is full width anyway
   const modalWidth = 1760
+  // HIS RECORD, UP TOP (2026-10-23, Donovan: "put the moonshot on him in the splits thing in the top right corner, so it doesn't
+  // have to be down there. Add the notes right in that little space under tiers and CSV. So that way at the bottom ... it just
+  // has cards earned"): MOONSHOT on him is a view on the Splits chip row; your note, your star, his multi-HR games and the
+  // ledger line sit under the splits table.
+  const splitsExtra = apiOnly ? [] : [{ id: 'onhim', word: 'MOONSHOT on him', render: () => <BotOnHim pid={pid} data={botData} /> }]
+  const recordBlock = (
+    <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <PlayerNotes playerId={pid} />
+      <StarMemory sport="mlb" id={clean(p?.player_id, '')} pricesPath={oddsHistoryPaths()[0]} />
+      <MultiLine sport="mlb" playerId={clean(p?.player_id, '')} words={{ HR: 'multi-HR' }} color={C.orange} textColor={C.text2} />
+      <InTheLedger sport="mlb" id={pid} name={nameOf(p)} jersey={jersey} birthDate={birthDate} next={hrSoFar != null ? hrSoFar + 1 : null} date={etToday()} />
+    </div>
+  )
   // watch + the four slip adds: one even row, inside the header (footer)
   const addsRow = !apiOnly && (onAdd || onWatch) ? (() => {
             const pick = /skip/i.test(role) ? '' : (String(bestBet(p, 'hr') || '').toUpperCase().match(/[A-Z]+/) || [''])[0]
@@ -737,7 +750,9 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
           {/* one line that scrolls sideways when the buttons outgrow a phone (the right-aligned row used to push Card off the
               left edge, out of reach); the inner row rides right with margin auto so scrolling reaches every button */}
           <div style={{ display: 'flex', overflowX: 'auto', scrollbarWidth: 'none', marginBottom: 8 }}>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginLeft: 'auto', flex: '0 0 auto' }}>
+          {/* ONE EVEN ROW (2026-10-23, Donovan's screenshot of the top bar): every button the same height, radius and type, a word
+              beside each icon on a wide screen (app/globals.css .card-toolbar; shared with every sport's card through CardNav) */}
+          <div className="card-toolbar" style={{ display: 'flex', gap: 6, alignItems: 'center', marginLeft: 'auto', flex: '0 0 auto' }}>
 
             {/* the ✕ was a bare 22px glyph — about a 22px square to hit with a
                 thumb on a modal that now covers the whole phone screen. The
@@ -761,8 +776,8 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                   style={{
                     background: 'transparent', border: `1px solid ${C.border2}`, color: C.text2,
                     borderRadius: 7, padding: '3px 9px', fontSize: 12, lineHeight: 1,
-                    cursor: 'pointer', minHeight: 32, minWidth: 34,
-                  }}>⚖</button>
+                    cursor: 'pointer', minHeight: 44, minWidth: 44,
+                  }}>⚖<span className="tb-word">Compare</span></button>
               )}
               {onNavigate && peers.length > 1 && (
                 <Navigator peers={peers} cur={player} onNavigate={onNavigate} />
@@ -884,7 +899,8 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
           {!tabbed && (
             <div className="portal-read">
               <section ref={splitsRef} className="portal-splits" style={PORTAL_CELL} aria-label="Splits">
-                <SplitsPanel player={p} />
+                <SplitsPanel player={p} extra={splitsExtra} />
+                {recordBlock}
               </section>
             </div>
           )}
@@ -927,7 +943,8 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
           <div className="portal-main">
             {tabbed && showPanel('splits') && (
               <section ref={splitsRef} className="portal-splits" style={PORTAL_CELL} aria-label="Splits">
-                <SplitsPanel player={p} />
+                <SplitsPanel player={p} extra={splitsExtra} />
+                {recordBlock}
               </section>
             )}
             {showPanel('spray') && <section ref={sprayRef} className="portal-spray" style={PORTAL_CELL} aria-label="Spray chart">
@@ -1104,17 +1121,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
           )}
 
 
-          {/* his record, at the end of the card: your star and note, his multi-HR games, MOONSHOT on him, the ledger */}
-          <div style={{ margin: '16px 0 8px' }}>
-            <div style={{ marginBottom: 8 }}>
-              <StarMemory sport="mlb" id={clean(p?.player_id, '')} pricesPath={oddsHistoryPaths()[0]} />
-            </div>
-            <MultiLine sport="mlb" playerId={clean(p?.player_id, '')} words={{ HR: 'multi-HR' }} color={C.orange} textColor={C.text2} />
-            <BotOnHim pid={pid} data={botData} />
-            <PlayerNotes playerId={pid} />
-            <InTheLedger sport="mlb" id={pid} name={nameOf(p)} jersey={jersey} birthDate={birthDate} next={hrSoFar != null ? hrSoFar + 1 : null} date={etToday()} />
-          </div>
-
+          {/* his record moved up beside the splits (2026-10-23): the bottom of the card is the cards he's earned, nothing else */}
           {/* the cards he has earned (his real multi-homer games, a long shot that cashed): at the END of the card, no section when he has none */}
           {pid != null && <CardsEarned sport="mlb" id={String(pid)} name={nameOf(p)} />}
 

@@ -303,3 +303,16 @@ button {
 @media (min-width: 1080px) { .portal-back3 { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); } }   /* vs him moved to the EV log (2026-10-23) */
 .portal-top { display: block; }
 @media (min-width: 1280px) { .portal-top { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 0 22px; align-items: start; } }
+
+/* THE CARD'S TOP BAR, ONE EVEN ROW (2026-10-23, Donovan's screenshot: Card · Save · ⚖ · ‹ 5/18 › · 👥 · 🔍 at three different sizes).
+   Every button in a card's toolbar (.card-toolbar, PlayerModal; the shared CardNav buttons ride inside it) is the same 40px-tall
+   flat box, same radius and type; the icon buttons carry a word on a wide screen (.tb-word) and stay icon-only on a phone, at
+   44px so a thumb can hit them. */
+.card-toolbar button { box-sizing: border-box; height: 40px; min-height: 40px !important; min-width: 40px !important; padding: 0 12px !important; border-radius: 8px !important;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px !important; font-weight: 800; line-height: 1 !important; white-space: nowrap; }
+.card-toolbar button span[aria-hidden="true"] { font-size: 14px !important; }
+.card-toolbar .tb-word { font-size: 12px; font-weight: 800; letter-spacing: .02em; }
+@media (max-width: 760px) { .card-toolbar button { height: 44px; min-height: 44px !important; min-width: 44px !important; padding: 0 10px !important; } .card-toolbar .tb-word { display: none; } }
+/* the toolbar words outside a .card-toolbar (the other sports' cards use the same CardNav): a little gap, gone on a phone */
+.tb-word { margin-left: 4px; }
+@media (max-width: 760px) { .tb-word { display: none; } }

@@ -55,7 +55,9 @@ function sitRows(pid) {
   return sitCache.get(url)
 }
 
-export default function SplitsPanel({ player, accent = C.orange }) {
+// extra (2026-10-23, Donovan: "put the moonshot on him in the splits thing in the top right corner"): more views on the same
+// chip row, [{ id, word, render() }] -- the card passes MOONSHOT on him (his record by role). Picked, it draws instead of the table.
+export default function SplitsPanel({ player, accent = C.orange, extra = [] }) {
   const pid = player?.player_id || player?.id
   const arm = String(player?.pitcher_throws || '').toUpperCase().slice(0, 1)
   const [sit, setSit] = useState('tonight')
@@ -80,6 +82,7 @@ export default function SplitsPanel({ player, accent = C.orange }) {
     return () => { alive = false }
   }, [armF, hands, pid])
 
+  const ex = (extra || []).find((x) => x.id === sit) || null
   const spec = SITS.find((s) => s.id === sit) || SITS[0]
   const filtered = useMemo(() => (log || []).filter((g) => {
     if (haF !== 'ALL' && (haF === 'home') !== (g.home === true)) return false
@@ -132,8 +135,12 @@ export default function SplitsPanel({ player, accent = C.orange }) {
         {SITS.map((s) => (
           <button key={s.id} type="button" className={FLAT_CHIP_CLASS} aria-pressed={sit === s.id} onClick={() => setSit(s.id)} style={{ ...chip(sit === s.id), flex: '0 0 auto', whiteSpace: 'nowrap' }}>{s.word}</button>
         ))}
+        {(extra || []).map((x) => (
+          <button key={x.id} type="button" className={FLAT_CHIP_CLASS} aria-pressed={sit === x.id} onClick={() => setSit(x.id)} style={{ ...chip(sit === x.id), flex: '0 0 auto', whiteSpace: 'nowrap' }}>{x.word}</button>
+        ))}
       </div>
-      {spec.games && (
+      {ex ? <div style={{ minWidth: 0 }}>{ex.render()}</div> : null}
+      {!ex && spec.games && (
         <div className="chip-row" style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center', marginBottom: 6 }}>
           <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Games</span>
           {[['ALL', 'All'], ['R', 'vs RHP'], ['L', 'vs LHP']].map(([k, l]) => (
@@ -144,7 +151,7 @@ export default function SplitsPanel({ player, accent = C.orange }) {
           ))}
         </div>
       )}
-      {loading || waitingHands
+      {ex ? null : loading || waitingHands
         ? <div style={{ fontSize: 10.5, color: C.text3, padding: '8px 0' }}>Loading splits…</div>
         : rows.length
           ? <DenseTable rows={rows} columns={COLS} initialSort={null} maxHeight={320} dimRow={null}
