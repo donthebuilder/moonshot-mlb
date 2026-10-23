@@ -24,7 +24,8 @@ export default function PlayerPeek({ id, Page, theme: C, accent, onClose, onFull
   // a Page that takes `lead` (LAMP's player page) carries Full page in its one toolbar row and the close in its header
   const toolbar = <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 6 }}>{full}{close}</div>
   return (
-    <CardShell onClose={onClose} width={980} label="Player card" theme={C} accent={accent}>
+    // a Page built on MOONSHOT's v3 card (Page.peekWide: LAMP since 2026-10-23) takes MOONSHOT's width -- the whole screen on a desktop
+    <CardShell onClose={onClose} width={Page.peekWide ? 1760 : 980} fill={Boolean(Page.peekWide)} label="Player card" theme={C} accent={accent}>
       {Page.peekToolbar ? null : toolbar}
       <Page id={id} onBack={null} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} onStep={onStep} peek lead={Page.peekToolbar ? { full, close } : null} />
     </CardShell>
