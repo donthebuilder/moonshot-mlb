@@ -793,23 +793,27 @@ export default function EVLog({ player, bbeRange: bbeRangeProp, balls = null, zo
 // (the chart's), so the dots and the rows can never disagree. Newest first; a phone sees ten rows, "+N more" opens the rest.
 // Linked to the chart (#35): the ball last tapped on the chart rides at the top of the log with the
 // accent stripe; tapping a row lights and flies its dot. Tap the same row again to let it go.
-const BLEND_COLUMNS = LOG_COLUMNS.map((c) => (c.key === 'date' ? { ...c, w: 54 } : c))
-function BlendedLog({ balls, picked = null, onPick = null }) {
+const BLEND_COLUMNS = LOG_COLUMNS.map((c) => (c.key === 'date' ? { ...c, w: 58 } : c))
+// one pitcher's career log (the card's vs-him view): the date keeps its year, and the pitcher column is the same name on every row, so it goes
+const CAREER_COLUMNS = LOG_COLUMNS.filter((c) => c.key !== 'pitcher').map((c) => (c.key === 'date' ? { ...c, w: 74 } : c))
+// exported (2026-10-23) so the card's "vs him" view tables the balls he's hit off tonight's pitcher in the same log, same columns.
+// keepYear: a career log spans seasons, so its dates keep the year ("2025-04-04"); `title` replaces the "on the chart" line.
+export function BlendedLog({ balls, picked = null, onPick = null, keepYear = false, title = null, empty = 'No balls under these filters. Loosen one above.' }) {
   const rows = useMemo(() => {
     const sorted = [...balls].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
     const i = picked ? sorted.indexOf(picked) : -1
     if (i > 0) sorted.unshift(sorted.splice(i, 1)[0])
-    // month-day: the chart's balls are one season, and the full date cut to "2026-10…" in a narrow column (BvP keeps the year)
-    return sorted.map((h, k) => ({ ...toLogRow(h, k), date: h.date ? String(h.date).slice(5) : '—', _raw: h }))
-  }, [balls, picked])
-  if (!rows.length) return <Empty text="No balls under these filters. Loosen one above." />
+    // month-day: the chart's balls are one season, and the full date cut to "2026-10…" in a narrow column (a career log keeps the year)
+    return sorted.map((h, k) => ({ ...toLogRow(h, k), date: h.date ? (keepYear ? String(h.date).slice(2) : String(h.date).slice(5)) : '—', _raw: h }))
+  }, [balls, picked, keepYear])
+  if (!rows.length) return <Empty text={empty} />
   return (
     <div>
       <div style={{ font: `800 10px/1.2 ${NUM_FONT}`, letterSpacing: '.08em', color: C.text3, marginBottom: 6, textTransform: 'uppercase' }}>
-        {rows.length} ball{rows.length === 1 ? '' : 's'} on the chart · newest first
+        {title || `${rows.length} ball${rows.length === 1 ? '' : 's'} on the chart · newest first`}
       </div>
       <ContactStrip rows={rows} />
-      <DenseTable rows={rows} columns={BLEND_COLUMNS} initialSort={null} maxRows={10} caption={LOG_CAPTION}
+      <DenseTable rows={rows} columns={keepYear ? CAREER_COLUMNS : BLEND_COLUMNS} initialSort={null} maxRows={10} caption={LOG_CAPTION}
         rowEdge={(r) => (picked && r._raw === picked ? C.orange : null)}
         onRowClick={onPick ? (raw) => onPick(raw === picked ? null : raw) : null} />
     </div>
