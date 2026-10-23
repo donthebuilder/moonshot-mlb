@@ -14,7 +14,7 @@ for (const k of ['card_ls_result_nhl', 'nfl_members_grade', 'mlb_members_grade',
 check('writeup_nfl_<game> is cut (delivery only)', isCut('writeup_nfl_401872991'))
 check('unlisted kind = null (old behaviour)', routeOf('not_a_kind_test') === null && roomsOf('not_a_kind_test') === null)
 check('the live homer alert has a row: the product channel', roomsOf('homer')?.join() === 'sport')
-check('card_today -> sport only', roomsOf('card_today')?.join() === 'sport')
+check('card_today is retired (10-23): nowhere', isCut('card_today'))
 // the hook narrowing (lib/dash/routeHooks.js), fake webhooks only
 const { routeHooks } = await import('../lib/dash/routeHooks.js')
 const U = (n) => `https://discord.com/api/webhooks/${n}/TEST-TOKEN`
@@ -22,7 +22,7 @@ Object.assign(process.env, { DISCORD_HOMER_WEBHOOK: U(1), DISCORD_MLB_WEBHOOKS: 
 const hooksAll = [U(1), U(2), U(3), U(4), U(5), U(6)]
 check('cut kind sends nothing and is flagged cut', (() => { const r = routeHooks('writeup_nfl_401', 'nfl', hooksAll); return r.cut && r.hooks.length === 0 })())
 check('unlisted kind keeps every hook', (() => { const r = routeHooks('not_a_kind_test', 'mlb', hooksAll); return !r.routed && r.hooks.length === 6 })())
-check('card_today (sport room) narrows to the sport channel only', (() => { const r = routeHooks('card_today', 'mlb', [U(1), U(2)]); return r.routed && r.hooks.join() === U(2) })())
+check('plays_mlb (sport room) narrows to the sport channel only', (() => { const r = routeHooks('plays_mlb', 'mlb', [U(1), U(2)]); return r.routed && r.hooks.join() === U(2) })())
 check('nhl_slate (sport room) never reaches the public feed', (() => { const r = routeHooks('nhl_slate', 'nhl', [U(1), U(4)]); return r.hooks.join() === U(4) })())
 check('recap goes to the network room only (#called-it merged in, 10-23; #moonshot-mlb until DISCORD_OVERVIEW_WEBHOOK is set)', (() => { const r = routeHooks('recap_nhl', 'nhl', hooksAll); return r.hooks.join() === U(2) })())
 check('members roundup goes to #members only', (() => { const r = routeHooks('members_roundup_nhl', 'nhl', [U(6)]); return r.hooks.join() === U(6) })())

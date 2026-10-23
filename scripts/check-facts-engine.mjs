@@ -17,6 +17,9 @@ const CK = await import('../lib/facts/check.js')
 const LB = await import('../lib/facts/label.js')
 const WR = await import('../lib/facts/write.js')
 const EN = await import('../lib/facts/engine.js')
+// THE NETWORK-WIDE CAP (FACTS_CONFIG.dailyTotal = 1, 2026-10-23) has its own test below; the per-sport rules are tested with it lifted
+const DAILY_TOTAL = EN.FACTS_CONFIG.dailyTotal
+EN.FACTS_CONFIG.dailyTotal = 99
 const R = await import('../lib/routes.js')
 const L = await import('../lib/dash/xPostLog.js')
 
@@ -207,6 +210,15 @@ await ok('engine: outside the window, nothing; at the sport\'s cap (3), nothing;
   const soon = await EN.runFacts(fakeDb([done(1, 400)]), { now: at('17:30'), read: mkRead({ mlb: readOf('mlb', f) }) })
   assert.match(soon.sports.mlb.held || soon.skipped, /under (45|90) min ago/)
   assert.equal(tweets.length, 0)
+})
+await ok('engine: ONE fact post a day across the network (dailyTotal, the 10-23 volume review): a second sport posts nothing once one went out', async () => {
+  tweets.length = 0
+  EN.FACTS_CONFIG.dailyTotal = DAILY_TOTAL
+  assert.equal(DAILY_TOTAL, 1)
+  const done = { id: 'old-nhl', day: TODAY, sport: 'nhl', status: 'posted', x_post_id: '1', posted_at: new Date(at('10:00')).toISOString(), fact: { named: ['Z9'] } }
+  const out = await EN.runFacts(fakeDb([done]), { now: at('19:00'), read: mkRead({ mlb: readOf('mlb', mlbFacts()) }) })
+  assert.match(out.skipped || '', /1 fact post already today \(the network-wide cap\)/); assert.equal(tweets.length, 0)
+  EN.FACTS_CONFIG.dailyTotal = 99
 })
 await ok('engine: a man named 2 days ago is not named again; a stored fact id is never re-posted', async () => {
   tweets.length = 0

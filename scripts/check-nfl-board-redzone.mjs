@@ -24,7 +24,7 @@ const red = (snap, aud, b) => nflEventsFrom(snap, '2026-10-04', aud, b).filter((
 // no one follows anybody: the room still hears it
 const one = red(mk(), { nfl: new Set() }, board)
 eq('one board red-zone event', one.length, 1)
-eq('names the offence\'s board men by rank, best first', /Wideout #2 CALLED, Tightend #9/.test(one[0]?.body || '') && one[0]?.title.startsWith('\u{1F6A9} AAA in the red zone'), true)
+eq('names the offence\'s CALLED men only (2026-10-23 volume review: an ON THE BOARD man no longer fires it)', /Wideout #2 CALLED/.test(one[0]?.body || '') && !/Tightend/.test(one[0]?.body || '') && one[0]?.title.startsWith('\u{1F6A9} AAA in the red zone'), true)
 eq('carries down, distance and clock', /2nd & 6 · 4:12$/.test(one[0]?.body || ''), true)
 eq('defence\'s board man is not named', /Runner/.test(one[0]?.body || ''), false)
 eq('room flags', [one[0]?.everyone, one[0]?.boardHit, one[0]?.priority], [true, true, 4])
