@@ -140,6 +140,12 @@ function Stage({ game, pp, log, dims, heights, rec, round, when }) {
   const other = (side) => (side === 'home' ? 'away' : 'home')
   const day = useMemo(() => { try { return new Date(when).toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase() } catch { return '' } }, [when])
   const favTeam = game[pp.fav].team
+  // THE RECEIPT: when these 2,000 games were run, said on the end card only while it is still before first pitch
+  const simAt = useMemo(() => {
+    const now = Date.now(), fp = Date.parse(when || '')
+    if (!(fp > now)) return null
+    return new Date(now).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }) + ' ET'
+  }, [when])
 
   useEffect(() => {
     const el = mount.current
@@ -463,7 +469,8 @@ function Stage({ game, pp, log, dims, heights, rec, round, when }) {
       const p = path.getPoint(Math.min(1, e / 0.85))
       if (e >= 0.85) p.lerp(broadcast(), (e - 0.85) / 0.15)
       camera.position.copy(p); camera.lookAt(TARGET)
-      const ph = u < 0.56 ? 'title' : 'data'
+      // the DASH sting first (the network's own open), then the title over the fly-in, then the numbers
+      const ph = u < 0.17 ? 'ident' : u < 0.6 ? 'title' : 'data'
       if (ph !== introPhase) { introPhase = ph; setIntro(ph) }
       if (u >= 1) endIntro()
     }
@@ -564,7 +571,15 @@ function Stage({ game, pp, log, dims, heights, rec, round, when }) {
         {intro ? (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 3 }}>
             <style>{'@keyframes ppInL{from{transform:translateX(-60px);opacity:0}to{transform:none;opacity:1}}@keyframes ppInR{from{transform:translateX(60px);opacity:0}to{transform:none;opacity:1}}@keyframes ppUp{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}'}</style>
-            {intro === 'title' ? (
+            {intro === 'ident' ? (
+              <div style={{ position: 'absolute', inset: 0, background: C.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                <style>{'@keyframes ppSting{0%{transform:scale(2.4);opacity:0;filter:blur(6px)}35%{transform:scale(.94);opacity:1;filter:none}55%{transform:scale(1.02)}100%{transform:scale(1)}}@keyframes ppBar{from{transform:scaleX(0)}to{transform:scaleX(1)}}'}</style>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/icon-512.png" alt="" width={120} height={120} style={{ display: 'block', borderRadius: 26, animation: 'ppSting .9s cubic-bezier(.2,.9,.2,1) both' }} />
+                <div style={{ width: 140, height: 3, background: C.orange, transformOrigin: 'left', animation: 'ppBar .5s .35s ease-out both' }} />
+                <div style={{ fontFamily: NUM_FONT, fontSize: 18, fontWeight: 900, letterSpacing: 8, color: C.text, animation: 'ppUp .45s .45s both' }}>PREPLAY</div>
+              </div>
+            ) : intro === 'title' ? (
               <div style={{ textAlign: 'center', fontFamily: NUM_FONT }}>
                 <div style={{ fontSize: 11, letterSpacing: 4, color: C.text2, fontWeight: 800, animation: 'ppUp .5s ease-out both' }}>DASH NETWORK · MOONSHOT</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(10px, 3vw, 26px)', marginTop: 10, justifyContent: 'center' }}>
@@ -617,6 +632,7 @@ function Stage({ game, pp, log, dims, heights, rec, round, when }) {
                 <div style={{ fontSize: 13, color: C.text2, fontWeight: 700 }}>{pp.total.mean.toFixed(1)} runs a game</div>
                 {top3.length ? <div style={{ fontSize: 13, color: C.text2, fontWeight: 700 }}>Most likely to homer: {top3.map((h) => `${lastName(h.name)} ${pct(h.p)}`).join(' · ')}</div> : null}
               </div>
+              {simAt ? <div><div style={{ display: 'inline-block', marginTop: 12, border: `2px solid ${C.orange}`, color: C.orange, padding: '3px 10px', fontSize: 12, fontWeight: 900, letterSpacing: 2, borderRadius: 4, transform: 'rotate(-2deg)' }}>SIMULATED {simAt} · BEFORE FIRST PITCH</div></div> : null}
               <div style={{ fontSize: 12, color: C.text2, marginTop: 12, letterSpacing: 2, fontWeight: 800 }}>WE GRADE IT AFTER THE GAME · DASH NETWORK · MOONSHOT</div>
             </div>
           </div>
@@ -648,6 +664,8 @@ function Stage({ game, pp, log, dims, heights, rec, round, when }) {
         {ui.hr && e?.kind === 'HR' ? (
           <div style={{ position: 'absolute', top: '46%', left: '50%', transform: 'translate(-50%, -50%)', pointerEvents: 'none', width: 'min(92%, 380px)', zIndex: 6,
             background: C.bg2, border: `1px solid ${curInk}`, borderRadius: 12, padding: 12, fontFamily: NUM_FONT, boxShadow: `0 10px 30px ${C.bg}` }}>
+            {/* the product's own stamp on its own moment (the way CALLED IT stamps a goal on LAMP) */}
+            <div aria-hidden="true" style={{ position: 'absolute', top: -14, right: -8, transform: 'rotate(8deg)', border: `3px solid ${C.orange}`, color: C.orange, background: C.bg, padding: '3px 10px', fontSize: 15, fontWeight: 900, letterSpacing: 3, borderRadius: 4 }}>MOONSHOT</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={mlbHeadshot(hrRow?.player_id, 120)} alt="" width={58} height={58} style={{ display: 'block', borderRadius: '50%', background: C.bg3, border: `2px solid ${curInk}`, flex: '0 0 auto', objectFit: 'cover' }} />

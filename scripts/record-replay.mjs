@@ -14,6 +14,7 @@
 //   --proxy-api  local runs only: send /api/* (except /api/lamp/gameplay) to this site, for a local server with no env
 //   --tail       seconds of the end card after the final horn
 //   --max        a test run: stop after this many seconds of video
+//   --audio      a soundtrack under the video (a beat), faded in and out; the video's length decides
 // Needs a Chromium (scripts/_browser.mjs finds Chrome on a Mac) and ffmpeg on the PATH (brew install ffmpeg).
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -41,7 +42,8 @@ const fps = Number(arg('fps', 30))
 const out = arg('out', `${STAGE.name}-${game}.mp4`)
 const proxy = arg('proxy-api')
 const tail = Number(arg('tail', 3.5))
-const maxS = Number(arg('max', 0))   // a test run: stop after this many seconds of video
+const maxS = Number(arg('max', 0))
+const audio = arg('audio')   // --audio <file>: a soundtrack under the video (Donovan's beat), faded out at the end   // a test run: stop after this many seconds of video
 const W = 1280
 
 let chromium
@@ -114,8 +116,11 @@ for (;;) {
 }
 await browser.close()
 
+const secs = n / fps
 const enc = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(fps), '-i', join(dir, 'f%06d.png'),
+  ...(audio ? ['-i', audio] : []),
   '-vf', 'scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,format=yuv420p',
+  ...(audio ? ['-map', '0:v', '-map', '1:a', '-af', `afade=t=in:d=0.6,afade=t=out:st=${Math.max(0, secs - 2.5).toFixed(2)}:d=2.5`, '-c:a', 'aac', '-b:a', '192k', '-t', secs.toFixed(2)] : []),
   '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-movflags', '+faststart', out], { stdio: 'inherit' })
 if (enc.status !== 0) { console.error(`ffmpeg failed; frames kept in ${dir}`); process.exit(1) }
 rmSync(dir, { recursive: true, force: true })
