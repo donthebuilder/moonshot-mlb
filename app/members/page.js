@@ -1,18 +1,16 @@
 // /members (2026-10-04, Donovan: "/members page on the site … make it more
 // like a digital product"). What's free, what founding members get, how to
-// join. It promises only what ships today: the members board and grade that
-// lib/dash/membersPost.js posts to the private #members channel (MLB top
-// MLB_MEMBERS_N, NFL top NFL_MEMBERS_N, at lock, graded after). Checkout and
+// join. It promises only what ships today (2026-10-23): THE DAY's picks, the wins and the
+// morning grade (lib/card/briefing.js, lib/card/wins.js) and the write-ups, in #members. Checkout and
 // the Discord role are Whop's; the site only links to it (lib/members.js).
 import AuthPageHeader from '../../components/AuthPageHeader'
 import styles from '../(front)/dash.module.css'
 import { membersUrl, DISCORD_URL } from '../../lib/members'
-import { MLB_MEMBERS_N, NFL_MEMBERS_N } from '../../lib/dash/membersPost'
 import { isSportOpen } from '../../lib/openSwitch'
 
 export const metadata = {
   title: 'Founding members · DASH Network',
-  description: 'Everything on DASH is free. Founding members get every game\u2019s write-up, plus the board at lock and its grade, in a private Discord.',
+  description: 'Everything on DASH is free. Founding members get today\u2019s picks with the why, every game\u2019s write-up, and every pick graded, in a private Discord.',
 }
 
 const h2 = { margin: '0 0 8px', fontSize: 17, lineHeight: 1.3 }
@@ -42,8 +40,8 @@ export default function MembersPage() {
           <h2 style={h2}>Founding members</h2>
           <ul style={ul}>
             <li>Every game&apos;s write-up for {isSportOpen('nba') ? 'all four sports (MLB, NFL, NHL, NBA)' : 'every sport we cover (MLB, NFL, NHL)'}, in a private Discord channel. Free Discord gets the featured game only.</li>
-            <li>The board at lock, in the same channel: MOONSHOT&apos;s top {MLB_MEMBERS_N} before first pitch, TUDDY&apos;s top {NFL_MEMBERS_N} before kickoff.</li>
-            <li>That board graded after the games, in the same channel.</li>
+            <li>Today&apos;s picks before the first game locks: who, the bet, the price and why.</li>
+            <li>A post when a pick hits, and every pick graded the next morning, hits and misses.</li>
             <li>Every called pick of tonight on the site, with its score and why, not just the first four.</li>
           </ul>
         </div>

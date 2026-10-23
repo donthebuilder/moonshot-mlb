@@ -29,6 +29,7 @@
 // prints), the odds file, and the pair-history summary.
 
 import { mlbQuotes } from '../../../../../lib/dash/quoteFor'
+import { isCut } from '../../../../../lib/dash/routing'
 import { playerHref } from '../../../../../lib/routes'
 import { storyThreadsOn, postStoryResults } from '../../../../../lib/dash/storyThread'
 import { gameCalls, gameCallText } from '../../../../../lib/dash/gameCall'
@@ -1079,6 +1080,8 @@ async function mlbTick(request) {
     await postMembers(db, { day: yday, kind: MEMBERS_KINDS.mlbGrade, build: async () => {
       const { data: board } = await db.from('homer_feed_posts').select('payload').match({ day: yday, kind: MEMBERS_KINDS.mlbBoard }).maybeSingle()
       if (!board?.payload?.picks?.length) return null
+      // a grade of a board members never saw is noise: the board is cut (lib/dash/routing.js), THE DAY's morning grade replaces it (lib/card/wins.js)
+      if (isCut(MEMBERS_KINDS.mlbBoard)) return null
       const { data: yHits } = await db.from('homer_feed').select('player_id').eq('day', yday)
       return mlbMembersGrade({ board: board.payload, events: yHits || [] })
     } }).catch((e) => console.error(`[homers] members grade: ${e?.message}`))

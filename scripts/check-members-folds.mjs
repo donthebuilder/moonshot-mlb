@@ -60,7 +60,7 @@ const NFL_LATE = [row('nfl', 'straight', 1, [leg('nfl', 'F1', { board_pct: 97, w
 
 env()
 const { postDay, postCardMembers } = await import('../lib/card/post.js')
-const { briefingText, briefingEmbed, bestLooks } = await import('../lib/card/briefing.js')
+const { briefingText, briefingEmbed } = await import('../lib/card/briefing.js')
 const { membersFoldsOn, roundupItems, roundupText, postRoundup, roundupKind, _resetRoundupMemo } = await import('../lib/dash/membersFolds.js')
 const { runNhlWriteups } = await import('../lib/writeups/post.js')
 const { _resetTakenForTests } = await import('../lib/dash/postClaim.js')
@@ -82,16 +82,14 @@ await t('A2 OFF: THE DAY is the old text (no best looks, no why) and the per-spo
 })
 
 // ── B. THE ONE BRIEFING ─────────────────────────────────────────────────────
-await t('B1 ON: the briefing has a section per sport, each leg with market / price / status word / one-line why, and the best looks', async () => {
+await t('B1 ON: the briefing has a section per product, each pick in plain words (who, the bet, the price, one short why); no units, no status word, no best looks', async () => {
   env({ MEMBERS_FOLDS_ON: 'on' })
   const text = briefingText({ day: DAY, rows: [...NHL, ...MLB, ...NFL_LATE], all: [...NHL, ...MLB, ...NFL_LATE], prices: new Map() })
-  assert.match(text, /THE DAY · Oct 16/)
-  for (const s of ['NHL', 'NFL', 'MLB']) assert.match(text, new RegExp(`${s} .*straight`))
-  assert.match(text, /Test A1 .*CALLED/); assert.match(text, /\+150/)
+  assert.match(text, /Today's picks · Oct 16/)
+  for (const s of ['LAMP', 'TUDDY', 'MOONSHOT']) assert.match(text, new RegExp(s))
+  assert.match(text, /\*\*Test A1 \([A-Z]+\)\*\* to score/); assert.match(text, /\+150/)
   assert.match(text, /Recent avg exit velo 93\.1 mph/); assert.match(text, /Targets per game 9\.1/)
-  assert.match(text, /Among tonight's skaters: shots 2nd, goals 1st|Test why for A1/)
-  assert.match(text, /Best looks of the day\n1\. Test A1 \(NHL/)
-  assert.equal(bestLooks([NHL[0]]).length, 0, 'one straight is not a "best looks" list')
+  assert.ok(!/CALLED|ON THE BOARD|\d+(\.\d+)?u\b|units|straight|Best looks/.test(text), 'no status word, units, "straight" or best looks in a members post')
   assert.ok(/Two-Man/.test(text))
 })
 await t('B2 ON: one post at the first lock, then ONE short (added) post of only the new legs; a known pick is never repeated', async () => {
@@ -105,7 +103,7 @@ await t('B2 ON: one post at the first lock, then ONE short (added) post of only 
   assert.equal(await postDay(db, { day: DAY, rows: [...NHL, ...MLB, ...NFL_LATE], posted, now: NOW }), 'posted')
   const upd = JSON.parse(bodyText(sent()[1])) // the embed or content of the second send
   const flat = JSON.stringify(upd)
-  assert.match(flat, /added/i); assert.match(flat, /Test F1/); assert.ok(!/Test A1|Test M1/.test(flat), 'no known pick repeated')
+  assert.match(flat, /More picks/); assert.match(flat, /Test F1/); assert.ok(!/Test A1|Test M1/.test(flat), 'no known pick repeated')
   assert.ok(!/Best looks/.test(flat))
   assert.equal(await postDay(db, { day: DAY, rows: [...NHL, ...MLB, ...NFL_LATE], posted: db.rows.map((r) => ({ kind: r.kind, payload: r.payload })), now: NOW }), 'nothing-new')
   assert.ok(briefingEmbed({ day: DAY, rows: NHL, all: NHL }).fields.every((f) => f.value.length <= 1024))
@@ -130,9 +128,9 @@ await t('D1 items: only live, called, folded-for-roundup games, in kickoff order
   const items = roundupItems(rs)
   assert.deepEqual(items.map((i) => i.game_id), ['g1', 'g2'])
   const text = roundupText({ sport: 'nhl', day: DAY, items })
-  assert.match(text, /LAMP MEMBERS · 2026-10-16 · every game with a call tonight \(2\)/)
-  assert.match(text, /AAA at BBB: Test g1 \+ Test Two: why they're the goal looks\nhttps:\/\/site\.test\/app#sport=nhl&tab=game&game=g1/)
-  assert.ok(!/%|probab|\block/i.test(text))
+  assert.match(text, /LAMP · tonight's games\*\* · Oct 16\n\n2 games with a pick/)
+  assert.match(text, /\*\*AAA at BBB\*\* · Test g1\nhttps:\/\/site\.test\/app#sport=nhl&tab=game&game=g1/)
+  assert.ok(!/% chance|probab|\block/i.test(text))
   const many = roundupItems(Array.from({ length: 24 }, (_, i) => wrow(`g${100 + i}`, NOW - 7200e3 + i * 1000)))
   const long = roundupText({ sport: 'nhl', day: DAY, items: many })
   assert.ok([...long].length <= 1900); assert.match(long, /Every game's page: https:\/\/site\.test\/app#sport=nhl&tab=game/); assert.match(long, /game=g100/, 'the first games keep their own link')
@@ -180,7 +178,7 @@ await t('E1 the folded posts go to the members webhook only, never X or a public
   assert.ok(calls.every((c) => c.url === MEM), `only the members URL was called: ${calls.map((c) => c.url).join(' ')}`)
   const lib = ['lib/card/briefing.js', 'lib/dash/membersFolds.js'].map((f) => fs.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8')).join('\n')
   assert.ok(!/postToX|uploadImageToX|toX: true|DISCORD_MEMBERS_WEBHOOK|sportHooks|feedHooks/.test(lib.replace(/^\s*\/\/.*$/gm, '')), 'the fold modules cannot reach X or a public hook')
-  for (const text of [briefingText({ day: DAY, rows: NHL, all: NHL }), roundupText({ sport: 'nhl', day: DAY, items: roundupItems([wrow('g1', NOW)]) })]) assert.ok(!/%|probab/i.test(text))
+  for (const text of [briefingText({ day: DAY, rows: NHL, all: NHL }), roundupText({ sport: 'nhl', day: DAY, items: roundupItems([wrow('g1', NOW)]) })]) assert.ok(!/% chance|probab/i.test(text))
 })
 
 console.log(failed ? `\n${failed} FAILED` : '\nOK: members folds')
