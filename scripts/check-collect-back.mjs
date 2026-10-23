@@ -55,7 +55,7 @@ await t('the stats face prints the latest seasons, the totals row, the playoffs 
   const s = text(collectBackDesign(c.model, c.back, '', { tier: 'elite', face: 'stats' })).join(' ')
   assert.match(s, /2018-19/); assert.doesNotMatch(s, /2010-11/); assert.match(s, /NHL TOTALS/); assert.match(s, /PLAYOFFS/); assert.match(s, /THE MOMENT THIS CARD DOCUMENTS/); assert.match(s, /HAT TRICK/)
   const b = text(collectBackDesign(c.model, c.back, '', { tier: 'elite', face: 'brand' })).join(' ')
-  assert.match(b, /CALLED IT/); assert.match(b, /DASH NETWORK/); assert.deepEqual(BRAND_SPORTS, ['nhl', 'nfl', 'mlb']); assert.doesNotMatch(b, /NBA|BUCKETS/)
+  assert.match(b, /CALLED IT/); assert.match(b, /DASH NETWORK/); assert.deepEqual(BRAND_SPORTS, ['nhl', 'nfl', 'mlb', 'nba'])   // the public Card sports (BUCKETS since 2026-10-20); a sport with no BANNER_ICON draws no mark (nba: none drawn yet)
 })
 await t('the table fits: row height >= 44 with the most rows, in every tier', () => {
   for (const tier of TIERS) { const g = backGeometry(BACK, tier); assert.ok(g.rowH >= 44 && g.shown.length === 6, tier) }

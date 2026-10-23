@@ -162,7 +162,7 @@ await t('the X text names ONLY the lead straight (with its market and stored lin
   for (const r of rows) for (const l of r.legs) if (l.player_id !== lead.player_id) assert.ok(!b.text.includes(l.name), `${l.name} is not on X`)
   assert.ok(!/[+−-]\d{3}/.test(b.text), 'no price on X'); assert.ok(cleanPublic(b.text))
   const volLead = xCardText({ sport: 'nhl', day: '2026-10-10', straight: { ...SOG[1], player_id: 's2', name: 'Player s2', start_ms: undefined, status: 'called', market: 'sog', line: 3.5 } })
-  assert.match(volLead.text, /\(shots on goal over 3\.5\)/)
+  assert.match(volLead.text, /Player s2 \(Tg2A\) 4\+ shots vs/)   // the stored 3.5 line in plain words since #265
 })
 
 // ── 4. SAME-GAME TWO-MAN ────────────────────────────────────────────────────────
@@ -514,7 +514,8 @@ await t('LEAK RULES: the members text never reaches X or a free channel; the Dou
   const post = fs.readFileSync(new URL('../lib/card/post.js', import.meta.url), 'utf8').replace(/\/\/.*$/gm, '')
   const dayFn = post.slice(post.indexOf('export async function postDay'), post.indexOf('/**\n * The one free X line'))
   assert.ok(/postMembers\(/.test(dayFn) && !/postOnce\(|toX/.test(dayFn), 'THE DAY goes through postMembers only')
-  const todayFn = post.slice(post.indexOf('export async function postToday'))
+  const todayAt = post.indexOf('export async function postToday')
+  const todayFn = post.slice(todayAt, post.indexOf('export async function', todayAt + 1))   // postToday's own body (later posters, e.g. the Long Shot, carry prices)
   assert.ok(!/postMembers|\bdayText\b|\bdayEmbed\b|membersCard|currentPrices|legPriceOf|price/i.test(todayFn.replace(/\/\*[\s\S]*?\*\//g, '')), 'the free line never touches the day briefing or any price')
   const dblFn = post.slice(post.indexOf('export async function postDoubleResult'), post.indexOf('export const rowKeyOf'))
   assert.ok(!/legPriceOf|currentPrices|membersCard|dayText/.test(dblFn), 'the Double\'s free result has no ticket or price')

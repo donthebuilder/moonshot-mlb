@@ -325,7 +325,7 @@ const OK_PROBLEMS = new Map(FIELD.map((c) => [c.player_id, null]))
 await t('the X post names ONLY the lead straight and Donovan\'s Two-Man with his note: not the other straights, not the bot\'s Two-Man', () => {
   const b = xCardBuild({ sport: 'nhl', day: '2026-10-10', rows: CARD_ROWS, problems: OK_PROBLEMS, now: NOW - 30 * 60e3 })
   assert.ok(b.text.length > 0)
-  assert.match(b.text, /Straight: Player p6 · Tg4A vs Tg4B \(anytime goal\)/)
+  assert.match(b.text, /Player p6 \(Tg4A\) to score vs Tg4B/)   // plain words since #265 (was "Straight: … (anytime goal)")
   assert.match(b.text, /Admin's Two-Man: Player p3 \+ Player p5/); assert.ok(b.text.includes('Shots, shots, shots.'))
   // the other straights and the bot's two-man legs (p6 is #1; p1 / p2 are #2, #3 and the Two-Man's second leg) are nowhere in the text or the payload
   for (const n of ['Player p1', 'Player p2', 'Player s1']) assert.ok(!b.text.includes(n), `${n} must not be on X`)
@@ -343,7 +343,7 @@ await t('X rules: a long note loses lines before names; a repeat-guard exclusion
   const b = xCardBuild({ sport: 'nhl', day: '2026-10-10', rows, problems: OK_PROBLEMS, now: NOW - 30 * 60e3 })
   assert.ok([...b.text].length + 4 <= 280); assert.ok(b.text.includes('Player p3') && b.text.includes('Player p6'))
   const ex = xCardBuild({ sport: 'nhl', day: '2026-10-10', rows: CARD_ROWS, problems: OK_PROBLEMS, exclude: new Set(['p6']), now: NOW - 30 * 60e3 })
-  assert.ok(!ex.text.includes('Straight:'), 'the lead straight is left out when he was named too recently'); assert.ok(!ex.text.includes('Player p1') && !ex.text.includes('Player p2') && !ex.text.includes('Player s1'))
+  assert.ok(!ex.text.includes('Player p6'), 'the lead straight is left out when he was named too recently'); assert.ok(!ex.text.includes('Player p1') && !ex.text.includes('Player p2') && !ex.text.includes('Player s1'))
   assert.ok(ex.text.includes('Admin'))
   assert.equal(xCardBuild({ sport: 'nhl', day: 'd', rows: [], problems: OK_PROBLEMS, now: NOW }).text, '')
   const none = xCardBuild({ sport: 'nhl', day: 'd', rows: CARD_ROWS.filter((r) => r.lane === 'bot' && r.product !== 'straight'), problems: OK_PROBLEMS, now: NOW })
@@ -356,7 +356,7 @@ await t('X naming rule: a name not confirmed yet HOLDS the post; a definite no l
   assert.equal(held.text, ''); assert.ok(held.pending?.length === 1); assert.equal(held.startMs, NOW + 1 * H)
   const out = new Map(OK_PROBLEMS); out.set('p3', { id: 'p3', reason: 'listed out', pending: false })
   const left = xCardBuild({ sport: 'nhl', day: 'd', rows: CARD_ROWS, problems: out, now: NOW - 30 * 60e3 })
-  assert.ok(left.text.includes('Straight:') && !left.text.includes('Admin') && !left.text.includes('Player p3') && !left.text.includes('Player p5'))
+  assert.ok(left.text.includes('Player p6 (Tg4A) to score') && !left.text.includes('Admin') && !left.text.includes('Player p3') && !left.text.includes('Player p5'))
   assert.ok(!left.text.includes('Shots, shots, shots.'), 'his note does not go out about two men whose names cannot be shown')
   assert.deepEqual(left.payload.picks.map((p) => p.player_id), ['p6'])
   const unseen = xCardBuild({ sport: 'nhl', day: 'd', rows: CARD_ROWS, problems: new Map(), now: NOW - 30 * 60e3 })
@@ -375,7 +375,7 @@ await t('the #members card carries the whole Card, the bot\'s Two-Man, each pric
   assert.match(m.text, /1\. Player p6 .*1 unit · \+450 best, \+380 median \(5 books\)/)
   assert.match(m.text, /2\. Player s1 .*shots on goal over 2\.5 · 1 unit · \+130 median across 6 books/, 'a volume pick shows its stored line and the price frozen at the lock')
   assert.match(m.text, /TWO-MAN: Player p6 \+ Player p1 · different games · 0\.5 unit · about \+2100 best/)   // the product of the two prices
-  assert.ok(m.text.includes('why p6')); assert.ok(!m.text.includes("Admin"), 'his lane is free: not in the members card')
+  assert.match(m.text, /why p6/i); assert.ok(!m.text.includes("Admin"), 'his lane is free: not in the members card')
   const noPrice = membersCardText({ sport: 'nhl', day: 'd', rows: OLD_ROWS, prices: new Map() })
   assert.match(membersCardText({ sport: 'nhl', day: 'd', rows: CARD_ROWS, prices: new Map() }).text, /1\. Player p6 .*\+150 median across 5 books/, 'a Card locked under the floors freezes the price it was picked at')
   assert.match(noPrice.text, /no price on file yet/); assert.match(noPrice.text, /no price on file for both legs yet/)
@@ -469,7 +469,7 @@ await t('the post kinds: all tagged (INFO event / members), the sport read from 
     assert.equal(mayPostNow({ kind: `card_members_${s}`, now: NOW }).ok, false, 'a members kind never goes to X')
     assert.equal(CARD_KIND.x(s), `card_${s}`); assert.equal(CARD_KIND.result(s), `card_result_${s}`)
   }
-  assert.equal(kindInfo('card_nba'), null, 'BUCKETS has no card kind')
+  assert.deepEqual([kindInfo('card_nba')?.mode, kindInfo('card_nba')?.sport, tagOf('card_nba')], ['event', 'nba', 'INFO'], 'BUCKETS (public since 10-19) has its card kind')
   assert.equal(sportOfKind('card_nhl'), 'nhl'); assert.equal(sportOfKind('card_result_nfl'), 'nfl')
 })
 
@@ -488,7 +488,7 @@ await t('the X post path: claims one row per (day, kind), names only what the bu
 
 await t('the X post: the #1 straight carries its status word and ONE data line (its why), dropped before Donovan\'s words when too long; clean', () => {
   const b = xCardBuild({ sport: 'nhl', day: '2026-10-10', rows: CARD_ROWS, problems: OK_PROBLEMS, now: NOW - 30 * 60e3 })
-  assert.match(b.text, /Straight: Player p6 · Tg4A vs Tg4B \(anytime goal\) · CALLED\nwhy p6\n/)
+  assert.match(b.text, /Player p6 \(Tg4A\) to score vs Tg4B · CALLED\nWhy p6\n/)
   assert.ok(cleanPublic(b.text) && [...b.text].length + 4 <= 280)
   const long = CARD_ROWS.map((r) => (r.slot === 1 && r.product === 'straight' && r.lane === 'bot' ? { ...r, legs: [{ ...r.legs[0], why: 'w'.repeat(200), status: 'board' }] } : r))
   const l = xCardBuild({ sport: 'nhl', day: 'd', rows: long, problems: OK_PROBLEMS, now: NOW - 30 * 60e3 })

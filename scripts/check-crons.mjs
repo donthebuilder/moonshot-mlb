@@ -76,9 +76,11 @@ ok('NBA never falls back to the MLB list', () => {
   assert.equal(dc.feedHooks('nba'), 'NBA')   // its own channel only: not the public homer feed while hidden
   assert.equal(dc.feedHooksFor('nba', 'off'), '')
 })
-ok('MLB / NFL / NHL routing unchanged', () => {
+ok('MLB / NFL / NHL: each its own channel, never MLB\'s (no cross-sport fallback since 2026-10-23, #259)', () => {
   reset(); process.env.DISCORD_HOMER_WEBHOOK = 'HOMER'; process.env.DISCORD_MLB_WEBHOOKS = 'MLB'
-  assert.equal(dc.feedHooks('mlb'), 'HOMER,MLB'); assert.equal(dc.feedHooks('nfl'), 'HOMER,MLB'); assert.equal(dc.feedHooks('nhl'), 'HOMER,MLB')
+  assert.equal(dc.feedHooks('mlb'), 'HOMER,MLB'); assert.equal(dc.feedHooks('nfl'), 'HOMER'); assert.equal(dc.feedHooks('nhl'), 'HOMER')
+  process.env.DISCORD_NFL_WEBHOOKS = 'NFL'; process.env.DISCORD_NHL_WEBHOOKS = 'NHL'
+  assert.equal(dc.feedHooks('nfl'), 'HOMER,NFL'); assert.equal(dc.feedHooks('nhl'), 'HOMER,NHL')
   assert.equal(dc.feedHooksFor('nfl', 'off'), 'HOMER')
 })
 ok('BUCKETS open: the homer feed and its own channel (never MLB)', () => {

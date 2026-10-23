@@ -33,8 +33,8 @@ check(/✗ Test Defender\b(?! \()/.test(t.text), 'A1 an anytime leg keeps the ba
 check(/✗ Test Scorer \(shots on goal over 2\.5\)/.test(t.text), 'A2 a shots leg says its market, so "✗ Test Scorer" never reads as "did not score"')
 check(t.text.length <= 280, 'A3 the post still fits')
 const emb = JSON.stringify(resultEmbed({ sport: 'nhl', day: '2099-01-01', rows }))
-check(emb.includes('Test Scorer (shots on goal over 2.5)'), 'A4 the Discord card says the market too')
-check(/anytime goal · shots on goal over 2\.5/.test(emb), 'A5 the card description lists every market on it, not only the goal market')
+check(emb.includes('Test Scorer (TST) 3+ shots'), 'A4 the Discord card says the market too (plain words since #265: "3+ shots")')
+check(emb.includes('Test Defender (TST) to score') && emb.includes('0 of 2 picks hit'), 'A5 each pick says its own market; the description is the count, no market list (#265)')
 check(resultMarketWords('nhl', [rows[0]]) === 'anytime goal', 'A6 an all-anytime card is described exactly as before')
 check(legTag('nhl', leg('x', 'y')) === '' && legTag('mlb', leg('x', 'y', { market: 'hit', line: 0.5 })) === ' (hits over 0.5)' && legTag('nfl', leg('x', 'y', { market: 'rec_yds', line: 54.5 })) === ' (receiving yards over 54.5)', 'A7 legTag: bare for anytime, the market words for every other market of all three sports')
 
