@@ -41,11 +41,9 @@ import HelpTip from './HelpTip'
 import { useIsPhone } from './MobileFold'
 import { useMlbBot, mlbStatus, mlbRecordLine, mlbLastLine, mlbStatRow } from './player/mlbAdapter'
 import EVLog from './tabs/EVLog'
-import PitchBreakdown from './tabs/PitchBreakdown'
-import HRPitchProfile from './HRPitchProfile'
 import SprayField from './SprayField'
 import { fetchLiveGame, parseLiveGame } from '../lib/livePitches'
-import MatchupPitcher from './MatchupPitcher'
+import MatchupTab from './player/MatchupTab'
 import PlayerSplits from './PlayerSplits'
 import MlbGameLog from './MlbGameLog'
 import SituationalSplits from './SituationalSplits'
@@ -983,27 +981,15 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
 
           {/* THE BACK: PITCHES, three panels side by side (one column on a phone): what he does to each pitch, the arm he
               faces tonight, and him against that arm (the head-to-head and the first-pitch split) */}
+          {/* THE BACK: PITCHES = THE MATCHUP (2026-10-23, rebuilt, components/player/MatchupTab.js): the arm in tiles, his pitches
+              against this hitter in one table, and the two strike zones with their overlap. The old pieces (the zone map, the
+              pitch-type table, HR by pitch type, damage vs supply, the arsenal bars, the pitcher's prose) are off the card. */}
           {tab === 'pitch' && (
-            <div className="portal-back3">
-              <section style={PORTAL_CELL} aria-label="His pitches">
-                {detailState === 'loading'
-                  ? <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Loading pitch profile…</div>
-                  : <>
-                      {/* the strike-zone map with his line per pitch (it sat on top of the EV log before the blend) */}
-                      <EVLog player={p} zoneOnly />
-                      {/* `detail` is the batter file this modal already fetched (see the note at the top of PitchBreakdown.js) */}
-                      <PitchBreakdown player={p} detail={detail} />
-                      {/* which pitches he homers off, against tonight's mix */}
-                      <HRPitchProfile player={p} slateMode={slateMode} />
-                    </>}
-              </section>
-              {!apiOnly && (
-                <section style={PORTAL_CELL} aria-label="Tonight's pitcher">
-                  <MatchupPitcher player={p} slateMode={slateMode} />
-                </section>
-              )}
-              {/* him against tonight's pitcher moved to the EV log's "vs him" toggle on the front (2026-10-23) */}
-            </div>
+            <section style={PORTAL_CELL} aria-label="The matchup">
+              {apiOnly
+                ? <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Not on tonight’s slate, so there’s no starter to match him against.</div>
+                : <MatchupTab player={p} detail={detail} slateMode={slateMode} />}
+            </section>
           )}
 
           {tab === 'numbers' && !apiOnly && (
