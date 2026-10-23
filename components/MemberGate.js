@@ -19,7 +19,7 @@ const Ctx = createContext('unknown')
 
 // THE FREE FOUR, SHARED WITH THE CARDS. Every board that calls useCallGate publishes the free set it computed here (a tiny module store; a board
 // unmounting takes its set back). A player card reads the union (useCardLock), so a man who is one of the table's free four is unlocked on his card
-// too. Only a free viewer's boards compute a set at all. A card opened with no board mounted (a deep link) sees an empty set: lock-all.
+// too. Only a free viewer's boards compute a set at all. A card opened with no board mounted (a deep link) sees an empty set: lock-all -- unless the card runs its sport's board gate itself (LAMP's card does, 2026-10-23).
 const published = new Map()
 const listeners = new Set()
 let freeUnion = new Set()

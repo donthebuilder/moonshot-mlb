@@ -163,12 +163,12 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
                         textAlign: 'left', cursor: 'pointer', fontFamily: NUM_FONT, fontSize: TYPE.micro, lineHeight: 1.45, minWidth: 0,
                       }}>
                       {lead.why && (
-                        <span style={{ display: 'block', color: C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <span style={{ display: 'block', maxWidth: '100%', color: C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           <b style={{ color: f.color, fontWeight: 900, letterSpacing: '.06em' }}>WHY</b> {lead.why}
                         </span>
                       )}
                       {lead.watch && (
-                        <span style={{ display: 'block', color: C.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <span style={{ display: 'block', maxWidth: '100%', color: C.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           <b style={{ color: C.text3, fontWeight: 900, letterSpacing: '.06em' }}>WATCH</b> {lead.watch}
                         </span>
                       )}

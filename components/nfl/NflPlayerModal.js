@@ -47,7 +47,7 @@ import { seasonOptions, defaultSeason, applySeason, seasonNote } from '../../lib
 // THE SHARED PLAYER MODEL (components/player/): the verdict first, then ONE row of his numbers, MOONSHOT's parts in
 // TUDDY's words (nflAdapter.js). Replaces the per-game tiles, the market-score strip, the hit-rate boxes and the Why box.
 import VerdictBlock from '../player/VerdictBlock'
-import { useCardLock, useMemberState, CardLockLine } from '../MemberGate'
+import { useCardLock, useMemberState, useCallGate, CardLockLine } from '../MemberGate'
 import { kickoffFor } from '../../lib/nfl/kickoff'
 import StatRow from '../player/StatRow'
 import ScrollHint from '../player/ScrollHint'
@@ -375,6 +375,11 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
   const cardLockKey = String(player?.player_id)
   const cardLock = { key: cardLockKey, time: player ? kickoffFor(slate?.games, player) : null }
   const nonMember = useMemberState() === 'free'
+  // THE FREE FOUR FROM THE CARD ITSELF (2026-10-23 fix): with no board under it (the Players page, a shared link) the card saw an empty free set and
+  // locked every CALLED man -- the header said "TOP CALL Gibbs" while his own card said no call. The card runs the TD board's gate over the TD
+  // board's own pool (lib/nfl/tdPool, already in board order), so the card and the board agree wherever the card opens.
+  const gatePool = useMemo(() => tdPool(slate).rows, [slate])
+  useCallGate({ rows: gatePool, statusOf: (p) => tdStatus.statusOf(p), keyOf: (p) => String(p.player_id), timeOf: (p) => kickoffFor(slate?.games, p), rankOf: (p) => gatePool.indexOf(p) + 1 })
   const cardLocked = useCardLock({ status: market === 'TD' && player ? tdStatus.statusOf(player) : null, key: cardLockKey, time: cardLock.time }).locked
   // TAGS (lib/nfl/tags.js): his own ball-security tags and the tags of the defence he faces. Labels with their numbers; no score reads them.
   const tagBookOf = useTagBook(matchup, slate?.season)

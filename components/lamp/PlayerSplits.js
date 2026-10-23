@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import LampTable from './LampTable'
 import Tap from '../Tap'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
+import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 import { useLampSplits } from '../../lib/nhl/useLamp'
 import { usePreview, ShowMoreButton } from '../ListPreview'
 import { Kicker, Loading, EmptyState, DelayedBanner, fmtPct1, fmt2, fmtSec, plusMinus } from './ui'
@@ -42,12 +43,6 @@ const STRENGTH_COLS = [
   { key: 'share', label: '% of G', group: 'Goals', w: 52, fmt: (v) => (v == null ? '—' : `${Math.round(v * 100)}%`), title: 'Share of his goals scored at this strength.' },
   { key: 'gPg', label: 'G/GP', group: 'Goals', w: 46, fmt: fmt2 },
 ]
-
-const pillStyle = (on) => ({
-  flex: '0 0 auto', minHeight: 44, padding: '0 14px', borderRadius: 999, cursor: 'pointer', whiteSpace: 'nowrap',
-  border: `1px solid ${on ? C.ice : C.border2}`, background: on ? `${C.ice}1a` : 'transparent',
-  color: on ? C.ice : C.text2, font: `800 12px/1 ${NUM_FONT}`, letterSpacing: '.04em',
-})
 
 function Section({ id, title, meta, rows, columns, caption, preview = 6, itemWord = 'rows' }) {
   const pv = usePreview(rows, preview)
@@ -151,10 +146,11 @@ export default function PlayerSplits({ id, goalie = false, onOpenTeam = null, se
       {games.length > 0 && (
         <>
           <div role="group" aria-label="Jump to a split" style={{ display: 'flex', gap: 6, overflowX: 'auto', margin: '0 -2px', padding: '0 2px', WebkitOverflowScrolling: 'touch' }}>
-            {pills.map((p) => <button key={p.key} type="button" aria-pressed={shownKey === p.key} onClick={() => jump(p.key)} style={pillStyle(shownKey === p.key)}>{p.label}</button>)}
+            {pills.map((p) => <button key={p.key} type="button" className={FLAT_CHIP_CLASS} aria-pressed={shownKey === p.key} onClick={() => jump(p.key)} style={{ ...flatChip(shownKey === p.key, C.ice, C, NUM_FONT), flexShrink: 0 }}>{p.label}</button>)}
           </div>
-          <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.6, maxWidth: 760 }}>
-            Pick a split. Every row shows its games (GP) and is flagged <b style={{ color: C.amber }}>THIN</b> under {THIN_GP}: a few games prove little.
+          {/* the words, short (2026-10-23, Donovan: quick, not wordy): what THIN means, nothing else */}
+          <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.5 }}>
+            <b style={{ color: C.amber }}>THIN</b> = under {THIN_GP} games.
           </div>
           {sections.filter(({ g }) => g.key === shownKey).map(({ g, rows }) => (
             <Section key={g.key} id={g.key} title={g.label} caption={g.caption}
@@ -166,10 +162,6 @@ export default function PlayerSplits({ id, goalie = false, onOpenTeam = null, se
               caption="Even-strength goals are his goals minus power-play minus short-handed goals: the game log has no even-strength column, so this is that subtraction." />
           )}
           {shownKey === 'combo' && <Combo games={games} />}
-          <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.6 }}>
-            Situational splits are the most over-read numbers in a season. Nothing here is opponent- or rink-adjusted, so a home/road or by-rink gap partly measures the opponents and buildings, not him.
-            The game log has no overtime or day/night flag, so there is no split for either.
-          </div>
         </>
       )}
     </section>
