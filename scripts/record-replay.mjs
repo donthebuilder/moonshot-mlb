@@ -7,7 +7,9 @@
 //                                  [--proxy-api https://dashnetwork.vercel.app] [--tail 3.5]
 //   node scripts/record-replay.mjs --sport mlb --game 849805 --day tmrw    (2026-10-22: MOONSHOT's PREPLAY, the simulated game)
 //
-//   --sport      nhl (LAMP's replay, the default) or mlb (MOONSHOT's PREPLAY on the Games tab)
+//   node scripts/record-replay.mjs --sport nfl --game 401873010 --max 40            (2026-10-22: TUDDY's replay of a finished game)
+//
+//   --sport      nhl (LAMP's replay, the default), mlb (MOONSHOT's PREPLAY on the Games tab) or nfl (TUDDY's replay, the field section)
 //   --day        mlb only: today or tmrw, the slate the game is on
 //
 //   --base       the site to record from (a preview link, the live site once merged, or a local `next start`)
@@ -15,6 +17,8 @@
 //   --tail       seconds of the end card after the final horn
 //   --max        a test run: stop after this many seconds of video
 //   --audio      a soundtrack under the video (a beat), faded in and out; the video's length decides
+//   --from       start part-way in (the stage's own clock: game seconds on LAMP, replay ms on TUDDY); skips the open
+//   --via-curl   a sandbox whose browser has no internet: ESPN's answers and pictures come through curl (not needed on a Mac)
 // Needs a Chromium (scripts/_browser.mjs finds Chrome on a Mac) and ffmpeg on the PATH (brew install ffmpeg).
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -28,6 +32,7 @@ const sport = arg('sport', 'nhl')
 const day = arg('day', 'today')
 if (sport === 'nhl' && !/^\d{10}$/.test(String(game || ''))) { console.error('usage: --game <10-digit NHL game id>'); process.exit(2) }
 if (sport === 'mlb' && !/^\d{5,7}$/.test(String(game || ''))) { console.error('usage: --sport mlb --game <MLB gamePk> [--day tmrw]'); process.exit(2) }
+if (sport === 'nfl' && !/^\d{9}$/.test(String(game || ''))) { console.error('usage: --sport nfl --game <ESPN event id, 9 digits>'); process.exit(2) }
 // each stage's page, the window handle it exposes in record mode, and the routes a local run answers itself
 const STAGE = {
   // --preplay: LAMP's PREPLAY (the simulated game) instead of the replay of a finished one
@@ -35,8 +40,10 @@ const STAGE = {
   // the slate opens on its first upcoming game with every section stacked (a game= link opens the Lineups view instead), so
   // the MLB stage is reached through the slate; --game picks which stage on the page when a slate has more than one
   mlb: { url: `/app?look=tracking&record=1#tab=games&day=${day === 'tmrw' ? 'tmrw' : 'today'}`, handle: '__mlbPreplay', local: ['/api/postseason'], name: 'moonshot-preplay' },
+  // TUDDY: the slate's game (game= is ESPN's event id); the stage reads ESPN's play-by-play straight from the browser
+  nfl: { url: `/app?look=tracking&record=1#sport=nfl&tab=games&game=${game}`, handle: '__tuddyReplay', local: [], name: 'tuddy-replay' },
 }[sport]
-if (!STAGE) { console.error('--sport is nhl or mlb'); process.exit(2) }
+if (!STAGE) { console.error('--sport is nhl, mlb or nfl'); process.exit(2) }
 const base = arg('base', 'https://dashnetwork.vercel.app').replace(/\/$/, '')
 const fps = Number(arg('fps', 30))
 const out = arg('out', `${STAGE.name}-${game}.mp4`)
@@ -45,6 +52,7 @@ const tail = Number(arg('tail', 3.5))
 const maxS = Number(arg('max', 0))
 const audio = arg('audio')   // --audio <file>: a soundtrack under the video (Donovan's beat), faded out at the end   // a test run: stop after this many seconds of video
 const W = 1280
+const from = arg('from')
 
 let chromium
 try { ({ chromium } = await import('playwright-core')) } catch { ({ chromium } = await import('playwright')) }
@@ -61,6 +69,14 @@ if (proxy) {
     try { await r.fulfill({ response: await r.fetch({ url: proxy + u.pathname + u.search }) }) } catch { await r.abort() }
   })
 }
+if (process.argv.includes('--via-curl')) {
+  await page.route(/(site\.api\.espn\.com|a\.espncdn\.com)/, async (r) => {
+    const u = r.request().url()
+    const res = spawnSync('curl', ['-s', '-m', '40', u], { maxBuffer: 64 << 20 })
+    if (res.status !== 0) return r.abort()
+    await r.fulfill({ status: 200, body: res.stdout, headers: { 'content-type': /\.png/i.test(u) ? 'image/png' : 'application/json', 'access-control-allow-origin': '*' } })
+  })
+}
 await page.goto(`${base}${STAGE.url}`, { waitUntil: 'domcontentloaded', timeout: 120000 })
 await page.waitForFunction((h) => !!window[h], STAGE.handle, { timeout: 180000 })
 await page.waitForTimeout(6000)   // logos and faces
@@ -74,7 +90,7 @@ await page.evaluate(() => {
 })
 const stage = page.locator('[data-replay-stage]')
 // the MLB slate opens on its first upcoming game, whatever --game says: say so and stop rather than film the wrong game
-if (sport === 'mlb') {
+if (sport === 'mlb' || sport === 'nfl') {
   const shown = await page.evaluate((h) => window[h].game?.(), STAGE.handle)
   if (String(shown) !== String(game)) { console.error(`the slate opened game ${shown}, not ${game}: open ${game} on the Games tab (it is not the slate's first upcoming game)`); await browser.close(); process.exit(1) }
 }
@@ -99,6 +115,7 @@ const dir = join(tmpdir(), `${STAGE.name}-${game}-${Date.now()}`)
 mkdirSync(dir, { recursive: true })
 const settle = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
 const H = STAGE.handle
+if (from != null) await page.evaluate(([h, ms]) => window[h].jump(Number(ms)), [H, from])
 await page.evaluate((h) => window[h].start(), H)
 let n = 0, after = -1
 const t0 = Date.now()

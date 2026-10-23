@@ -11,6 +11,9 @@ import { GameFilterRail, SlateStrip, GamePanelPills, PanelAnchor, GameFrame, Pre
 import { Kicker } from './Kicker'
 import { KeyPlayers, MatchupScoreboard, ImportantStats } from './GameSections'
 import GameFieldSmall from './GameFieldSmall'
+import dynamic from 'next/dynamic'
+// the play-by-play stage (three.js; behind ?look=tracking, renders nothing without it), loaded only on the client
+const DriveReplay = dynamic(() => import('./DriveReplay'), { ssr: false })
 import { GameDvp } from './tabs/Matchups'
 import GameHeadRow from '../slate/GameHeadRow'
 import ShareCardButton from '../card/ShareCardButton'
@@ -245,6 +248,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
           // 3. THE FIELD: offense vs defense, then who gets the ball against which corner
           field: () => (
                 <PanelAnchor id="field" gamePk={g.game_id}>
+                  <DriveReplay key={`replay-${g.game_id}`} game={g} />
                   <FieldPanel key={g.game_id} matchup={matchup} players={players} game={g} onPlayerClick={onPlayerClick} />
                   <KeyPlayers matchup={matchup} data={data} game={g} onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />
                 </PanelAnchor>
