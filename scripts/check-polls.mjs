@@ -11,6 +11,8 @@ process.env.X_SCHEDULE_OFF = 'on'
 process.env.NEXT_PUBLIC_SITE_URL = 'https://test.example'
 Object.assign(process.env, { X_API_KEY: 'TEST', X_API_SECRET: 'TEST', X_ACCESS_TOKEN: 'TEST', X_ACCESS_SECRET: 'TEST', DISCORD_HOMER_WEBHOOK: 'https://discord.test/hook' })
 for (const k of ['X_POLLS_PAUSE', 'X_POSTS_PAUSE', 'X_GUARDS_OFF', 'POST_KINDS_ON', 'DISCORD_MLB_WEBHOOKS', 'DISCORD_NFL_WEBHOOKS', 'DISCORD_NHL_WEBHOOKS', 'DISCORD_NBA_WEBHOOKS', 'BUCKETS_PUBLIC']) delete process.env[k]
+// the routing table sends a poll to its product's channel (lib/dash/routing.js, 2026-10-23): the test hook is that channel, as in production
+Object.assign(process.env, { DISCORD_MLB_WEBHOOKS: 'https://discord.test/hook', DISCORD_NFL_WEBHOOKS: 'https://discord.test/hook', DISCORD_NHL_WEBHOOKS: 'https://discord.test/hook', DISCORD_NBA_WEBHOOKS: 'https://discord.test/hook' })
 
 // a fake fetch: X's tweet endpoint records the body and answers with an id; Discord records the text
 const tweets = [], discord = []

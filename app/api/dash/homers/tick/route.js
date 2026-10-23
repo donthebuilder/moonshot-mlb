@@ -29,6 +29,7 @@
 // prints), the odds file, and the pair-history summary.
 
 import { mlbQuotes } from '../../../../../lib/dash/quoteFor'
+import { isCut } from '../../../../../lib/dash/routing'
 import { playerHref } from '../../../../../lib/routes'
 import { storyThreadsOn, postStoryResults } from '../../../../../lib/dash/storyThread'
 import { gameCalls, gameCallText } from '../../../../../lib/dash/gameCall'
@@ -98,7 +99,7 @@ import { adminClient } from '../../../../../lib/supabase/admin'
 import { momentAfterTick } from '../../../../../lib/posts/momentTick'
 import { claimSlot as sharedClaimSlot, bytesOf as sharedBytesOf, knownTaken, markTaken } from '../../../../../lib/dash/postClaim'
 import { ordinal } from '../../../../../lib/format'
-import { feedHooks, receiptsHooks, withReceipts } from '../../../../../lib/dash/discordChannels'
+import { feedHooks, feedHooksFor, receiptsHooks, withReceipts } from '../../../../../lib/dash/discordChannels'
 import { postMembers, membersWebhook, MEMBERS_KINDS, mlbMembersBoard, mlbMembersGrade } from '../../../../../lib/dash/membersPost'
 
 export const dynamic = 'force-dynamic'
@@ -373,7 +374,7 @@ async function claimAndPostStat(db, day, kind, hourGate, text, cardSpec, payload
   const png = custom
     ? await bytesOf(custom)
     : card ? await bytesOf(() => statCard(day, card, { site: SITE_HOST })) : null
-  const d = await postToDiscord(text, { png }, FEED_WEBHOOKS())
+  const d = await postToDiscord(text, { png, kind, sportKey: 'mlb' }, FEED_WEBHOOKS())
   if (d.ok) patch.discord_sent = true
   // The daily cap, by tier (lib/dash/xPolicy + xGate): the call of the night is
   // the slate tier, the receipts and write-ups next, then facts, polls, numerology.
@@ -1079,6 +1080,8 @@ async function mlbTick(request) {
     await postMembers(db, { day: yday, kind: MEMBERS_KINDS.mlbGrade, build: async () => {
       const { data: board } = await db.from('homer_feed_posts').select('payload').match({ day: yday, kind: MEMBERS_KINDS.mlbBoard }).maybeSingle()
       if (!board?.payload?.picks?.length) return null
+      // a grade of a board members never saw is noise: the board is cut (lib/dash/routing.js), THE DAY's morning grade replaces it (lib/card/wins.js)
+      if (isCut(MEMBERS_KINDS.mlbBoard)) return null
       const { data: yHits } = await db.from('homer_feed').select('player_id').eq('day', yday)
       return mlbMembersGrade({ board: board.payload, events: yHits || [] })
     } }).catch((e) => console.error(`[homers] members grade: ${e?.message}`))
@@ -1757,7 +1760,7 @@ async function mlbTick(request) {
             // inside the X branch, which left Discord with bare text and, on
             // a night with X off, built no card at all.
             const png = await bytesOf(() => pairsCard(day, hits, { site: SITE_HOST }))
-            const d = await postToDiscord(text, { png }, FEED_WEBHOOKS())
+            const d = await postToDiscord(text, { png, kind: 'pairswatch', sportKey: 'mlb' }, FEED_WEBHOOKS())
             if (d.ok) patch.discord_sent = true
             if (hasX() && await xOk(db, { day, kind: 'pairswatch', repeat: false })) {
               const mediaId = png ? await uploadImageToX(png) : null
@@ -1781,7 +1784,7 @@ async function mlbTick(request) {
             // inside the X branch, which left Discord with bare text and, on
             // a night with X off, built no card at all.
             const png = await bytesOf(() => longshotCard(day, pick, { site: SITE_HOST }))
-            const d = await postToDiscord(text, { png }, FEED_WEBHOOKS())
+            const d = await postToDiscord(text, { png, kind: 'longshot', sportKey: 'mlb' }, FEED_WEBHOOKS())
             if (d.ok) patch.discord_sent = true
             if (hasX() && await xOk(db, { day, kind: 'longshot', ids: pick?.player_id ? [pick.player_id] : [] })) {
               const mediaId = png ? await uploadImageToX(png) : null
@@ -1843,7 +1846,7 @@ async function mlbTick(request) {
           await db.from('homer_feed_posts').update({ payload: patch.payload }).match({ day, kind })
           // MLB KEEPS ITS FREE POST PER GAME (Donovan, 2026-10-09: "keep MLB exactly how it is"): every game still goes to the free
           // feed channels as before; #members gets every game too (additive).
-          const d = await postToDiscord(discordText, {}, FEED_WEBHOOKS())
+          const d = await postToDiscord(discordText, { kind, sportKey: 'mlb' }, FEED_WEBHOOKS())
           if (d.ok) patch.discord_sent = true
           patch.payload = { ...patch.payload, kickoff: call.time, text_full: discordText, free: true, free_sent: Boolean(d?.ok), members_sent: await sendMembers(discordText, { sport: 'mlb', kind }), members_tries: 1 }
           if (hasX() && await xOk(db, { day, kind, ids: callNamed, repeat: false })) {
@@ -1928,7 +1931,7 @@ async function mlbTick(request) {
           if (boardClaim) {
             const text = boardRoleText(boardPicks, { day, ...tailFor('board') })
             const patch = { payload: withNamed({ picks: boardPicks }, pregameCalled(boardPicks, text)) }
-            const d = foldedForDiscord('board') ? { ok: false } : await postToDiscord(text, {}, FEED_WEBHOOKS())   // SPORT_PLANS_ON: recorded, not delivered to the rooms
+            const d = foldedForDiscord('board') ? { ok: false } : await postToDiscord(text, { kind: 'board', sportKey: 'mlb' }, FEED_WEBHOOKS())   // SPORT_PLANS_ON: recorded, not delivered to the rooms
             if (d.ok) patch.discord_sent = true
             if (hasX()) {
               const r = await postToX(text, { kind: 'board' })
@@ -2125,7 +2128,7 @@ async function mlbTick(request) {
         // see claimAndPostStat. Sat inside the X branch, which left Discord
         // with bare text and built nothing at all on a night with X off.
         const png = await bytesOf(() => numerologyCard(day, moment, { site: SITE_HOST }))
-        const d = await postToDiscord(text, { png }, FEED_WEBHOOKS())
+        const d = await postToDiscord(text, { png, kind: 'numerology', sportKey: 'mlb' }, FEED_WEBHOOKS())
         if (d.ok) patch.discord_sent = true
         if (hasX() && await xOk(db, { day, kind: 'numerology', repeat: false })) {
           const mediaId = png ? await uploadImageToX(png) : null
@@ -2210,7 +2213,7 @@ async function mlbTick(request) {
       // a card linked to him on MOONSHOT, in MOONSHOT's colour (2026-10-04)
       // a CALLED homer carries the hitter's FRONT CARD (uploaded, attachment://card.png) when it draws, else the homer's own card by URL as before
       const front = callStatus(row) === 'called' ? await alertFrontCard({ sport: 'mlb', id: row.player_id, date: day, db }) : null
-      const r = await postToDiscord(text, { ...(front ? { png: front } : { imageUrl: cardUrl(row) }), sport: 'mlb', link: row.player_id ? playerHref('mlb', row.player_id) : null, embed: homerEmbed(ev, { extra: [calledAtLine(row), reached, multi].filter(Boolean), at: row.created_at || row.first_seen_at }) })
+      const r = await postToDiscord(text, { ...(front ? { png: front } : { imageUrl: cardUrl(row) }), sport: 'mlb', link: row.player_id ? playerHref('mlb', row.player_id) : null, embed: homerEmbed(ev, { extra: [calledAtLine(row), reached, multi].filter(Boolean), at: row.created_at || row.first_seen_at }), kind: 'homer' }, feedHooksFor('mlb', callStatus(row)))
       if (r.ok) {
         patch.discord_sent = true; totals.discord += 1
         // WRITTEN NOW, not at the end of this row (2026-10-10 bug hunt): a tick killed by the time limit, or one

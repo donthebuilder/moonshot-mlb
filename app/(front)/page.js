@@ -170,7 +170,7 @@ export default async function DashHome({ searchParams }) {
           <>
             <p className={styles.kicker}>FOUNDING MEMBERS</p>
             <h2>{MEMBERS_PRICE}.</h2>
-            <p className={styles.muted}>{MEMBERS_TRIAL[0].toUpperCase() + MEMBERS_TRIAL.slice(1)}. Delivered to a private Discord: every game&apos;s write-up, plus the board at lock and its grade. Everything on the site stays free.</p>
+            <p className={styles.muted}>{MEMBERS_TRIAL[0].toUpperCase() + MEMBERS_TRIAL.slice(1)}. Delivered to a private Discord: today&apos;s picks with the why, every game&apos;s write-up, and every pick graded. Everything on the site stays free.</p>
             <div className={styles.offerActions}><a className={styles.cta} href={membersUrl()} target="_blank" rel="noopener noreferrer">Join Founding members <b>→</b></a></div>
             {me.user ? null : <p className={styles.already}>Already a member? <a href="#sign-in">Sign in</a></p>}
           </>
