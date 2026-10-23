@@ -18,6 +18,7 @@ import GameTotalLine, { useGameTotals } from '../../GameTotalLine'
 import BucketsTable from '../BucketsTable'
 import NbaH2H from '../../h2h/NbaH2H'
 import ShotChart from '../ShotChart'
+import dynamic from 'next/dynamic'
 import BucketsTeamExpected from '../BucketsTeamExpected'
 import { DefPosGame } from '../DefPosSheet'
 import { BucketsAttack } from '../../game/SportAttack'
@@ -30,6 +31,8 @@ import { EmptyState, DelayedBanner, Loading, Kicker, BackBtn, NavBtn, RimDot, fm
 // 🏀 ONE GAME -- the line score, both box scores, every field-goal attempt on
 // the floor (the shot chart, and the 3D court on tap), and who scored first.
 // Every number is the feed's (/api/buckets/game: ESPN's summary + play-by-play).
+// the tabletop prototypes (2026-10-23): behind ?look=tracking; three.js, so loaded only in the browser
+const TabletopCourt = dynamic(() => import('../TabletopCourt'), { ssr: false })
 const pct = (m, a) => (a ? `${Math.round((100 * m) / a)}%` : '—')
 
 export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onOpenTeam }) {
@@ -92,7 +95,8 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
     ),
     box: () => <>{[away, home].map((t) => <BoxTable key={t.id} team={t} box={(data.box || []).filter((p) => p.team === t.abbrev)} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />)}</>,
     shots: () => ((data.shots || []).length > 0 ? (
-      <section>
+      <section style={{ display: 'grid', gap: 10 }}>
+        <TabletopCourt key={`tabletop-${id}`} id={id} />
         <Kicker>EVERY SHOT · {data.shots.length} FIELD-GOAL ATTEMPTS</Kicker>
         <ShotChart urlKey="shots" shots={data.shots} names={names} teams={teams} threeD title={`Shot chart, ${away.abbrev} at ${home.abbrev}`} />
       </section>

@@ -33,6 +33,7 @@ const day = arg('day', 'today')
 if (sport === 'nhl' && !/^\d{10}$/.test(String(game || ''))) { console.error('usage: --game <10-digit NHL game id>'); process.exit(2) }
 if (sport === 'mlb' && !/^\d{5,7}$/.test(String(game || ''))) { console.error('usage: --sport mlb --game <MLB gamePk> [--day tmrw]'); process.exit(2) }
 if (sport === 'nfl' && !/^\d{9}$/.test(String(game || ''))) { console.error('usage: --sport nfl --game <ESPN event id, 9 digits>'); process.exit(2) }
+if (sport === 'nba' && !/^\d{9}$/.test(String(game || ''))) { console.error('usage: --sport nba --game <ESPN event id, 9 digits> [--court led]'); process.exit(2) }
 // each stage's page, the window handle it exposes in record mode, and the routes a local run answers itself
 const STAGE = {
   // --preplay: LAMP's PREPLAY (the simulated game) instead of the replay of a finished one
@@ -42,8 +43,10 @@ const STAGE = {
   mlb: { url: `/app?look=tracking&record=1#tab=games&day=${day === 'tmrw' ? 'tmrw' : 'today'}`, handle: '__mlbPreplay', local: ['/api/postseason'], name: 'moonshot-preplay' },
   // TUDDY: the slate's game (game= is ESPN's event id); the stage reads ESPN's play-by-play straight from the browser
   nfl: { url: `/app?look=tracking&record=1#sport=nfl&tab=games&game=${game}`, handle: '__tuddyReplay', local: [], name: 'tuddy-replay' },
+  // BUCKETS' tabletop prototypes (2026-10-23): the game page; --court led films the handheld, else the tin court
+  nba: { url: `/app?look=tracking&record=1${arg('court') === 'led' ? '&court=led' : ''}#sport=nba&tab=game&game=${game}`, handle: '__bucketsReplay', local: [], name: arg('court') === 'led' ? 'buckets-led' : 'buckets-tin' },
 }[sport]
-if (!STAGE) { console.error('--sport is nhl, mlb or nfl'); process.exit(2) }
+if (!STAGE) { console.error('--sport is nhl, mlb, nfl or nba'); process.exit(2) }
 const base = arg('base', 'https://dashnetwork.vercel.app').replace(/\/$/, '')
 const fps = Number(arg('fps', 30))
 const out = arg('out', `${STAGE.name}-${game}.mp4`)
@@ -90,7 +93,7 @@ await page.evaluate(() => {
 })
 const stage = page.locator('[data-replay-stage]')
 // the MLB slate opens on its first upcoming game, whatever --game says: say so and stop rather than film the wrong game
-if (sport === 'mlb' || sport === 'nfl') {
+if (sport === 'mlb' || sport === 'nfl' || sport === 'nba') {
   const shown = await page.evaluate((h) => window[h].game?.(), STAGE.handle)
   if (String(shown) !== String(game)) { console.error(`the slate opened game ${shown}, not ${game}: open ${game} on the Games tab (it is not the slate's first upcoming game)`); await browser.close(); process.exit(1) }
 }
