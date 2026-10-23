@@ -443,6 +443,10 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
         start: () => { api.current.play?.(); setPlaying(true) },
         step: (ms) => { vt += ms; tick() },
         done: () => gs >= total && !playingNow,
+        // a still at one moment (game seconds; the open skipped): for checking frames, not for the video
+        jump: (g) => { if (introAt != null || !introDone) { introAt = null; introDone = true; controls.enabled = true; frame(); setIntro(null) } seek(g); playingNow = false; tick() },
+        goals: () => events.filter((e) => e.kind === 'goal').map((e) => gameSec(e)),
+        total: () => total,
       }
     }
     api.current = {
