@@ -54,6 +54,8 @@ import GoalTracking from '../GoalTracking'
 import { PlayerDepthToggle } from '../NhlDepth'
 import LampSlipAdd from '../LampSlipAdd'
 import PlayerInjuryChip from '../../injuries/PlayerInjuryChip'
+import { useLampCallGate } from './Board'
+import { overallRanks } from '../../../lib/positions'
 
 // 🏒 PLAYER — one man's file, at a stable address (#sport=nhl&tab=player&
 // player=<id>). A skater and a goalie share the route and NOT the page:
@@ -106,9 +108,10 @@ export default function Player({ id, onOpenTeam, onOpenGame, onBack, backLabel =
 // why or reason as the line. Not playing tonight -> an empty dial that says
 // so; a goalie has no goal board and says that. Nothing is re-derived here.
 function boardSpot(board, p) {
-  if (!board?.games || p.goalie) return null
+  if (!board?.games) return null
   const id = String(p.id)
-  for (const g of board.games) {
+  // a goalie has no row on the goal board, but his club's game is still tonight's game: the header names it (vs, puck drop, Game ›)
+  if (!p.goalie) for (const g of board.games) {
     const r = (g.rows || []).find((x) => String(x.playerId) === id)
     if (r) return { r, g }
   }
@@ -173,6 +176,12 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
   // MEMBERS (2026-10-16): the card's lock; same key as the goal board's (`${game id}|${playerId}`), the puck drop, the game's graded flag
   const lockIn = row && spot?.g ? { key: `${spot.g.game?.id}|${row.playerId}`, time: spot.g.game?.startUtc, graded: Boolean(spot.g.graded) } : null
   const nonMember = useMemberState() === 'free'
+  // THE FREE FOUR FROM THE CARD ITSELF (2026-10-23 fix): a card opened with no board under it (the full page, a shared link) used to see an
+  // empty free set and lock every CALLED man, so the peek over Home said CALLED and the same man's page said ON THE BOARD. The card now runs
+  // the board's own gate over the same rows the goal board uses (Board.js: every game with a market lock, off rows out, ranked by score), so
+  // the card and the table always agree.
+  const gateFlat = useMemo(() => (board?.games || []).filter((g) => !g.noMarketLock).flatMap((g) => (g.rows || []).filter((r) => r.status !== 'off').map((r) => ({ r, g }))), [board])
+  useLampCallGate(gateFlat, overallRanks(gateFlat, ({ r, g }) => `${g.game.id}|${r.playerId}`, ({ r }) => r.score ?? 0))
   const cl = useCardLock({ status: row?.status || null, key: lockIn?.key, time: lockIn?.time, graded: lockIn?.graded })
   const locked = Boolean(lockIn) && cl.locked
   // the word the viewer may read: a locked CALLED pick is drawn as ON THE BOARD (CallStatusBadge's gate), never as CALLED
@@ -341,9 +350,10 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
       {/* THE TOOLBAR, MOONSHOT's one even row (app/globals.css .card-toolbar): Card, Save, Compare, ‹ n / m › group search (Navigator), then the
           peek's Full page. Back on the left of the full page. A goalie has no goal board, so no card, no compare. */}
       {(onBack || !goalie || lead || (onStep && peers.length > 1)) && (
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: onBack ? 'space-between' : 'flex-end', gap: 8 }}>
-          {onBack ? <BackBtn onBack={onBack} label={backLabel} /> : null}
-          <span className="card-toolbar" style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6 }}>
+        // ONE ROW on a phone too (MOONSHOT's / TUDDY's): the row scrolls sideways inside itself instead of wrapping onto a second line
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'nowrap', overflowX: 'auto', scrollbarWidth: 'none', gap: 8 }}>
+          {onBack ? <span style={{ flex: '0 0 auto' }}><BackBtn onBack={onBack} label={backLabel} /></span> : null}
+          <span className="card-toolbar" style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'nowrap', gap: 6, marginLeft: 'auto', flex: '0 0 auto' }}>
             {!goalie && row && <CardFlip sport="nhl" id={String(p.id)} name={p.name} />}
             {!goalie && <ShareCardButton sport="nhl" what="his card" url={playerUrl({ sport: 'nhl', id: p.id })} filename={`${slug(p.name, 'player')}_${stamp(board?.date)}.png`} />}
             {!goalie && row && peers.length > 1 && <button type="button" onClick={() => setCompareOpen(true)} title="Compare this skater against another on tonight’s board" aria-label="Compare two skaters" style={btn44}>⚖<span className="tb-word">Compare</span></button>}
@@ -417,7 +427,8 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
       {(shown === 'front' || pagePanels.some((t) => t.key === shown)) && (
         <>
           {(showPanel('shotmap') || showPanel('log') || showPanel('splits')) && <SeasonToggle value={season} onChange={setSeason} p={p} />}
-          <div className="portal-main">
+          {/* a goalie's front is his game log alone: the full width, not half of MOONSHOT's two-across grid */}
+          <div className={goalie ? undefined : 'portal-main'}>
             {!goalie && showPanel('shotmap') && (
               <section className="portal-spray" aria-label="Shot map" style={{ minWidth: 0 }}>
                 <ShotPanel compact urlKey="shots" sel={{ player: p.id, name: p.name }} who="He" height={480} season={season === 'this' ? null : season} venue={arenaOf(spot?.g?.game?.home?.abbrev || p.team)?.name}
