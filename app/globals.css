@@ -290,8 +290,10 @@ button {
 .portal-main { display: grid; gap: 6px 22px; align-items: start; margin-bottom: 8px; grid-template-columns: minmax(0, 1fr); grid-template-areas: "splits" "spray" "ev" "props"; }
 .portal-main > .portal-splits { grid-area: splits; } .portal-main > .portal-spray { grid-area: spray; } .portal-main > .portal-ev { grid-area: ev; }
 .portal-main > .portal-props { grid-area: props; }
-@media (min-width: 1080px) { .portal-main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "spray ev" "splits props"; } }
-@media (min-width: 1500px) { .portal-main { grid-template-columns: minmax(0, .95fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.05fr); grid-template-areas: "splits spray ev props"; } }
+/* 2026-10-23: the splits moved up beside the checklist (.portal-read), so on a desktop the front is spray | EV log, then the
+   props under both; from 1500px all three across. A phone keeps Splits as its own tab (the area above). */
+@media (min-width: 1080px) { .portal-main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "spray ev" "props props"; } }
+@media (min-width: 1500px) { .portal-main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr); grid-template-areas: "spray ev props"; } }
 /* THE BACK, PITCHES: his pitches | tonight's pitcher | vs him */
 .portal-back3 { display: grid; gap: 6px 22px; align-items: start; grid-template-columns: minmax(0, 1fr); margin-bottom: 8px; }
 @media (min-width: 1080px) { .portal-back3 { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr); } }

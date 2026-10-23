@@ -17,6 +17,10 @@ import { useIsPhone } from '../MobileFold'
 export default function VerdictBlock({
   status = null, score = null, scoreLabel = null, why = [], watch = null, explain = null, signals = [],
   offSlate = null, offSlateHelp = null, recordLine = null, lastLine = null, help = null, whyMax = 2, sport = 'mlb', style, lock = null,
+  // compact (2026-10-23, MOONSHOT's card: Donovan, "everything in between ... get rid of"): ONE row -- the call word, the score and
+  // the flags, layered over the checklist. No heading, no why lines, no record line (his record is lower on the card); the
+  // members line only when this call is the one that's locked.
+  compact = false,
 }) {
   const { C, NUM_FONT, accent } = useSportTheme()
   // MEMBERS (2026-10-16): `lock` = { key, time, graded?, slateDate? } from the sport's card. A non-member on tonight's not-started CALLED pick (not one of
@@ -30,6 +34,29 @@ export default function VerdictBlock({
   // a phone: smaller chips so the flags sit on one line (Donovan 2026-10-22: "chips of repeated data ... half the screen")
   const phone = useIsPhone(560)
   const brand = BRAND[sport]?.name || BRAND.mlb.name
+  if (compact) {
+    if (offSlate != null) return null
+    const chip = (c) => (
+      <span key={c.t} {...(c.explain ? { role: 'button', tabIndex: 0, title: c.explain, onClick: () => tapExplain(c.t, c.explain), onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tapExplain(c.t, c.explain) } } } : null)}
+        style={{ display: 'inline-block', fontSize: phone ? 10 : 11, fontWeight: 800, padding: phone ? '2px 6px' : '2px 8px', borderRadius: 3, whiteSpace: 'nowrap', fontFamily: NUM_FONT, cursor: c.explain ? 'help' : 'default',
+          color: c.warn ? C.text : C.text2, border: `1px solid ${c.warn ? C.border2 : alpha(accent, 0.35)}`, background: c.warn ? C.glass : alpha(accent, 0.07) }}>{c.t}</span>
+    )
+    return (
+      <section data-pm="verdict" aria-label={`${brand} on him`} style={{ margin: '0 0 8px', minWidth: 0, ...style }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', minHeight: 26 }}>
+          {status && <CallStatusBadge status={status} size={11} style={{ padding: '2px 7px' }} gate={lock ? cl.gate : null} />}
+          {!locked && score != null && Number.isFinite(Number(score)) && (
+            <span style={{ fontFamily: NUM_FONT, fontSize: 13, fontWeight: 800, color: accent, marginRight: 2 }}>
+              {scoreLabel ? <span style={{ color: C.text3, fontSize: 11, fontWeight: 700 }}>{scoreLabel} </span> : null}{Math.round(Number(score))}
+            </span>
+          )}
+          {!locked && help ? <HelpTip label={`${brand} on him`} text={help} /> : null}
+          {chips.map(chip)}
+        </div>
+        {locked && <CardLockLine C={C} NUM_FONT={NUM_FONT} />}
+      </section>
+    )
+  }
   return (
     <section data-pm="verdict" aria-label={`${brand} on him`} style={{ margin: '0 0 8px', minWidth: 0, ...style }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minHeight: 30 }}>

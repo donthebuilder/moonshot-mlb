@@ -8,7 +8,7 @@ import useScrollLock from '../lib/useScrollLock'
 import { C, NUM_FONT } from '../lib/theme'
 import { fetchBatterDetail } from '../lib/dataSource'
 import BornLine from './player/BirthdayChip'
-import { birthdayChip } from '../lib/birthday'
+import { birthdayChip, ageOn } from '../lib/birthday'
 import {
   nameOf, teamOf, oppOf, n, clean, pct, sc, playerId,
   hrScore, hitScore, prodScore, tbScore, pitchMixScore,
@@ -693,6 +693,35 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   // ONE WIDTH (2026-10-21, the portal): two columns on a desktop (spray | EV log, head-to-head | props), one on a phone.
   // THE WHOLE SCREEN (2026-10-22): on a desktop the card takes nearly all of it (CardShell fill); a phone is full width anyway
   const modalWidth = 1760
+  // watch + the four slip adds: one even row, inside the header (footer)
+  const addsRow = !apiOnly && (onAdd || onWatch) ? (() => {
+            const pick = /skip/i.test(role) ? '' : (String(bestBet(p, 'hr') || '').toUpperCase().match(/[A-Z]+/) || [''])[0]
+            const cells = (onWatch ? 1 : 0) + (onAdd ? BETS.length : 0)
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cells}, minmax(0, 1fr))`, gap: 6 }}>
+                {onWatch && (
+                  <button
+                    onClick={() => onWatch(p)}
+                    title={watched ? 'Remove from watchlist' : 'Add to watchlist'}
+                    className={FLAT_CHIP_CLASS} style={{ ...flatChip(watched, C.orange, C, NUM_FONT), justifyContent: 'center', whiteSpace: 'nowrap' }}
+                  >{watched ? '★ Watching' : '☆ Watch'}</button>
+                )}
+                {onAdd && BETS.map((b) => {
+                  const isPick = !!pick && b.toUpperCase() === pick
+                  return (
+                    <button
+                      key={b}
+                      onClick={() => onAdd(p, b)}
+                      aria-label={`Add to slip: ${b}${isPick ? " (MOONSHOT's pick)" : ''}`}
+                      title={`Add ${nameOf(p)} — ${b} — to the slip${isPick ? ". MOONSHOT's pick for him tonight." : ''}`}
+                      className={FLAT_CHIP_CLASS}
+                      style={{ ...flatChip(false, C.orange, C, NUM_FONT), justifyContent: 'center', whiteSpace: 'nowrap', ...(isPick ? { color: C.orange, borderColor: C.orange } : null) }}
+                    >+ {b}{isPick ? ' ★' : ''}</button>
+                  )
+                })}
+              </div>
+            )
+          })() : null
 
   return (
     <>
@@ -792,8 +821,16 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
             meta2={apiOnly ? null : <>
                   {`#${clean(p?.lineup_spot, '?')} · ${clean(p?.handedness || p?.bats, '?')}HB`}
                   {p?.pitcher_name ? <>{' · vs '}{p?.pitcher_id ? <a href={`#sport=mlb&tab=pitchers&pitcher=${p.pitcher_id}`} style={ROW_LINK} title="Open the pitcher's file">{p.pitcher_name}</a> : p.pitcher_name}{` (${clean(p?.pitcher_throws, '?')})${p?.pitcher_projected ? ' ≈' : ''}`}</> : null}
+                  {/* his age, where the line has room (a phone line would cut it) */}
+                  {!tabbed && ageOn(birthDate, etToday()) != null ? ` · age ${ageOn(birthDate, etToday())}` : null}
                 </>}
             metaRight={heroPrice}
+            // HIS NUMBERS AND THE ADDS, IN THE HEADER (2026-10-23, Donovan: AVG and barrel plus two more "inside of the thing that
+            // has the player picture with the name ... and add the watch list stuff in there")
+            footer={<div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <StatRow stats={mlbStatRow(p, slate, liveSeason).filter((s) => !(showChecklist && s.id === 'hr'))} />
+              {addsRow}
+            </div>}
             market={apiOnly ? (p?.roster ? 'on the roster, not the slate' : 'live data only') : cardLocked ? null : verdictFor(heroRole).market}
             right={!inline && (
               <button onClick={onClose} aria-label="Close" style={{
@@ -805,20 +842,20 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
           />
           {/* HIS BIRTHDAY (real date from the league people file; nothing when unknown) */}
           {/* a phone shows it only near his birthday (the chip is the point); the top of a phone card is for the read */}
-          {(!tabbed || birthdayChip(birthDate, etToday())) && <BornLine birth={birthDate} on={etToday()} accent={C.orange} C={C} font={NUM_FONT} style={{ marginTop: -4 }} />}
+          {birthdayChip(birthDate, etToday()) && <BornLine birth={birthDate} on={etToday()} accent={C.orange} C={C} font={NUM_FONT} style={{ marginTop: -4 }} />}
 
-          {/* STAT-FIRST HEADER (2026-08-09). The card used to open on chips,
-              then model scores. The two sites people call easier to read both
-              open on the same thing: the raw numbers, colour-coded, and a
-              recent-homer count. Both are here now, above everything — the
-              model scores are still a scroll away in their own panel, where a
-              verdict belongs. The homer boxes keep their denominators visible
-              because L5/L10 count GAMES and season counts PLATE APPEARANCES;
-              stacking those as bare percentages compares two different units. */}
-          {/* THE PLAYER MODEL (2026-10-08, components/player/): MOONSHOT ON HIM first (the call word, the score, why, the
-              flags, last week), then ONE row of his key numbers. Replaces the slash line, the stat tiles, the L5 / L10 /
-              season boxes and the WHY box; every number they carried is in the row, the verdict or its (?). */}
+          {/* ── THE PORTAL (2026-10-21) ─────────────────────────────────────────────────────────────────────────────────
+              1 the read: his checklist (lib/mlb/checklist.js) and the price line
+              2 his spray chart | his EV log          (one column on a phone, spray first)
+              3 the head-to-head + first pitch | the props grid
+              4 the deeper panels, as tabs
+              5 his record: star, multi-HR, MOONSHOT on him, the ledger, his numbers, my note */}
+          {/* THE CHECKLIST RIGHT UNDER HIM (2026-10-23, Donovan: "put the checklist right under the player ... take all of the player
+              chips and ... layer them above"): the call word, the score and the flags on one row, then the checklist, then his
+              numbers. MOONSHOT ON HIM's sentences, the members line and the record line are gone from the top (his record is
+              lower on the card). */}
           <VerdictBlock
+            compact
             lock={cardLockIn}
             status={apiOnly ? null : mlbStatus(p)}
             score={heroScore}
@@ -835,70 +872,21 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
             recordLine={botData === undefined ? null : mlbRecordLine(botData)}
             lastLine={botData === undefined ? null : mlbLastLine(botData)}
           />
-          {/* HR is the checklist's first tile; the row keeps the numbers the checklist doesn't (4 tiles, even) */}
-          <StatRow stats={mlbStatRow(p, slate, liveSeason).filter((s) => !(showChecklist && s.id === 'hr'))} style={{ marginBottom: 8 }} />
-
-          {/* THE BUTTON THAT WASN'T THERE (2026-08-24, Donovan: "I click add
-              to watch, nothing happens"). It wasn't broken — this whole block
-              was gated on `!apiOnly` and just didn't render at all for a
-              LIVE-API-only player (one looked up from the league feed because
-              he isn't on the bot's currently-published slate — the normal
-              state while the nightly build is still catching up). A vanished
-              button and a dead click look identical from the outside, so this
-              now renders SOMETHING either way: the real controls when the
-              player carries slate data, a plain explanation when he doesn't,
-              instead of silence. */}
-          {/* StarMemory and MultiLine moved into the ONE folded More section at the end of the card (2026-10-17 trim). */}
-          {/* Watchlist + slip. You could open a hitter from any board, decide
-              he's worth playing, and then have to close the modal and find his
-              card again to add him. Both actions live here now. */}
-          {/* ONE EVEN ROW (2026-10-22, Donovan: watch and slip "taking a whole row with it not being symmetrical"): Watch and the
-              four slip adds are equal cells in one line. MOONSHOT's pick wears a ★ on its chip instead of a sentence beside it;
-              a pass night (Skip) stars nothing. */}
-          {!apiOnly && (onAdd || onWatch) && (() => {
-            const pick = /skip/i.test(role) ? '' : (String(bestBet(p, 'hr') || '').toUpperCase().match(/[A-Z]+/) || [''])[0]
-            const cells = (onWatch ? 1 : 0) + (onAdd ? BETS.length : 0)
-            return (
-              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cells}, minmax(0, 1fr))`, gap: 6, marginBottom: 10 }}>
-                {onWatch && (
-                  <button
-                    onClick={() => onWatch(p)}
-                    title={watched ? 'Remove from watchlist' : 'Add to watchlist'}
-                    className={FLAT_CHIP_CLASS} style={{ ...flatChip(watched, C.orange, C, NUM_FONT), justifyContent: 'center', whiteSpace: 'nowrap' }}
-                  >{watched ? '★ Watching' : '☆ Watch'}</button>
-                )}
-                {onAdd && BETS.map((b) => {
-                  const isPick = !!pick && b.toUpperCase() === pick
-                  return (
-                    <button
-                      key={b}
-                      onClick={() => onAdd(p, b)}
-                      aria-label={`Add to slip: ${b}${isPick ? " (MOONSHOT's pick)" : ''}`}
-                      title={`Add ${nameOf(p)} — ${b} — to the slip${isPick ? ". MOONSHOT's pick for him tonight." : ''}`}
-                      className={FLAT_CHIP_CLASS}
-                      style={{ ...flatChip(false, C.orange, C, NUM_FONT), justifyContent: 'center', whiteSpace: 'nowrap', ...(isPick ? { color: C.orange, borderColor: C.orange } : null) }}
-                    >+ {b}{isPick ? ' ★' : ''}</button>
-                  )
-                })}
-              </div>
-            )
-          })()}
-
-          {/* ── THE PORTAL (2026-10-21) ─────────────────────────────────────────────────────────────────────────────────
-              1 the read: his checklist (lib/mlb/checklist.js) and the price line
-              2 his spray chart | his EV log          (one column on a phone, spray first)
-              3 the head-to-head + first pitch | the props grid
-              4 the deeper panels, as tabs
-              5 his record: star, multi-HR, MOONSHOT on him, the ledger, his numbers, my note */}
-          </div>
-          <div className="portal-read">
           {!apiOnly && (cardLocked
             ? (nonMember ? <CardLockLine C={C} NUM_FONT={NUM_FONT} style={{ margin: '4px 0 10px' }} /> : null)
             : <Checklist rows={checklist(p)} />)}
-          {/* his numbers near the top: jersey, life path, personal day, next HR, and what lines up tonight (HisNumbers strip) */}
+          {/* his numbers: jersey, life path, personal day, next HR, and what lines up tonight (HisNumbers strip) */}
           <HisNumbers look="strip" name={nameOf(p)} jersey={jersey} birthDate={birthDate} next={hrSoFar != null ? hrSoFar + 1 : null} nextWord="HR" date={etToday()} theme={C} accent={C.orange} numFont={NUM_FONT} />
           {/* NO PRICE TIMELINE (2026-10-21, Donovan: "remove the price timeline inside of the player model ... remove it"; #207) */}
           </div>
+          {/* THE SPLITS WHERE THE CHECKLIST WAS (2026-10-23): the right half of the top on a desktop; a phone keeps it as a tab */}
+          {!tabbed && (
+            <div className="portal-read">
+              <section ref={splitsRef} className="portal-splits" style={PORTAL_CELL} aria-label="Splits">
+                <SplitsPanel player={p} />
+              </section>
+            </div>
+          )}
           </div>
 
           <div style={{ minHeight: 0 }}>
@@ -936,7 +924,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
           {/* THE FRONT (app/globals.css .portal-main): splits | spray | EV log | props across a wide desktop, two by two on a
               laptop, one panel at a time on a phone (picked in the row above) */}
           <div className="portal-main">
-            {showPanel('splits') && (
+            {tabbed && showPanel('splits') && (
               <section ref={splitsRef} className="portal-splits" style={PORTAL_CELL} aria-label="Splits">
                 <SplitsPanel player={p} />
               </section>
