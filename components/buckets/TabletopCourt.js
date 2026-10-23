@@ -1,33 +1,44 @@
 'use client'
-// 🏀 THE GAME ON A TABLETOP TOY (2026-10-23, BUCKETS prototypes; Donovan: "the 70s LED and the tin spring lever ... I just
-// want to see a prototype"). Every shot and free throw of one game from ESPN's play-by-play (lib/nba/plays.js), played in
-// order on one of two toys, picked by a chip:
-//   TIN    the lithographed tin court with spring-lever cut-outs (lib/tabletop/tinCourt.js)
-//   LED    the red-LED handheld (lib/tabletop/ledHandheld.js)
-// Real: every shot's spot, the shooter, make or miss, the points, the clock, the score. Drawn: the ball's flight, and on
-// the handheld the defenders' cells -- the caption says so.
+// 🏀 THE GAME ON THE TIN COURT (2026-10-23, BUCKETS; v2 after Donovan: "there was no jump ball, there was no first basket.
+// I didn't see any called picks ... go with the figurine ones but make the figurines move around, be more active").
+// The whole game from ESPN's play-by-play (lib/nba/plays.js gameFromSummary) on the lithographed tin court
+// (lib/tabletop/tinCourt.js), directed by lib/tabletop/tinDirector.js:
+//   the opening tip (the real jumpers, the man who gained it), the real five on the floor through every substitution
+//   (the pieces spin round as the new man), every shot from its spot with its block, every rebound, turnover and steal,
+//   the run up the floor on a change of possession, the end of each quarter;
+//   THE FIRST BASKET as its own moment, with how we had the scorer and who we called for it;
+//   OUR CALLS: a called man's base glows with a CALLED tag (the 0c rule, lib/record/nbaGame.js), the open lists them, a
+//   called man clearing his bar gets a stamp, and the end card gives each call's graded result.
+// Real: all of the above. Drawn: where the men stand between plays, the run, the ball's flight. The caption says so.
 //
-// Behind ?look=tracking while Donovan judges it; without it this renders nothing. ?court=led opens the handheld.
+// Behind ?look=tracking while Donovan judges it; without it this renders nothing. (The red-LED handheld prototype,
+// lib/tabletop/ledHandheld.js, is parked: Donovan picked the figures, 2026-10-23.)
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { C, NUM_FONT } from '../../lib/nba/theme'
-import { shotsFromSummary, shotBeats, rimOf } from '../../lib/nba/plays'
+import { gameFromSummary, rimOf } from '../../lib/nba/plays'
+import { direct, sceneAt } from '../../lib/tabletop/tinDirector'
 import { buildTinCourt } from '../../lib/tabletop/tinCourt'
-import { buildLedHandheld } from '../../lib/tabletop/ledHandheld'
 import { makeTabletopLook } from '../../lib/tabletop/look'
 import { isCoarse } from '../../lib/stadiumLook'
 import { webglOk } from '../../lib/webglOk'
 import { lookParam } from '../../lib/three/look'
 import { nbaLogo } from '../../lib/nba/teams'
 import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
+import { useBucketsBoardOn } from '../../lib/nba/useBuckets'
+import { gameCalls } from '../../lib/record/nbaGame'
+import { surname } from '../../lib/format'
+import CallStatusBadge from '../CallStatusBadge'
 import { ChartEmpty } from '../charts'
+import { gameDay } from './ui'
 
 const SUMMARY = (id) => `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=${encodeURIComponent(id)}`
 const SPEEDS = [[1, '1x'], [2, '2x'], [4, '4x']]
-const INTRO_MS = 4200
-const TOYS = [['tin', 'Tin court'], ['led', 'LED handheld']]
-// the tin court is 94 x 50 and seen from above its open side, so even a phone gets a wide box (a tall one is empty sky)
+const INTRO_MS = 5200
+const CLEAR_MS = 3200         // how long a cleared bar's stamp stays (replay time)
+const TALLY = { pts: (t) => t.pts, reb: (t) => t.reb, ast: (t) => t.ast, '3pm': (t) => t.tpm, pra: (t) => t.pts + t.reb + t.ast }
+// the court is 94 x 50 and seen from above its open side, so even a phone gets a wide box (a tall one is empty sky)
 const boxH = (w, rec) => (rec ? Math.round((w * 9) / 16) : Math.max(230, Math.round(w * (w < 640 ? 0.62 : 0.5))))
 const clockText = (p) => {
   if (!p) return ''
@@ -35,14 +46,14 @@ const clockText = (p) => {
   return p.clock == null ? q : `${q} ${Math.floor(p.clock / 60)}:${String(p.clock % 60).padStart(2, '0')}`
 }
 const ease = (x) => (x < 0.5 ? 2 * x * x : 1 - ((-2 * x + 2) ** 2) / 2)
+const hitMark = (h) => (h === true ? '✅' : h === false ? '❌' : '·')
 
 export default function TabletopCourt({ id }) {
   const [on, setOn] = useState(false)
   const [rec, setRec] = useState(false)
-  const [toy0, setToy0] = useState('tin')
   useEffect(() => {
     setOn(lookParam() === 'tracking')
-    try { const q = new URLSearchParams(window.location.search); setRec(q.get('record') === '1'); if (q.get('court') === 'led') setToy0('led') } catch { /* no window */ }
+    try { setRec(new URLSearchParams(window.location.search).get('record') === '1') } catch { /* no window */ }
   }, [])
   const [sum, setSum] = useState(null)
   const [err, setErr] = useState(null)
@@ -53,173 +64,218 @@ export default function TabletopCourt({ id }) {
       .catch(() => { if (live) setErr('LIVE DATA DELAYED') })
     return () => { live = false }
   }, [on, id])
-  const game = useMemo(() => (sum ? shotsFromSummary(sum) : null), [sum])
+  const game = useMemo(() => (sum ? gameFromSummary(sum) : null), [sum])
+  // OUR CALLS in this game: the boards' own rows (the same reads as the page's CALLED IN THIS GAME table)
+  const date = on && game?.date ? gameDay(game.date) : null
+  const boards = {
+    pts: useBucketsBoardOn(date, 'pts'), reb: useBucketsBoardOn(date, 'reb'), ast: useBucketsBoardOn(date, 'ast'), '3pm': useBucketsBoardOn(date, '3pm'),
+    pra: useBucketsBoardOn(date, 'pra'), dd: useBucketsBoardOn(date, 'dd'), td: useBucketsBoardOn(date, 'td'), first: useBucketsBoardOn(date, 'first'),
+  }
+  const boardKey = Object.values(boards).map((b) => (b.data ? (b.data.rows || []).length : 'x')).join(',')
+  const calls = useMemo(() => (game ? gameCalls(Object.fromEntries(Object.entries(boards).map(([k, b]) => [k, b.data])), game.id) : null), [game, boardKey]) // eslint-disable-line react-hooks/exhaustive-deps
   if (!on) return null
-  if (err) return <ChartEmpty theme={C}>The tabletop is waiting on the league feed ({err}).</ChartEmpty>
-  if (!game) return <ChartEmpty theme={C}>Loading the game&apos;s shots…</ChartEmpty>
-  if (!game.plays.length) return <ChartEmpty theme={C}>No shots yet. The tabletop starts at tip-off.</ChartEmpty>
-  return <Stage game={game} rec={rec} toy0={toy0} />
+  if (err) return <ChartEmpty theme={C}>The tin court is waiting on the league feed ({err}).</ChartEmpty>
+  if (!game) return <ChartEmpty theme={C}>Loading the game&apos;s plays…</ChartEmpty>
+  if (!game.tip || !game.plays.length) return <ChartEmpty theme={C}>No plays yet. The tin court starts at tip-off.</ChartEmpty>
+  return <Stage game={game} calls={calls} rec={rec} />
 }
 
-function Stage({ game, rec, toy0 }) {
+function Stage({ game, calls, rec }) {
   const mount = useRef(null)
   const api = useRef({})
-  const [toy, setToy] = useState(toy0)
   const [ok, setOk] = useState(true)
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState(2)
   const speedRef = useRef(speed); speedRef.current = speed
-  const [ui, setUi] = useState({ i: -1, score: [0, 0], made: false })
+  const callsRef = useRef(calls); callsRef.current = calls
+  const [ui, setUi] = useState({ i: 0, bt: 'tip', score: [0, 0], clear: null })
   const [intro, setIntro] = useState(null)
   const [done, setDone] = useState(false)
-  const [started, setStarted] = useState(false)   // the ticker waits for the first press
-  const { beats, total } = useMemo(() => shotBeats(game.plays), [game])
-  // the score BEFORE each shot (the feed's own running score), so a make moves it as the ball drops
-  const before = useMemo(() => game.plays.map((p, i) => (i ? game.plays[i - 1].score : [0, 0])), [game])
-  const quarterAt = useMemo(() => { const o = {}; for (const b of beats) { const p = game.plays[b.i]; if (b.type === 'shot' && o[p.period] == null) o[p.period] = b.t } return o }, [beats, game])
+  const [started, setStarted] = useState(false)
+  const d = useMemo(() => direct(game), [game])
+  const ev = game.events
+  // the score before each play and after it (the feed's own running score)
+  const scores = useMemo(() => {
+    const before = [], after = []
+    let s = [0, 0]
+    for (const e of ev) { before.push(s); if ((e.kind === 'shot' || e.kind === 'ft') && e.score) s = e.score; after.push(s) }
+    return { before, after }
+  }, [ev])
+  // A CALLED MAN CLEARING HIS BAR: his running count from the plays (points, rebounds, assists, threes), the moment it
+  // reaches the market's bar. (The graded result on the end card is the board's own.)
+  const clears = useMemo(() => {
+    const list = calls?.calls || []
+    if (!list.length) return []
+    const tally = {}, T = (id) => (tally[id] ||= { pts: 0, reb: 0, ast: 0, tpm: 0 })
+    const out = [], done = new Set()
+    for (const e of ev) {
+      if ((e.kind === 'shot' || e.kind === 'ft') && e.made) { T(e.who).pts += e.pts || 0; if (e.three) T(e.who).tpm += 1; if (e.ast) T(e.ast).ast += 1 }
+      if (e.kind === 'reb' && e.who) T(e.who).reb += 1
+      for (const c of list) {
+        const key = `${c.market}|${c.playerId}`
+        if (done.has(key) || !TALLY[c.market] || c.bar == null || !tally[c.playerId]) continue
+        if (TALLY[c.market](tally[c.playerId]) >= c.bar) { done.add(key); out.push({ i: e.i, ...c }) }
+      }
+    }
+    // when each shows: as the play that cleared it finishes
+    return out.map((c) => { const b = d.beats.find((x) => x.i === c.i && x.type !== 'run'); return b ? { ...c, at: b.t + b.dur * 0.85 } : null }).filter(Boolean)
+  }, [ev, calls, d])
+  const clearsRef = useRef(clears); clearsRef.current = clears
+  const quarterAt = useMemo(() => { const o = {}; for (const b of d.beats) { const p = ev[b.i]?.period; if (p && o[p] == null && b.type !== 'quarter') o[p] = b.t } return o }, [d, ev])
 
   useEffect(() => {
     const el = mount.current
     if (!el) return undefined
     if (!webglOk()) { setOk(false); return undefined }
+    const { beats, total } = d
     const W = el.clientWidth || 640, H = boxH(W, rec)
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(30, W / H, 0.5, 3000)
     const renderer = new THREE.WebGLRenderer({ antialias: false })
     renderer.setSize(W, H); renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1))
     el.appendChild(renderer.domElement)
-    const accent = C.purple
-    const world = toy === 'led'
-      ? buildLedHandheld(scene, renderer, { home: game.home, away: game.away, accent })
-      : buildTinCourt(scene, renderer, { home: game.home, away: game.away, accent, players: game.players })
+    const world = buildTinCourt(scene, renderer, { home: game.home, away: game.away, accent: C.purple, players: game.players })
     const look = makeTabletopLook(renderer, scene, camera, W, H)
     const controls = new OrbitControls(camera, renderer.domElement)
-    controls.enableDamping = true; controls.enablePan = false; controls.maxPolarAngle = Math.PI * 0.45
-    if (toy === 'led') { controls.minDistance = 18; controls.maxDistance = 90 } else { controls.minDistance = 40; controls.maxDistance = 320 }
+    controls.enableDamping = true; controls.enablePan = false; controls.maxPolarAngle = Math.PI * 0.45; controls.minDistance = 40; controls.maxDistance = 320
     if (isCoarse()) { controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_ROTATE }; renderer.domElement.style.touchAction = 'pan-y' }
     let manual = false
     controls.addEventListener('start', () => { manual = true })
-    // THE CAMERAS: the tin court from high on its open side, the whole floor in frame (a tall box pulls back); the handheld
-    // from above the player's lap, a little toward the screen. Both breathe; a shot leans the tin camera toward its rim.
-    const base = () => {
-      const pull = Math.max(toy === 'led' ? 0.86 : 1, (toy === 'led' ? 1.5 : 1.95) / camera.aspect)
-      return toy === 'led'
-        ? { pos: new THREE.Vector3(0, 38 * pull, 29 * pull), at: new THREE.Vector3(0, 0.5, -0.4) }
-        : { pos: new THREE.Vector3(0, 74 * pull, 92 * pull), at: new THREE.Vector3(0, 2, 2) }
-    }
-    const open = () => (toy === 'led'
-      ? { pos: new THREE.Vector3(15, 4.2, 3), at: new THREE.Vector3(1, 2.4, -1) }        // low across the lit window
-      : { pos: new THREE.Vector3(-30, 7, 16), at: new THREE.Vector3(-26, 6, 4) })      // down among the cut-outs
+    // THE CAMERAS: high over the open side, the whole floor in frame (a tall box pulls back), leaning toward the end the
+    // ball is at; closer for the tip; in on the scorer for the first basket
+    const pullOf = () => Math.max(1, 1.95 / camera.aspect)
+    const base = () => { const p = pullOf(); return { pos: new THREE.Vector3(0, 74 * p, 92 * p), at: new THREE.Vector3(0, 2, 2) } }
+    const open = () => ({ pos: new THREE.Vector3(-30, 7, 16), at: new THREE.Vector3(-26, 6, 4) })   // down among the pieces
     const place = (pos, at) => { camera.position.copy(pos); controls.target.copy(at); camera.lookAt(at) }
-    place(base().pos, base().at); controls.update()
+    const cam = { pos: base().pos, at: base().at }
+    place(cam.pos, cam.at); controls.update()
 
     // THE CLOCK: replay ms; a stepped clock in record mode
     let vt = 0
     const nowMs = () => (rec ? vt : performance.now())
-    let t = 0, last = nowMs(), playingNow = false, introAt = null, introDone = rec ? false : true, lean = 0, bi = 0, uiAt = 0, phase = null
+    let t = 0, last = nowMs(), playingNow = false, introAt = null, introDone = !rec ? false : true, bi = 0, uiAt = 0, phase = null, snap = true
     const beatAt = (ms) => {
       if (bi >= beats.length || beats[bi].t > ms) bi = 0
       while (bi + 1 < beats.length && beats[bi + 1].t <= ms) bi += 1
       return beats[bi]
     }
-    const draw = (ms) => {
-      const b = beatAt(ms), p = game.plays[b.i]
-      const u = Math.min(1, (ms - b.t) / b.dur)
-      let score = before[b.i]
-      if (b.type === 'shot') { world.update(p, u, nowMs(), 'shot'); if (p.made && u >= 0.78) score = p.score }
-      else if (b.type === 'three') { world.update(p, 1, nowMs(), 'three'); score = p.score }
-      else if (b.type === 'quarter') { if (toy === 'led') world.update(game.plays[b.i], 0, nowMs(), 'quarter'); else world.update(null); score = before[b.i] }
-      else { world.update(null); world.idle(nowMs()); score = p.score }
-      world.setScore(score[0], score[1], clockText(b.type === 'quarter' ? game.plays[b.i] : p))
-      return { b, p, u, score }
+    const draw = (ms, dtReplay) => {
+      const b = beatAt(ms), u = Math.min(1, (ms - b.t) / b.dur), e = ev[b.i], L = d.lineups[b.i]
+      const sc = sceneAt(game, d, b, u)
+      const cs = callsRef.current
+      world.render({ L, sc, players: game.players, statusOf: cs ? cs.statusOf : () => 'off', dt: dtReplay, t: nowMs(), snap })
+      snap = false
+      let score = scores.before[b.i]
+      if (b.type === 'shot' || b.type === 'ft') { if (e.made && u >= 0.85) score = scores.after[b.i] } else if (b.type === 'three' || b.type === 'first') score = scores.after[b.i]
+      world.setScore(score[0], score[1], clockText(e))
+      const clear = clearsRef.current.find((c) => ms >= c.at && ms < c.at + CLEAR_MS) || null
+      const bulbs = b.type === 'first' ? Math.min(1, u * 4) * (u < 0.85 ? 1 : (1 - u) / 0.15) : clear ? Math.max(0, 1 - (ms - clear.at) / 1600) : 0
+      world.flash(bulbs, nowMs())
+      return { b, u, e, sc, score, clear }
     }
     const tick = () => {
-      const n = nowMs(), dt = Math.min(100, n - last); last = n
+      const n = nowMs(), dtw = Math.min(100, n - last); last = n
       if (introAt != null) {
-        // THE OPEN: low among the pieces, then up and back to the table view
+        // THE OPEN: low among the pieces at the centre circle, then up and back to the table view
         const a = Math.min(1, (n - introAt) / INTRO_MS), o = open(), bs = base()
-        const f = ease(Math.max(0, (a - 0.25) / 0.75))
-        place(o.pos.clone().lerp(bs.pos, f), o.at.clone().lerp(bs.at, f))
-        look.focus.copy(o.at.clone().lerp(bs.at, f)); look.blur(3.2 - 2.0 * f); look.range(toy === 'led' ? 10 + 50 * f : 25 + 130 * f)
-        const ph = a < 0.6 ? 'title' : null
+        const f = ease(Math.max(0, (a - 0.2) / 0.8))
+        cam.pos = o.pos.clone().lerp(bs.pos, f); cam.at = o.at.clone().lerp(bs.at, f); place(cam.pos, cam.at)
+        look.focus.copy(cam.at); look.blur(3.2 - 2.0 * f); look.range(25 + 130 * f)
+        const ph = a < 0.45 ? 'title' : a < 0.97 ? 'calls' : null
         if (ph !== phase) { phase = ph; setIntro(ph) }
-        draw(0)
-        if (a >= 1) { introAt = null; introDone = true; controls.enabled = !rec; setIntro(null); place(bs.pos, bs.at) }
+        draw(0, 0)
+        if (a >= 1) { introAt = null; introDone = true; controls.enabled = !rec; setIntro(null) }
         look.render(); if (!rec) raf = requestAnimationFrame(tick)
         return
       }
-      if (playingNow) t = Math.min(total, t + dt * speedRef.current)
-      const { b, p, score } = draw(t)
-      // the lean: the tin camera drifts a little toward the rim being shot at, the handheld's breathes
+      const dtr = playingNow ? dtw * speedRef.current : 0
+      if (playingNow) t = Math.min(total, t + dtr)
+      const { b, u, e, sc, score, clear } = draw(t, dtr)
       if (!manual) {
-        const bs = base()
-        if (toy === 'tin') { lean += ((b.type === 'quarter' ? 0 : rimOf(p.club).X * 0.22) - lean) * Math.min(1, dt / 900); place(bs.pos.clone().add(new THREE.Vector3(lean, 0, 0)), bs.at.clone().add(new THREE.Vector3(lean * 0.8, 0, 0))) }
-        else place(bs.pos.clone().add(new THREE.Vector3(Math.sin(n / 3000) * 0.8, 0, 0)), bs.at)
+        const bs = base(), lean = sc.offence ? rimOf(sc.offence).X * 0.22 : 0
+        let want = { pos: bs.pos.clone().add(new THREE.Vector3(lean, 0, 0)), at: bs.at.clone().add(new THREE.Vector3(lean * 0.8, 0, 0)) }
+        if (b.type === 'tip' && (playingNow || t > 0)) { const p = pullOf(); want = { pos: new THREE.Vector3(0, 46 * p, 60 * p), at: new THREE.Vector3(0, 3, 0) } }
+        if (b.type === 'first') {
+          const at = world.figAt?.(e.who)
+          if (at && u < 0.86) want = { pos: new THREE.Vector3(at.x * 0.9, 24, at.z + 38), at: new THREE.Vector3(at.x, 6, at.z) }
+        }
+        const k = Math.min(1, dtw / 420)
+        cam.pos.lerp(want.pos, k); cam.at.lerp(want.at, k); place(cam.pos, cam.at)
       } else controls.update()
-      look.focus.copy(world.focus)
-      if (toy === 'led') { look.blur(1.0); look.range(60) } else { look.blur(1.1); look.range(130) }
-      if (n - uiAt > 120) { uiAt = n; setUi({ i: b.i, score, made: p.made }) }
+      look.focus.copy(b.type === 'first' && world.figAt?.(e.who) ? world.figAt(e.who) : world.focus)
+      if (b.type === 'first') { look.blur(1.8); look.range(45) } else { look.blur(1.1); look.range(130) }
+      if (n - uiAt > 120) { uiAt = n; setUi({ i: b.i, bt: b.type, score, clear }) }
       if (playingNow && t >= total) { playingNow = false; setPlaying(false); setDone(true) }
       look.render(); if (!rec) raf = requestAnimationFrame(tick)
     }
     let raf = 0, onScreen = true
-    const io = new IntersectionObserver(([e]) => { if (rec) return; onScreen = e.isIntersecting; cancelAnimationFrame(raf); if (onScreen && !document.hidden) { last = nowMs(); raf = requestAnimationFrame(tick) } })
+    const io = new IntersectionObserver(([x]) => { if (rec) return; onScreen = x.isIntersecting; cancelAnimationFrame(raf); if (onScreen && !document.hidden) { last = nowMs(); raf = requestAnimationFrame(tick) } })
     io.observe(el)
     const onVis = () => { if (rec) return; cancelAnimationFrame(raf); if (!document.hidden && onScreen) { last = nowMs(); raf = requestAnimationFrame(tick) } }
     document.addEventListener('visibilitychange', onVis)
     api.current = {
-      play: () => { if (t >= total) { t = 0; setDone(false) } if (!introDone) { introAt = nowMs(); introDone = true; controls.enabled = false; phase = null } playingNow = true; last = nowMs() },
-      pause: () => { playingNow = false; if (introAt != null) { introAt = null; controls.enabled = true; setIntro(null); place(base().pos, base().at) } },
-      jump: (ms) => { t = Math.max(0, Math.min(total, ms)); setDone(false); last = nowMs() },
+      play: () => { if (t >= total) { t = 0; snap = true; setDone(false) } if (!introDone) { introAt = nowMs(); introDone = true; controls.enabled = false; phase = null } playingNow = true; last = nowMs() },
+      pause: () => { playingNow = false; if (introAt != null) { introAt = null; controls.enabled = true; setIntro(null) } },
+      jump: (ms) => { t = Math.max(0, Math.min(total, ms)); snap = true; introDone = true; setDone(false); last = nowMs() },
     }
-    if (!rec) { introDone = false; raf = requestAnimationFrame(tick) }
+    if (!rec) raf = requestAnimationFrame(tick)
     else {
       io.disconnect(); document.removeEventListener('visibilitychange', onVis); controls.enabled = false
       // THE RECORDER'S HANDLE (scripts/record-replay.mjs --sport nba)
       window.__bucketsReplay = {
-        start: () => { introAt = vt; introDone = true; phase = null; playingNow = true; setPlaying(true) },
+        start: () => { introAt = vt; phase = null; playingNow = true; setPlaying(true) },
         step: (ms) => { vt += ms; tick() },
         done: () => t >= total && !playingNow,
-        jump: (ms) => { introAt = null; phase = null; setIntro(null); t = Math.max(0, Math.min(total, ms)); playingNow = false; tick() },
+        jump: (ms) => { introAt = null; phase = null; setIntro(null); t = Math.max(0, Math.min(total, ms)); snap = true; playingNow = false; tick() },
+        // play from ms for n frames of f ms (a still mid-move, for checking frames)
+        run: (ms, n, f = 33) => { introAt = null; phase = null; setIntro(null); t = Math.max(0, Math.min(total, ms)); snap = true; playingNow = true; for (let k = 0; k < n; k += 1) { vt += f; tick() } playingNow = false },
         openAt: (u) => { introAt = vt - u * INTRO_MS; tick(); introAt = null },
-        state: () => ({ t, total, beat: beatAt(t), toy }),
+        state: () => { const b = beatAt(t); return { t, total, type: b.type, i: b.i, kind: ev[b.i]?.kind, text: ev[b.i]?.text } },
+        beats: () => beats.map((b) => ({ t: b.t, type: b.type, kind: ev[b.i]?.kind })),
+        clears: () => clearsRef.current.map((c) => ({ at: c.at, market: c.market, name: c.name })),
         total: () => total,
         game: () => game.id,
       }
       tick()
     }
-    const onResize = () => { const w = el.clientWidth || W, h = boxH(w, rec); camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h); look.setSize(w, h); if (!manual) place(base().pos, base().at) }
+    const onResize = () => { const w = el.clientWidth || W, h = boxH(w, rec); camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h); look.setSize(w, h) }
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(onResize) : null
     if (ro) ro.observe(el)
     return () => {
       cancelAnimationFrame(raf); io.disconnect(); document.removeEventListener('visibilitychange', onVis); if (ro) ro.disconnect()
       controls.dispose(); look.dispose(); world.dispose?.()
-      scene.traverse((o) => { o.geometry?.dispose?.(); const ms = Array.isArray(o.material) ? o.material : o.material ? [o.material] : []; for (const m of ms) { m.map?.dispose?.(); m.dispose?.() } })
+      scene.traverse((o) => { o.geometry?.dispose?.(); const ms = Array.isArray(o.material) ? o.material : o.material ? [o.material] : []; for (const m of ms) m.dispose?.() })
       renderer.dispose(); if (renderer.domElement.parentNode === el) el.removeChild(renderer.domElement)
       api.current = {}; if (rec) delete window.__bucketsReplay
     }
-  }, [game, toy, rec, beats, total, before]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [game, rec, d, scores]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!ok) return <ChartEmpty theme={C}>This device can&apos;t draw WebGL, so the tabletop isn&apos;t available here.</ChartEmpty>
-  const cur = ui.i >= 0 ? game.plays[ui.i] : null
+  if (!ok) return <ChartEmpty theme={C}>This device can&apos;t draw WebGL, so the tin court isn&apos;t available here.</ChartEmpty>
+  const cur = ev[ui.i]
   const [as, hs] = ui.score
-  const who = cur ? game.players[cur.who] : null
-  const bugTeam = (t, s) => (
+  const nameOf = (pid) => game.players[pid]?.name || ''
+  const statusOf = (pid) => calls?.statusOf(pid) || 'off'
+  const gate = { started: true, graded: game.final }
+  const fb = game.firstBasket != null ? ev[game.firstBasket] : null
+  const firstCalls = (calls?.calls || []).filter((c) => c.market === 'first')
+  const tonight = calls?.calls || []
+  // one line a man: every market we called him in
+  const byMan = Object.values(tonight.reduce((o, c) => { (o[c.playerId] ||= { id: c.playerId, name: c.name, items: [] }).items.push(c); return o }, {}))
+  const actor = cur ? (cur.kind === 'tip' ? cur.gained : cur.who) : null
+  const bugTeam = (tm, s) => (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={nbaLogo(t.abbrev)} alt="" width={22} height={22} style={{ display: 'block' }} />
-      <b style={{ color: C.text2, fontSize: 12, letterSpacing: 1 }}>{t.abbrev}</b>
+      <img src={nbaLogo(tm.abbrev)} alt="" width={22} height={22} style={{ display: 'block' }} />
+      <b style={{ color: C.text2, fontSize: 12, letterSpacing: 1 }}>{tm.abbrev}</b>
       <b style={{ color: C.text, fontSize: 20, minWidth: 22, textAlign: 'center' }}>{s}</b>
     </span>
   )
+  const card = { background: C.bg2, border: `1px solid ${C.border2 || C.border}`, borderLeft: `3px solid ${C.purple}`, borderRadius: 8, fontFamily: NUM_FONT }
   return (
-    <section aria-label="The game on a tabletop toy" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <div role="group" aria-label="Tabletop controls" style={{ display: rec ? 'none' : 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+    <section aria-label="The game on the tin court" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div role="group" aria-label="Tin court controls" style={{ display: rec ? 'none' : 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
         <button type="button" className={FLAT_CHIP_CLASS} aria-pressed={playing} style={flatChip(playing, C.purple, C, NUM_FONT)}
           onClick={() => { if (playing) { api.current.pause?.(); setPlaying(false) } else { api.current.play?.(); setPlaying(true); setStarted(true) } }}>{playing ? '❚❚ Pause' : '▶ Play the game'}</button>
-        {TOYS.map(([k, label]) => (
-          <button key={k} type="button" className={FLAT_CHIP_CLASS} aria-pressed={toy === k} style={flatChip(toy === k, C.purple, C, NUM_FONT)} onClick={() => { setPlaying(false); setDone(false); setToy(k) }}>{label}</button>
-        ))}
         {SPEEDS.map(([v, label]) => (
           <button key={v} type="button" className={FLAT_CHIP_CLASS} aria-pressed={speed === v} style={flatChip(speed === v, C.purple, C, NUM_FONT)} onClick={() => setSpeed(v)}>{label}</button>
         ))}
@@ -229,43 +285,81 @@ function Stage({ game, rec, toy0 }) {
       </div>
       <div data-replay-stage="" style={{ position: 'relative' }}>
         <div ref={mount} style={{ width: '100%', minHeight: 230, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }} />
+        <style>{'@keyframes bkUp{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}@keyframes bkBar{from{transform:scaleX(0)}to{transform:scaleX(1)}}@keyframes bkStamp{0%{transform:scale(1.8) rotate(-6deg);opacity:0}40%{transform:scale(.96) rotate(-3deg);opacity:1}100%{transform:scale(1) rotate(-3deg)}}'}</style>
         {/* the score bug */}
-        <div style={{ position: 'absolute', left: 8, top: 8, display: 'flex', alignItems: 'center', gap: 10, padding: '5px 10px', background: C.bg2, border: `1px solid ${C.border2 || C.border}`, borderLeft: `3px solid ${C.purple}`, borderRadius: 8, fontFamily: NUM_FONT, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', left: 8, top: 8, display: 'flex', alignItems: 'center', gap: 10, padding: '5px 10px', ...card, pointerEvents: 'none' }}>
           {bugTeam(game.away, as)}{bugTeam(game.home, hs)}
-          <span style={{ fontSize: 11, color: C.text2, fontWeight: 800, letterSpacing: 1 }}>{clockText(cur)}</span>
+          <span style={{ fontSize: 11, color: C.text2, fontWeight: 800, letterSpacing: 1 }}>{ui.bt === 'tip' ? 'TIP-OFF' : clockText(cur)}</span>
         </div>
-        {/* the open's lower third */}
+        {/* THE OPEN: the title, then the calls we made in this game */}
         {intro === 'title' ? (
           <div style={{ position: 'absolute', left: 'clamp(12px, 3vw, 28px)', bottom: 'clamp(12px, 3vw, 26px)', fontFamily: NUM_FONT, pointerEvents: 'none' }}>
-            <style>{'@keyframes bkUp{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}@keyframes bkBar{from{transform:scaleX(0)}to{transform:scaleX(1)}}'}</style>
             <div style={{ width: 120, height: 3, background: C.purple, transformOrigin: 'left', animation: 'bkBar .5s ease-out both' }} />
-            <div style={{ fontSize: 11, letterSpacing: 4, color: C.text, fontWeight: 900, marginTop: 6, animation: 'bkUp .5s both' }}>DASH NETWORK · BUCKETS · {toy === 'led' ? 'THE HANDHELD' : 'THE TIN COURT'}</div>
+            <div style={{ fontSize: 11, letterSpacing: 4, color: C.text, fontWeight: 900, marginTop: 6, animation: 'bkUp .5s both' }}>DASH NETWORK · BUCKETS · THE TIN COURT</div>
             <div style={{ fontSize: 'clamp(26px, 6vw, 46px)', fontWeight: 900, color: C.text, letterSpacing: 2, animation: 'bkUp .5s .15s both' }}>{game.away.abbrev} <span style={{ color: C.text3, fontSize: '0.5em' }}>@</span> {game.home.abbrev}</div>
           </div>
+        ) : intro === 'calls' ? (
+          <div style={{ position: 'absolute', left: 'clamp(12px, 3vw, 28px)', bottom: 'clamp(12px, 3vw, 26px)', padding: '10px 14px', ...card, pointerEvents: 'none', maxWidth: 'calc(100% - 24px)' }}>
+            <div style={{ fontSize: 11, letterSpacing: 3, color: C.purple, fontWeight: 900 }}>{tonight.length ? `OUR CALLS IN THIS GAME · ${tonight.length}` : 'NO CALLS IN THIS GAME'}</div>
+            {byMan.slice(0, 5).map((m, k) => (
+              <div key={m.id} style={{ fontSize: 'clamp(13px, 3.2vw, 17px)', color: C.text, fontWeight: 800, marginTop: 4, animation: `bkUp .4s ${0.1 + k * 0.1}s both` }}>
+                {m.name} <span style={{ color: C.text3, fontSize: 11, letterSpacing: 1 }}>{m.items.map((c) => c.label).join(' · ')}</span>
+              </div>
+            ))}
+            {byMan.length > 5 ? <div style={{ fontSize: 11, color: C.text3, marginTop: 4 }}>+{byMan.length - 5} more</div> : null}
+          </div>
         ) : null}
+        {/* THE FIRST BASKET: who, how we had him, who we called for it */}
+        {ui.bt === 'first' && fb ? (
+          <div style={{ position: 'absolute', right: 'clamp(8px, 2vw, 20px)', bottom: 'clamp(8px, 2vw, 20px)', padding: '10px 14px', ...card, pointerEvents: 'none', maxWidth: 'min(320px, calc(100% - 16px))' }}>
+            <div style={{ fontSize: 'clamp(18px, 4.4vw, 28px)', fontWeight: 900, color: C.text, letterSpacing: 2, animation: 'bkStamp .5s both' }}>FIRST BASKET</div>
+            <div style={{ fontSize: 'clamp(14px, 3.4vw, 18px)', color: C.text, fontWeight: 800, marginTop: 4 }}>{nameOf(fb.who)} <span style={{ color: C.text3, fontSize: 11 }}>{fb.club === 'home' ? game.home.abbrev : game.away.abbrev}</span></div>
+            <div style={{ marginTop: 6 }}><CallStatusBadge status={calls ? calls.first.statusOf(fb.who) : 'off'} theme={C} numFont={NUM_FONT} accent={C.purple} gate={gate} /></div>
+            <div style={{ fontSize: 11, color: C.text2, marginTop: 6, lineHeight: 1.5 }}>
+              {firstCalls.length ? <>Our first-basket call{firstCalls.length > 1 ? 's' : ''}: {firstCalls.map((c) => `${surname(c.name)} ${hitMark(c.hit)}`).join(' · ')}</> : 'No first-basket call in this game.'}
+            </div>
+          </div>
+        ) : null}
+        {/* A CALLED MAN CLEARS HIS BAR */}
+        {ui.clear ? (
+          <div style={{ position: 'absolute', right: 'clamp(8px, 2vw, 20px)', top: 'clamp(8px, 2vw, 16px)', padding: '8px 12px', ...card, pointerEvents: 'none', animation: 'bkStamp .5s both' }}>
+            <div style={{ fontSize: 11, letterSpacing: 3, color: C.purple, fontWeight: 900 }}>✅ BAR CLEARED</div>
+            <div style={{ fontSize: 'clamp(14px, 3.4vw, 18px)', color: C.text, fontWeight: 900, marginTop: 2 }}>{ui.clear.name}</div>
+            <div style={{ fontSize: 11, color: C.text2, fontWeight: 800, letterSpacing: 1 }}>{ui.clear.label} · <CallStatusBadge status="called" variant="text" theme={C} numFont={NUM_FONT} accent={C.purple} gate={gate} /></div>
+          </div>
+        ) : null}
+        {/* THE END CARD: the final, then each call's graded result (the board's own) */}
         {done ? (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${C.bg}cc`, pointerEvents: 'none', fontFamily: NUM_FONT, textAlign: 'center' }}>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${C.bg}d9`, pointerEvents: 'none', fontFamily: NUM_FONT, textAlign: 'center', padding: 12 }}>
             <div>
-              <div style={{ fontSize: 12, letterSpacing: 4, color: C.text2, fontWeight: 800 }}>FINAL{game.plays[game.plays.length - 1]?.period > 4 ? ' / OT' : ''}</div>
-              <div style={{ fontSize: 'clamp(30px, 7vw, 54px)', fontWeight: 900, color: C.text, marginTop: 6 }}>{game.away.abbrev} {as} <span style={{ color: C.text3 }}>·</span> {hs} {game.home.abbrev}</div>
-              <div style={{ fontSize: 11, color: C.purple, letterSpacing: 3, fontWeight: 800, marginTop: 6 }}>DASH NETWORK · BUCKETS</div>
+              <div style={{ fontSize: 12, letterSpacing: 4, color: C.text2, fontWeight: 800 }}>FINAL{ev[ev.length - 1]?.period > 4 ? ' / OT' : ''}</div>
+              <div style={{ fontSize: 'clamp(28px, 7vw, 52px)', fontWeight: 900, color: C.text, marginTop: 4 }}>{game.away.abbrev} {as} <span style={{ color: C.text3 }}>·</span> {hs} {game.home.abbrev}</div>
+              {tonight.length ? (
+                <div style={{ marginTop: 8, display: 'grid', gap: 2, fontSize: 'clamp(11px, 2.8vw, 14px)', color: C.text }}>
+                  {byMan.slice(0, 6).map((m) => <div key={m.id}>{surname(m.name)} <span style={{ color: C.text3 }}>{m.items.map((c) => `${c.label} ${hitMark(c.hit)}`).join(' · ')}</span></div>)}
+                  {byMan.length > 6 ? <div style={{ color: C.text3, fontSize: 11 }}>+{byMan.length - 6} more on the page</div> : null}
+                </div>
+              ) : null}
+              <div style={{ fontSize: 11, color: C.purple, letterSpacing: 3, fontWeight: 800, marginTop: 8 }}>DASH NETWORK · BUCKETS</div>
             </div>
           </div>
         ) : null}
       </div>
-      {/* the ticker: the play in the league's own words */}
+      {/* the ticker: the play in the league's own words, and how we had the man */}
       <div aria-live="polite" style={{ fontSize: 12, color: C.text, minHeight: 18, display: rec ? 'none' : 'block' }}>
         {cur && (started || rec) ? (
           <>
-            <b style={{ color: C.purple, fontFamily: NUM_FONT }}>{cur.club === 'home' ? game.home.abbrev : game.away.abbrev}</b>{' '}
-            {cur.text}{!cur.ft && !cur.spot ? <span style={{ color: C.text3 }}> (no spot in the feed: shot from the top of the key)</span> : null}
-            {who?.jersey != null ? <span style={{ color: C.text3 }}> · #{who.jersey}</span> : null}
+            {cur.club ? <b style={{ color: C.purple, fontFamily: NUM_FONT }}>{cur.club === 'home' ? game.home.abbrev : game.away.abbrev} </b> : null}
+            {cur.kind === 'tip' ? `Tip-off: ${cur.text}` : cur.text}
+            {cur.kind === 'shot' && !cur.spot ? <span style={{ color: C.text3 }}> (no spot in the feed: shot from the top of the key)</span> : null}
+            {actor && statusOf(actor) !== 'off' ? <span> · <CallStatusBadge status={statusOf(actor)} variant="text" theme={C} numFont={NUM_FONT} accent={C.purple} gate={gate} /></span> : null}
           </>
-        ) : <span style={{ color: C.text3 }}>Press play: every shot of the game, in order</span>}
+        ) : <span style={{ color: C.text3 }}>Press play: the tip, every shot, rebound and steal, in order</span>}
       </div>
       <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.5, display: rec ? 'none' : 'block' }}>
-        A prototype. Every shot is real: where it was taken, who took it, make or miss, the score (ESPN&apos;s play-by-play).
-        Drawn: the ball&apos;s flight{toy === 'led' ? ', and the defenders’ lights' : ', and which lever he shoots from (the nearest one)'}.
+        A prototype. Real (ESPN&apos;s play-by-play): the tip, the five on the floor, every shot&apos;s spot, shooter, block, make or
+        miss, every rebound, turnover and steal, the score. Drawn: where the others stand, the run up the floor, the ball&apos;s
+        flight. A glowing base is a man we called in this game.
       </div>
     </section>
   )
