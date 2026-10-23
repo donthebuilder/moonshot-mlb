@@ -9,7 +9,8 @@
 //
 //   node scripts/record-replay.mjs --sport nfl --game 401873010 --max 40            (2026-10-22: TUDDY's replay of a finished game)
 //
-//   --sport      nhl (LAMP's replay, the default), mlb (MOONSHOT's PREPLAY on the Games tab) or nfl (TUDDY's replay, the field section)
+//   --sport      nhl (LAMP's replay, the default), mlb (MOONSHOT's PREPLAY on the Games tab), nfl (TUDDY's replay, the field
+//                section) or nba (BUCKETS' tin court, the game page)
 //   --day        mlb only: today or tmrw, the slate the game is on
 //
 //   --base       the site to record from (a preview link, the live site once merged, or a local `next start`)
@@ -18,6 +19,8 @@
 //   --max        a test run: stop after this many seconds of video
 //   --audio      a soundtrack under the video (a beat), faded in and out; the video's length decides
 //   --from       start part-way in (the stage's own clock: game seconds on LAMP, replay ms on TUDDY); skips the open
+//   --x          THE X CUT (2026-10-23): the open, the stage's own moments() back to back, the end card; under X's 2:20
+//                (--budget <ms> of moments, default lib/replayCut.js X_BUDGET_MS; --plan prints the cut and stops)
 //   --via-curl   a sandbox whose browser has no internet: ESPN's answers and pictures come through curl (not needed on a Mac)
 // Needs a Chromium (scripts/_browser.mjs finds Chrome on a Mac) and ffmpeg on the PATH (brew install ffmpeg).
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
@@ -25,6 +28,7 @@ import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { findBrowser, MAC_CHROME } from './_browser.mjs'
+import { X_BUDGET_MS, X_CAP_MS } from '../lib/replayCut.js'
 
 const arg = (k, d = null) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : d }
 const game = arg('game')
@@ -56,6 +60,7 @@ const maxS = Number(arg('max', 0))
 const audio = arg('audio')   // --audio <file>: a soundtrack under the video (Donovan's beat), faded out at the end   // a test run: stop after this many seconds of video
 const W = 1280
 const from = arg('from')
+const xcut = process.argv.includes('--x')
 
 let chromium
 try { ({ chromium } = await import('playwright-core')) } catch { ({ chromium } = await import('playwright')) }
@@ -118,10 +123,42 @@ const dir = join(tmpdir(), `${STAGE.name}-${game}-${Date.now()}`)
 mkdirSync(dir, { recursive: true })
 const settle = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
 const H = STAGE.handle
-if (from != null) await page.evaluate(([h, ms]) => window[h].jump(Number(ms)), [H, from])
-await page.evaluate((h) => window[h].start(), H)
 let n = 0, after = -1
 const t0 = Date.now()
+const grab = async () => {
+  await settle()
+  writeFileSync(join(dir, `f${String(n).padStart(6, '0')}.png`), await page.screenshot({ type: 'png', clip }))
+  n += 1
+  if (n === 10) console.log(`first 10 frames: ${((Date.now() - t0) / 10000).toFixed(2)} s a frame`)
+  if (n % (fps * 5) === 0) console.log(`${(n / fps).toFixed(0)} s of video · ${((Date.now() - t0) / 1000).toFixed(0)} s spent`)
+}
+const stepFrame = () => page.evaluate(([h, ms]) => window[h].step(ms), [H, 1000 / fps])
+if (xcut) {
+  // THE X CUT (lib/replayCut.js): the stage picks its moments; we film the open, each moment back to back (a hard cut
+  // between them, as a highlight package does), then the end card. Kept under X's 2:20.
+  const wins = await page.evaluate(([h, b]) => window[h].moments?.(b) || null, [H, Number(arg('budget', X_BUDGET_MS))])
+  if (!wins?.length) { console.error('this stage has no moments() for --x'); await browser.close(); process.exit(1) }
+  console.log(`X cut: ${wins.length} moments · ${wins.map((w) => w.label).join(' | ')}`)
+  const est = wins.reduce((n, w) => n + (w.ms || 0), 0) / 1000
+  console.log(`about ${est.toFixed(0)} s of moments, plus the open and ${tail} s of end card`)
+  if (process.argv.includes('--plan')) { await browser.close(); process.exit(0) }
+  await page.evaluate((h) => window[h].start(), H)
+  const full = () => maxS && n >= maxS * fps   // --max: a test run of the cut
+  for (let k = 0; k < 60 * fps && !full() && await page.evaluate((h) => window[h].intro(), H); k += 1) { await stepFrame(); await grab() }
+  for (const w of wins) {
+    if (full()) break
+    await page.evaluate(([h, f]) => { window[h].jump(f); window[h].resume() }, [H, w.from])
+    for (let k = 0; k < 40 * fps && !full(); k += 1) {
+      await stepFrame(); await grab()
+      if (await page.evaluate(([h, to]) => window[h].at() >= to, [H, w.to])) break
+    }
+  }
+  await page.evaluate((h) => window[h].finish(), H)
+  for (let k = 0; k < tail * fps && !(maxS && n >= (maxS + tail) * fps); k += 1) { await stepFrame(); await grab() }
+  if (n / fps > X_CAP_MS / 1000) console.error(`WARNING: ${(n / fps).toFixed(1)} s is over X's ${X_CAP_MS / 1000} s cap`)
+} else {
+if (from != null) await page.evaluate(([h, ms]) => window[h].jump(Number(ms)), [H, from])
+await page.evaluate((h) => window[h].start(), H)
 for (;;) {
   await page.evaluate(([h, ms]) => window[h].step(ms), [H, 1000 / fps])
   await settle()
@@ -133,6 +170,7 @@ for (;;) {
   if (n === 10) console.log(`first 10 frames: ${((Date.now() - t0) / 10000).toFixed(2)} s a frame`)
   if (maxS && n >= maxS * fps) break
   if (n > fps * 60 * 6) { console.error('over six minutes of video: stopping'); break }
+}
 }
 await browser.close()
 

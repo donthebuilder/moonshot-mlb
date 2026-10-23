@@ -17,6 +17,8 @@ import { makeTabletopLook } from '../../lib/tabletop/look'
 import { buildDomeHockey, makeSkater, slotsFor, onSlot } from '../../lib/tabletop/domeHockey'
 import CLUB_COLORS from '../../lib/data/nhlClubColors.json'
 import { webglOk } from '../../lib/webglOk'
+import { pickMoments } from '../../lib/replayCut'
+import { faceCamera } from '../../lib/tabletop/diecut'
 import { lookParam } from '../../lib/three/look'
 import { eventWords, powerPlayAt, penaltyStretches } from '../../lib/nhl/events'
 import { nhlLogo } from '../../lib/nhl/teams'
@@ -255,7 +257,11 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
         if (r.spin > 0) r.spin = Math.max(0, r.spin - dt * 16)
         const ha = (t - r.hop) / 1100, hop = ha >= 0 && ha < 1 ? Math.abs(Math.sin(ha * Math.PI * 3)) * 2.4 * (1 - ha) : 0
         r.fig.position.copy(rinkPoint(r.x, r.y, (r.sunk ? -2.6 : 0) + hop))
-        r.fig.rotation.y = Math.atan2(py - r.y, px - r.x) + r.spin + (r.sunk ? Math.PI : 0)
+        const faceAng = Math.atan2(py - r.y, px - r.x) + (r.sunk ? Math.PI : 0)
+        r.fig.rotation.y = faceAng + r.spin
+        // the printed piece (lib/tabletop/diecut.js) faces the puck's side and turns its face to the camera (never edge-on)
+        r.fig.userData.spin = r.spin
+        r.fig.userData.piece?.userData.setFacing(Math.cos(faceAng) >= 0 ? 1 : -1)
         // a rock on his base after a hit or a stop
         const wa = (t - r.wob) / 700, body = r.fig.userData.body
         if (body) body.rotation.x = wa >= 0 && wa < 1 ? Math.sin(wa * Math.PI * 6) * 0.32 * (1 - wa) : 0
@@ -541,7 +547,9 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
       look.focus.copy(puck.visible ? puck.position : new THREE.Vector3())
       if (introAt == null) { look.blur(1.2); look.range(150) }
       if (t - uiAt > 200) { uiAt = t; setGsUi(gs) }
-      fade(t); if (introAt == null) controls.update(); look.render(); if (!rec) raf = requestAnimationFrame(tick)
+      fade(t); if (introAt == null) controls.update()
+      faceCamera([...roster.home, ...roster.away].map((r) => r.fig), camera)
+      look.render(); if (!rec) raf = requestAnimationFrame(tick)
     }
     // TAPS (2026-10-23, "make it very interactive"): a figure -> the man on that rod; the tower -> the box score; a handle ->
     // its man spins. A drag still turns the camera (a tap is a press that didn't move).
@@ -580,8 +588,25 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
         jump: (g) => { if (introAt != null || !introDone) { introAt = null; introDone = true; controls.enabled = true; frame(); setIntro(null) } seek(g); playingNow = false; tick(); moveFigures(puck.position.x, -puck.position.z, 10); look.render() },
         // a still of the open at u (0..1), for checking frames
         state: () => ({ gs, idx, perNow, endUntil, holdUntil, t: nowMs(), status: rink.statusNow, playing: playingNow }),
-        openAt: (u) => { introAt = nowMs() - u * INTRO_MS; introDone = false; stepIntro(nowMs()); look.render(); introAt = null },
+        openAt: (u) => { introAt = nowMs() - u * INTRO_MS; introDone = false; stepIntro(nowMs()); faceCamera([...roster.home, ...roster.away].map((r) => r.fig), camera); look.render(); introAt = null },
         goals: () => events.filter((e) => e.kind === 'goal').map((e) => gameSec(e)),
+        // THE X CUT (lib/replayCut.js): every goal with the minute of play before it (the replay holds on the goal), and the
+        // last half-minute; then shots off the iron. Game seconds; the recorder plays them back to back.
+        moments: (budgetMs) => {
+          const rate = GAME_S * speedRef.current / 1000   // game seconds per video ms
+          const cands = []
+          for (const e of events) {
+            const g = gameSec(e)
+            if (e.kind === 'goal') cands.push({ from: Math.max(0, g - 55), to: g + 0.5, prio: 1, label: 'goal', videoMs: 55 / rate + GOAL_HOLD_MS })
+            else if (e.kind === 'miss' && /post|crossbar/.test(String(e.reason || ''))) cands.push({ from: Math.max(0, g - 20), to: g + 4, prio: 3, label: 'iron' })
+          }
+          cands.push({ from: Math.max(0, total - 30), to: total, prio: 2, label: 'the finish' })
+          return pickMoments(cands, { budgetMs, speed: rate })
+        },
+        at: () => gs,
+        intro: () => introAt != null,
+        resume: () => { introAt = null; introDone = true; playingNow = true; last = nowMs(); setPlaying(true) },
+        finish: () => { introAt = null; seek(total); playingNow = false; setPlaying(false); setDone(true); tick() },
         total: () => total,
       }
     }

@@ -23,6 +23,8 @@ import { YD, FIELD_L, FIELD_W } from '../../lib/fieldWorld'
 import { buildElectricBoard, BOARD } from '../../lib/tabletop/electricBoard'
 import { makeFigure, FORMATION, poseFor } from '../../lib/tabletop/figures'
 import { makeTabletopLook } from '../../lib/tabletop/look'
+import { pickMoments } from '../../lib/replayCut'
+import { faceCamera } from '../../lib/tabletop/diecut'
 import { playsFromSummary, playPath, ballAt, playWords, downText, shortKey, beatsOf, scoreAt, patPlay, HOLD } from '../../lib/nfl/drives'
 import { isCoarse } from '../../lib/stadiumLook'
 import { webglOk } from '../../lib/webglOk'
@@ -295,7 +297,12 @@ function DriveStage({ data, rec = false }) {
         const ha = c.hopAt != null ? (t - c.hopAt) / 1300 : 2, hop = ha >= 0 && ha < 1 ? Math.abs(Math.sin(ha * Math.PI * 4)) * 2.6 * (1 - ha) : 0
         const sa = c.spinAt != null ? Math.min(1, Math.max(0, (t - c.spinAt) / 1100)) : 1, spin = (c.spinAmt || 0) * (1 - Math.pow(1 - sa, 3))
         c.fig.position.set(c.x + j * Math.sin(t * 0.061 + c.ph) * 0.35, hop, c.z + j * Math.sin(t * 0.047 + c.ph * 1.3) * 0.35)
-        c.fig.rotation.y = c.face + spin + j * Math.sin(t * 0.033 + c.ph) * 0.12
+        const jit = j * Math.sin(t * 0.033 + c.ph) * 0.12
+        c.fig.rotation.y = c.face + spin + jit
+        // the printed piece (lib/tabletop/diecut.js) faces his way of play and turns its face to the camera, so it never
+        // shows edge-on; the base keeps the play's direction
+        c.fig.userData.spin = spin
+        c.fig.userData.piece?.userData.setFacing(c.face === 0 ? 1 : -1)
         c.fig.userData.body.position.y = j * Math.abs(Math.sin(t * 0.09 + c.ph)) * 0.22
       }
     }
@@ -496,6 +503,7 @@ function DriveStage({ data, rec = false }) {
         drawBeat(clamp((bt - beats[bIdx].t) / beats[bIdx].dur, 0, 1), t)
       }
       stepFlag(t); stepChains(t)
+      faceCamera(cast.map((c) => c.fig), camera)
       board.flashBulbs?.(t, t < bulbsUntil)
       const qa = (t - dimAt) / HOLD.quarter; board.dim?.(qa >= 0 && qa < 1 ? 0.45 + 0.55 * Math.abs(qa * 2 - 1) : 1)
       fade(t); if (introAt == null) controls.update(); look.render(); if (!rec) raf = requestAnimationFrame(tick)
@@ -514,8 +522,27 @@ function DriveStage({ data, rec = false }) {
         done: () => bt >= total - 1 && !playingNow,
         jump: (ms) => { if (!introDone) { introAt = null; introDone = true; controls.enabled = true; setIntro(null) } playingNow = false; seek(ms); tick() },
         // a still of the open at u (0..1), for checking frames
-        openAt: (u) => { introAt = nowMs() - u * INTRO_MS; introDone = false; stepIntro(nowMs()); look.render(); introAt = null },
+        openAt: (u) => { introAt = nowMs() - u * INTRO_MS; introDone = false; stepIntro(nowMs()); faceCamera(cast.map((c) => c.fig), camera); look.render(); introAt = null },
         scores: () => beats.filter((b) => b.type === 'td' || b.type === 'fg').map((b) => b.t),
+        // THE X CUT (lib/replayCut.js): every touchdown with its try and the last play first; then field goals and
+        // turnovers; then gains of 20+. Replay ms; the recorder plays them back to back.
+        moments: (budgetMs) => {
+          const cands = []
+          const span = (i) => { const bs = beats.filter((b) => b.i === i && b.type !== 'gap' && b.type !== 'quarter'); return bs.length ? [bs[0].t, bs[bs.length - 1].t + bs[bs.length - 1].dur] : null }
+          const add = (i, prio, label) => { const sp = span(i); if (sp) cands.push({ from: Math.max(0, sp[0] - 200), to: sp[1] + 250, prio, label }) }
+          plays.forEach((p, i) => {
+            if (p.td) add(i, 1, `TD ${p.who || ''}`)
+            else if (p.kind === 'fg' && p.good) add(i, 2, 'FG')
+            else if (p.kind === 'int' || p.kind === 'fumble') add(i, 2, 'turnover')
+            else if (Math.abs(p.gain || 0) >= 20 && ['pass', 'rush'].includes(p.kind)) add(i, 3, `${p.gain} yd`)
+          })
+          if (plays.length) add(plays.length - 1, 1, 'the last play')
+          return pickMoments(cands, { budgetMs, speed: speedRef.current })
+        },
+        at: () => bt,
+        intro: () => introAt != null,
+        resume: () => { introAt = null; introDone = true; playingNow = true; last = nowMs(); setPlaying(true) },
+        finish: () => { introAt = null; seek(total - 1); bt = total - 1; playingNow = false; setPlaying(false); setDone(true); tick() },
         motor: () => motor,
         total: () => total,
         game: () => data.id,

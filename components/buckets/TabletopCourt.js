@@ -32,6 +32,7 @@ import { surname } from '../../lib/format'
 import CallStatusBadge from '../CallStatusBadge'
 import { ChartEmpty } from '../charts'
 import { gameDay } from './ui'
+import { pickMoments } from '../../lib/replayCut'
 
 const SUMMARY = (id) => `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=${encodeURIComponent(id)}`
 const SPEEDS = [[1, '1x'], [2, '2x'], [4, '4x']]
@@ -232,6 +233,31 @@ function Stage({ game, calls, rec }) {
         openAt: (u) => { introAt = vt - u * INTRO_MS; tick(); introAt = null },
         state: () => { const b = beatAt(t); return { t, total, type: b.type, i: b.i, kind: ev[b.i]?.kind, text: ev[b.i]?.text } },
         beats: () => beats.map((b) => ({ t: b.t, type: b.type, kind: ev[b.i]?.kind })),
+        // THE X CUT (lib/replayCut.js): the tip, the first basket, each called man clearing his bar and the finish first;
+        // then our called men's other buckets; then threes, blocks and steals. Replay ms; the recorder plays them back to back.
+        moments: (budgetMs) => {
+          const cs = callsRef.current, cands = [], body = beats.filter((b) => b.type !== 'run')
+          const span = (i) => { const bs = body.filter((b) => b.i === i); return bs.length ? [bs[0].t, bs[bs.length - 1].t + bs[bs.length - 1].dur] : null }
+          const add = (i, prio, label, pad = 0) => { const sp = span(i); if (sp) cands.push({ from: Math.max(0, sp[0] - 150), to: sp[1] + pad, prio, label }) }
+          add(0, 1, 'tip')
+          if (game.firstBasket != null) add(game.firstBasket, 1, 'first basket')
+          for (const c of clearsRef.current) add(c.i, 1, `${c.name} ${c.label}`, CLEAR_MS * 0.8)
+          const lastMake = [...ev].reverse().find((e) => (e.kind === 'shot' || e.kind === 'ft') && e.made && e.kind === 'shot')
+          if (lastMake) add(lastMake.i, 1, 'the finish', 600)
+          // each called man's first bucket and his threes; then blocks and steals
+          const seen = new Set(), nm = (id) => surname(game.players[id]?.name || '')
+          for (const e of ev) {
+            const called = cs?.statusOf(e.who) === 'called'
+            if (e.kind === 'shot' && e.made && called && (!seen.has(e.who) || e.three)) { add(e.i, 2, `${nm(e.who)} ${e.three ? 'three' : 'first bucket'}`); seen.add(e.who) }
+            else if (e.kind === 'shot' && e.blk) add(e.i, 3, `${nm(e.blk)} block`)
+            else if (e.kind === 'tov' && e.stl) add(e.i, 3, `${nm(e.stl)} steal`)
+          }
+          return pickMoments(cands, { budgetMs, speed: speedRef.current })
+        },
+        at: () => t,
+        intro: () => introAt != null,
+        resume: () => { introAt = null; playingNow = true; setPlaying(true) },
+        finish: () => { introAt = null; t = total; playingNow = false; setPlaying(false); setDone(true); tick() },
         clears: () => clearsRef.current.map((c) => ({ at: c.at, market: c.market, name: c.name })),
         total: () => total,
         game: () => game.id,
