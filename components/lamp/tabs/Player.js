@@ -36,6 +36,10 @@ import VerdictBlock from '../../player/VerdictBlock'
 import { useCardLock, useMemberState, useCallMask, CardLockLine } from '../../MemberGate'
 import StatRow from '../../player/StatRow'
 import ScrollHint from '../../player/ScrollHint'
+import StatTiles, { rankIn } from '../../player/StatTiles'
+import { useIsPhone } from '../../MobileFold'
+import { birthdayChip } from '../../../lib/birthday'
+import { flatChip, FLAT_CHIP_CLASS } from '../../../lib/chips'
 import { nhlVerdict, nhlStatRow, nhlRecordLine, nhlLastLine, nhlSignals } from '../../player/nhlAdapter'
 import LampPropsMatrix from '../PropsMatrix'
 import { nhlBotView } from '../../player/nhlRecordView'
@@ -119,18 +123,29 @@ function boardSpot(board, p) {
 // (components/card/CardNav TabBtn). The tab is in the address as view=
 // (lib/urlState cardViewPush, the way MLB's card writes it) so a refresh, a
 // shared link and Back all land on the same tab.
-const VIEWS = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'read', label: 'The Read', skater: true },
-  { key: 'splits', label: '📅 Splits', skater: true },
-  { key: 'log', label: '📋 Game log' },
-  { key: 'numbers', label: '🔢 Numbers' },
+// 2026-10-23 THE MOONSHOT CARD, LAMP'S WAY (Donovan: the MLB card "once it gets clear, we can just share that across all four sports").
+// The page is MOONSHOT's v3 card: the header holds his numbers and the adds, the call sits over tonight's angle (the checklist's slot),
+// his splits fill the right half (LAMP on him one chip over, my note under it), and the front is his shots | his game log | the props
+// grid. The deeper views are pills. On a phone the front's panels are the first pills, one at a time. The old keys keep working:
+// view=shotmap / log / splits open those panels on a phone and the front on a wide screen; view=overview is the front.
+const FRONT_VIEWS = [{ key: 'front', label: '🏒 Front' }]
+const PAGE_VIEWS = [
   { key: 'shotmap', label: '🗺 Shots', skater: true },
+  { key: 'log', label: '📋 Game log' },
+  { key: 'props', label: '📊 Props', skater: true },
+  { key: 'splits', label: '📅 Splits', skater: true },
+]
+const DEEP_VIEWS = [
+  { key: 'read', label: 'The Read', skater: true },
+  { key: 'numbers', label: '🔢 Numbers' },
   { key: 'vs', label: '🆚 VS', skater: true },
   { key: 'goals', label: '🥅 Goals', skater: true },
   { key: 'career', label: '🏆 Career' },
 ]
-const readView = () => { try { const v = hashParams().get('view'); return VIEWS.some((x) => x.key === v) ? v : 'overview' } catch { return 'overview' } }
+const VIEWS = [...FRONT_VIEWS, ...PAGE_VIEWS, ...DEEP_VIEWS]
+const VIEW_ALIAS = { overview: 'front' }
+const TABBED_BELOW = 1080
+const readView = () => { try { const v = hashParams().get('view'); const k = VIEW_ALIAS[v] || v; return VIEWS.some((x) => x.key === k) ? k : 'front' } catch { return 'front' } }
 
 // THIS SEASON | LAST SEASON | LAST 2 SEASONS: the one shared toggle (components/nfl/SeasonToggle.js,
 // the row MOONSHOT's splits and TUDDY wear), in LAMP's theme. Offered only when last season is on file.
@@ -168,19 +183,27 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
   const rec = useLampPlayerRecord(goalie ? null : p.id)
 
   // ── the tab, in the address ──
-  const tabs = VIEWS.filter((v) => !v.skater || !goalie)
+  const tabbed = useIsPhone(TABBED_BELOW - 1)
+  const okFor = (v) => !v.skater || !goalie
+  const tabs = VIEWS.filter(okFor)
   const [view, setViewState] = useState(readView)
+  const [rightView, setRightView] = useState('splits')
   useEffect(() => {
     const on = () => setViewState(readView())
     window.addEventListener('hashchange', on)
     return () => window.removeEventListener('hashchange', on)
   }, [])
-  const shown = tabs.some((t) => t.key === view) ? view : 'overview'
+  const asked = tabs.some((t) => t.key === view) ? view : 'front'
+  const pagePanels = PAGE_VIEWS.filter(okFor)
+  // a phone shows the front's panels one at a time (its pills); a wide screen shows the whole front (a phone pill's link included)
+  const shown = asked === 'front' && tabbed ? pagePanels[0].key : (!tabbed && pagePanels.some((t) => t.key === asked) ? 'front' : asked)
+  const showPanel = (k) => (tabbed ? shown === k : shown === 'front')
+  const visibleTabs = tabbed ? [...pagePanels, ...DEEP_VIEWS.filter(okFor)] : [...FRONT_VIEWS, ...DEEP_VIEWS.filter(okFor)]
   const pick = (k) => {
     setViewState(k)
     try {
       const h = hashParams()
-      if (k === 'overview') h.delete('view'); else h.set('view', k)
+      if (k === 'front') h.delete('view'); else h.set('view', k)
       const mark = window.history.state?.[PEEK_MARK] || h.get('pm') ? PEEK_MARK : DETAIL_MARK
       writeHash(h, { push: true, state: cardViewPush(mark, VIEWS_KEY) })
     } catch { /* the tab still switches without the address */ }
@@ -257,18 +280,73 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
 
   const btn44 = { minHeight: 44, minWidth: 44, borderRadius: 10, border: `1px solid ${C.border2}`, background: C.bg, color: C.text2, cursor: 'pointer', font: `800 15px/1 ${NUM_FONT}` }
 
+  // TONIGHT'S ANGLE, THE CHECKLIST'S SLOT (components/player/StatTiles.js, TUDDY's tiles): the numbers his goal score doesn't already
+  // print in the header, each ranked among tonight's scored skaters (the board's own rows). No row tonight, no tiles.
+  const angleTiles = (() => {
+    if (goalie || !row) return null
+    const pool = (board?.games || []).flatMap((g) => g.rows || []).filter((x) => x.status !== 'off' && x.score != null)
+    const n = (v) => (v == null || v === '' ? null : Number(v))
+    const of = (k, get, v, title, opts) => {
+      const rk = rankIn(pool.map(get), v, opts)
+      return { rank: rk, rankTitle: rk ? `${rk.r} of ${rk.n} ${title}` : '' }
+    }
+    const tiles = []
+    const g60 = n(row.szn?.g60)
+    if (Number.isFinite(g60)) tiles.push({ id: 'g60', label: 'Goals / 60', value: g60.toFixed(2), ...of('g60', (x) => x.szn?.g60, g60, 'skaters tonight in goals per 60 minutes') })
+    const l5 = n(row.form?.l5), gp5 = n(row.form?.gp5)
+    if (Number.isFinite(l5) && gp5) {
+      const rate = Number(row.szn?.gp) > 0 ? Number(row.szn.g) / Number(row.szn.gp) : null
+      const arrow = gp5 >= 5 && rate > 0 ? (l5 / gp5 >= rate * 1.15 ? 'up' : l5 / gp5 <= rate * 0.85 ? 'down' : null) : null
+      tiles.push({ id: 'l5', label: `Goals, last ${gp5}`, value: String(l5), arrow, arrowTitle: arrow === 'up' ? 'Scoring 15%+ above his season over his last 5' : 'Scoring 15%+ below his season over his last 5', ...of('l5', (x) => x.form?.l5, l5, 'skaters tonight in goals over the last 5') })
+    }
+    const ppg = Number(row.szn?.gp) > 0 && Number.isFinite(Number(row.szn?.pts)) ? Number(row.szn.pts) / Number(row.szn.gp) : null
+    if (ppg != null) tiles.push({ id: 'ppg', label: 'Points / game', value: ppg.toFixed(2), ...of('ppg', (x) => (Number(x.szn?.gp) > 0 ? Number(x.szn.pts) / Number(x.szn.gp) : null), ppg, 'skaters tonight in points per game') })
+    const ss = n(row.share?.shots)
+    if (Number.isFinite(ss)) tiles.push({ id: 'ss', label: 'Team shot share', value: `${ss.toFixed(1)}%`, ...of('ss', (x) => x.share?.shots, ss, 'skaters tonight in share of his club’s shots') })
+    const gs = n(row.share?.goals)
+    if (Number.isFinite(gs)) tiles.push({ id: 'gs', label: 'Team goal share', value: `${gs.toFixed(0)}%`, ...of('gs', (x) => x.share?.goals, gs, 'skaters tonight in share of his club’s goals') })
+    const ga = n(row.context?.oppGaPg)
+    if (Number.isFinite(ga)) {
+      const opps = [...new Map(pool.map((x) => [x.opp, x.context?.oppGaPg])).values()]
+      const rk = rankIn(opps, ga)
+      tiles.push({ id: 'ga', label: `${oppCode || 'Opp'} allows / game`, value: ga.toFixed(2), rank: rk, rankTitle: rk ? `${oppCode || 'His opponent'} gives up the #${rk.r} most goals of the ${rk.n} clubs playing tonight` : '' })
+    }
+    return tiles.length ? <StatTiles tiles={tiles} className="lamp-card-stats" /> : null
+  })()
+
+  // THE RIGHT HALF: his splits, LAMP on him one chip over; your note, your star and his multi-goal / first-goal lines under it
+  const splitsPanel = (
+    <>
+      {!goalie && (
+        <div className="chip-row" style={{ display: 'flex', gap: 5, marginBottom: 8, flexWrap: 'wrap' }}>
+          {[['splits', 'Splits'], ['onhim', 'LAMP on him']].map(([k, l]) => (
+            <button key={k} type="button" className={FLAT_CHIP_CLASS} aria-pressed={rightView === k} onClick={() => setRightView(k)} style={flatChip(rightView === k, C.ice, C, NUM_FONT)}>{l}</button>
+          ))}
+        </div>
+      )}
+      {!goalie && (rightView === 'onhim' ? <BotOnHim view={nhlBotView(rec.data)} /> : <PlayerSplits id={p.id} onOpenTeam={onOpenTeam} season={season} />)}
+      <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
+        <PlayerNotes playerId={String(p.id)} scope="nhl" accent={C.ice} />
+        <StarMemory sport="nhl" id={String(p.id)} />
+        {!goalie && <MultiLine sport="nhl" playerId={p.id} words={{ G: 'multi-goal' }} color={C.ice} textColor={C.text2} />}
+        {!goalie && <ScoredFirst sport="nhl" playerId={p.id} word="Scored the first goal" color={C.ice} textColor={C.text2} />}
+        {!goalie && <InTheLedger sport="nhl" id={p.id} name={p.name} jersey={p.number} birthDate={p.birthDate} next={nextG} date={etToday()} />}
+      </div>
+    </>
+  )
+
   return (
     <SportTheme theme={C} accent={C.ice}>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* THE TOOLBAR, ONE ROW, as MOONSHOT's: Card, Save, Compare, ‹ n / m › group search (Navigator), then the peek's Full page. Back on the left of the full page.
-          A goalie has no goal board, so no card, no compare. */}
+      {/* THE TOOLBAR, MOONSHOT's one even row (app/globals.css .card-toolbar): Card, Save, Compare, ‹ n / m › group search (Navigator), then the
+          peek's Full page. Back on the left of the full page. A goalie has no goal board, so no card, no compare. */}
       {(onBack || !goalie || lead || (onStep && peers.length > 1)) && (
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: onBack ? 'space-between' : 'flex-end', gap: 8 }}>
           {onBack ? <BackBtn onBack={onBack} label={backLabel} /> : null}
-          <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6 }}>
+          <span className="card-toolbar" style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6 }}>
             {!goalie && row && <CardFlip sport="nhl" id={String(p.id)} name={p.name} />}
             {!goalie && <ShareCardButton sport="nhl" what="his card" url={playerUrl({ sport: 'nhl', id: p.id })} filename={`${slug(p.name, 'player')}_${stamp(board?.date)}.png`} />}
-            {!goalie && row && peers.length > 1 && <button type="button" onClick={() => setCompareOpen(true)} title="Compare this skater against another on tonight’s board" aria-label="Compare two skaters" style={btn44}>⚖</button>}
+            {!goalie && row && peers.length > 1 && <button type="button" onClick={() => setCompareOpen(true)} title="Compare this skater against another on tonight’s board" aria-label="Compare two skaters" style={btn44}>⚖<span className="tb-word">Compare</span></button>}
             {onStep && peers.length > 1 && <Navigator peers={peers} cur={cur} noun="player" onNavigate={(x) => onStep(x.id)} />}
             {lead?.full}
           </span>
@@ -276,8 +354,11 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
       )}
       <DelayedBanner error={error} what="his file" />
 
-      {/* THE HEADER CARD, MOONSHOT's hero (components/VerdictHero.js): his face in the dial with the board's score round it, #number name, club vs opponent
-          and the game, position / hand / size, the board's word as the badge, and the close inside the card. A goalie has no goal board: an empty dial that says so. */}
+      <div className="portal-top">
+      <div className="portal-who" style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
+      {/* THE HEADER CARD, MOONSHOT's v3 hero (components/VerdictHero.js): his face in the dial with the board's score round it, #number name, club vs opponent
+          and the game, position / hand / size, the board's word as the badge, the close inside the card -- and his numbers and the watch / slip row in its footer.
+          A goalie has no goal board: an empty dial that says so. */}
       {!goalie && <LampResultStamp row={row} graded={Boolean(spot?.g?.graded)} />}
       <VerdictHero lead="dial" theme={C} numFont={NUM_FONT} style={{ marginBottom: 0 }}
         photo={p.headshot || null} col={heroCol}
@@ -300,61 +381,66 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
           {!goalie && shownStatus ? <CallStatusBadge status={shownStatus} accent={C.ice} size={11} variant="stamp" gate={lockIn ? cl.gate : null} /> : null}
           {lead?.close}
         </>}
+        footer={<div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {f && fr ? <StatRow noun="skaters" stats={nhlStatRow({ goalie, fr, board, row, l10: goalsIn(10)?.num ?? null, l10n: goalsIn(10)?.den ?? null, drought: droughtN, seasonLabel: f.seasonLabel, stale })} /> : null}
+          {/* WATCH + ADD TO SLIP + the pick (MOONSHOT's even row): Watch and a + per market the books price for him (no price, no button);
+              LAMP's pick is a ★ on the Goal cell, the sentence only when no cell carries it */}
+          {goalie
+            ? <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 160px)' }}><FollowButton sport="nhl" id={String(p.id)} name={p.name} team={p.team} position={p.pos} cell /></div>
+            : <LampSlipAdd id={String(p.id)} name={p.name} team={p.team} opp={oppCode} style={{ margin: 0 }} even
+                lead={<FollowButton sport="nhl" id={String(p.id)} name={p.name} team={p.team} position={p.pos} cell />}
+                pickCode={shownStatus === 'called' ? 'GOAL' : null}
+                pickLine={shownStatus ? <>LAMP&apos;s pick: <b style={{ color: C.text2, fontWeight: 700 }}>{pickWord}</b></> : null} />}
+        </div>}
       />
-      {/* HIS BIRTHDAY (the NHL player file's birth date; nothing when unknown) */}
-      <BornLine birth={p.birthDate} on={bornOn} accent={C.ice} C={C} font={NUM_FONT} style={{ marginTop: -6, marginBottom: 0 }} />
+      {/* HIS BIRTHDAY (the NHL player file's birth date): only on the day, the chip is the point */}
+      {birthdayChip(p.birthDate, bornOn) && <BornLine birth={p.birthDate} on={bornOn} accent={C.ice} C={C} font={NUM_FONT} style={{ marginTop: -6, marginBottom: 0 }} />}
 
-      {/* MOONSHOT ON HIM first (the word, the score, why, the flags, his record), then ONE row of his key numbers (components/player/) */}
-      <div>
-        <VerdictBlock sport="nhl" lock={lockIn} style={{ marginBottom: 6 }}
-          {...nhlVerdict({ goalie, board, spot, row, w, whyLine, extraSignals: signals, recordLine: rec.data === undefined || rec.loading ? null : nhlRecordLine(rec.data), lastLine: rec.data === undefined || rec.loading ? null : nhlLastLine(rec.data, etToday()) })} />
-        {f && fr ? <StatRow noun="skaters" stats={nhlStatRow({ goalie, fr, board, row, l10: goalsIn(10)?.num ?? null, l10n: goalsIn(10)?.den ?? null, drought: droughtN, seasonLabel: f.seasonLabel, stale })} /> : null}
-        {!fr && <EmptyState title="NO NHL LINE YET" note="No regular-season line for him yet. A camp invite or a prospect, most likely." />}
-        {stale && <div style={{ marginTop: 8 }}><StaleSeasonNote label={f.seasonLabel} opens={p.opens} what="line" /></div>}
+      {/* THE CALL, ONE ROW (MOONSHOT's VerdictBlock compact), then tonight's angle where MOONSHOT's checklist sits */}
+      <VerdictBlock sport="nhl" compact lock={lockIn}
+        {...nhlVerdict({ goalie, board, spot, row, w, whyLine, extraSignals: signals, recordLine: rec.data === undefined || rec.loading ? null : nhlRecordLine(rec.data), lastLine: rec.data === undefined || rec.loading ? null : nhlLastLine(rec.data, etToday()) })} />
+      {angleTiles}
+      {!goalie && <HisNumbers look="strip" name={p.name} jersey={p.number} birthDate={p.birthDate} next={nextG} career={Number.isFinite(p.career?.regular?.g) ? p.career.regular.g + 1 : null} nextWord="goal" date={etToday()} theme={C} accent={C.ice} numFont={NUM_FONT} />}
+      {!fr && <EmptyState title="NO NHL LINE YET" note="No regular-season line for him yet. A camp invite or a prospect, most likely." />}
+      {stale && <StaleSeasonNote label={f.seasonLabel} opens={p.opens} what="line" />}
+      </div>
+      {!tabbed && <div className="portal-read"><section aria-label="Splits">{splitsPanel}</section></div>}
       </div>
 
-      {/* WATCH + ADD TO SLIP + the pick (MOONSHOT's row, 2026-10-22 the even row): Watch and a + per market the books price for him
-          (no price, no button) as equal cells; LAMP's pick is a ★ on the Goal cell, the sentence only when no cell carries it */}
-      {goalie
-        ? <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 160px)' }}><FollowButton sport="nhl" id={String(p.id)} name={p.name} team={p.team} position={p.pos} cell /></div>
-        : <LampSlipAdd id={String(p.id)} name={p.name} team={p.team} opp={oppCode} style={{ margin: 0 }} even
-            lead={<FollowButton sport="nhl" id={String(p.id)} name={p.name} team={p.team} position={p.pos} cell />}
-            pickCode={shownStatus === 'called' ? 'GOAL' : null}
-            pickLine={shownStatus ? <>LAMP&apos;s pick: <b style={{ color: C.text2, fontWeight: 700 }}>{pickWord}</b></> : null} />}
-
-      {/* THE PILL TABS (MOONSHOT's TabBtn row), the tab in the address as view=; the row stays under the top as the page scrolls */}
+      {/* THE PILLS (MOONSHOT's TabBtn row): Front and the deeper views (desktop), or every panel one at a time (phone); the tab in the address as view=,
+          the row stays under the top as the page scrolls */}
       <div className="chip-row" role="tablist" aria-label="Player tabs" style={{ position: 'sticky', top: peek ? 0 : 'var(--lamp-sticky, 0px)', zIndex: 20, background: C.bg2, display: 'flex', gap: 5, flexWrap: 'nowrap', overflowX: 'auto', padding: '4px 2px 8px', margin: '0 -2px', borderBottom: `1px solid ${C.border}` }}>
-        {tabs.map((t) => <TabBtn key={t.key} tall active={shown === t.key} onClick={() => pick(t.key)}>{t.label}</TabBtn>)}
+        {visibleTabs.map((t) => <TabBtn key={t.key} tall active={shown === t.key} onClick={() => pick(t.key)}>{t.label}</TabBtn>)}
       </div>
 
-      {shown === 'overview' && (
+      {/* THE FRONT, MOONSHOT's portal-main: his shots | the game log | the props grid. The season toggle sits over the views it changes. */}
+      {(shown === 'front' || pagePanels.some((t) => t.key === shown)) && (
         <>
-          {/* LAMP ON HIM on the clean pregame record, your note, the ledger, his numbers, then the price (MOONSHOT's odds timeline) LAST
-              (10-19, the rule from TUDDY's page (k): the price timeline never leads); the rest is folded in More */}
-          {!goalie && <BotOnHim view={nhlBotView(rec.data)} />}
-          <PlayerNotes playerId={String(p.id)} scope="nhl" accent={C.ice} />
-          {!goalie && <InTheLedger sport="nhl" id={p.id} name={p.name} jersey={p.number} birthDate={p.birthDate} next={nextG} date={etToday()} />}
-          {!goalie && <HisNumbers name={p.name} jersey={p.number} birthDate={p.birthDate} next={nextG} career={Number.isFinite(p.career?.regular?.g) ? p.career.regular.g + 1 : null} nextWord="goal" date={etToday()} theme={C} accent={C.ice} numFont={NUM_FONT} />}
-          {/* NO PRICE TIMELINE (2026-10-21, Donovan: "remove the price timeline inside of the player model ... remove it") */}
-          {/* NO MORE FOLD (Donovan 10-20): what it held sits on the page -- the props grid, last five, star memory, multi-goal and the bio */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, margin: '4px 0' }}>
-            {!goalie && <LampPropsMatrix logThis={logThis} logLast={logLast} seasonThis={f.seasonLabel} seasonLast={p.logPrev?.seasonLabel} />}
-            {p.last5.length > 0 && (
-              <section aria-label="Last five">
-                <Kicker>LAST FIVE</Kicker>
-                <LampTable
-                  rows={p.last5.map((g) => ({ ...g, _key: g.gameId, vs: vs(g) }))}
-                  columns={(goalie ? G_LOG_COLS : SK_LOG_COLS).map((c) => (c.key === 'date'
-                    ? { ...c, fmt: (v, r) => <>{fmtDay(v)}{r.gameType === 3 ? <span style={{ marginLeft: 6, color: C.amber, fontSize: 9, letterSpacing: '.1em' }}>PLAYOFF</span> : null}</>, w: 118 }
-                    : c))}
-                  maxHeight={9999} maxRows={5} heatMode="standouts" onRowClick={(r) => onOpenGame?.(r.gameId)}
-                  caption="His last five games, newest first. Each row opens the game." />
+          {(showPanel('shotmap') || showPanel('log') || showPanel('splits')) && <SeasonToggle value={season} onChange={setSeason} p={p} />}
+          <div className="portal-main">
+            {!goalie && showPanel('shotmap') && (
+              <section className="portal-spray" aria-label="Shot map" style={{ minWidth: 0 }}>
+                <ShotPanel compact urlKey="shots" sel={{ player: p.id, name: p.name }} who="He" height={480} season={season === 'this' ? null : season} venue={arenaOf(spot?.g?.game?.home?.abbrev || p.team)?.name}
+                  opp={oppCode} />
               </section>
             )}
-            <StarMemory sport="nhl" id={String(p.id)} />
-            {!goalie && <MultiLine sport="nhl" playerId={p.id} words={{ G: 'multi-goal' }} color={C.ice} textColor={C.text2} />}
-            {!goalie && <ScoredFirst sport="nhl" playerId={p.id} word="Scored the first goal" color={C.ice} textColor={C.text2} />}
-            <div style={{ color: C.text3, fontSize: 12, lineHeight: 1.5 }}>{bio}</div>
+            {showPanel('log') && (
+              <section className={goalie ? undefined : 'portal-ev'} aria-label="Game log" style={{ minWidth: 0 }}>
+                <Kicker>GAME LOG · {logRows.length} GAMES</Kicker>
+                {logRows.length
+                  ? <>
+                      <ScrollHint><LampTable rows={log.shown} columns={goalie ? G_LOG_COLS : SK_LOG_COLS} maxHeight={9999} maxRows={100} heatMode="standouts" onRowClick={(r) => onOpenGame?.(r.gameId)} /></ScrollHint>
+                      <ShowMoreButton open={log.open} restN={log.restN} toggle={log.toggle} total={log.total} itemWord="games" />
+                    </>
+                  : <EmptyState title="NO GAMES LOGGED" note="No regular-season games for him in that span yet. Try another season above." />}
+              </section>
+            )}
+            {!goalie && showPanel('props') && (
+              <section className="portal-props" aria-label="Props" style={{ minWidth: 0 }}>
+                <LampPropsMatrix logThis={logThis} logLast={logLast} seasonThis={f.seasonLabel} seasonLast={p.logPrev?.seasonLabel} />
+              </section>
+            )}
+            {tabbed && showPanel('splits') && <section className="portal-splits" aria-label="Splits" style={{ minWidth: 0 }}>{splitsPanel}</section>}
           </div>
         </>
       )}
@@ -373,40 +459,11 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
         </section>
       )}
 
-      {shown === 'splits' && !goalie && (
-        <>
-          <SeasonToggle value={season} onChange={setSeason} p={p} />
-          <PlayerSplits id={p.id} onOpenTeam={onOpenTeam} season={season} />
-        </>
-      )}
-
       {shown === 'numbers' && (
         <LampNumbers goalie={goalie} fr={fr} career={p.career?.regular} row={row} locked={locked} statusShown={shownStatus} context={row?.context} log={logNewest} seasonLabel={f.seasonLabel} />
       )}
 
-      {shown === 'shotmap' && !goalie && (
-        <>
-          <SeasonToggle value={season} onChange={setSeason} p={p} />
-          <ShotPanel compact urlKey="shots" sel={{ player: p.id, name: p.name }} who="He" height={480} season={season === 'this' ? null : season} venue={arenaOf(spot?.g?.game?.home?.abbrev || p.team)?.name}
-            opp={spot?.g?.game ? (spot.g.game.home?.abbrev === p.team ? spot.g.game.away?.abbrev : spot.g.game.home?.abbrev) || null : null} />
-        </>
-      )}
-
       {shown === 'vs' && !goalie && <VsTab p={p} spot={spot} season={season} setSeason={setSeason} seasonLabels={seasonLabels} />}
-
-      {shown === 'log' && (
-        <section aria-label="Game log">
-          {!goalie && <SeasonToggle value={season} onChange={setSeason} p={p} />}
-          <div style={{ height: 8 }} />
-          <Kicker>GAME LOG · {logRows.length} GAMES</Kicker>
-          {logRows.length
-            ? <>
-                <ScrollHint><LampTable rows={log.shown} columns={goalie ? G_LOG_COLS : SK_LOG_COLS} maxHeight={9999} maxRows={100} heatMode="standouts" onRowClick={(r) => onOpenGame?.(r.gameId)} /></ScrollHint>
-                <ShowMoreButton open={log.open} restN={log.restN} toggle={log.toggle} total={log.total} itemWord="games" />
-              </>
-            : <EmptyState title="NO GAMES LOGGED" note="No regular-season games for him in that span yet. Try another season above." />}
-        </section>
-      )}
 
       {shown === 'goals' && !goalie && (
         <>
@@ -417,6 +474,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
 
       {shown === 'career' && (
         <>
+          <div style={{ color: C.text3, fontSize: 12, lineHeight: 1.5 }}>{bio}</div>
           <section aria-label="Career">
             <Kicker>CAREER</Kicker>
             {f.regular

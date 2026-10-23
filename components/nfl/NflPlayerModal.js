@@ -41,7 +41,6 @@ import LineMoveChip from '../LineMoveChip'
 import NflGameCombo from './NflGameCombo'
 import NflSplitsGroups from './NflSplitsGroups'
 import { roleLabel } from '../../lib/nfl/roles'
-import { alpha } from '../../lib/scales'
 import NflGameLog from './NflGameLog'
 import SeasonToggle from './SeasonToggle'
 import { seasonOptions, defaultSeason, applySeason, seasonNote } from '../../lib/nfl/seasonWindow'
@@ -54,6 +53,7 @@ import StatRow from '../player/StatRow'
 import ScrollHint from '../player/ScrollHint'
 import { useIsPhone } from '../MobileFold'
 import PropsGrid from './PropsGrid'
+import StatTiles, { rankIn } from '../player/StatTiles'
 import { nflVerdict, nflStatRow, useNflBot, nflRecordLine, nflLastLine } from '../player/nflAdapter'
 import NflOnHim from './NflOnHim'
 import NflCompareSheet from './NflCompareSheet'
@@ -453,14 +453,11 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
       )} />
   )
 
-  // HIS NUMBERS, THE CHECKLIST'S SLOT: his season per game, each with his rank at his position and an arrow on a hot / cold last 3
+  // HIS NUMBERS, THE CHECKLIST'S SLOT (components/player/StatTiles.js, shared with LAMP): his season per game, each with his rank at his
+  // position on this week's slate and an arrow on a hot / cold last 3
   const statTiles = (limit) => {
     if (!Object.keys(player.stats || {}).length) return null
     const pool = (slate?.players || []).filter((x) => x.position === player.position && x.stats)
-    const rankOf = (k, v) => {
-      const vals = pool.map((x) => Number(x.stats?.[k])).filter(Number.isFinite)
-      return Number.isFinite(Number(v)) && vals.length > 1 ? { r: 1 + vals.filter((x) => x > Number(v)).length, n: vals.length } : null
-    }
     const logField = (k) => { const f = `g_${String(k).toLowerCase()}`; return (slog || []).some((g) => g?.[f] != null) ? f : null }
     const arrowOf = (k) => {
       const f = logField(k); if (!f || (slog || []).length < 5) return null
@@ -469,27 +466,16 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
       if (!(szn > 0)) return null
       return l3 >= szn * 1.15 ? 'up' : l3 <= szn * 0.85 ? 'down' : null
     }
-    const entries = Object.entries(player.stats)
-    return (
-      <div className="nfl-card-stats" style={{ display: 'grid', gap: 6, gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))' }}>
-        {entries.slice(0, limit).map(([k, v]) => {
-          const rk = rankOf(k, v), ar = arrowOf(k)
-          const top = rk && rk.r <= Math.max(3, Math.ceil(rk.n / 10))
-          return (
-            <div key={k} style={{ background: top ? alpha(C.green, 0.07) : 'rgba(255,255,255,.03)', border: `1px solid ${top ? alpha(C.green, 0.4) : C.border}`, borderRadius: 9, padding: '6px 9px', minWidth: 0 }}>
-              <div style={{ fontSize: 11, color: C.text3, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                <NflExplain label={statLabel(k)} term={k} />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
-                <span style={{ fontFamily: NUM_FONT, fontSize: 16, fontWeight: 900, color: C.text }}>{typeof v === 'number' ? statFmt(k, v) : v}</span>
-                {ar && <span title={ar === 'up' ? 'His last 3 games run 15%+ above his season' : 'His last 3 games run 15%+ below his season'} style={{ fontSize: 11, color: ar === 'up' ? C.green : C.text3, fontWeight: 900 }}>{ar === 'up' ? '▲' : '▼'}</span>}
-                {rk && <span title={`${rk.r} of ${rk.n} ${player.position}s on this week's slate`} style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11, color: top ? C.green : C.text3, fontWeight: 800 }}>#{rk.r} {player.position}</span>}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    )
+    const tiles = Object.entries(player.stats).slice(0, limit).map(([k, v]) => {
+      const rank = rankIn(pool.map((x) => x.stats?.[k]), v)
+      const arrow = arrowOf(k)
+      return {
+        id: k, label: <NflExplain label={statLabel(k)} term={k} />, value: typeof v === 'number' ? statFmt(k, v) : v,
+        arrow, arrowTitle: arrow === 'up' ? 'His last 3 games run 15%+ above his season' : 'His last 3 games run 15%+ below his season',
+        rank, rankWord: player.position, rankTitle: rank ? `${rank.r} of ${rank.n} ${player.position}s on this week's slate` : '',
+      }
+    })
+    return <StatTiles tiles={tiles} className="nfl-card-stats" />
   }
   // THE PRICE: the line for the market on screen, the best book, the break-even (one line, under his numbers)
   const priceLine = (() => {
@@ -665,11 +651,6 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         <button type="button" onClick={() => onFullProfile(player)} style={{ display: 'block', width: '100%', marginTop: 18, background: `${C.green}20`, border: `1px solid ${C.green}70`, color: C.green, borderRadius: 10, minHeight: 44, cursor: 'pointer', fontSize: 12, fontWeight: 900, letterSpacing: '.06em' }}>OPEN HIS FULL FILE →</button>
       )}
 
-      <style>{`
-        @media (max-width: 560px) {
-          .nfl-card-stats { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-        }
-      `}</style>
     </CardShell>
     {compareOpen && <NflCompareSheet anchor={player} peers={comparePool} matchup={matchup} odds={odds} onClose={() => setCompareOpen(false)} />}
     </>
