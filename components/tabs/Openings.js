@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import PageHeader from '../PageHeader'
 import DenseTable from '../DenseTable'
 import FiltersSheet from '../player/FiltersSheet'
@@ -9,6 +9,7 @@ import { C, NUM_FONT } from '../../lib/theme'
 import { useLiveFetch } from '../../lib/useLiveFetch'
 import { useHashLens } from '../../lib/useHashLens'
 import { teamKey } from '../../lib/mlbTeams'
+import { slateFirstCalls } from '../../lib/mlb/firstModel'
 
 // ⚾ OPENINGS (2026-10-22, Donovan: "for [baseball] it just be whatever that opening is, first inning, first hit"; the core
 // lanes: "a real first everything model"). MOONSHOT's twin of BUCKETS' Openings (components/buckets/tabs/Openings.js): the
@@ -18,6 +19,8 @@ import { teamKey } from '../../lib/mlbTeams'
 //   PLAYERS / TEAMS   every starter and every club, sorted by the lane you pick (First hit · First HR · 1st inning · First run)
 // Counts from /api/mlb/openings (opening_games / opening_players, sport 'mlb': every game this season, written once it's final).
 // Nothing here is a chance: what happened, and how often, per start.
+// THE CALL (moonshot-first-v1, lib/mlb/firstModel.js): tonight's 18 starters of each game ranked for the game's first hit and
+// first homer from their season rates and the batting order. A rank, never a chance; the backtest is in the caption.
 const LANES = {
   hit: { word: 'First hit', team: 'firstHitPct', player: 'firstHitPct' },
   hr: { word: 'First HR', team: 'firstHrPct', player: 'firstHrPct' },
@@ -29,6 +32,8 @@ const VIEWS = ['players', 'teams']
 const pc = (v) => (Number.isFinite(v) ? `${v.toFixed(0)}%` : '—')
 const f2 = (v) => (Number.isFinite(v) ? v.toFixed(2) : '—')
 const pid = (p) => String(p?.player_id ?? p?.id ?? '')
+const rk = (v) => (Number.isFinite(v) ? `#${v}` : '—')
+const code = (t) => teamKey(t) || t
 
 export default function Openings({ players = [], games = [], onPlayerClick }) {
   const [view, setView] = useHashLens(VIEWS, 'players')
@@ -52,32 +57,58 @@ export default function Openings({ players = [], games = [], onPlayerClick }) {
     const p = onSlate.get(String(id))
     return () => onPlayerClick(p || { api_only: true, player_id: String(id), name: name || '', team: team || '' })
   }
+  // who bats first, from MLB's schedule (the slate rows don't say); one small read for tonight's games
+  const pks = useMemo(() => [...new Set(games.map((g) => g.game_pk).filter((k) => /^\d+$/.test(String(k))))].join(','), [games])
+  const [homeOf, setHomeOf] = useState(null)
+  useEffect(() => {
+    if (!pks) return undefined
+    let alive = true
+    fetch(`https://statsapi.mlb.com/api/v1/schedule?gamePks=${pks}&hydrate=team&fields=dates,games,gamePk,teams,home,team,abbreviation`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (alive && j) setHomeOf(new Map((j.dates || []).flatMap((d) => d.games || []).map((g) => [String(g.gamePk), code(g.teams?.home?.team?.abbreviation)]))) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [pks])
+  const calls = useMemo(() => (homeOf ? slateFirstCalls(players, { homeOf, teamOf: (p) => code(p.team) }) : new Map()), [players, homeOf])
+  const projected = useMemo(() => [...calls.values()].some((c) => c.projected), [calls])
   const teamsBy = useMemo(() => new Map((data?.teams || []).map((t) => [t.team, t])), [data])
   const byId = useMemo(() => new Map((data?.players || []).map((p) => [p.playerId, p])), [data])
 
   // TONIGHT: two rows a game, the clubs' own records, and the man leading off for each (tonight's lineup when it's posted)
   const tonight = useMemo(() => games.flatMap((g) => {
-    const clubs = [...new Set((g.players || []).map((p) => teamKey(p.team) || p.team).filter(Boolean))]
+    const clubs0 = [...new Set((g.players || []).map((p) => code(p.team)).filter(Boolean))]
+    const home = homeOf?.get(String(g.game_pk))
+    const clubs = home && clubs0.includes(home) ? [...clubs0.filter((t) => t !== home), home] : clubs0   // the road club first, when known
+    // the club's best-ranked man for each call
+    const best = (t, k) => (g.players || []).filter((p) => code(p.team) === t && calls.get(pid(p))?.[k]).sort((a, b) => calls.get(pid(a))[k] - calls.get(pid(b))[k])[0]
     return clubs.map((t, i) => {
+      const bh = best(t, 'hitRank'), bhr = best(t, 'hrRank')
       const T = teamsBy.get(t) || {}
-      const lo = (g.players || []).find((p) => (teamKey(p.team) || p.team) === t && p.lineup_confirmed && Number(p.lineup_spot) === 1)   // a projected spot isn't a lineup
+      // tonight's 1 hole, the same lineup the call reads (marked when it's still the bot's projection)
+      const lo = (g.players || []).find((p) => code(p.team) === t && Number(p.lineup_spot) === 1)
       const loId = lo ? pid(lo) : T.leadoffId
       const P = loId ? byId.get(String(loId)) : null
-      return { _id: `${g.game_pk}-${t}`, game: i === 0 ? clubs.join(' v ') : '', team: t, ...T,
-        lead: lo?.name || T.leadoff || '—', leadId: loId || null,
+      return { _id: `${g.game_pk}-${t}`, game: i === 0 ? clubs.join(home ? ' @ ' : ' v ') : '', team: t, ...T,
+        hitCall: bh ? `${bh.name} ${rk(calls.get(pid(bh)).hitRank)}` : '—', hitCallId: bh ? pid(bh) : null,
+        hrCall: bhr ? `${bhr.name} ${rk(calls.get(pid(bhr)).hrRank)}` : '—', hrCallId: bhr ? pid(bhr) : null,
+        lead: lo ? `${lo.name}${lo.lineup_confirmed ? '' : ' (proj.)'}` : T.leadoff || '—', leadId: loId || null,
         leadHit1: P?.hit1Pct ?? null, leadFirstHit: P?.firstHit ?? null }
     })
-  }), [games, teamsBy, byId])
+  }), [games, teamsBy, byId, homeOf, calls])
 
   const tonightCols = [
     { key: 'game', label: 'Game', group: 'Game', w: 84, heat: false, sticky: true, bold: true },
     { key: 'team', label: 'Tm', group: 'Game', w: 44, heat: false, mono: true, teamMark: 'mlb' },
+    ...(calls.size ? [
+      { key: 'hitCall', label: '1st hit call', group: 'The call', w: 150, heat: false, numeric: false, link: (r) => openPlayer(r.hitCallId, r.hitCall, r.team), title: 'His club’s best-ranked man for the game’s first hit (#1 = the game’s top call)' },
+      { key: 'hrCall', label: '1st HR call', group: 'The call', w: 150, heat: false, numeric: false, link: (r) => openPlayer(r.hrCallId, r.hrCall, r.team), title: 'His club’s best-ranked man for the game’s first homer (#1 = the game’s top call)' },
+    ] : []),
     { key: 'scored1Pct', label: '1ST INN %', group: '1st inning', w: 64, fmt: pc, primary: true, title: 'How often they scored in the 1st inning' },
     { key: 'r1For', label: 'R/G', group: '1st inning', w: 44, fmt: f2, title: 'Runs a game in the 1st inning' },
     { key: 'firstHitPct', label: '1ST HIT %', group: 'Firsts', w: 64, fmt: pc, title: 'How often they got the game’s first hit' },
     { key: 'firstRunPct', label: '1ST RUN %', group: 'Firsts', w: 66, fmt: pc, title: 'How often they scored the game’s first run' },
     { key: 'firstHrPct', label: '1ST HR %', group: 'Firsts', w: 60, fmt: pc, title: 'Of games with a homer, how often they hit the first one' },
-    { key: 'lead', label: 'Leads off', group: 'Leadoff', w: 140, heat: false, numeric: false, link: (r) => openPlayer(r.leadId, r.lead, r.team), title: 'Tonight’s leadoff man when the lineup is in; before that, the man who has led off for them most' },
+    { key: 'lead', label: 'Leads off', group: 'Leadoff', w: 140, heat: false, numeric: false, link: (r) => openPlayer(r.leadId, r.lead, r.team), title: 'Tonight’s leadoff man (proj. = the projected lineup until the real one posts); with no lineup at all, the man who has led off for them most' },
     { key: 'leadHit1', label: 'HIT 1ST %', group: 'Leadoff', w: 62, fmt: pc, title: 'How often he got a hit in the 1st inning, per start' },
     { key: 'leadFirstHit', label: '1ST HITS', group: 'Leadoff', w: 56, title: 'Games where he got the game’s first hit' },
   ]
@@ -94,16 +125,23 @@ export default function Openings({ players = [], games = [], onPlayerClick }) {
     { key: 'leadoff', label: 'Leadoff', group: 'Leadoff', w: 140, heat: false, numeric: false, link: (r) => openPlayer(r.leadoffId, r.leadoff, r.team), title: 'The man who has led off for them most' },
     { key: 'leadoffGs', label: 'GS', group: 'Leadoff', w: 40, heat: false, title: 'His starts in the 1 hole' },
   ]
+  // tonight's hitters with the call: ranked by it on First hit / First HR, everyone on the slate shown (a thin sample is dimmed)
+  const showCalls = who === 'tonight' && calls.size > 0
+  const rankKey = showCalls && lane === 'hit' ? 'hitRank' : showCalls && lane === 'hr' ? 'hrRank' : null
   const playerCols = [
     { key: 'name', label: 'Player', group: 'Player', w: 150, heat: false, sticky: true, bold: true },
     { key: 'team', label: 'Tm', group: 'Player', w: 44, heat: false, mono: true, teamMark: 'mlb' },
     { key: 'pos', label: 'Pos', group: 'Player', w: 38, heat: false, numeric: false, dim: true },
     { key: 'slot', label: 'Slot', group: 'Player', w: 40, heat: false, title: 'The lineup spot he has started in most often (BATS % shows how often that put him at the plate in the 1st)' },
+    ...(showCalls ? [
+      { key: 'hitRank', label: '1ST HIT', group: 'The call', w: 52, fmt: rk, invert: true, primary: lane === 'hit', title: 'His rank in his game for the first hit (#1 = the top call of its 18 starters)' },
+      { key: 'hrRank', label: '1ST HR', group: 'The call', w: 52, fmt: rk, invert: true, primary: lane === 'hr', title: 'His rank in his game for the first homer (#1 = the top call of its 18 starters)' },
+    ] : []),
     { key: 'gs', label: 'GS', group: 'Sample', w: 40, heat: false, title: 'His starts in this window' },
     { key: 'firstHit', label: '1ST HITS', group: 'First hit', w: 56, title: 'Games where he got the game’s first hit' },
-    { key: 'firstHitPct', label: '%', group: 'First hit', w: 44, fmt: pc, primary: lane === 'hit', title: 'The game’s first hit, per start' },
+    { key: 'firstHitPct', label: '%', group: 'First hit', w: 44, fmt: pc, primary: lane === 'hit' && !showCalls, title: 'The game’s first hit, per start' },
     { key: 'firstHr', label: '1ST HRS', group: 'First HR', w: 52, title: 'Games where he hit the game’s first homer' },
-    { key: 'firstHrPct', label: '%', group: 'First HR', w: 44, fmt: pc, primary: lane === 'hr', title: 'The game’s first homer, per start' },
+    { key: 'firstHrPct', label: '%', group: 'First HR', w: 44, fmt: pc, primary: lane === 'hr' && !showCalls, title: 'The game’s first homer, per start' },
     { key: 'bat1Pct', label: 'BATS %', group: '1st inning', w: 56, fmt: pc, title: 'How often he came to the plate in the 1st inning' },
     { key: 'hit1Pct', label: 'HIT %', group: '1st inning', w: 50, fmt: pc, primary: lane === 'inn', title: 'How often he got a hit in the 1st inning, per start' },
     { key: 'hr1', label: 'HR', group: '1st inning', w: 38, title: 'His homers in the 1st inning' },
@@ -112,9 +150,9 @@ export default function Openings({ players = [], games = [], onPlayerClick }) {
   ]
   const teamRows = useMemo(() => (data?.teams || []).map((t) => ({ ...t, _id: t.team })).sort((a, b) => (b[L.team] ?? -1) - (a[L.team] ?? -1)), [data, L])
   const playerRows = useMemo(() => (data?.players || [])
-    .filter((p) => p.gs >= minGs && (who === 'all' || onSlate.has(p.playerId)))
-    .map((p) => ({ ...p, _id: p.playerId }))
-    .sort((a, b) => (b[L.player] ?? -1) - (a[L.player] ?? -1) || b.gs - a.gs), [data, L, minGs, who, onSlate])
+    .filter((p) => (who === 'all' ? p.gs >= minGs : onSlate.has(p.playerId) && (showCalls || p.gs >= minGs)))
+    .map((p) => ({ ...p, _id: p.playerId, ...(calls.get(p.playerId) || {}) }))
+    .sort((a, b) => (rankKey ? (a[rankKey] ?? 99) - (b[rankKey] ?? 99) : 0) || (b[L.player] ?? -1) - (a[L.player] ?? -1) || b.gs - a.gs), [data, L, minGs, who, onSlate, calls, rankKey, showCalls])
   const sample = data?.games ? `${data.season} · ${data.games.toLocaleString()} games through ${String(data.through || '').slice(5).replace('-', '/')}` : ''
 
   return (
@@ -135,7 +173,7 @@ export default function Openings({ players = [], games = [], onPlayerClick }) {
         <section aria-label="Tonight's openings">
           <div style={{ color: C.text2, font: `900 12px/1.2 ${NUM_FONT}`, letterSpacing: '.08em', margin: '0 0 6px' }}>TONIGHT · WHO STARTS FAST</div>
           <DenseTable rows={tonight} columns={tonightCols} heatMode="primary" maxRows={12} maxHeight={9999} initialSort={null}
-            caption="Each club's record this season. The first hit and first run are the game's; the first homer counts only games that had one." />
+            caption={`${calls.size ? `The call ranks each game's 18 starters from season rates and the batting order${projected ? ' (projected lineups until they post)' : ''}. Replayed on 2,171 games this season, the #1 first-HR call hit it 9.3% of the time (a random starter 4.9%); the #1 first-hit call got it 20.1%, about the same as always taking the road leadoff man. ` : ''}Club rates are this season's; the first homer counts only games that had one.`} />
         </section>
       )}
 
@@ -157,7 +195,8 @@ export default function Openings({ players = [], games = [], onPlayerClick }) {
             : playerRows.length
               ? <DenseTable nameCell="player" faceOf={(r) => ({ sport: 'mlb', id: r.playerId, name: r.name })} rows={playerRows} columns={playerCols} heatMode="primary" maxRows={12} maxHeight={9999} initialSort={null}
                   onRowClick={(r) => { const x = r?._raw ?? r; openPlayer(x.playerId, x.name, x.team)?.() }}
-                  caption={`Starters with ${minGs}+ starts, sorted by ${L.word.toLowerCase()}. Every rate is per start; his slot decides how often he bats in the 1st (BATS %).`} />
+                  dimRow={(r) => (r?._raw ?? r).gs < minGs}
+                  caption={`${showCalls ? `Tonight's starters${rankKey ? `, in the order of the ${L.word.toLowerCase()} call` : `, sorted by ${L.word.toLowerCase()}`}; under ${minGs} starts is dimmed.` : `Starters with ${minGs}+ starts, sorted by ${L.word.toLowerCase()}.`} Every rate is per start; his slot decides how often he bats in the 1st (BATS %).`} />
               : <div style={{ color: C.text3, fontSize: 12, padding: '8px 0' }}>{who === 'tonight' ? `Nobody on tonight’s slate has ${minGs}+ starts in this window.` : `Nobody has ${minGs}+ starts in this window yet.`} Widen the window{who === 'tonight' ? ' or show everyone' : ''}.</div>}
         </>
       )}
