@@ -6,6 +6,7 @@
 // A kind that can reach Discord and is not rendered here must be in NOT_RENDERED with a reason (the harness fails otherwise).
 import { feedHooks, feedHooksFor, sportHooks, nbaOwnHooks, receiptsHooks, withReceipts } from '../../lib/dash/discordChannels.js'
 import { membersWebhook } from '../../lib/dash/membersPost.js'
+import { isCut } from '../../lib/dash/routing.js'
 
 const DAY_MS = 864e5
 const etDate = (ms) => new Date(ms).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
@@ -148,6 +149,7 @@ const membersCases = [
       const [b] = await feedRows(ctx.db, 'mlb_members_board', ctx.days.concat(recentDays(14).slice(ctx.days.length)), { n: 1 })
       if (!b?.payload?.picks?.length) return []
       const { data: hits } = await ctx.db.from('homer_feed').select('player_id').eq('day', b.day)
+      if (isCut('mlb_members_board')) return [{ kind: 'mlb_members_grade', skip: 'not sent: its board is cut, THE DAY graded replaces it' }]
       const g = mp.mlbMembersGrade({ board: b.payload, events: hits || [] })
       return [{ kind: 'mlb_members_grade', sport: 'mlb', day: b.day, text: g?.text, hooks: members(), members: true }]
     },
@@ -158,6 +160,7 @@ const membersCases = [
       const [b] = await feedRows(ctx.db, 'nfl_members_board', recentDays(14), { n: 1 })
       if (!b?.payload?.picks?.length) return []
       const { data: tds } = await ctx.db.from('nfl_td_feed').select('gsis_id').gte('day', b.day).limit(500)
+      if (isCut('nfl_members_board')) return [{ kind: 'nfl_members_grade', skip: 'not sent: its board is cut, THE DAY graded replaces it' }]
       const g = mp.nflMembersGrade({ board: b.payload, events: (tds || []).map((t) => ({ player_id: t.gsis_id })) })
       return [{ kind: 'nfl_members_grade', sport: 'nfl', day: b.day, text: g?.text, hooks: members(), members: true }]
     },
@@ -271,7 +274,7 @@ const momentCases = [{
       const policy = mposting.policyFor(e.tier, { hasX: false, hasMembers: true })
       const base = { kind: `moment_${e.sport}`, sport: e.sport, day: e.day, label: `${e.who.name} · ${e.tier}`, text: discordLine, embed, png: true }
       if (policy.discord) out.push({ ...base, hooks: feedHooks(e.sport) })
-      if (policy.members) out.push({ ...base, label: `${base.label} (#members copy)`, hooks: members(), members: true })
+      if (policy.members) { const plain = mpost.momentMembersLine(line); out.push({ ...base, label: `${base.label} (#members copy)`, text: plain, embed: mpost.momentDiscordEmbed({ ...e, status: null }, { name: e.who.name, discordLine: plain, png: true, plain: true }), hooks: members(), members: true }) }
     }
     return out
   },
@@ -511,7 +514,24 @@ const lampExtraCases = [
   },
 ]
 
-export const CASES = [...nflWeekCases, ...nbaCases, ...donPlaysCases, ...lampExtraCases, ...momentCases, ...pollCases, ...multiCases, ...writeupCases, ...slateCases, ...showCases, ...membersCases, ...cardCases, ...receiptCases, ...alertCases]
+// ── #MEMBERS WINS AND THE MORNING GRADE (lib/card/wins.js) ─────────────────────────────────────────────────────────────────────
+const wins = await import('../../lib/card/wins.js')
+const winsCases = [{
+  kinds: ['card_members_graded', 'card_members_win_'],
+  load: async (ctx) => {
+    for (const { day, rows } of await cardDays(ctx)) {
+      const picks = wins.dayPicks(rows)
+      if (!picks.length || picks.some((r) => r.result == null)) continue
+      const out = [{ kind: wins.GRADED_KIND, sport: 'all', day, label: 'the morning grade', text: wins.gradedText({ day, rows }), embed: wins.gradedEmbed({ day, rows }), hooks: members(), members: true }]
+      const hits = picks.filter((r) => r.result === 'hit')
+      if (hits.length) out.push({ kind: wins.winKind(hits[0]), sport: hits[0].sport === 'all' ? 'all' : hits[0].sport, day, label: `${hits.length} hits in one post`, text: wins.winsText({ day, rows: hits }), embed: wins.winsEmbed({ day, rows: hits }), hooks: members(), members: true })
+      return out
+    }
+    return []
+  },
+}]
+
+export const CASES = [...winsCases, ...nflWeekCases, ...nbaCases, ...donPlaysCases, ...lampExtraCases, ...momentCases, ...pollCases, ...multiCases, ...writeupCases, ...slateCases, ...showCases, ...membersCases, ...cardCases, ...receiptCases, ...alertCases]
 
 /** Kinds that can reach Discord but are not rendered, each with the reason. */
 export const NOT_RENDERED = Object.freeze({

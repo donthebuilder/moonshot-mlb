@@ -116,7 +116,7 @@ export default async function PhoneApp({ searchParams }) {
           <>
             <p style={{ margin: '4px 2px', ...sub }}>Follow a player anywhere and he lands here. Alerts are free.</p>
             <Tile to={`/app${watchHash(sport)}`} title="Your players and alerts" note="Opens the full site" />
-            <Tile to="/members" title="Founding members" note="Every game's write-up, plus the board at lock and its grade" />
+            <Tile to="/members" title="Founding members" note="Today's picks with the why, every write-up, every pick graded" />
           </>
         ) : null}
       </section>

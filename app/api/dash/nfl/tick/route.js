@@ -50,6 +50,7 @@
 // loudly rather than silently eat.
 
 import { playerHref } from '../../../../../lib/routes'
+import { isCut } from '../../../../../lib/dash/routing'
 import { xOk, repeatCheck, recentNamed, logPosted, logDroppedRepeat, scheduleGate } from '../../../../../lib/dash/xGate'
 import { windowOpen, payloadFor } from '../../../../../lib/dash/xSchedule'
 import { namedInText, withNamed } from '../../../../../lib/dash/xPolicy'
@@ -827,6 +828,8 @@ async function runNflMembers(db, day) {
     return postMembers(db, { day, kind: MEMBERS_KINDS.nflGrade, build: async () => {
       const { data: board } = await db.from('homer_feed_posts').select('payload').match({ day: shiftDay(day, -1), kind: MEMBERS_KINDS.nflBoard }).maybeSingle()
       if (!board?.payload?.picks?.length) return null
+      // a grade of a board members never saw is noise: the board is cut (lib/dash/routing.js), THE DAY's morning grade replaces it (lib/card/wins.js)
+      if (isCut(MEMBERS_KINDS.nflBoard)) return null
       // the week's touchdowns: Thursday through today
       const { events } = await readNflEvents(db, { since: shiftDay(day, -4), until: day })
       return nflMembersGrade({ board: board.payload, events })

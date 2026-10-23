@@ -138,9 +138,12 @@ on the pages you changed. It must be green.
   `node scripts/check-parity.mjs --complete nba`, `--complete nhl`, `--complete mlb` and `--complete nfl` (Donovan, 2026-10-20: each has every feature another product has, or says why not).
   Chips (Donovan, 2026-10-22: "thrown somewhere into the harness so we don't go over this again"): every small choice chip is
   `lib/chips.js` flatChip, the small even oval that matches the X cards. A push that touches UI runs
-  `node scripts/check-chips.mjs --base <server> --max-off 272`; the number may only go down (lower it in this line when a batch lands).
+  `node scripts/check-chips.mjs --base <server> --max-off 261`; the number may only go down (lower it in this line when a batch lands).
   A push that adds or lengthens on-screen words also runs `node --import ./scripts/_esm-resolve.mjs scripts/check-copy.mjs --base <server>`
   and writes the prose-word total in the commit (it counts, it does not fail: the number must not creep up without a reason).
+- Discord (Donovan, 2026-10-23: "get a harness or something going and really focus down on the discord notifications"): a push that touches any
+  Discord post (lib/dash, lib/posts, lib/card, the ticks) runs `node --no-warnings --import ./scripts/proto-cards/_loader.mjs scripts/check-discord-posts.mjs --env <.env.local> --quiet`
+  (renders every post kind from real data, sends nothing; 0 errors). #members posts are plain words: no units, no CALLED / ON THE BOARD tags.
 - No temporary or debug routes left in `app/api/`. They deploy publicly.
 - SQL: write the migration file and hand it to Donovan. He runs it in the
   Supabase SQL editor. The SQL runs BEFORE the code that needs it ships.
