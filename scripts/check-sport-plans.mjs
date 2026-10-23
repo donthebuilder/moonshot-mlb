@@ -29,7 +29,7 @@ check('on: poll question is on the board (the lead) every day', formatOrder({ ca
 const lead = 'TEST Player One (TST vs ABC), anytime goal. CALLED.'
 const t = P.playsText({ sport: 'nhl', day: '2026-10-16', leadText: lead })
 console.log('\n--- TEST EXAMPLE ---\n' + t + '\n--------------------\n')
-check('text has the header, the lead and a site link', /TONIGHT'S PLAYS/.test(t) && t.includes(lead) && t.includes('https://site.test/'))
+check('text has the header, the lead and a site link', /Tonight's play · [A-Z][a-z]{2} [A-Z][a-z]{2} \d+/.test(t) && t.includes(lead.split('\n').filter((l) => l && !/^\u{1F3AF}/u.test(l))[0] || lead) && t.includes('https://site.test/'))
 check('text with no lead is empty (nothing invented)', P.playsText({ sport: 'nhl', day: '2026-10-16', leadText: '' }) === '')
 check('no probability printed', !/\d\s?%/.test(t))
 
