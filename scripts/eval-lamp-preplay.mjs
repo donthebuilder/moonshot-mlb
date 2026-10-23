@@ -48,24 +48,34 @@ const ll = (set, cal) => set.reduce((s, g) => { const p = Math.min(0.999, Math.m
 const brier = (set, cal) => set.reduce((s, g) => s + (homeShare(g.lh, g.la, cal).p - (g.homeWon ? 1 : 0)) ** 2, 0) / set.length
 
 // ── FIT (games before the cut) ────────────────────────────────────────────
+// in order: the shootout's home share (counted); then for each spread, the shared goals that make the share of games
+// tied after 60 match, and the home ice that fits best (log loss); the spread that fits best; then the overtime factor
 const so = fit.filter((g) => g.last === 'SO')
 const soHome = (so.filter((g) => g.homeWon).length + 25) / (so.length + 50)   // pulled toward a coin by 50 shootouts
 const tied = fit.filter((g) => g.tiedReg)
+const tieReal = tied.length / fit.length
+const base0 = { homeIce: 1, otSeconds: 300, otFactor: 1.8, shootoutHome: soHome, spread: 1, shared: 0 }
+const tieSaid = (set, cal) => set.reduce((s, g) => s + homeShare(g.lh, g.la, cal).tie, 0) / set.length
+let fitBest = null
+for (let sp = 0.8; sp <= 2.401; sp += 0.1) {
+  let cBest = null
+  for (let c = 0; c <= 2.401; c += 0.05) { const d = Math.abs(tieSaid(fit, { ...base0, spread: sp, shared: c }) - tieReal); if (!cBest || d < cBest.d) cBest = { c, d } }
+  for (let h = 0.97; h <= 1.0601; h += 0.005) {
+    const cal = { ...base0, spread: Number(sp.toFixed(2)), shared: Number(cBest.c.toFixed(2)), homeIce: Number(h.toFixed(4)) }
+    const v = ll(fit, cal)
+    if (!fitBest || v < fitBest.v) fitBest = { v, cal }
+  }
+}
 let best = null
 for (let k = 0.5; k <= 3.01; k += 0.05) {
-  const cal = { homeIce: 1, otSeconds: 300, otFactor: k, shootoutHome: soHome }
+  const cal = { ...fitBest.cal, otFactor: Number(k.toFixed(2)) }
   const pred = tied.reduce((s, g) => s + homeShare(g.lh, g.la, cal).ot, 0) / Math.max(1, tied.length)
   const real = tied.filter((g) => g.last === 'OT').length / Math.max(1, tied.length)
   if (!best || Math.abs(pred - real) < best.d) best = { k: Number(k.toFixed(2)), d: Math.abs(pred - real), pred, real }
 }
 const otFactor = best.k
-let hi = null
-for (let h = 0.9; h <= 1.2001; h += 0.0025) {
-  const cal = { homeIce: h, otSeconds: 300, otFactor, shootoutHome: soHome }
-  const v = ll(fit, cal)
-  if (!hi || v < hi.v) hi = { h: Number(h.toFixed(4)), v }
-}
-const CAL = { homeIce: hi.h, otSeconds: 300, otFactor, shootoutHome: Number(soHome.toFixed(4)) }
+const CAL = { ...fitBest.cal, otFactor, shootoutHome: Number(soHome.toFixed(4)) }
+const hi = { h: CAL.homeIce }
 
 // ── JUDGE (games from the cut on) ─────────────────────────────────────────
 const homeRate = fit.filter((g) => g.homeWon).length / fit.length
@@ -78,15 +88,15 @@ for (let lo = 50; lo < 80; lo += 5) {
   bands.push({ band: `${lo}-${lo === 75 ? 100 : lo + 5}%`, n: inBand.length, said: +(said * 100).toFixed(1), happened: +(did * 100).toFixed(1), off: +((did - said) * 100).toFixed(1) })
 }
 const gate = bands.filter((b) => b.n >= 50).every((b) => Math.abs(b.off) <= 5)
-const tieSaid = held.reduce((s, g) => s + homeShare(g.lh, g.la, CAL).tie, 0) / held.length
-const tieReal = held.filter((g) => g.tiedReg).length / held.length
+const tieHeldSaid = held.reduce((s, g) => s + homeShare(g.lh, g.la, CAL).tie, 0) / held.length
+const tieHeldReal = held.filter((g) => g.tiedReg).length / held.length
 const out = {
   version: 'lamp-preplay-v1', measured: gate, ...CAL, shrinkGames: 10,
-  fit: { before: CUT, games: fit.length, homeWinRate: +homeRate.toFixed(4), shootouts: so.length, tiedAfter60: tied.length, otShare: { said: +best.pred.toFixed(3), happened: +best.real.toFixed(3) } },
+  fit: { before: CUT, games: fit.length, homeWinRate: +homeRate.toFixed(4), shootouts: so.length, tiedAfter60: tied.length, tiedShare: { said: +(tieSaid(fit, CAL) * 100).toFixed(1), happened: +(tieReal * 100).toFixed(1) }, otShare: { said: +best.pred.toFixed(3), happened: +best.real.toFixed(3) } },
   heldOut: {
     from: CUT, games: held.length,
     logLoss: { model: +ll(held, CAL).toFixed(4), baseline: +base.ll.toFixed(4) }, brier: { model: +brier(held, CAL).toFixed(4), baseline: +base.brier.toFixed(4) },
-    tiedAfter60: { said: +(tieSaid * 100).toFixed(1), happened: +(tieReal * 100).toFixed(1) },
+    tiedAfter60: { said: +(tieHeldSaid * 100).toFixed(1), happened: +(tieHeldReal * 100).toFixed(1) },
     bands, gate: gate ? 'PASS: every band with 50+ games within 5 points' : 'FAIL: a band with 50+ games is more than 5 points off',
   },
 }

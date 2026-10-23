@@ -11,7 +11,7 @@ import { simNhlGame, preplayNhl, exactHomeShare, homeWinShare } from '../lib/nhl
 
 let fails = 0
 const ok = (cond, msg) => { if (cond) console.log(`ok   ${msg}`); else { fails += 1; console.log(`FAIL ${msg}`) } }
-const CAL = { homeIce: 1.04, otSeconds: 300, otFactor: 1.6, shootoutHome: 0.52 }
+const CAL = { homeIce: 1.04, otSeconds: 300, otFactor: 1.6, shootoutHome: 0.52, spread: 1.2, shared: 0.8 }   // TEST values: the shared goals and the spread exercised too
 
 const skaters = (team, base) => Array.from({ length: 18 }, (_, i) => ({
   id: base + i, name: `TEST ${team} ${i + 1}`, num: i + 2, pos: i < 6 ? 'D' : i % 3 === 0 ? 'C' : 'F',
