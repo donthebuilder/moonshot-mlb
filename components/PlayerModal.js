@@ -12,10 +12,11 @@ import { birthdayChip, ageOn } from '../lib/birthday'
 import {
   nameOf, teamOf, oppOf, n, clean, pct, sc, playerId,
   hrScore, hitScore, prodScore, tbScore, pitchMixScore,
-  ihrVal,
+  ihrVal, mlbId,
   babipVal, pitcherBabipVal, avgVsRHP, avgVsLHP,
 } from '../lib/player'
-import { compactRole, roleColor, gradeFor, signalPills, bestBet } from '../lib/scoring'
+import { compactRole, roleColor, gradeFor, signalPills, bestBet, hrRank } from '../lib/scoring'
+import { callStatus, boardOfRows } from '../lib/callStatus'
 // Aliased: lib/scoring exports a roleColor of its own for the chip row, and
 // two different functions of the same name in one file is how a colour quietly
 // starts meaning two things.
@@ -35,7 +36,7 @@ import { Chip } from './ui'
 import { flatChip, FLAT_CHIP_CLASS } from '../lib/chips'
 import Explain from './Explain'
 import VerdictBlock from './player/VerdictBlock'
-import { useCardLock, useMemberState, CardLockLine } from './MemberGate'
+import { useCardLock, useMemberState, useCallGate, CardLockLine } from './MemberGate'
 import StatRow from './player/StatRow'
 import HelpTip from './HelpTip'
 import { useIsPhone } from './MobileFold'
@@ -561,6 +562,16 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   const cardLockKey = `${playerId(player || {})}|${player?.game_pk ?? ''}`
   const cardLockIn = { key: cardLockKey, time: player?.game_time, graded: player?.graded === true }
   const nonMember = useMemberState() === 'free'
+  // THE FREE FOUR FROM THE CARD ITSELF (2026-10-23, known issue 74; LAMP / TUDDY got it in #262): a card opened over a tab with no gated board
+  // saw an empty free set and locked every CALLED man. The card runs the HR board's gate (components/tabs/RankedBoard.js) over the slate it
+  // already holds, in the same order, so the card and the board agree wherever the card opens. A members' or unknown viewer: nothing computed.
+  const gateSlate = Array.isArray(slate) && slate.length ? slate : null
+  const gateRank = useMemo(() => (gateSlate ? hrRank(gateSlate) : null), [gateSlate])
+  const gateBoardOf = useMemo(() => (gateSlate ? boardOfRows(gateSlate) || gateSlate.length : 0), [gateSlate])
+  useCallGate({
+    rows: () => gateSlate || [], source: gateSlate, statusOf: (x) => callStatus({ role: x?.game_pick_role, board_rank: gateRank?.get(mlbId(x)), board_of: gateBoardOf }),
+    keyOf: (x) => `${playerId(x)}|${x?.game_pk ?? ''}`, timeOf: (x) => x?.game_time, rankOf: (x) => gateRank?.get(mlbId(x)),
+  })
   const cardLocked = useCardLock({ status: player && !player.api_only ? mlbStatus(player) : null, ...cardLockIn }).locked
   if (!player) return null
   // IDENTITY FIELDS NEVER COME FROM detail (2026-08-24, Donovan: "the add to

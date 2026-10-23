@@ -103,11 +103,15 @@ export function Navigator({ peers, cur, onNavigate, idOf = mlbIdOf, noun = 'hitt
 
   return (
     <div style={{ position: 'relative', display: 'flex', gap: 5, alignItems: 'center' }}>
-      <button onClick={() => go(-1)} disabled={idx <= 0} title={`Previous ${noun} in this list (←)`} style={btn(idx > 0)}>‹</button>
-      <span style={{ fontSize: 11, fontWeight: 700, color: C.text3, fontFamily: NUM_FONT, minWidth: 44, textAlign: 'center' }}>
-        {idx >= 0 ? `${idx + 1} / ${peers.length}` : 'off list'}
-      </span>
-      <button onClick={() => go(1)} disabled={idx < 0 || idx >= peers.length - 1} title={`Next ${noun} in this list (→)`} style={btn(idx >= 0 && idx < peers.length - 1)}>›</button>
+      {/* a man who is not in the list (a LAMP goalie, a skater off tonight's board) has nowhere to step from: no dead ‹ off list ›, the
+          lineup and the search stay (2026-10-23, known issue 75) */}
+      {idx >= 0 && <>
+        <button onClick={() => go(-1)} disabled={idx <= 0} title={`Previous ${noun} in this list (←)`} style={btn(idx > 0)}>‹</button>
+        <span style={{ fontSize: 11, fontWeight: 700, color: C.text3, fontFamily: NUM_FONT, minWidth: 44, textAlign: 'center' }}>
+          {`${idx + 1} / ${peers.length}`}
+        </span>
+        <button onClick={() => go(1)} disabled={idx >= peers.length - 1} title={`Next ${noun} in this list (→)`} style={btn(idx < peers.length - 1)}>›</button>
+      </>}
       {hasLineup && (
         <button onClick={() => { setLineupOpen((v) => !v); setOpen(false) }}
           title="Everyone else in tonight's game, both sides"
