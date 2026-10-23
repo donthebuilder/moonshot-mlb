@@ -373,6 +373,7 @@ function DriveStage({ data, rec = false }) {
         moveCast(u, t, true)
       } else moveCast(1, t, false)
       look.focus.copy(ball.visible ? ball.position : new THREE.Vector3(wx(p.from), 0, 0))
+      look.blur(viewRef.current === 'eye' ? 2.6 : 1.1); look.range(viewRef.current === 'eye' ? 80 : 240)   // the board reads edge to edge; eye level keeps its melt
       // the camera rides the ball unless someone has taken it
       if (!userMoved) {
         const want = camClamp(ball.visible ? ball.position.x : wx(p.from))
@@ -404,6 +405,7 @@ function DriveStage({ data, rec = false }) {
     const stepIntro = (t) => {
       if (introAt == null) return
       const u = Math.min(1, (t - introAt) / INTRO_MS)
+      look.blur(u < 0.8 ? 3.4 : 3.4 - 2.3 * ((u - 0.8) / 0.2)); look.range(u < 0.8 ? 45 : 45 + 195 * ((u - 0.8) / 0.2))
       const ph = u < 0.12 ? 'ident' : u < 0.62 ? 'title' : 'data'
       if (ph !== introPhase) { introPhase = ph; setIntro(ph) }
       if (u < 0.4) {
@@ -437,7 +439,7 @@ function DriveStage({ data, rec = false }) {
     }
     // before anything plays: the opening kickoff set on the board, motor off
     curDir = firstDir; curPath = firstPath; stage(first, firstPath, firstDir); moveCast(0, 0, false)
-    camX = camClamp(kx); frame(); look.focus.set(kx, 0, 0)
+    camX = camClamp(kx); frame(); look.focus.set(kx, 0, 0); look.blur(1.1); look.range(240)
     const tick = () => {
       const t = nowMs(), dt = Math.min(0.1, (t - last) / 1000); last = t
       stepIntro(t)

@@ -467,7 +467,7 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
     const stepIntro = (t) => {
       if (introAt == null) return
       const u = Math.min(1, (t - introAt) / INTRO_MS)
-      look.blur?.(u < 0.72 ? 3.4 : 3.4 - 2.2 * Math.min(1, (u - 0.72) / 0.28))
+      look.blur(u < 0.72 ? 3.4 : 3.4 - 2.2 * Math.min(1, (u - 0.72) / 0.28)); look.range(u < 0.72 ? 30 : 30 + 120 * Math.min(1, (u - 0.72) / 0.28))
       const pull = Math.max(1, 2.2 / camera.aspect) * 1.02
       const broadcast = new THREE.Vector3(0, 112 * pull, 132 * pull)
       if (u < 0.5) {
@@ -539,7 +539,7 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
       const ea = endUntil - t; rink.dim(ea <= 0 ? 1 : ea > 400 ? 0.55 : 0.55 + 0.45 * (1 - ea / 400))
       if (introAt == null) moveFigures(puck.visible ? puck.position.x : 0, puck.visible ? -puck.position.z : 0, dt, t)
       look.focus.copy(puck.visible ? puck.position : new THREE.Vector3())
-      if (introAt == null) look.blur?.(1.2)
+      if (introAt == null) { look.blur(1.2); look.range(150) }
       if (t - uiAt > 200) { uiAt = t; setGsUi(gs) }
       fade(t); if (introAt == null) controls.update(); look.render(); if (!rec) raf = requestAnimationFrame(tick)
     }
@@ -832,7 +832,7 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
       {rec ? null : <input type="range" min={0} max={events.length - 1} value={Math.max(0, now.i)} aria-label="Jump through the game"
         onChange={(e) => api.current.seek?.(gameSec(events[Number(e.target.value)]))} style={{ width: '100%', minHeight: 44, accentColor: C.ice }} />}
       <div style={{ display: rec ? 'none' : 'block', fontSize: 11, color: C.text3, fontFamily: NUM_FONT, lineHeight: 1.5 }}>
-        {sim ? <>PREPLAY · SIMULATION. One of {sim.n.toLocaleString('en-US')} runs of this game, the first to land on the most common final: each club&apos;s goals and shots from LAMP&apos;s team model, who shoots from each skater&apos;s shots a game, every shot from one of his real spots this season or last. The puck&apos;s path between shots is drawn, and each club keeps one end all game.</> : <>REPLAY · {events.length} events from the NHL&apos;s play-by-play: every disc is a real event, where and when it happened. The puck&apos;s path between events is drawn, and on the table each club keeps one end all game (a period they switched ends is turned round, every spot still true to its net).</>}
+        {sim ? <>PREPLAY · SIMULATION. One of {sim.n.toLocaleString('en-US')} runs of this game, the first to land on the most common final: each club&apos;s goals and shots from LAMP&apos;s team model, who shoots from each skater&apos;s shots a game, every shot from one of his real spots this season or last. The puck&apos;s path between shots is drawn, and each club keeps one end all game.</> : <>REPLAY · {events.length} events from the NHL&apos;s play-by-play: each man sent to a spot is a real event, where and when it happened. The puck&apos;s path between events is drawn, and on the table each club keeps one end all game (a period they switched ends is turned round, every spot still true to its net).</>}
         {' '}<b style={{ color: INK.away }}>{data.away.abbrev}</b> · <b style={{ color: INK.home }}>{data.home.abbrev}</b>
       </div>
     </section>
