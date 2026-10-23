@@ -62,7 +62,8 @@ import ShareCardButton from './card/ShareCardButton'
 import { playerUrl, slug, stamp } from '../lib/cards/saveCard'
 import CardFlip, { PostseasonChip } from './player/CardFlip'
 import CardsEarned from './player/CardsEarned'
-import BvP from './BvP'
+import { VsHimLog } from './BvP'
+import { mlbHeadshot } from '../lib/mlbTeams'
 import FirstPitchSplit from './FirstPitchSplit'
 import { venueRecord } from '../lib/venueHr'
 import { pullWallFor } from '../lib/walls'
@@ -309,6 +310,8 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   const [chartBalls, setChartBalls] = useState(null)
   // the one ball picked on either side (a dot or a log row); the other side lights it (#35)
   const [pickedBall, setPickedBall] = useState(null)
+  // the EV log panel's two views: his batted balls (the chart's) | him against tonight's pitcher (2026-10-23)
+  const [evView, setEvView] = useState('balls')
   useEffect(() => { setChartBalls(null); setPickedBall(null) }, [player?.player_id || player?.id])   // eslint-disable-line react-hooks/exhaustive-deps
   const evRef = useRef(null)
   const splitsRef = useRef(null)
@@ -949,9 +952,27 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               />
             </section>}
             {showPanel('ev') && <section ref={evRef} className="portal-ev" style={PORTAL_CELL} aria-label="EV log">
-              {chartBalls === null
-                ? <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Loading batted balls…</div>
-                : <EVLog player={p} balls={chartBalls} pickedBall={pickedBall} onPickBall={setPickedBall} />}
+              {/* VS HIM, IN THE SAME BOX (2026-10-23, Donovan: "add the verse picture with the EV log ... form fitted together, or at
+                  least like a toggle"): Batted balls | vs <tonight's pitcher>, his face on the chip. It left the Pitches tab. */}
+              {!apiOnly && p?.pitcher_id && (
+                <div className="chip-row" style={{ display: 'flex', gap: 5, marginBottom: 8, flexWrap: 'wrap' }}>
+                  {[['balls', 'Batted balls'], ['vs', `vs ${String(p.pitcher_name || 'starter').split(' ').slice(-1)[0]}`]].map(([k, l]) => (
+                    <button key={k} type="button" className={FLAT_CHIP_CLASS} aria-pressed={evView === k} onClick={() => setEvView(k)}
+                      style={{ ...flatChip(evView === k, C.orange, C, NUM_FONT), display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                      {k === 'vs' && <img src={mlbHeadshot(p.pitcher_id, 60)} alt="" width={16} height={16} style={{ width: 16, height: 16, borderRadius: '50%', objectFit: 'cover' }} />}
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {evView === 'vs' && !apiOnly && p?.pitcher_id
+                ? <>
+                    <VsHimLog batterId={pid} pitcherId={p.pitcher_id} pitcherName={p.pitcher_name} pitcherHand={clean(p?.pitcher_throws, '') || null} face={mlbHeadshot(p.pitcher_id, 120)} />
+                    <FirstPitchSplit batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} />
+                  </>
+                : chartBalls === null
+                  ? <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Loading batted balls…</div>
+                  : <EVLog player={p} balls={chartBalls} pickedBall={pickedBall} onPickBall={setPickedBall} />}
             </section>}
             {showPanel('props') && (
               <section ref={propsRef} className="portal-props" style={PORTAL_CELL} aria-label="Props">
@@ -981,12 +1002,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                   <MatchupPitcher player={p} slateMode={slateMode} />
                 </section>
               )}
-              {!apiOnly && (
-                <section style={PORTAL_CELL} aria-label="Against tonight's pitcher">
-                  <BvP batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} player={p} />
-                  <FirstPitchSplit batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} />
-                </section>
-              )}
+              {/* him against tonight's pitcher moved to the EV log's "vs him" toggle on the front (2026-10-23) */}
             </div>
           )}
 
