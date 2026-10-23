@@ -193,21 +193,23 @@ function DriveStage({ data, rec = false }) {
     // THE FIGURES: eleven a club in its colours (the home club in its colour, the visitors in white, as on a Sunday),
     // every base in TUDDY's accent; the man the play is about is swapped for one wearing his real number
     const colors = (k) => k === 'home'
-      ? { jersey: data.home.color || T.paint2, pants: T.enamel, helmet: data.home.color || T.ink, mask: data.home.alt || T.enamel, numInk: T.enamel }
-      : { jersey: T.enamel, pants: T.enamel, helmet: data.away.color || T.ink, mask: data.away.alt || T.ink, numInk: data.away.color || T.ink }
+      ? { jersey: data.home.color || T.paint2, pants: T.enamel, helmet: data.home.color || T.ink, mask: data.home.alt || T.enamel, numInk: T.enamel,
+          stripe: data.home.alt || T.enamel, sock: data.home.color || T.ink, dark: T.ink }
+      : { jersey: T.enamel, pants: T.enamel, helmet: data.away.color || T.ink, mask: data.away.alt || T.ink, numInk: data.away.color || T.ink,
+          stripe: data.away.color || T.ink, sock: data.away.color || T.ink, dark: T.ink }
     // (a pool of blank figures per club and pose, made as a formation first needs them; numbered men cached by club,
     // number and pose)
     const pool = new Map(), used = new Map(), numbered = new Map()
     const blankFig = (k, pose) => {
       const key = `${k}|${pose}`, list = pool.get(key) || [], n = used.get(key) || 0
-      if (!list[n]) { const f = makeFigure({ ...colors(k), accent: C.green, pose }); f.visible = false; scene.add(f); list[n] = f; pool.set(key, list) }
+      if (!list[n]) { const f = makeFigure({ ...colors(k), accent: C.green, pose, variant: n }); f.visible = false; scene.add(f); list[n] = f; pool.set(key, list) }
       used.set(key, n + 1)
       return list[n]
     }
     const numberedFig = (k, num, pose) => {
       const key = `${k}|${num}|${pose}`
       let f = numbered.get(key)
-      if (!f) { f = makeFigure({ ...colors(k), accent: C.green, num, pose }); f.visible = false; scene.add(f); numbered.set(key, f) }
+      if (!f) { f = makeFigure({ ...colors(k), accent: C.green, num, pose, variant: Number(num) || 0 }); f.visible = false; scene.add(f); numbered.set(key, f) }
       return f
     }
     let cast = [], castOff = 'home'
@@ -273,9 +275,23 @@ function DriveStage({ data, rec = false }) {
           x += fwd * u * 3.3
           if (c.k !== castOff) { x += (bp.x - x) * u * 0.28; z += (bp.z - z) * u * 0.28 }
         }
-        const j = buzzing ? 1 : 0
-        if (c.carrier) { carryRing.visible = true; carryRing.position.set(x, 0.5, z) }
-        c.fig.position.set(x + j * Math.sin(t * 0.061 + c.ph) * 0.35, 0, z + j * Math.sin(t * 0.047 + c.ph * 1.3) * 0.35)
+        c.x = x; c.z = z
+      }
+      // NO TWO BASES IN THE SAME SPOT: a few passes pushing apart any pair closer than a base's width (the man with the ball
+      // holds his line; everyone else gives way), so the line never shows two men melted into one
+      const MIN = 5.6
+      for (let pass = 0; pass < 3; pass += 1) {
+        for (let i = 0; i < cast.length; i += 1) for (let k = i + 1; k < cast.length; k += 1) {
+          const a = cast[i], b = cast[k], dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz)
+          if (d >= MIN || d === 0) continue
+          const push = (MIN - d) / d, wa = a.carrier ? 0 : b.carrier ? 1 : 0.5, wb = 1 - wa
+          a.x -= dx * push * wa; a.z -= dz * push * wa; b.x += dx * push * wb; b.z += dz * push * wb
+        }
+      }
+      const j = buzzing ? 1 : 0
+      for (const c of cast) {
+        if (c.carrier) { carryRing.visible = true; carryRing.position.set(c.x, 0.5, c.z) }
+        c.fig.position.set(c.x + j * Math.sin(t * 0.061 + c.ph) * 0.35, 0, c.z + j * Math.sin(t * 0.047 + c.ph * 1.3) * 0.35)
         c.fig.rotation.y = c.face + j * Math.sin(t * 0.033 + c.ph) * 0.12
         c.fig.userData.body.position.y = j * Math.abs(Math.sin(t * 0.09 + c.ph)) * 0.22
       }

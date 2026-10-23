@@ -202,13 +202,13 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
     const kit = (k) => {
       const c = CLUB_COLORS.clubs[data[k].abbrev] || {}
       return k === 'home'
-        ? { jersey: c.color || C.ice, pants: c.alt || DOME.cabinet, helmet: c.color || C.ice, numInk: DOME.boards }
-        : { jersey: DOME.boards, pants: c.color || DOME.cabinet, helmet: c.color || DOME.cabinet, numInk: c.color || DOME.cabinet }
+        ? { jersey: c.color || C.ice, pants: c.alt || DOME.cabinet, helmet: c.color || C.ice, numInk: DOME.boards, stripe: c.alt || DOME.boards }
+        : { jersey: DOME.boards, pants: c.color || DOME.cabinet, helmet: c.color || DOME.cabinet, numInk: c.color || DOME.cabinet, stripe: c.color || DOME.cabinet }
     }
     const roster = { home: [], away: [] }
     for (const k of ['home', 'away']) {
       slotsFor(k === 'home' ? -1 : 1, k === 'home' ? 1 : -1).forEach((sl) => {
-        const f = makeSkater({ ...kit(k), accent: C.ice, pose: sl[0] === 'G' ? 'goalie' : 'stride' })
+        const f = makeSkater({ ...kit(k), accent: C.ice, pose: sl[0] === 'G' ? 'goalie' : 'stride', variant: roster[k].length })
         f.userData.slotRef = { k, j: roster[k].length }
         scene.add(f); const mid = onSlot(sl, 0, 0)
         // pin: a spot he's been sent to (a faceoff, a hit, a block) for a moment; wob / hop: when he last rocked / jumped;
@@ -224,7 +224,7 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
       if (num != null) {
         const key = `${k}|${num}|${j}`
         f = numCache.get(key)
-        if (!f) { f = makeSkater({ ...kit(k), accent: C.ice, num, pose: r.slot[0] === 'G' ? 'goalie' : 'stride' }); f.userData.slotRef = { k, j }; f.visible = false; numCache.set(key, f); scene.add(f) }
+        if (!f) { f = makeSkater({ ...kit(k), accent: C.ice, num, pose: r.slot[0] === 'G' ? 'goalie' : 'stride', variant: Number(num) || 0 }); f.userData.slotRef = { k, j }; f.visible = false; numCache.set(key, f); scene.add(f) }
       }
       if (r.fig !== f) { r.fig.visible = false; f.visible = true; r.fig = f }
     }
@@ -242,6 +242,16 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
         else { r.pin = null; const o = onSlot(r.slot, px, py); tx = o.x; ty = o.y }      // riding his slot after the puck
         const sp = (r.pin ? 170 : 75) * dt, dx = tx - r.x, dy = ty - r.y, d = Math.hypot(dx, dy)
         if (d > sp) { r.x += (dx / d) * sp; r.y += (dy / d) * sp } else { r.x = tx; r.y = ty }
+      }
+      // NO TWO MEN IN ONE SPOT: where two slots cross, the second man to arrive holds off (a base's width apart), the way
+      // two toy players butt bases instead of passing through each other
+      const all = [...roster.home, ...roster.away]
+      for (let i = 0; i < all.length; i += 1) for (let k = i + 1; k < all.length; k += 1) {
+        const a = all[i], b = all[k], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), MIN = 8.6   // (a base, plus the lean: two men squared up never share a helmet)
+        if (d >= MIN || d === 0) continue
+        const push = (MIN - d) / d / 2; a.x -= dx * push; a.y -= dy * push; b.x += dx * push; b.y += dy * push
+      }
+      for (const k of ['home', 'away']) for (const r of roster[k]) {
         if (r.spin > 0) r.spin = Math.max(0, r.spin - dt * 16)
         const ha = (t - r.hop) / 1100, hop = ha >= 0 && ha < 1 ? Math.abs(Math.sin(ha * Math.PI * 3)) * 2.4 * (1 - ha) : 0
         r.fig.position.copy(rinkPoint(r.x, r.y, (r.sunk ? -2.6 : 0) + hop))
@@ -343,7 +353,7 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
         const k2 = other(side(e.team)), j2 = actorOf(k2, e.x, e.y), r2 = roster[k2][j2]
         wear(k2, j2, data.players?.[e.vs]?.num ?? null, e.vs)
         const d = side(e.team) === 'home' ? 1 : -1
-        if (e.kind === 'faceoff') { pinTo(act, e.x - d * 2.8, e.y, 650); pinTo(r2, e.x + d * 2.8, e.y, 650) }   // square up on the dot
+        if (e.kind === 'faceoff') { pinTo(act, e.x - d * 4.3, e.y, 650); pinTo(r2, e.x + d * 4.3, e.y, 650) }   // square up on the dot
         if (e.kind === 'hit') { pinTo(act, e.x, e.y, 380); pinTo(r2, e.x + d * 2.2, e.y + 1.2, 520); r2.wob = t; act.wob = t + 120 }
         if (e.kind === 'block') { pinTo(r2, e.x, e.y, 600); r2.wob = t }
       }
@@ -822,7 +832,7 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
       {rec ? null : <input type="range" min={0} max={events.length - 1} value={Math.max(0, now.i)} aria-label="Jump through the game"
         onChange={(e) => api.current.seek?.(gameSec(events[Number(e.target.value)]))} style={{ width: '100%', minHeight: 44, accentColor: C.ice }} />}
       <div style={{ display: rec ? 'none' : 'block', fontSize: 11, color: C.text3, fontFamily: NUM_FONT, lineHeight: 1.5 }}>
-        {sim ? <>PREPLAY · SIMULATION. One of {sim.n.toLocaleString('en-US')} runs of this game, the first to land on the most common final: each club&apos;s goals and shots from LAMP&apos;s team model, who shoots from each skater&apos;s shots a game, every shot from one of his real spots this season or last. The puck&apos;s path between shots is drawn.</> : <>REPLAY · {events.length} events from the NHL&apos;s play-by-play: every disc is a real event, where and when it happened. The puck&apos;s path between events is drawn.</>}
+        {sim ? <>PREPLAY · SIMULATION. One of {sim.n.toLocaleString('en-US')} runs of this game, the first to land on the most common final: each club&apos;s goals and shots from LAMP&apos;s team model, who shoots from each skater&apos;s shots a game, every shot from one of his real spots this season or last. The puck&apos;s path between shots is drawn, and each club keeps one end all game.</> : <>REPLAY · {events.length} events from the NHL&apos;s play-by-play: every disc is a real event, where and when it happened. The puck&apos;s path between events is drawn, and on the table each club keeps one end all game (a period they switched ends is turned round, every spot still true to its net).</>}
         {' '}<b style={{ color: INK.away }}>{data.away.abbrev}</b> · <b style={{ color: INK.home }}>{data.home.abbrev}</b>
       </div>
     </section>
