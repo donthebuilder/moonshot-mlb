@@ -1,0 +1,134 @@
+{
+ "source": "ESPN NHL teams (site.api.espn.com)",
+ "fetched": "2026-10-23",
+ "clubs": {
+  "ANA": {
+   "color": "#fc4c02",
+   "alt": "#000000"
+  },
+  "BOS": {
+   "color": "#231f20",
+   "alt": "#fdb71a"
+  },
+  "BUF": {
+   "color": "#00468b",
+   "alt": "#fdb71a"
+  },
+  "CGY": {
+   "color": "#dd1a32",
+   "alt": "#000000"
+  },
+  "CAR": {
+   "color": "#e30426",
+   "alt": "#000000"
+  },
+  "CHI": {
+   "color": "#e31937",
+   "alt": "#000000"
+  },
+  "COL": {
+   "color": "#860038",
+   "alt": "#005ea3"
+  },
+  "CBJ": {
+   "color": "#002d62",
+   "alt": "#e31937"
+  },
+  "DAL": {
+   "color": "#20864c",
+   "alt": "#000000"
+  },
+  "DET": {
+   "color": "#e30526",
+   "alt": "#ffffff"
+  },
+  "EDM": {
+   "color": "#00205b",
+   "alt": "#ff4c00"
+  },
+  "FLA": {
+   "color": "#e51937",
+   "alt": "#002d62"
+  },
+  "LAK": {
+   "color": "#121212",
+   "alt": "#a2aaad"
+  },
+  "MIN": {
+   "color": "#124734",
+   "alt": "#ae122a"
+  },
+  "MTL": {
+   "color": "#c41230",
+   "alt": "#013a81"
+  },
+  "NSH": {
+   "color": "#fdba31",
+   "alt": "#002d62"
+  },
+  "NJD": {
+   "color": "#e30b2b",
+   "alt": "#000000"
+  },
+  "NYI": {
+   "color": "#00529b",
+   "alt": "#f47d31"
+  },
+  "NYR": {
+   "color": "#0056ae",
+   "alt": "#e51937"
+  },
+  "OTT": {
+   "color": "#dd1a32",
+   "alt": "#b79257"
+  },
+  "PHI": {
+   "color": "#fe5823",
+   "alt": "#000000"
+  },
+  "PIT": {
+   "color": "#000000",
+   "alt": "#fdb71a"
+  },
+  "SJS": {
+   "color": "#00788a",
+   "alt": "#070707"
+  },
+  "SEA": {
+   "color": "#000d33",
+   "alt": "#a3dce4"
+  },
+  "STL": {
+   "color": "#0070b9",
+   "alt": "#fdb71a"
+  },
+  "TBL": {
+   "color": "#003e7e",
+   "alt": "#ffffff"
+  },
+  "TOR": {
+   "color": "#003e7e",
+   "alt": "#ffffff"
+  },
+  "UTA": {
+   "color": "#000000",
+   "alt": "#7ab2e1"
+  },
+  "VAN": {
+   "color": "#003e7e",
+   "alt": "#008752"
+  },
+  "VGK": {
+   "color": "#344043",
+   "alt": "#b4975a"
+  },
+  "WSH": {
+   "color": "#d71830",
+   "alt": "#0b1f41"
+  },
+  "WPG": {
+   "color": "#002d62",
+   "alt": "#c41230"
+  }
+ }
+}

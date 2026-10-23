@@ -10,9 +10,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { C, NUM_FONT, RINK } from '../../lib/nhl/theme'
-import { buildRink, buildDashBowl, rinkPoint, roundedRect, GOAL_X, RINK_L, RINK_W, RINK_R, BLUE_X } from '../../lib/rinkWorld'
-import { makeComposer, isCoarse } from '../../lib/stadiumLook'
+import { C, NUM_FONT, RINK, DOME } from '../../lib/nhl/theme'
+import { rinkPoint, roundedRect, GOAL_X, RINK_L, RINK_W, RINK_R, BLUE_X } from '../../lib/rinkWorld'
+import { isCoarse } from '../../lib/stadiumLook'
+import { makeTabletopLook } from '../../lib/tabletop/look'
+import { buildDomeHockey, makeSkater, slotsFor, onSlot } from '../../lib/tabletop/domeHockey'
+import CLUB_COLORS from '../../lib/data/nhlClubColors.json'
 import { webglOk } from '../../lib/webglOk'
 import { lookParam } from '../../lib/three/look'
 import { eventWords, powerPlayAt, penaltyStretches } from '../../lib/nhl/events'
@@ -31,49 +34,12 @@ const GAME_S = 30          // game seconds per replay second at 1x: a 60-minute 
 const SPEEDS = [[1, '1x'], [2.5, '2.5x'], [4, '4x']]   // 2.5x opens (Donovan 2026-10-22: "2.5 ... I think that's the best one")
 const SHOW_MS = 1400       // how long a player's disc stays after his event (real time)
 const GOAL_HOLD_MS = 2600  // the replay holds this long on a goal (the clock stops on one)
-const INTRO_MS = 5200      // THE OPEN: a video-game fly-in, then the data lights up, then the puck drops
+const INTRO_MS = 7600      // THE OPEN: the DASH sting, low inside the dome at centre ice, up to the tower, the puck drops
 const PERIOD_S = 1200
 const gameSec = (e) => (e.period - 1) * PERIOD_S + e.t
 // the box: the rink is 200 x 85 ft, so a wide screen gets a wide box (no empty band above and below); a phone a taller one
 const boxH = (w, rec = false) => (rec ? Math.round(w * 9 / 16) : Math.max(260, Math.round(w * (w < 640 ? 0.66 : 0.42))))
 const pName = (players, id) => { const n = players?.[id]?.name; return n ? n.split(' ').slice(-1)[0] : '' }
-
-/** A player's chip, as a sprite: a dark disc ringed in his club's colour, the club's logo on top and his number under
- *  it (Donovan 2026-10-22: "it's hard to tell the teams ... a logo as well with the number"). The logo comes through
- *  the site's own /cdn/nhle rewrite (assets.nhle.com sends no CORS header, and a WebGL texture needs one); until it
- *  loads the chip draws without it. Cached per club + number. */
-const discCache = new Map()
-const logoCache = new Map()
-function clubLogo(abbrev) {
-  if (!abbrev || typeof Image === 'undefined') return null
-  let img = logoCache.get(abbrev)
-  if (!img) { img = new Image(); img.decoding = 'async'; img.src = `/cdn/nhle/logos/nhl/svg/${String(abbrev).toUpperCase()}_dark.svg`; logoCache.set(abbrev, img) }
-  return img
-}
-function discSprite(hex, num, abbrev = null) {
-  const key = `${hex}|${num ?? ''}|${abbrev || ''}`
-  let tex = discCache.get(key)
-  if (!tex) {
-    const cv = document.createElement('canvas'); cv.width = 160; cv.height = 160
-    const draw = (logo) => {
-      const g = cv.getContext('2d')
-      g.clearRect(0, 0, 160, 160)
-      g.beginPath(); g.arc(80, 80, 72, 0, Math.PI * 2); g.fillStyle = C.bg2; g.fill()
-      g.lineWidth = 12; g.strokeStyle = hex; g.stroke()
-      if (logo?.complete && logo.naturalWidth) { try { g.drawImage(logo, 40, 18, 80, 80) } catch { /* a logo that will not draw: the chip without it */ } }
-      g.fillStyle = hex; g.font = `900 ${logo ? 40 : 64}px ${NUM_FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'
-      if (num != null) g.fillText(String(num), 80, logo ? 122 : 84)
-    }
-    const logo = clubLogo(abbrev)
-    draw(logo)
-    tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace
-    if (logo && !(logo.complete && logo.naturalWidth)) logo.addEventListener('load', () => { draw(logo); tex.needsUpdate = true }, { once: true })
-    discCache.set(key, tex)
-  }
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false }))
-  sp.scale.set(7, 7, 1)
-  return sp
-}
 
 const clockText = (e, gameType) => {
   if (!e) return ''
@@ -155,7 +121,14 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
   const [intro, setIntro] = useState(null)   // the open: 'title' (the fly-in), 'data' (the numbers light up), or null
   const [gsUi, setGsUi] = useState(0)        // the game clock as the replay runs (the score bug ticks between events)
   const [done, setDone] = useState(false)     // the final horn: the end card shows
-  const events = data.events
+  // ONE END EACH, ALL GAME (2026-10-23, the bubble dome: its figures ride fixed slots, so the home club always defends -x).
+  // The clubs switch ends every period on a real rink; a period where the home club shot at -x is turned round (x and y
+  // both), so every spot stays where it was relative to its net.
+  const events = useMemo(() => {
+    const flipP = {}
+    for (const e of data.events) if (['sog', 'goal', 'miss'].includes(e.kind) && e.team) flipP[e.period] = (flipP[e.period] || 0) + Math.sign(e.x || 0) * (e.team === data.home.abbrev ? 1 : -1)
+    return data.events.map((e) => ((flipP[e.period] || 0) < 0 ? { ...e, x: -e.x, y: -e.y } : e))
+  }, [data])
   const total = useMemo(() => gameSec(events[events.length - 1]) + 1, [events])
   const side = (abbrev) => (abbrev === data.home.abbrev ? 'home' : 'away')
   const otherClub = (abbrev) => (abbrev === data.home.abbrev ? data.away.abbrev : data.home.abbrev)
@@ -197,10 +170,12 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
     const W = el.clientWidth || 640, H = boxH(W, rec)
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(C.bg)
-    const rink = buildRink(scene, { tracking: { floor: new THREE.Color(C.bg3).multiplyScalar(1.6), line: C.text, mark: '/icon-512.png' } })
-    buildDashBowl(scene, { floor: new THREE.Color(C.bg3).multiplyScalar(1.6), line: C.text, accent: C.ice, ribbon: `DASH NETWORK  ·  LAMP  ·  ${data.away.abbrev} @ ${data.home.abbrev}` })
-    const camera = new THREE.PerspectiveCamera(34, W / H, 1, 2000)
-    const renderer = new THREE.WebGLRenderer({ antialias: true })
+    const camera = new THREE.PerspectiveCamera(32, W / H, 1, 2000)
+    const renderer = new THREE.WebGLRenderer({ antialias: false })
+    // THE WORLD (2026-10-23): the bubble-dome table (lib/tabletop/domeHockey.js) -- the printed rink, the slots, the boards,
+    // the cabinet and its rods, the clear dome and its scoreboard tower
+    const club = (k) => ({ abbrev: data[k].abbrev, ...(CLUB_COLORS.clubs[data[k].abbrev] || {}) })
+    const rink = buildDomeHockey(scene, renderer, { home: club('home'), away: club('away') })
     renderer.setSize(W, H); renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1))
     el.appendChild(renderer.domElement)
     const controls = new OrbitControls(camera, renderer.domElement)
@@ -209,15 +184,60 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
     // THE BROADCAST CAMERA: high over one side, the whole sheet in frame; a tall phone box pulls back along the same line
     const frame = () => {
       // a little wider than the sheet, so the first tier and the ribbon board frame it
-      const pull = Math.max(1, 2.2 / camera.aspect) * 1.16
-      camera.position.set(0, 128 * pull, 92 * pull); controls.target.set(0, 0, 0); controls.update()
+      const pull = Math.max(1, 2.2 / camera.aspect) * 1.02
+      // (low enough that the scoreboard tower sits above the far boards, never over the ice)
+      camera.position.set(0, 112 * pull, 132 * pull); controls.target.set(0, 0, 6); controls.update()
     }
     frame()
-    const look = makeComposer(renderer, scene, camera, W, H, { ao: false, scale: 0.4 })
+    const look = makeTabletopLook(renderer, scene, camera, W, H)
 
     // the puck, its trail, the marks
-    const puck = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.45, 24), new THREE.MeshBasicMaterial({ color: new THREE.Color(C.text) }))
-    puck.position.y = 0.4; puck.visible = false; scene.add(puck)
+    const puck = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.45, 24), new THREE.MeshStandardMaterial({ color: new THREE.Color(DOME.cabinet), roughness: 0.35, metalness: 0.3 }))
+    puck.position.y = 0.4; puck.visible = false; puck.castShadow = true; scene.add(puck)
+
+    // THE FIGURES: six a club on their slots (home in its colour, visitors in white, as on a game night), every base in
+    // LAMP's ice. Each turns on its rod to face the puck and slides along its slot after it, the way the toy plays; the man
+    // an event is about is swapped onto his slot wearing his real number, and a shot spins him on his rod.
+    const kit = (k) => {
+      const c = CLUB_COLORS.clubs[data[k].abbrev] || {}
+      return k === 'home'
+        ? { jersey: c.color || C.ice, pants: c.alt || DOME.cabinet, helmet: c.color || C.ice, numInk: DOME.boards }
+        : { jersey: DOME.boards, pants: c.color || DOME.cabinet, helmet: c.color || DOME.cabinet, numInk: c.color || DOME.cabinet }
+    }
+    const roster = { home: [], away: [] }
+    for (const k of ['home', 'away']) {
+      slotsFor(k === 'home' ? -1 : 1, k === 'home' ? 1 : -1).forEach((sl) => {
+        const f = makeSkater({ ...kit(k), accent: C.ice, pose: sl[0] === 'G' ? 'goalie' : 'stride' })
+        scene.add(f); const mid = onSlot(sl, 0, 0)
+        roster[k].push({ slot: sl, blank: f, fig: f, spin: 0, x: mid.x, y: mid.y })
+      })
+    }
+    const numCache = new Map()
+    const wear = (k, j, num) => {
+      const r = roster[k][j]
+      let f = r.blank
+      if (num != null) {
+        const key = `${k}|${num}|${j}`
+        f = numCache.get(key)
+        if (!f) { f = makeSkater({ ...kit(k), accent: C.ice, num, pose: r.slot[0] === 'G' ? 'goalie' : 'stride' }); f.visible = false; numCache.set(key, f); scene.add(f) }
+      }
+      if (r.fig !== f) { r.fig.visible = false; f.visible = true; r.fig = f }
+    }
+    const actorOf = (k, x, y, goalie = false) => {
+      let best = 0, bd = Infinity
+      roster[k].forEach((r, j) => { if (goalie !== (r.slot[0] === 'G')) return; const d = onSlot(r.slot, x, y).d; if (d < bd) { bd = d; best = j } })
+      return best
+    }
+    const moveFigures = (px, py, dt) => {
+      for (const k of ['home', 'away']) for (const r of roster[k]) {
+        const tgt = onSlot(r.slot, px, py), sp = 75 * dt, dx = tgt.x - r.x, dy = tgt.y - r.y, d = Math.hypot(dx, dy)
+        if (d > sp) { r.x += (dx / d) * sp; r.y += (dy / d) * sp } else { r.x = tgt.x; r.y = tgt.y }
+        if (r.spin > 0) r.spin = Math.max(0, r.spin - dt * 16)
+        r.fig.position.copy(rinkPoint(r.x, r.y, 0))
+        r.fig.rotation.y = Math.atan2(py - r.y, px - r.x) + r.spin
+      }
+    }
+    moveFigures(0, 0, 10)   // on their slots, facing the dot
     const marks = new THREE.Group(); scene.add(marks)
     // THE TRACE: the play so far, as one glowing line -- the last event's spot, the one before it (when play carried on
     // between them) and the puck, brightest at the puck. It follows the play, never a frame history, so 4x stays clean.
@@ -294,13 +314,18 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
     const showEvent = (e) => {
       const ink = INK[side(e.team)]
       const otherInk = INK[side(e.team) === 'home' ? 'away' : 'home']
-      const d = discSprite(ink, data.players?.[e.who]?.num, e.team); d.position.copy(rinkPoint(e.x, e.y, 3.4)); add(d, SHOW_MS, 'disc')
-      if (e.kind === 'hit' && e.vs) { const v = discSprite(otherInk, data.players?.[e.vs]?.num, otherClub(e.team)); v.position.copy(rinkPoint(e.x + 3.5, e.y - 2.5, 3.4)); add(v, SHOW_MS, 'disc') }
+      void otherInk
+      // the man this is about: the figure whose slot runs nearest the spot, in his real number, on the spot
+      if (e.team) {
+        const k = side(e.team), j = actorOf(k, e.x, e.y), r = roster[k][j], on = onSlot(r.slot, e.x, e.y)
+        wear(k, j, data.players?.[e.who]?.num ?? null); r.x = on.x; r.y = on.y
+        if (e.kind === 'sog' || e.kind === 'goal' || e.kind === 'miss') r.spin = Math.PI * 2
+      }
       if (e.kind === 'faceoff') add(pulse(e.x, e.y, C.text, 2), 700, 'pulse')
       if (e.kind === 'sog' || e.kind === 'miss' || e.kind === 'goal') add(shotLine(e, ink), e.kind === 'goal' ? 1800 : 650, 'line')
       // the goalie: on a save or a goal his chip shows in the crease (goalieInNetId from the feed)
       if ((e.kind === 'sog' || e.kind === 'goal') && e.vs && data.players?.[e.vs]) {
-        const gk = discSprite(otherInk, data.players[e.vs].num, otherClub(e.team)); gk.position.copy(shotEnd({ ...e, kind: 'sog' })).setY(3.2); add(gk, SHOW_MS, 'disc')
+        const gk = side(e.team) === 'home' ? 'away' : 'home'; wear(gk, actorOf(gk, e.x, e.y, true), data.players[e.vs].num)
         if (e.kind === 'sog') add(pulse(Math.sign(e.x || 1) * (GOAL_X - 3.2), 0, C.text, 1.2), 450, 'pulse')
       }
       if (e.kind === 'goal') { const sx = Math.sign(e.x || 1), p = pulse(sx * GOAL_X, 0, C.lamp, 3); add(p, 1600, 'goal'); rippleNet(sx, nowMs()); kick(sx * (GOAL_X - 2), 0, 26, 1.3) }
@@ -339,7 +364,7 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
     for (const sideKey of ['away', 'home']) {
       const x0 = boxAt[sideKey]
       const pts = [[-6, -2.4], [6, -2.4], [6, 2.4], [-6, 2.4]].map(([dx, dy]) => rinkPoint(x0 + dx, BOX_Y + dy, 0.1))
-      scene.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: new THREE.Color(INK[sideKey]), transparent: true, opacity: 0.6 })))
+      void pts   // (the dome table has no penalty box: the man-up zone on the ice says it)
       const f = new THREE.Mesh(new THREE.PlaneGeometry(12, 4.8), new THREE.MeshBasicMaterial({ color: new THREE.Color(INK[sideKey]), transparent: true, opacity: 0, depthWrite: false }))
       f.rotation.x = -Math.PI / 2; f.position.copy(rinkPoint(x0, BOX_Y, 0.08)); scene.add(f); boxFill[sideKey] = f
     }
@@ -351,12 +376,12 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
         const sideKey = side(p.team)
         if (on) {
           lit[sideKey] += 1
-          if (!boxed.has(k)) { const d = discSprite(INK[sideKey], data.players?.[p.who]?.num, p.team); d.scale.set(4.4, 4.4, 1); scene.add(d); boxed.set(k, d) }
+          if (!boxed.has(k)) { const d = new THREE.Object3D(); d.material = { dispose() {} }; boxed.set(k, d) }
           const n = [...boxed.keys()].filter((j) => side(penalties[j].team) === sideKey).indexOf(k)
           boxed.get(k).position.copy(rinkPoint(boxAt[sideKey] - 3 + n * 4.5, BOX_Y, 2.6))
         } else if (boxed.has(k)) { const d = boxed.get(k); scene.remove(d); d.material.dispose(); boxed.delete(k) }
       })
-      for (const sideKey of ['away', 'home']) boxFill[sideKey].material.opacity = lit[sideKey] ? 0.28 : 0
+      for (const sideKey of ['away', 'home']) boxFill[sideKey].material.opacity = 0
       // the man advantage: from the strength code of the last event shown
       const cur = idx >= 0 ? events[idx] : null, pp = powerPlayAt(cur)
       for (const sx of [-1, 1]) ppZones[sx].visible = false
@@ -374,13 +399,16 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
       while (idx + 1 < events.length && gameSec(events[idx + 1]) <= gs) idx += 1
       for (const m of live) { marks.remove(m.obj) } live.length = 0
       resetTail()
-      setNow({ i: idx, score: idx >= 0 ? events[idx].score : [0, 0] }); setDone(false)
+      setNow({ i: idx, score: idx >= 0 ? events[idx].score : [0, 0] }); setDone(false); rink.setScore(...(idx >= 0 ? events[idx].score : [0, 0]))
     }
     // THE OPEN (Donovan 2026-10-22: "a video game first and then next gen stats ... welcome to the world ... boom"): the
     // camera comes in low behind one net, sweeps round the rink and settles on the broadcast angle; the title, then the
     // game's numbers, ride on top; then the puck drops at centre ice and play starts.
     let introAt = null, introDone = false, introPhase = null
-    const flight = new THREE.CatmullRomCurve3([[-150, 14, 26], [-112, 34, 92], [-20, 70, 150], [0, 128, 92]].map((v) => new THREE.Vector3(...v)))
+    // THE OPEN (2026-10-23, Donovan: "yes to the puck drop"): the DASH sting; low inside the dome at centre ice, the two
+    // centres squared up on the dot, the camera circling them; tilt up the dome to the scoreboard tower; the puck drops
+    // through the hole, the camera riding it down and out to the broadcast angle; it lands, the ice sprays, play starts.
+    const ease2 = (u) => (u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2)
     const endIntro = (t) => {
       introAt = null; introDone = true; controls.enabled = true; frame(); setIntro(null)
       kick(0, 0, 30, 1.2); add(pulse(0, 0, C.text, 2), 900, 'pulse')
@@ -388,15 +416,33 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
     }
     const stepIntro = (t) => {
       if (introAt == null) return
-      const u = Math.min(1, (t - introAt) / INTRO_MS), e = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2
-      const pull = Math.max(1, 2.2 / camera.aspect)
-      const p = flight.getPoint(Math.min(1, e / 0.82))
-      if (e >= 0.82) p.lerp(new THREE.Vector3(0, 128 * pull * 1.16, 92 * pull * 1.16), (e - 0.82) / 0.18)
-      camera.position.copy(p); camera.lookAt(0, 0, 0)
-      const ph = u < 0.55 ? 'title' : 'data'
+      const u = Math.min(1, (t - introAt) / INTRO_MS)
+      const pull = Math.max(1, 2.2 / camera.aspect) * 1.02
+      const broadcast = new THREE.Vector3(0, 112 * pull, 132 * pull)
+      if (u < 0.5) {
+        // circling the faceoff, low: a slow quarter turn round the dot
+        const a = -0.9 + ease2(clamp01((u - 0.12) / 0.38)) * 1.4
+        camera.position.set(Math.cos(a) * 30, 7, Math.sin(a) * 30 + 6); camera.lookAt(0, 3.5, 0)
+        look.focus.set(0, 3, 0); puck.visible = false
+      } else if (u < 0.72) {
+        // tilt up: the tower at the top of the dome, the puck waiting in its hole
+        // (looking up at the tower's face from the near side of the ice, the puck waiting in the hole under it)
+        const f = ease2((u - 0.5) / 0.22)
+        camera.position.set(-20 + f * 8, 7 + f * 12, 26 + f * 6); camera.lookAt(0, 3.5 + f * 44, 0)
+        puck.visible = true; puck.position.copy(rink.towerTop); look.focus.copy(rink.towerTop)
+      } else {
+        // the drop: the puck falls (gravity), the camera rides it down and out to the broadcast angle
+        const f = (u - 0.72) / 0.28, fall = Math.min(1, f * 1.25)
+        puck.visible = true; puck.position.set(0, rink.towerTop.y - (rink.towerTop.y - 0.4) * fall * fall, 0)
+        const g = ease2(f)
+        camera.position.lerpVectors(new THREE.Vector3(-12, 19, 32), broadcast, g); camera.lookAt(0, puck.position.y * (1 - g), 6 * g)
+        look.focus.copy(puck.position)
+      }
+      const ph = u < 0.12 ? 'ident' : u < 0.62 ? 'title' : 'data'
       if (ph !== introPhase) { introPhase = ph; setIntro(ph) }
       if (u >= 1) endIntro(t)
     }
+    const clamp01 = (v) => Math.max(0, Math.min(1, v))
     const tick = () => {
       const t = nowMs(), dt = Math.min(0.1, (t - last) / 1000); last = t
       stepIntro(t)
@@ -408,7 +454,7 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
           // the clock stops on a goal: the replay holds on it too, so the goal can be seen before the next faceoff
           if (events[idx].kind === 'goal') { holdUntil = t + GOAL_HOLD_MS; gs = gameSec(events[idx]); break }
         }
-        if (moved) setNow({ i: idx, score: events[idx].score })
+        if (moved) { setNow({ i: idx, score: events[idx].score }); rink.setScore(...events[idx].score) }
         if (gs >= total) { playingNow = false; setPlaying(false); setDone(true) }
       }
       if (idx >= 0) {
@@ -427,6 +473,8 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
         if (p.distanceTo(from) > 0.5 || prev) setTail([...(prev ? [prev] : []), from, p]); else resetTail()
       }
       stepSpray(dt); stepRipple(t); stepBox(gs, t)
+      if (introAt == null) moveFigures(puck.visible ? puck.position.x : 0, puck.visible ? -puck.position.z : 0, dt)
+      look.focus.copy(puck.visible ? puck.position : new THREE.Vector3())
       if (t - uiAt > 200) { uiAt = t; setGsUi(gs) }
       fade(t); if (introAt == null) controls.update(); look.render(); if (!rec) raf = requestAnimationFrame(tick)
     }
@@ -444,7 +492,9 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
         step: (ms) => { vt += ms; tick() },
         done: () => gs >= total && !playingNow,
         // a still at one moment (game seconds; the open skipped): for checking frames, not for the video
-        jump: (g) => { if (introAt != null || !introDone) { introAt = null; introDone = true; controls.enabled = true; frame(); setIntro(null) } seek(g); playingNow = false; tick() },
+        jump: (g) => { if (introAt != null || !introDone) { introAt = null; introDone = true; controls.enabled = true; frame(); setIntro(null) } seek(g); playingNow = false; tick(); moveFigures(puck.position.x, -puck.position.z, 10); look.render() },
+        // a still of the open at u (0..1), for checking frames
+        openAt: (u) => { introAt = nowMs() - u * INTRO_MS; introDone = false; stepIntro(nowMs()); look.render(); introAt = null },
         goals: () => events.filter((e) => e.kind === 'goal').map((e) => gameSec(e)),
         total: () => total,
       }
@@ -467,7 +517,7 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
       cancelAnimationFrame(raf); io.disconnect(); document.removeEventListener('visibilitychange', onVis); if (ro) ro.disconnect()
       for (const m of live) { m.obj.geometry?.dispose?.(); m.obj.material?.dispose?.() }
       puck.geometry.dispose(); tailGeo.dispose(); sprayGeo.dispose(); for (const d of boxed.values()) d.material.dispose()
-      controls.dispose(); look.dispose?.(); renderer.dispose(); if (renderer.domElement.parentNode === el) el.removeChild(renderer.domElement)
+      controls.dispose(); look.dispose?.(); rink.dispose?.(); renderer.dispose(); if (renderer.domElement.parentNode === el) el.removeChild(renderer.domElement)
       api.current = {}
     }
   }, [events, total]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -511,11 +561,21 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
         {/* THE OPEN'S CARDS: the title while the camera flies in, then the game's numbers (counted from the events) */}
         {intro ? (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 3 }}>
-            <style>{'@keyframes lampInL{from{transform:translateX(-60px);opacity:0}to{transform:none;opacity:1}}@keyframes lampInR{from{transform:translateX(60px);opacity:0}to{transform:none;opacity:1}}@keyframes lampUp{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}'}</style>
-            {intro === 'title' ? (
-              <div style={{ textAlign: 'center', fontFamily: NUM_FONT }}>
-                <div style={{ fontSize: 11, letterSpacing: 4, color: C.text2, fontWeight: 800, animation: 'lampUp .5s ease-out both' }}>DASH NETWORK · LAMP</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(10px, 3vw, 26px)', marginTop: 10 }}>
+            <style>{'@keyframes lampInL{from{transform:translateX(-60px);opacity:0}to{transform:none;opacity:1}}@keyframes lampInR{from{transform:translateX(60px);opacity:0}to{transform:none;opacity:1}}@keyframes lampUp{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}@keyframes lampSting{0%{transform:scale(2.4);opacity:0;filter:blur(6px)}35%{transform:scale(.94);opacity:1;filter:none}55%{transform:scale(1.02)}100%{transform:scale(1)}}@keyframes lampBar{from{transform:scaleX(0)}to{transform:scaleX(1)}}'}</style>
+            {intro === 'ident' ? (
+              // the network's own open, as on MOONSHOT's and TUDDY's
+              <div style={{ position: 'absolute', inset: 0, background: C.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/icon-512.png" alt="" width={120} height={120} style={{ display: 'block', borderRadius: 26, animation: 'lampSting .9s cubic-bezier(.2,.9,.2,1) both' }} />
+                <div style={{ width: 140, height: 3, background: C.ice, transformOrigin: 'left', animation: 'lampBar .5s .35s ease-out both' }} />
+                <div style={{ fontFamily: NUM_FONT, fontSize: 18, fontWeight: 900, letterSpacing: 8, color: C.text, animation: 'lampUp .45s .45s both' }}>{sim ? 'PREPLAY' : 'REPLAY'}</div>
+              </div>
+            ) : intro === 'title' ? (
+              // a lower third, so the shot behind it shows (the faceoff, the tower, the drop)
+              <div style={{ position: 'absolute', left: 'clamp(12px, 3vw, 28px)', bottom: 'clamp(12px, 3vw, 26px)', textAlign: 'left', fontFamily: NUM_FONT }}>
+                <div style={{ width: 120, height: 3, background: C.ice, transformOrigin: 'left', animation: 'lampBar .5s ease-out both' }} />
+                <div style={{ fontSize: 11, letterSpacing: 4, color: C.text, fontWeight: 900, marginTop: 6, animation: 'lampUp .5s ease-out both' }}>DASH NETWORK · LAMP · {sim ? 'PREPLAY' : 'REPLAY'}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(8px, 2vw, 16px)', marginTop: 6 }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 8, animation: 'lampInL .55s cubic-bezier(.2,.9,.2,1) both' }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={nhlLogo(data.away.abbrev, true)} alt="" width={56} height={56} />
@@ -528,10 +588,10 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
                     <img src={nhlLogo(data.home.abbrev, true)} alt="" width={56} height={56} />
                   </span>
                 </div>
-                <div style={{ fontSize: 12, color: C.text2, marginTop: 10, letterSpacing: 2, animation: 'lampUp .5s .35s both' }}>{data.date || ''} · {sim ? 'PREPLAY · SIMULATION' : 'REPLAY'}</div>
+                <div style={{ fontSize: 12, color: C.text, marginTop: 6, letterSpacing: 2, fontWeight: 700, animation: 'lampUp .5s .35s both' }}>{data.date || ''}{sim ? ' · SIMULATION' : ''}</div>
               </div>
             ) : (
-              <div style={{ display: 'flex', gap: 'clamp(14px, 4vw, 34px)', fontFamily: NUM_FONT, textAlign: 'center', background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 10, padding: '12px clamp(14px, 4vw, 28px)' }}>
+              <div style={{ position: 'absolute', left: 'clamp(12px, 3vw, 28px)', bottom: 'clamp(12px, 3vw, 26px)', display: 'flex', gap: 'clamp(14px, 4vw, 34px)', fontFamily: NUM_FONT, textAlign: 'left', background: C.bg2, border: `1px solid ${C.border2}`, borderLeft: `3px solid ${C.ice}`, borderRadius: 8, padding: '10px clamp(12px, 3vw, 22px)' }}>
                 {tallies.map(([n, label], k) => (
                   <div key={label} style={{ animation: `lampUp .45s ${k * 0.12}s both` }}>
                     <div style={{ fontSize: 'clamp(26px, 6vw, 44px)', fontWeight: 900, color: C.text, lineHeight: 1 }}>{n}</div>
