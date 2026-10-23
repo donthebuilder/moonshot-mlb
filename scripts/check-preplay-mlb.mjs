@@ -121,5 +121,28 @@ ok(playWords({ kind: 'HR', bi: 2, ball: { dist: 412, ev: 108 } }, game.home.line
   ok(longest < 150, `the longest of 200 TEST games runs ${longest.toFixed(0)} s of video (under 150)`)
 }
 
+// 6 the engine, v2 (2026-10-22 review): groundouts move forced runners; a walk-off ends on the winning run
+{
+  let forcedOk = true, forcedSeen = 0, walkOk = true, walkSeen = 0
+  for (let sd = 1; sd <= 600; sd += 1) {
+    const log = []
+    const g = simGame(game, sd, log)
+    for (const h of log) for (const e of h.events) {
+      if (e.kind === 'OUT' && e.how === 'gb' && e.before[0] != null && e.outs < 3) { forcedSeen += 1; if (e.after[0] === e.before[0] || e.after[1] !== e.before[0]) forcedOk = false }
+    }
+    const lastHalf = log[log.length - 1]
+    if (lastHalf.side === 'home' && lastHalf.inning >= 9 && g.home.runs > g.away.runs) {
+      walkSeen += 1
+      const lastPlay = lastHalf.events[lastHalf.events.length - 1]
+      const before = g.home.runs - (lastPlay.scored?.length || 0)
+      // it ended on the play that won it, and only a homer counts runs past the winning one
+      if (before > g.away.runs) walkOk = false
+      if (lastPlay.kind !== 'HR' && g.home.runs !== g.away.runs + 1) walkOk = false
+    }
+  }
+  ok(forcedSeen > 50 && forcedOk, `a groundout with a man on first moves him to second (${forcedSeen} plays)`)
+  ok(walkSeen > 20 && walkOk, `a walk-off ends on the winning run, one run up unless it is a homer (${walkSeen} games)`)
+}
+
 console.log(fails ? `\n${fails} FAILED` : '\nall PREPLAY checks pass')
 process.exit(fails ? 1 : 0)

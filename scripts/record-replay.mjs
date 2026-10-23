@@ -71,6 +71,11 @@ await page.evaluate(() => {
   }
 })
 const stage = page.locator('[data-replay-stage]')
+// the MLB slate opens on its first upcoming game, whatever --game says: say so and stop rather than film the wrong game
+if (sport === 'mlb') {
+  const shown = await page.evaluate((h) => window[h].game?.(), STAGE.handle)
+  if (String(shown) !== String(game)) { console.error(`the slate opened game ${shown}, not ${game}: open ${game} on the Games tab (it is not the slate's first upcoming game)`); await browser.close(); process.exit(1) }
+}
 // SPEED (2026-10-22): everything that is not the stage or one of its ancestors comes out of the page (display: none), so
 // a frame does not re-lay-out and re-paint a slate of 61-column tables; then each frame is a fixed clip of the screen
 // (no per-frame scroll and stability wait).

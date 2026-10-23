@@ -73,5 +73,17 @@ ok(tg.winner === pp.fav, `and the favourite (${pp.fav}) wins it`)
 ok(JSON.stringify(preplayNhl(G, { n: 2000 }).modal) === JSON.stringify(pp.modal), 'deterministic: the same inputs give the same numbers and the same game')
 ok(pp.scorers.length > 10 && pp.scorers.every((x) => x.team === 'AAA' || x.team === 'BBB'), `scoring shares cover the skaters (${pp.scorers.length}), each on his own club`)
 
+// 5 playoff overtime: 20-minute periods until a goal (5 = 2OT), never one long period 4 (2026-10-22 review)
+{
+  const P = { ...G, playoff: true, away: { ...G.away, goals: 0.4 }, home: { ...G.home, goals: 0.4 } }
+  let long = 0, ok5 = true
+  for (let s = 1; s <= 400; s += 1) {
+    const log = []
+    simNhlGame(P, s, log)
+    for (const e of log) { if (e.period > 4) long += 1; if (e.t > 1200) ok5 = false }
+  }
+  ok(long > 0 && ok5, `playoff overtime runs in 20-minute periods (${long} events past the first overtime, none past 20:00 of a period)`)
+}
+
 console.log(fails ? `\n${fails} FAILED` : '\nall PREPLAY NHL checks pass')
 process.exit(fails ? 1 : 0)

@@ -32,12 +32,12 @@ import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 import { ChartEmpty } from '../charts'
 import { teamColor, mlbTeamLogo, mlbHeadshot } from '../../lib/mlbTeams'
 import { detailUrl, archiveDetailUrl } from '../../lib/dataSource'
-import { ordinal } from '../../lib/format'
+import { ordinal, surname } from '../../lib/format'
 
 const SPEEDS = [[1, '1x'], [2, '2x']]
 const CHIP = 15                         // a chip, in feet
 const boxH = (w, rec = false) => (rec ? Math.round(w * 9 / 16) : Math.max(260, Math.round(w * (w < 640 ? 0.72 : 0.5))))
-const lastName = (s) => String(s || '').split(' ').slice(-1)[0]
+const lastName = surname
 const pct = (x) => `${Math.round(x * 100)}%`
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v))
 const ease = (u) => (u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2)
@@ -364,7 +364,8 @@ function Stage({ game, pp, log, dims, heights, rec, round, when }) {
       if (b.type === 'half') { addFielders(); return }
       const e = b.e
       const runners = []
-      ;(e.before || []).forEach((who, base) => { if (who != null) runners.push({ who, from: base + 1 }) })
+      // the extra-innings runner is on second from the start of his beat (before is empty then)
+      ;(e.kind === 'ghost' ? e.after : e.before || []).forEach((who, base) => { if (who != null) runners.push({ who, from: base + 1 }) })
       const dest = (who) => { const k = (e.after || []).indexOf(who); return k >= 0 ? k + 1 : (e.scored || []).includes(who) ? 4 : -1 }
       const pitchU = clamp((t - b.t0) / PITCH_MS, 0, 1)
       const isPA = !['SB', 'CS', 'WP', 'ghost'].includes(e.kind)
@@ -437,7 +438,7 @@ function Stage({ game, pp, log, dims, heights, rec, round, when }) {
           fx.userData.landed = true
           const land = pts.at(-1)
           const p = ringMesh(3, 4.4, resultInk(e.kind), 0.9); p.position.set(land.x, Math.max(0.4, land.y), land.z); p.userData.born = t; fx.add(p)
-          if (e.kind === 'HR') { const q = ringMesh(4, 6, C.orange, 1); q.position.copy(p.position); q.userData.born = t; q.userData.big = true; fx.add(q); seedFlashes(e.ball.ang, i + 1); fx.userData.flashAt = t; flashes.visible = true }
+          if (e.kind === 'HR') { const q = ringMesh(4, 6, C.orange, 1); q.position.copy(p.position); q.userData.born = t; q.userData.big = true; fx.add(q); if (e.ball.r >= world.wallAt(e.ball.ang)) { seedFlashes(e.ball.ang, i + 1); fx.userData.flashAt = t; flashes.visible = true } }   // flashes only where it lands in the seats
         }
         for (const o of fx.children) if (o.userData.born != null) { const age = (t - o.userData.born) / (o.userData.big ? 1600 : 700); o.scale.setScalar(1 + age * (o.userData.big ? 9 : 3)); o.material.opacity = Math.max(0, 1 - age) }
         if (fx.userData.flashAt != null) stepFlashes(t - fx.userData.flashAt)
@@ -494,6 +495,7 @@ function Stage({ game, pp, log, dims, heights, rec, round, when }) {
         step: (ms) => { vt += ms; tick() },
         done: () => !playingNow && introDone && gt >= total - 1,
         total: () => INTRO_MS + total,
+        game: () => String(game.gamePk),
         // a still at one moment of the game (ms of game time, the open skipped): for checking frames, not for the video
         jump: (ms) => { if (introAt != null || !introDone) { introAt = null; introDone = true; controls.enabled = true; frame(); setIntro(null) } gt = clamp(ms, 0, total - 1); prevBeat = -1; beatAt = -1; halfAt = null; tick() },
         beats: () => beats.map((x) => ({ t0: x.t0, dur: x.dur, type: x.type, kind: x.e?.kind || null, inning: x.half?.inning ?? null, side: x.half?.side ?? null })),

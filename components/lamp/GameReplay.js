@@ -20,7 +20,7 @@ import { nhlLogo } from '../../lib/nhl/teams'
 import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 import { ChartEmpty } from '../charts'
 import CallStatusBadge from '../CallStatusBadge'
-import { ordinal } from '../../lib/format'
+import { ordinal, surname } from '../../lib/format'
 import { preplayNhl } from '../../lib/nhl/preplay'
 import PREPLAY_CAL from '../../lib/nhl/preplayV1'
 import { preplayGameInput } from '../../lib/nhl/preplayInput'
@@ -563,7 +563,7 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
                   <div style={{ fontSize: 11, color: C.ice, letterSpacing: 2, fontWeight: 900 }}>IN {sim.n.toLocaleString('en-US')} SIMULATED GAMES</div>
                   {sim.modal ? <div style={{ fontSize: 14, color: C.text, fontWeight: 900 }}>Most common final: {data[sim.fav].abbrev} {Math.max(sim.modal.away, sim.modal.home)}-{Math.min(sim.modal.away, sim.modal.home)}</div> : null}
                   <div style={{ fontSize: 13, color: C.text2, fontWeight: 700 }}>{data[sim.fav].abbrev} wins {PREPLAY_CAL.measured ? `${Math.round(sim.winPct[sim.fav] * 100)}%` : `${Math.round(sim.winPct[sim.fav] * sim.n).toLocaleString('en-US')} of ${sim.n.toLocaleString('en-US')}`} · past 60 minutes in {Math.round(sim.ot * sim.n).toLocaleString('en-US')}</div>{/* allow-probability: the share only past the calibration gate */}
-                  <div style={{ fontSize: 13, color: C.text2, fontWeight: 700 }}>On the scoresheet most: {sim.scorers.slice(0, 3).map((x) => (data.players?.[x.id]?.name || '').split(' ').slice(-1)[0]).filter(Boolean).join(' · ')}</div>
+                  <div style={{ fontSize: 13, color: C.text2, fontWeight: 700 }}>On the scoresheet most: {sim.scorers.slice(0, 3).map((x) => surname(data.players?.[x.id]?.name)).filter(Boolean).join(' · ')}</div>
                   <div style={{ fontSize: 12, color: C.text2, letterSpacing: 2, fontWeight: 800, marginTop: 4 }}>WE GRADE IT AFTER THE GAME</div>
                 </div>
               ) : null}
