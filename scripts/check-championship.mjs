@@ -120,14 +120,15 @@ const lib = read('lib/championship.js')
 ok(!/make_playoffs\s*:\s*0?\.\d/.test(lib) && !/TEST/.test(lib.replace(/\/\/.*$/gm, '')), 'lib/championship.js must not hold sample odds')
 ok(read('components/ChampionshipFold.js').includes('if (!has) return null'), 'the fold must draw nothing until the file exists')
 ok(/no placeholder|nothing here ever invents/i.test(lib), 'the contract comment must say nothing is invented')
-const homes = { nfl: 'components/nfl/tabs/Home.js', nhl: 'components/lamp/tabs/Home.js', nba: 'components/buckets/tabs/Home.js' }
-for (const [s, f] of Object.entries(homes)) ok(read(f).includes(`<ChampionshipFold sport="${s}" />`), `${s}: Home must mount the fold (${f})`)
+// the folds live on each product's Leaders, beside MOONSHOT's PennantRace (moved off Home with it)
+const leaders = { nfl: 'components/nfl/tabs/Leaders.js', nhl: 'components/lamp/tabs/Leaders.js', nba: 'components/buckets/tabs/Leaders.js' }
+for (const [s, f] of Object.entries(leaders)) ok(read(f).includes(`<ChampionshipFold sport="${s}" />`), `${s}: Leaders must mount the fold (${f})`)
 ok(read('components/tabs/Leaders.js').includes('<PennantRace />'), 'mlb: Leaders must mount <PennantRace /> (moved off Home 10-17, 9269bda; lib/parity.js expects it there)')
-// BUCKETS is hidden: the NBA fold is mounted only inside BUCKETS' own Home, and nothing public names it
+// the NBA fold is mounted only inside BUCKETS' own Leaders, so nothing outside BUCKETS names it
 const mounts = []
 const walk = (d) => { for (const n of fs.readdirSync(path.join(ROOT, d))) { const p = `${d}/${n}`; const st = fs.statSync(path.join(ROOT, p)); if (st.isDirectory()) { if (!['node_modules', '.next', 'ARCHIVE'].includes(n)) walk(p) } else if (/\.js$/.test(n) && read(p).includes('<ChampionshipFold sport="nba"')) mounts.push(p) } }
 walk('components'); walk('app')
-ok(mounts.join() === 'components/buckets/tabs/Home.js', `the NBA fold must mount only in BUCKETS' Home, found: ${mounts}`)
+ok(mounts.join() === 'components/buckets/tabs/Leaders.js', `the NBA fold must mount only in BUCKETS' Leaders, found: ${mounts}`)
 ok(R.isHiddenSport('nba') === (String(process.env.NEXT_PUBLIC_BUCKETS_PUBLIC || '').toLowerCase() !== 'on'), 'BUCKETS hidden flag follows BUCKETS_PUBLIC')
 
 console.log(bad ? `\nchampionship: ${bad} problem(s)` : `\nchampionship: ${R.ALL_SPORT_KEYS.length} sports, contract, reader and precision hold`)

@@ -28,8 +28,8 @@ const get = (o, id) => o.rows.find((r) => r.playerId === id)
 
 console.log('-- definition')
 t('weights are plain and sum to 1.00', Math.abs(Object.values(WEIGHTS).reduce((s, x) => s + x, 0) - 1) < 1e-9)
-eq('market GOAL under its own version (no SQL), one name from its first night', [MARKET, MODEL_VERSION, [...new Set(VERSIONS.comp)]], ['GOAL', 'lamp-goal-comp-v1', ['lamp-goal-comp-v1']])
-eq('versionsFor reads it for any date', [versionsFor('2026-10-19').comp, versionsFor('2027-01-01').comp], ['lamp-goal-comp-v1', 'lamp-goal-comp-v1'])
+eq('market GOAL under its own version (no SQL): v1 from its first night, v1b on the v5 pool (injury report)', [MARKET, MODEL_VERSION, [...new Set(VERSIONS.comp)]], ['GOAL', 'lamp-goal-comp-v1b', ['lamp-goal-comp-v1', 'lamp-goal-comp-v1b']])
+eq('versionsFor: v1 before 2026-10-23, v1b from it', [versionsFor('2026-10-19').comp, versionsFor('2027-01-01').comp], ['lamp-goal-comp-v1', 'lamp-goal-comp-v1b'])
 
 console.log('-- the matchup is built into the one score')
 const out = scoreCompositeNight(slate())
@@ -108,7 +108,7 @@ const C = compositeVariety([{ game_date: 'd', game_id: 1, player_id: 1, name: 'T
 eq('composite: 2 picks, 1 hit of 2 graded, half the live CALLED man', [C.picks, C.hitPct, C.overlapWithLiveCalled], [2, 50, 50])
 
 console.log('-- lamp-goal-comp-v2 (TEST rows; made-up clubs and skaters, no real data)')
-eq('v2 is its own version beside v1, one name from its first night; v1 is still v1', [V2, [...new Set(VERSIONS.comp2)], MODEL_VERSION], ['lamp-goal-comp-v2', ['lamp-goal-comp-v2'], 'lamp-goal-comp-v1'])
+eq('v2 is its own version beside v1 (v2b / v1b on the v5 pool)', [V2, [...new Set(VERSIONS.comp2)], MODEL_VERSION], ['lamp-goal-comp-v2b', ['lamp-goal-comp-v2', 'lamp-goal-comp-v2b'], 'lamp-goal-comp-v1b'])
 t('v2 weights are v1\'s (only the ingredients inside the groups changed) and sum to 1.00', JSON.stringify(W2) === JSON.stringify(WEIGHTS) && Math.abs(Object.values(W2).reduce((x, y) => x + y, 0) - 1) < 1e-9)
 // every skater gets 20 shots on file at the league rate 0.09 unless a case overrides it, so the night's league xG per shot is stable
 const XGN = { xgN: 40, xg: 3.6, xgG: 4 }

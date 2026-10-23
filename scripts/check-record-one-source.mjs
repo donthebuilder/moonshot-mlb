@@ -39,7 +39,9 @@ ok(offenders.length === 0, `no archive-rate field read outside the labelled allo
 for (const p of ALLOW) ok(/post-game archive/.test(readFileSync(p, 'utf8')), `${p} says "post-game archive" beside the archive rate`)
 
 const has = (p, re) => re.test(readFileSync(p, 'utf8'))
-ok(has('components/tabs/Home.js', /useLockedRecord/), 'MLB Home reads the locked record')
+// MLB Home's in-season record line went with the dead ticker code (99df118, 10-22); the winter Home prints the record, from the lock
+ok(has('components/tabs/MlbOffseason.js', /useLockedRecord/), 'MLB Home (the offseason page) reads the locked record')
+ok(!/hit calls got a hit|% of the time/.test(readFileSync('components/tabs/Home.js', 'utf8')) || has('components/tabs/Home.js', /useLockedRecord/), 'MLB Home prints no hit rate unless it reads the locked record')
 ok(has('components/tabs/HitsHRR.js', /useLockedRecord/), 'Hits/HRR reads the locked record')
 ok(has('lib/dash/pulse.js', /readLockedRecord/), 'the pulse reads the locked record')
 

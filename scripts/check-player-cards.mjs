@@ -139,8 +139,8 @@ check(nflStats({ stats: { RZ: 6.8, xTD: 1.34 }, components: { TD: { f_rz_opp: 10
 check(blurbOf(base()).line.includes('Ranks shots 95th') && blurbOf(base()).line.includes("tonight's skaters"), 'the blurb is the front\'s own percentile words')
 
 // ── 7. registry-driven, no sport ternary, no hex literal, no link, no printed probability ──
-check(hasCards('nhl') && hasCards('mlb') && hasCards('nfl') && !hasCards('nba') && !hasCards('bogus'), 'registry: nhl, mlb, nfl have cards; nba (BUCKETS) and unknown sports do not')
-check(cardSports().join() === 'nhl,nfl,mlb', 'registry lists the Card sports once')
+check(hasCards('nhl') && hasCards('mlb') && hasCards('nfl') && hasCards('nba') && !hasCards('bogus'), 'registry: nhl, mlb, nfl and nba (BUCKETS, a Card sport since 2026-10-20) have cards; unknown sports do not')
+check(cardSports().join() === 'nhl,nfl,mlb,nba', 'registry lists the Card sports once')
 const dir = new URL('../lib/cards/', import.meta.url).pathname
 const files = [...readdirSync(dir).filter((f) => f.endsWith('.js')).map((f) => `${dir}${f}`), ...readdirSync(`${dir}adapters`).map((f) => `${dir}adapters/${f}`)]
 for (const f of files) {
@@ -148,7 +148,7 @@ for (const f of files) {
   const code = src.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n').replace(/\s\/\/ .*$/gm, '')
   const rel = f.slice(dir.length)
   if (!/^(kit|cards)\.js$/.test(rel)) {
-    check(!/sport\s*===?\s*['"]|\?\s*['"](nhl|mlb|nfl)['"]/.test(code), `${rel}: no sport ternary`)
+    check(!/sport\s*===?\s*['"](?!any['"])|\?\s*['"](nhl|mlb|nfl|nba)['"]/.test(code), `${rel}: no sport ternary`)   // 'any' (every sport at once) is not a sport
     // assets.js is the shared poster palette + font / mark / grain loaders (moved verbatim from homerCard.js): its hex literals and the font URL are its job, drawn on no card
     if (rel !== 'assets.js') check(!/#[0-9a-fA-F]{3,8}\b/.test(code), `${rel}: no hex literal`)
     if (rel !== 'assets.js') check(!/https?:\/\//.test(code.replace(/statsapi\.mlb\.com/g, '')) || /adapters\/mlb|cardKit|postseasonData|situationData/.test(rel), `${rel}: no URL text drawn on a card`)
@@ -179,7 +179,7 @@ check(!/https?:|www\.|\.com|#\w+tag|QR/i.test(allText), 'no link, no QR, no hash
   delete process.env.NEXT_PUBLIC_BUCKETS_PUBLIC; delete process.env.BUCKETS_PUBLIC
   check(await st(imageGet, '/api/card/image?sport=nhl&id=abc!&side=front') === 400, 'route /api/card/image: a malformed id is 400')
   check(await st(imageGet, '/api/card/image?sport=nhl&id=8478402&date=nope') === 400, 'route /api/card/image: a malformed date is 400')
-  check(await st(dayGet, '/api/card/day?sport=nba') === 404 && await st(dayGet, '/api/card/day?sport=bogus') === 404, 'route /api/card/day: nba and unknown sports are 404')
+  check(await st(dayGet, '/api/card/day?sport=bogus') === 404 && await st(dayGet, '/api/card/day') === 404, 'route /api/card/day: unknown or missing sports are 404 (nba is a Card sport since 2026-10-20)')
   const body = await (await imageGet(req('/api/card/image?sport=nba&id=1'))).json()
   check(JSON.stringify(body).length < 200 && !/key|secret|token|supabase/i.test(JSON.stringify(body)), 'route: an error body is a short reason, no secrets')
 }
