@@ -77,6 +77,10 @@ export const MLB_WORDS = {
             The ledger&apos;s echo panel grades these against the night once homers land; this is the pregame roster of them.</>,
 }
 
+// A name chip is the standard oval (lib/chips flatChip, 2026-10-22); its read ("3× jersey 34→7 · birth day 7→7") can be longer than a
+// phone, so it wraps inside the row instead of running off the edge.
+const NAME_WRAP = { whiteSpace: 'normal', maxWidth: '100%', flexWrap: 'wrap', textAlign: 'left', rowGap: 2 }
+
 export default function AlignmentsView({
   model: modelIn, tonight: tonightIn, todayKey, todayRoot, AXIS_META, scoreOf = () => null,
   head = null, days = null, watchedRows = [], hasWatch = false,
@@ -108,7 +112,6 @@ export default function AlignmentsView({
   // too" -> MLB's). The old override ended in `font: 'inherit'`, which lands
   // AFTER fontSize in the style object and reset TUDDY/LAMP chips to the
   // page's bigger text; only the tap-floor reset stays.
-  const CHIP = builder ? {} : { minHeight: 0 }
   const clickWord = (pid, lower) => builder
     ? `${lower ? 'click' : 'Click'} to ${picked.has(pid) ? 'remove from' : 'add to'} your build list`
     : `${lower ? 'tap' : 'Tap'} to ${picked.has(pid) ? 'stop highlighting him' : 'highlight him on every page'}`
@@ -265,13 +268,9 @@ export default function AlignmentsView({
           </div>
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
             {(tonight.byBotScore || []).slice(0, chipLimit).map(({ a, keys, strength }) => (
-              <button key={a.pid} onClick={() => toggle(a.pid)}
+              <button key={a.pid} type="button" className={FLAT_CHIP_CLASS} onClick={() => toggle(a.pid)} aria-pressed={picked.has(a.pid)}
                 title={`${keys.map((k) => AXIS_META[k].why(a)).join(' · ')} — all reducing to ${todayRoot}.${Number.isFinite(scoreOf(a)) && W.scoreShort ? ` Bot ${W.scoreShort} ${scoreOf(a).toFixed(0)}.` : ''} ${clickWord(a.pid)}.`}
-                style={{
-                  padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5, fontWeight: 700, ...CHIP,
-                  border: `1px solid ${picked.has(a.pid) ? accent : `${accent}55`}`,
-                  background: picked.has(a.pid) ? `${accent}24` : 'transparent', color: C.text2,
-                }}>
+                style={{ ...flatChip(picked.has(a.pid), accent, C, NUM_FONT), ...NAME_WRAP, ...(picked.has(a.pid) ? null : { borderColor: `${accent}55` }) }}>
                 {a.name}<InjuryMark who={{ player_id: a.pid, name: a.name, team: a.team }} C={C} font={NUM_FONT} />
                 {/* The bot's score, on the chip rather than buried in a
                     tooltip — it is what the list is ORDERED by, and a list
@@ -355,13 +354,9 @@ export default function AlignmentsView({
               </div>
               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                 {watchedRows.map(({ a, hitsYesterday, hitsToday, hitsTomorrow, any }) => (
-                  <button key={a.pid} onClick={() => toggle(a.pid)}
+                  <button key={a.pid} type="button" className={FLAT_CHIP_CLASS} onClick={() => toggle(a.pid)} aria-pressed={picked.has(a.pid)}
                     title={clickWord(a.pid, true)}
-                    style={{
-                      padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5, fontWeight: 700, ...CHIP,
-                      border: `1px solid ${picked.has(a.pid) ? accent : any ? accent + '55' : C.border}`,
-                      background: picked.has(a.pid) ? `${accent}24` : 'transparent', color: C.text2,
-                    }}>
+                    style={{ ...flatChip(picked.has(a.pid), accent, C, NUM_FONT), ...NAME_WRAP, ...(picked.has(a.pid) ? null : { borderColor: any ? accent + '55' : C.border }) }}>
                     {a.name}<InjuryMark who={{ player_id: a.pid, name: a.name, team: a.team }} C={C} font={NUM_FONT} />
                     {hitsYesterday && <span style={{ color: accent, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 5 }}>Y</span>}
                     {hitsToday && <span style={{ color: accent, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 3 }}>T</span>}
@@ -400,13 +395,9 @@ export default function AlignmentsView({
             </div>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
               {members.slice(0, 40).map(({ a, axisKeys }) => (
-                <button key={a.pid} onClick={() => toggle(a.pid)}
+                <button key={a.pid} type="button" className={FLAT_CHIP_CLASS} onClick={() => toggle(a.pid)} aria-pressed={picked.has(a.pid)}
                   title={`${axisKeys.map((k) => AXIS_META[k].why(a)).join(' · ')}${W.scoreShort && Number.isFinite(scoreOf(a)) ? ` · bot ${W.scoreShort} ${scoreOf(a).toFixed(0)}` : ''} · ${clickWord(a.pid, true)}`}
-                  style={{
-                    padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5, fontWeight: 700, ...CHIP,
-                    border: `1px solid ${picked.has(a.pid) ? accent : C.border}`,
-                    background: picked.has(a.pid) ? `${accent}24` : 'transparent', color: C.text2,
-                  }}>
+                  style={{ ...flatChip(picked.has(a.pid), accent, C, NUM_FONT), ...NAME_WRAP }}>
                   {a.name}<InjuryMark who={{ player_id: a.pid, name: a.name, team: a.team }} C={C} font={NUM_FONT} />
                   {/* Raw number → root, not just the axis name. "season HR
                       19→1" is the read; "season HR" alone is a label. */}
@@ -435,13 +426,9 @@ export default function AlignmentsView({
           </div>
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
             {braids.slice(0, 24).map(({ a, root, keys, strength }) => (
-              <button key={a.pid} onClick={() => toggle(a.pid)}
+              <button key={a.pid} type="button" className={FLAT_CHIP_CLASS} onClick={() => toggle(a.pid)} aria-pressed={picked.has(a.pid)}
                 title={`Root ${root}: ${keys.map((k) => AXIS_META[k].why(a)).join(' · ')}${W.scoreShort && Number.isFinite(scoreOf(a)) ? ` · ${W.scoreShort} ${scoreOf(a).toFixed(0)}` : ''} · ${clickWord(a.pid, true)}`}
-                style={{
-                  padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5, fontWeight: 700, ...CHIP,
-                  border: `1px solid ${picked.has(a.pid) ? accent : strength >= 3 ? accent : C.border}`,
-                  background: picked.has(a.pid) ? `${accent}24` : 'transparent', color: C.text2,
-                }}>
+                style={{ ...flatChip(picked.has(a.pid), accent, C, NUM_FONT), ...NAME_WRAP, ...(picked.has(a.pid) ? null : { borderColor: strength >= 3 ? accent : C.border }) }}>
                 {a.name}<InjuryMark who={{ player_id: a.pid, name: a.name, team: a.team }} C={C} font={NUM_FONT} />
                 <span style={{ color: C.text, fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900 }}> {root}</span>
                 <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9 }}>×{strength}</span>
