@@ -19,6 +19,7 @@ import HisNumbers from '../HisNumbers'
 import InTheLedger from '../ledger/InTheLedger'
 import { etToday } from '../../lib/freshness'
 import BornLine from '../player/BirthdayChip'
+import { birthdayChip } from '../../lib/birthday'
 import { VerdictStamp } from './CardActions'
 import NflCardMatchup from './NflCardMatchup'
 import PlayerField from './PlayerField'
@@ -51,6 +52,8 @@ import { useCardLock, useMemberState, CardLockLine } from '../MemberGate'
 import { kickoffFor } from '../../lib/nfl/kickoff'
 import StatRow from '../player/StatRow'
 import ScrollHint from '../player/ScrollHint'
+import { useIsPhone } from '../MobileFold'
+import PropsGrid from './PropsGrid'
 import { nflVerdict, nflStatRow, useNflBot, nflRecordLine, nflLastLine } from '../player/nflAdapter'
 import NflOnHim from './NflOnHim'
 import NflCompareSheet from './NflCompareSheet'
@@ -333,14 +336,27 @@ function Head({ children }) {
 // answer, which is the whole of what a tab is.
 // 2026-10-17 (player-portal mirror pass): MOONSHOT's pills in MOONSHOT's order and words -- Overview, The Read, Splits, Game log, Numbers --
 // with TUDDY's own Matchup (the defence he faces) beside them. Each is in the address (view=).
-const TABS = [
-  { key: 'overview', label: 'Overview' },
+// THE MOONSHOT CARD, TUDDY'S WAY (2026-10-23, Donovan: the MLB card "once it gets clear, we can just share that across all four
+// sports" -- TUDDY first). The page is MOONSHOT's v3 card: the header holds his numbers and the adds, the call and flags sit over his
+// numbers, his splits fill the right half (TUDDY on him one chip over, my note under it), and the front is the field | his game log |
+// the props grid with its bars. The deeper views are pills. On a phone the front's panels are the first pills, one at a time.
+// 'overview' and 'gamelog' (old links) open the front.
+const FRONT_TABS = [{ key: 'front', label: '🏈 Front' }]
+const PAGE_TABS = [
+  { key: 'field', label: '🏟 Field' },
+  { key: 'log', label: '📋 Game log' },
+  { key: 'props', label: '📊 Props' },
+  { key: 'splitsp', label: '📅 Splits' },
+]
+const DEEP_TABS = [
   { key: 'read', label: 'The Read' },
   { key: 'matchup', label: 'Matchup' },
-  { key: 'splits', label: 'Splits' },
-  { key: 'gamelog', label: 'Game log' },
+  { key: 'splits', label: 'All splits' },
   { key: 'numbers', label: 'Numbers' },
 ]
+const TABS = [...FRONT_TABS, ...PAGE_TABS, ...DEEP_TABS]
+const VIEW_ALIAS = { overview: 'front', gamelog: 'front' }
+const TABBED_BELOW = 1080
 
 
 
@@ -362,9 +378,10 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
   const cardLocked = useCardLock({ status: market === 'TD' && player ? tdStatus.statusOf(player) : null, key: cardLockKey, time: cardLock.time }).locked
   // TAGS (lib/nfl/tags.js): his own ball-security tags and the tags of the defence he faces. Labels with their numbers; no score reads them.
   const tagBookOf = useTagBook(matchup, slate?.season)
-  const [tab, setTab] = useState('overview')
+  const tabbed = useIsPhone(TABBED_BELOW - 1)
+  const [tab, setTab] = useState('front')
+  const [rightView, setRightView] = useState('splits')
   const [season, setSeason] = useState('')
-  const [allStats, setAllStats] = useState(false)
   const [compareOpen, setCompareOpen] = useState(false)
   useEffect(() => { setCompareOpen(false) }, [player?.player_id])
   // TUDDY ON HIM: his graded calls from the list /called and the Record read (one fetch: the record line, last week and the role table)
@@ -373,7 +390,8 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
   // MOONSHOT's initialTab, same contract, so a deep link can land on the
   // tab that matters instead of the top of the card every time.
   useEffect(() => {
-    setTab(TABS.some((t) => t.key === initialTab) ? initialTab : 'overview')
+    const want = VIEW_ALIAS[initialTab] || initialTab
+    setTab(TABS.some((t) => t.key === want) ? want : 'front')
   }, [player?.player_id, initialTab])
   useEffect(() => { setSeason('') }, [player?.player_id])
   // THIS SEASON | LAST SEASON | LAST 2: only what the log holds (lib/nfl/seasonWindow.js).
@@ -412,12 +430,18 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
   const against = bullets.find((b) => b.tone === 'against')
   const whyLines = [why?.text, rank != null ? `#${rank} of ${eligible.length} on the ${(spec?.label || market)} board, score ${Math.round(s0)}` : null].filter(Boolean)
   const whyExplain = [...whyLines, ...bullets.map((b) => b.text)].join('  ')
-  const showSeason = ['splits', 'gamelog'].includes(tab) && seasonOpts.length > 0
+  // a phone shows the front's panels one at a time (its pills); a wide screen shows the whole front
+  // (and a wide screen opened on a phone pill -- a shared link -- shows the whole front)
+  const frontTab = tab === 'front' && tabbed ? 'field' : (!tabbed && PAGE_TABS.some((t) => t.key === tab) ? 'front' : tab)
+  const showPanel = (k) => (tabbed ? frontTab === k : frontTab === 'front')
+  // the season toggle sits over the views it changes (his game log and his splits), not over the field or the props grid
+  const showSeason = ['splits', 'front', 'log', 'splitsp'].includes(frontTab) && seasonOpts.length > 0
+  const visibleTabs = tabbed ? [...PAGE_TABS, ...DEEP_TABS] : [...FRONT_TABS, ...DEEP_TABS]
 
   // THE WATCH ROW, MOONSHOT's (2026-10-22, the even row): Watch and a + for every market the book actually prices for him (no price,
   // no button) as equal cells in one row; TUDDY's pick is a ★ on its cell, and the sentence shows only when no cell carries it.
   const watchRow = (
-    <SlipAdd sport="nfl" legs={legs} C={C} NUM_FONT={NUM_FONT} accent={C.green} style={{ margin: '4px 0 10px' }} even
+    <SlipAdd sport="nfl" legs={legs} C={C} NUM_FONT={NUM_FONT} accent={C.green} style={{ margin: 0 }} even
       pickCode={pickWord === 'Anytime TD' ? 'TD' : null}
       pickLine={!defender && Number.isFinite(s0) ? <>TUDDY&apos;s pick: <b style={{ color: C.text2 }}>{pickWord}</b></> : null}
       lead={(
@@ -429,32 +453,108 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
       )} />
   )
 
-  return (
-    // MOONSHOT's shell (components/CardShell.js, 2026-09-29): same backdrop,
-    // focus trap and the .modal-* phone sheet as the MLB card. Width follows the
-    // content, as MOONSHOT's does (580 overview / 900 the rest).
+  // HIS NUMBERS, THE CHECKLIST'S SLOT: his season per game, each with his rank at his position and an arrow on a hot / cold last 3
+  const statTiles = (limit) => {
+    if (!Object.keys(player.stats || {}).length) return null
+    const pool = (slate?.players || []).filter((x) => x.position === player.position && x.stats)
+    const rankOf = (k, v) => {
+      const vals = pool.map((x) => Number(x.stats?.[k])).filter(Number.isFinite)
+      return Number.isFinite(Number(v)) && vals.length > 1 ? { r: 1 + vals.filter((x) => x > Number(v)).length, n: vals.length } : null
+    }
+    const logField = (k) => { const f = `g_${String(k).toLowerCase()}`; return (slog || []).some((g) => g?.[f] != null) ? f : null }
+    const arrowOf = (k) => {
+      const f = logField(k); if (!f || (slog || []).length < 5) return null
+      const vals = slog.map((g) => Number(g[f]) || 0); const szn = vals.reduce((a, b) => a + b, 0) / vals.length
+      const l3 = vals.slice(-3).reduce((a, b) => a + b, 0) / 3
+      if (!(szn > 0)) return null
+      return l3 >= szn * 1.15 ? 'up' : l3 <= szn * 0.85 ? 'down' : null
+    }
+    const entries = Object.entries(player.stats)
+    return (
+      <div className="nfl-card-stats" style={{ display: 'grid', gap: 6, gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))' }}>
+        {entries.slice(0, limit).map(([k, v]) => {
+          const rk = rankOf(k, v), ar = arrowOf(k)
+          const top = rk && rk.r <= Math.max(3, Math.ceil(rk.n / 10))
+          return (
+            <div key={k} style={{ background: top ? alpha(C.green, 0.07) : 'rgba(255,255,255,.03)', border: `1px solid ${top ? alpha(C.green, 0.4) : C.border}`, borderRadius: 9, padding: '6px 9px', minWidth: 0 }}>
+              <div style={{ fontSize: 11, color: C.text3, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <NflExplain label={statLabel(k)} term={k} />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+                <span style={{ fontFamily: NUM_FONT, fontSize: 16, fontWeight: 900, color: C.text }}>{typeof v === 'number' ? statFmt(k, v) : v}</span>
+                {ar && <span title={ar === 'up' ? 'His last 3 games run 15%+ above his season' : 'His last 3 games run 15%+ below his season'} style={{ fontSize: 11, color: ar === 'up' ? C.green : C.text3, fontWeight: 900 }}>{ar === 'up' ? '▲' : '▼'}</span>}
+                {rk && <span title={`${rk.r} of ${rk.n} ${player.position}s on this week's slate`} style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11, color: top ? C.green : C.text3, fontWeight: 800 }}>#{rk.r} {player.position}</span>}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+  // THE PRICE: the line for the market on screen, the best book, the break-even (one line, under his numbers)
+  const priceLine = (() => {
+    const q = cardLocked ? null : quoteFor(odds, player, market)
+    if (!q) return null
+    return (
+      <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', margin: '8px 0 0', fontSize: 12, color: C.text2, fontFamily: NUM_FONT }}>
+        <b style={{ color: C.text3, fontSize: 11, letterSpacing: '.08em' }}>PRICE</b>
+        <span>o{q.line} <b style={{ color: C.text }}>{fmtOdds(q.over)}</b></span>
+        {q.best_over != null && q.best_over !== q.over && <span>best <b style={{ color: C.green }}>{fmtOdds(q.best_over)}</b>{q.best_book ? ` ${q.best_book}` : ''}</span>}
+        {q.implied != null && <span>needs {q.implied}%</span>}
+        {q.matches !== false && <LineMoveChip quote={q} theme={C} numFont={NUM_FONT} />}
+        {!q.matches && <span style={{ color: C.yellow }}>a different line from the bar</span>}
+      </div>
+    )
+  })()
+  // THE RIGHT HALF: his splits, TUDDY on him one chip over; your note, your star and his multi-TD / first-TD lines under it
+  const splitsPanel = (
     <>
-    <CardShell inline={inline} theme={C} accent={C.green} width={tab === 'overview' ? 580 : 900} onClose={onClose} label={`${player?.name || 'Player'} card`}>
-      {/* THE TOOLBAR, ON ITS OWN LINE -- MOONSHOT's row, in its order: Card, Save (the picture), compare, then the ‹ › / search walk
-          through the list he came from. The watchlist star is the Watch button in the watch row below, as MOONSHOT's. */}
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'flex-end', marginBottom: 8 }}>
+      <div className="chip-row" style={{ display: 'flex', gap: 5, marginBottom: 8, flexWrap: 'wrap' }}>
+        {[['splits', 'Splits'], ['onhim', 'TUDDY on him']].map(([k, l]) => (
+          <button key={k} type="button" className={FLAT_CHIP_CLASS} aria-pressed={rightView === k} onClick={() => setRightView(k)} style={flatChip(rightView === k, C.green, C, NUM_FONT)}>{l}</button>
+        ))}
+      </div>
+      {rightView === 'onhim'
+        ? <NflOnHim bot={bot} />
+        : <NflSplitsGroups log={slog} market={market} dvp={matchup?.dvp?.season || null} role={roleLabel(player) || null} />}
+      <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
+        <PlayerNotes playerId={player.player_id} accent={C.green} />
+        <StarMemory sport="nfl" id={player?.player_id} />
+        <MultiLine sport="nfl" playerId={player?.player_id} words={{ TD: 'multi-TD', PASS_TD: '2+ passing-TD' }} color={C.green} textColor={C.text2} />
+        {/* the first-pitch split's twin: the games he scored the first touchdown */}
+        <ScoredFirst sport="nfl" playerId={player?.player_id} word="Scored the first TD" color={C.green} textColor={C.text2} />
+        {player.position !== 'DEF' && <InTheLedger sport="nfl" id={player.player_id} name={player.name} jersey={player.jersey_number} birthDate={player.birth_date} next={Number.isFinite(player?.season_td) ? player.season_td + 1 : null} date={etToday()} />}
+      </div>
+    </>
+  )
+
+  return (
+    // MOONSHOT's shell (components/CardShell.js), MOONSHOT's width now: the whole screen on a desktop, the same as the MLB card
+    <>
+    <CardShell inline={inline} theme={C} accent={C.green} width={1760} fill onClose={onClose} label={`${player?.name || 'Player'} card`}>
+      {/* THE TOOLBAR, MOONSHOT's one even row (app/globals.css .card-toolbar): Card, Save, Compare, then the ‹ › / Lineup / Find walk */}
+      <div style={{ display: 'flex', overflowX: 'auto', scrollbarWidth: 'none', marginBottom: 8 }}>
+      <div className="card-toolbar" style={{ display: 'flex', gap: 6, alignItems: 'center', marginLeft: 'auto', flex: '0 0 auto' }}>
         {Number.isFinite(s0) && player?.player_id != null && <CardFlip sport="nfl" id={String(player.player_id)} name={player.name} />}
         {/* 📸 his pick card as a picture, ready to post: beside the flip Card button */}
         <ShareCardButton sport="nfl" what="his pick card" url={shareUrl({ kind: 'pick', sport: 'nfl', id: player.player_id, market })} filename={`pick-${slug(market, 'pick')}-${slug(player.name, 'pick')}_${stamp('')}.png`} />
         {/* ⚖ COMPARE (components/nfl/NflCompareSheet.js): him against another player on this week's slate, on the TD signals */}
         {comparePool.length > 1 && (
           <button type="button" onClick={() => setCompareOpen(true)} title="Compare this player against another on this week's slate" aria-label="Compare"
-            style={{ background: 'transparent', border: `1px solid ${C.border2}`, color: C.text2, borderRadius: 7, padding: '3px 9px', fontSize: 12, lineHeight: 1, cursor: 'pointer', minHeight: 44, minWidth: 44 }}>⚖</button>
+            style={{ background: 'transparent', border: `1px solid ${C.border2}`, color: C.text2, borderRadius: 7, padding: '3px 9px', fontSize: 12, lineHeight: 1, cursor: 'pointer', minHeight: 44, minWidth: 44 }}>⚖<span className="tb-word">Compare</span></button>
         )}
         {onNavigate && <Navigator peers={peers} cur={player} onNavigate={onNavigate} idOf={nflIdOf} noun="player" />}
+      </div>
       </div>
 
       {/* graded state comes first once there is one (MOONSHOT's PickVerdictStamp) */}
       <VerdictStamp player={player} results={results} bars={Object.fromEntries((markets || []).map((m) => [m.key, Number(m.bar)]))} />
 
-      {/* THE HEADER CARD, MOONSHOT's: face in the ring, #number and name, the clubs and the game on line 1, his role / kickoff / status on
-          line 2, the word, and the close INSIDE it. */}
-      <VerdictHero lead="face" theme={C} numFont={NUM_FONT} style={{ marginBottom: 12 }}
+      <div className="portal-top">
+      <div className="portal-who">
+      {/* THE HEADER CARD, MOONSHOT's v3: face in the ring, #number and name, the clubs and the game, his role / kickoff / status, the
+          close INSIDE it -- and his numbers and the watch / slip row in its footer. */}
+      <VerdictHero lead="face" theme={C} numFont={NUM_FONT} style={{ marginBottom: 10 }}
         photo={faceUrl({ sport: 'nfl', espnId: player.espn_id, size: 96 })}
         col={g0.color} score={Number.isFinite(s0) && !cardLocked ? s0 : null}
         // the name is the player's own link (a shared link to his page; check-clickable)
@@ -472,6 +572,11 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
           {tag && <span title={injuryTitle(tag)} style={{ color: injuryColor(tag, C), fontWeight: 900 }}>{' · '}{tag}</span>}
           {player.low_sample && <span style={{ color: C.text3 }}> · low sample</span>}
         </>}
+        footer={defender ? watchRow : <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <StatRow noun={`${player.position || 'player'}s`} poolLabel="this week's slate"
+            stats={nflStatRow({ player, slate, rate: ratesFor(player, markets, fullLog).find((x) => x.key === market) })} />
+          {watchRow}
+        </div>}
         right={!inline ? (
           <button type="button" onClick={onClose} aria-label="Close" style={{
             flexShrink: 0, width: 44, height: 44, display: 'grid', placeItems: 'center', margin: '-6px -6px 0 0',
@@ -479,67 +584,53 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
           }}>✕</button>
         ) : null}
       />
-      {/* HIS BIRTHDAY (published birth_date; nothing when unknown) */}
-      <BornLine birth={player.birth_date} on={etToday()} accent={C.green} C={C} font={NUM_FONT} style={{ marginTop: -4 }} />
+      {/* HIS BIRTHDAY (published birth_date): only on the day, the chip is the point */}
+      {birthdayChip(player.birth_date, etToday()) && <BornLine birth={player.birth_date} on={etToday()} accent={C.green} C={C} font={NUM_FONT} style={{ marginTop: -4 }} />}
 
       {/* TAGS: his ball-security tags and the tags of the defence he faces, each with its number on a tap (lib/nfl/tags.js) */}
-      {rowTags.length > 0 && <div style={{ margin: '-4px 0 10px' }}><TagChips tags={rowTags} onPlayerRow /></div>}
+      {rowTags.length > 0 && <div style={{ margin: '0 0 8px' }}><TagChips tags={rowTags} onPlayerRow /></div>}
 
-      {defender && <>{watchRow}<DefenderFile player={player} matchup={matchup} slateSeason={slate?.season} /></>}
+      {defender && <DefenderFile player={player} matchup={matchup} slateSeason={slate?.season} />}
       {!defender && <>
-      {/* THE PLAYER MODEL (components/player/): TUDDY ON HIM first -- the word (TD market only), the score, why, his other
-          markets as chips, his record on the locked calls and last week -- then ONE row of his key numbers (per game, ranked in his
-          position; L10 and season at the bar). */}
-      <VerdictBlock sport="nfl" style={{ marginTop: 10 }} lock={cardLock}
-        {...nflVerdict({ player, market, spec, score: s0, statusWord: tdStatus.statusOf(player), whyLines, watch: against?.text || null, whyExplain, two: twoRow })}
-        recordLine={bot === undefined ? null : nflRecordLine(bot)}
-        lastLine={bot === undefined ? null : nflLastLine(bot)} />
-      <StatRow noun={`${player.position || 'player'}s`} poolLabel="this week's slate" style={{ marginBottom: 8 }}
-        stats={nflStatRow({ player, slate, rate: ratesFor(player, markets, fullLog).find((x) => x.key === market) })} />
-      {watchRow}
-      {/* TAB BAR (MOONSHOT's: pills, a rule under them). Phone: sideways chip row. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, borderBottom: `1px solid ${C.border}`, paddingBottom: 10, flexWrap: 'wrap' }}>
+        {/* THE CALL, ONE ROW (MOONSHOT's VerdictBlock compact): the word (TD market only), the score, his other markets as chips */}
+        <VerdictBlock sport="nfl" compact lock={cardLock}
+          {...nflVerdict({ player, market, spec, score: s0, statusWord: tdStatus.statusOf(player), whyLines, watch: against?.text || null, whyExplain, two: twoRow })}
+          recordLine={bot === undefined ? null : nflRecordLine(bot)}
+          lastLine={bot === undefined ? null : nflLastLine(bot)} />
+        {/* HIS NUMBERS where MOONSHOT's checklist sits: season per game, ranked at his position */}
+        {statTiles(6)}
+        {player.position !== 'DEF' && <div style={{ marginTop: 8 }}><HisNumbers look="strip" name={player.name} jersey={player.jersey_number} birthDate={player.birth_date} next={Number.isFinite(player?.season_td) ? player.season_td + 1 : null} nextWord="TD" date={etToday()} theme={C} accent={C.green} numFont={NUM_FONT} /></div>}
+        {priceLine}
+        {player.carryover && <div style={{ marginTop: 8, fontSize: 12, color: C.text2 }}><b>Carryover</b> — last season&apos;s per-game baseline.</div>}
+      </>}
+      </div>
+      {!defender && !tabbed && <div className="portal-read"><section aria-label="Splits">{splitsPanel}</section></div>}
+      </div>
+
+      {!defender && <>
+      {/* THE PILLS: Front and the deeper views (desktop), or every panel one at a time (phone); sticky so the next view is one tap */}
+      <div style={{ borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: '8px 0', margin: '6px 0 12px', position: 'sticky', top: 0, zIndex: 5, background: C.bg2 }}>
         <div className="chip-row" style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-          {TABS.map((t) => (
-            <TabBtn key={t.key} active={tab === t.key} onClick={() => pick(t.key)}>{t.label}</TabBtn>
+          {visibleTabs.map((t) => (
+            <TabBtn key={t.key} active={frontTab === t.key} onClick={() => pick(t.key)}>{t.label}</TabBtn>
           ))}
         </div>
       </div>
 
       {seasonNote(fullLog, slate?.season) && <div style={{ fontFamily: NUM_FONT, fontSize: 12, color: C.yellow, margin: '0 0 8px', lineHeight: 1.4 }}>{seasonNote(fullLog, slate?.season)}</div>}
-      {tab !== 'overview' && showSeason && <SeasonToggle options={seasonOpts} value={seasonKey} onChange={setSeason} />}
+      {showSeason && <SeasonToggle options={seasonOpts} value={seasonKey} onChange={setSeason} />}
 
-      {/* OVERVIEW, MOONSHOT's order: TUDDY ON HIM (the role table), my note, in the ledger, his numbers, the price, then your star and his multi-TD line (no More fold, 10-20) */}
-      {tab === 'overview' && <>
-        {/* TUDDY ON HIM: each role TUDDY has called him in, on the graded record (components/nfl/NflOnHim.js, MOONSHOT's BotOnHim table) */}
-        <NflOnHim bot={bot} />
-        <PlayerNotes playerId={player.player_id} accent={C.green} />
-        {player.position !== 'DEF' && <InTheLedger sport="nfl" id={player.player_id} name={player.name} jersey={player.jersey_number} birthDate={player.birth_date} next={Number.isFinite(player?.season_td) ? player.season_td + 1 : null} date={etToday()} />}
-        {player.position !== 'DEF' && <HisNumbers name={player.name} jersey={player.jersey_number} birthDate={player.birth_date} next={Number.isFinite(player?.season_td) ? player.season_td + 1 : null} nextWord="TD" date={etToday()} theme={C} accent={C.green} numFont={NUM_FONT} />}
-        {player.carryover && (
-          <div style={{ marginTop: 14, fontSize: 12, color: C.text2, lineHeight: 1.6, background: `${C.text2}20`, border: `1px solid ${C.text2}4d`, borderRadius: 9, padding: '8px 10px' }}>
-            <b style={{ color: C.text2 }}>Carryover</b> — last season&apos;s per-game baseline.
-          </div>
-        )}
-        {/* THE PRICE, LAST (10-19, Donovan: "the price timeline should not lead"): his own record and numbers first, then the market */}
-        {/* THE PRICE: the line for the market on screen, the best book, the break-even. */}
-        {(() => {
-          const q = cardLocked ? null : quoteFor(odds, player, market)
-          if (!q) return null
-          return (<>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', margin: '4px 0 6px', fontSize: 12, color: C.text2, fontFamily: NUM_FONT }}>
-              <b style={{ color: C.text3, fontSize: 11, letterSpacing: '.08em' }}>PRICE</b>
-              <span>o{q.line} <b style={{ color: C.text }}>{fmtOdds(q.over)}</b></span>
-              {q.best_over != null && q.best_over !== q.over && <span>best <b style={{ color: C.green }}>{fmtOdds(q.best_over)}</b>{q.best_book ? ` ${q.best_book}` : ''}</span>}
-              {q.implied != null && <span>needs {q.implied}%</span>}
-              {q.books ? <span style={{ color: C.text3 }}>{q.books} book{q.books === 1 ? '' : 's'}</span> : null}
-              {q.matches !== false && <LineMoveChip quote={q} theme={C} numFont={NUM_FONT} />}
-              {!q.matches && <span style={{ color: C.yellow }}>a different line from the bar</span>}
-            </div>
-            {/* NO PRICE TIMELINE (2026-10-21, Donovan: "remove the price timeline inside of the player model ... remove it") */}
-          </>)
-        })()}
-      </>}
+      {/* THE FRONT, MOONSHOT's portal-main: the field | GAME LOG (every game, one row each) | the props grid and its bars */}
+      {(frontTab === 'front' || PAGE_TABS.some((t) => t.key === frontTab)) && (
+        <div className="portal-main">
+          {showPanel('field') && <section className="portal-spray" aria-label="The field" style={{ minWidth: 0 }}><PlayerField key={player.player_id} player={player} matchup={matchup} /></section>}
+          {showPanel('log') && <section className="portal-ev" aria-label="Game log" style={{ minWidth: 0 }}><Head>GAME BY GAME</Head><ScrollHint><NflGameLog log={slog} /></ScrollHint></section>}
+          {showPanel('props') && <section className="portal-props" aria-label="Props" style={{ minWidth: 0 }}>
+            {fullLog?.length ? <PropsGrid log={fullLog} market={market} defaultBar={Number(spec?.bar) || undefined} scores={player.scores} /> : <div style={{ fontSize: 12, color: C.text3 }}>No game log for him yet.</div>}
+          </section>}
+          {tabbed && showPanel('splitsp') && <section className="portal-splits" aria-label="Splits" style={{ minWidth: 0 }}>{splitsPanel}</section>}
+        </div>
+      )}
 
       {/* THE READ (MOONSHOT's pill): the sentences, and the case against him */}
       {tab === 'read' && <>
@@ -548,96 +639,23 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
       </>}
 
       {/* MATCHUP: the defense he faces, and how it covers */}
-      {tab === 'matchup' && <>
-        <PlayerField key={player.player_id} player={player} matchup={matchup} />
-        <NflCardMatchup player={player} matchup={matchup} slate={slate} />
-      </>}
+      {tab === 'matchup' && <NflCardMatchup player={player} matchup={matchup} slate={slate} />}
 
-      {/* SPLITS: the pairs, then the combine filters and this stadium */}
+      {/* ALL SPLITS: the bot's game-state splits, the combine filters and this stadium (the pairs are the front's right half) */}
       {tab === 'splits' && <>
-        {/* EVERY SPLIT FIRST (10-18): the even pairs from his logs (home / away, primetime, result, the defense at his role, roof,
-            surface, rest), then the bot's game-state splits, then the combine filters. The sentence that explained the season
-            buttons is gone: the buttons say it. */}
-        {/* MOONSHOT's splits (10-19, Donovan: "MLB's splits table shared"): its group pills, one dense table per group */}
-        <NflSplitsGroups log={slog} market={market} dvp={matchup?.dvp?.season || null} role={roleLabel(player) || null} />
         <SplitsForMarket player={player} market={market} data={splitMeta} />
         <NflGameCombo log={slog} venue={gameVenue(slate?.games, player.team, player.opp)} />
         {!(player?.splits && Object.keys(player.splits).length) && !hasContext(slog) && <div style={{ fontSize: 13, color: C.text3, lineHeight: 1.5 }}>{splitsWhy(player, fullLog, slate?.season)}</div>}
         {player?.splits && Object.keys(player.splits).length > 0 && SPLIT_STAT[market] && splitRows(player, SPLIT_STAT[market][0], splitMeta).length === 0 && <div style={{ fontSize: 13, color: C.text3, lineHeight: 1.5 }}>{splitsWhy(player, fullLog, slate?.season)} Only one side of each pair is published for him.</div>}
       </>}
 
-      {/* GAME LOG: every game, one row each (MOONSHOT's plain game-by-game table) */}
-      {tab === 'gamelog' && <>
-        <Head>GAME BY GAME</Head>
-        <ScrollHint><NflGameLog log={slog} /></ScrollHint>
-      </>}
-
-      {/* NUMBERS (MOONSHOT's pill): the evidence behind the read -- the file, how often he reached each market's bar, his per-game line */}
+      {/* NUMBERS (MOONSHOT's pill): the file, how often he reached each market's bar, every per-game number */}
       {tab === 'numbers' && <>
         <TheFile player={player} log={slog} />
         <Head>AT THE BAR, MARKET BY MARKET</Head>
         <RatesTable rows={ratesFor(player, markets, slog)} />
-        {Object.keys(player.stats || {}).length > 0 && (
-          <>
-            <Head>SEASON PER GAME</Head>
-            {/* EACH NUMBER WITH WHERE IT STANDS (Donovan 10-18: "I gotta know what's good, what's not ... target share, I need a
-                little arrow going up, or where they rank"). Every tile: the number, his rank among this week's slate players at his
-                position (the same pool the stat row above ranks in), and an arrow when his last 3 games run 15% above (▲) or below
-                (▼) his season in the same stat, where the game log carries it (g_<stat>). Nothing estimated. */}
-            {(() => {
-              const pool = (slate?.players || []).filter((x) => x.position === player.position && x.stats)
-              const rankOf = (k, v) => {
-                const vals = pool.map((x) => Number(x.stats?.[k])).filter(Number.isFinite)
-                return Number.isFinite(Number(v)) && vals.length > 1 ? { r: 1 + vals.filter((x) => x > Number(v)).length, n: vals.length } : null
-              }
-              const logField = (k) => { const f = `g_${String(k).toLowerCase()}`; return (slog || []).some((g) => g?.[f] != null) ? f : null }
-              const arrowOf = (k) => {
-                const f = logField(k); if (!f || (slog || []).length < 5) return null
-                const vals = slog.map((g) => Number(g[f]) || 0); const szn = vals.reduce((a, b) => a + b, 0) / vals.length
-                const l3 = vals.slice(-3).reduce((a, b) => a + b, 0) / 3
-                if (!(szn > 0)) return null
-                return l3 >= szn * 1.15 ? 'up' : l3 <= szn * 0.85 ? 'down' : null
-              }
-              const entries = Object.entries(player.stats)
-              return (
-                <div className="nfl-card-stats" style={{ display: 'grid', gap: 6, gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))' }}>
-                  {entries.slice(0, allStats ? 99 : 6).map(([k, v]) => {
-                    const rk = rankOf(k, v), ar = arrowOf(k)
-                    const top = rk && rk.r <= Math.max(3, Math.ceil(rk.n / 10))
-                    return (
-                      <div key={k} style={{ background: top ? alpha(C.green, 0.07) : 'rgba(255,255,255,.03)', border: `1px solid ${top ? alpha(C.green, 0.4) : C.border}`, borderRadius: 9, padding: '6px 9px', minWidth: 0 }}>
-                        <div style={{ fontSize: 11, color: C.text3, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          <NflExplain label={statLabel(k)} term={k} />
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
-                          <span style={{ fontFamily: NUM_FONT, fontSize: 16, fontWeight: 900, color: C.text }}>{typeof v === 'number' ? statFmt(k, v) : v}</span>
-                          {ar && <span title={ar === 'up' ? 'His last 3 games run 15%+ above his season' : 'His last 3 games run 15%+ below his season'} style={{ fontSize: 11, color: ar === 'up' ? C.green : C.text3, fontWeight: 900 }}>{ar === 'up' ? '▲' : '▼'}</span>}
-                          {rk && <span title={`${rk.r} of ${rk.n} ${player.position}s on this week's slate`} style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11, color: top ? C.green : C.text3, fontWeight: 800 }}>#{rk.r} {player.position}</span>}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )
-            })()}
-            {Object.keys(player.stats).length > 6 && (
-              <button type="button" onClick={() => setAllStats((v) => !v)} style={{ display: 'block', width: '100%', marginTop: 6, minHeight: 44, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 10, color: C.text2, cursor: 'pointer', fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800 }}>
-                {allStats ? 'Fewer' : `All ${Object.keys(player.stats).length}`}
-              </button>
-            )}
-          </>
-        )}
+        {Object.keys(player.stats || {}).length > 0 && <><Head>SEASON PER GAME</Head>{statTiles(99)}</>}
       </>}
-
-      {/* NO MORE FOLD (Donovan 10-20: "I don't want a More section in player modal"): its two blocks sit on the page, at the end of the
-          Overview -- your eye for him (star + memory) and his multi-TD record. The props grid lives on the Props page (10-19); your card is gone (10-18). */}
-      <div style={{ margin: '12px 0 8px', display: 'grid', gap: 8 }}>
-        <StarMemory sport="nfl" id={player?.player_id} />
-        {/* MOONSHOT's multi-HR line, TUDDY's words */}
-        <MultiLine sport="nfl" playerId={player?.player_id} words={{ TD: 'multi-TD', PASS_TD: '2+ passing-TD' }} color={C.green} textColor={C.text2} />
-        {/* the first-pitch split's twin: the games he scored the first touchdown */}
-        <ScoredFirst sport="nfl" playerId={player?.player_id} word="Scored the first TD" color={C.green} textColor={C.text2} />
-      </div>
       </>}
 
       {/* the cards he has earned (his real multi-TD and 100-yard games, a long shot that cashed): at the END of the card, no section when he has none */}
