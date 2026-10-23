@@ -294,6 +294,10 @@ button {
    props under both; from 1500px all three across. A phone keeps Splits as its own tab (the area above). */
 @media (min-width: 1080px) { .portal-main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "spray ev" "props props"; } }
 @media (min-width: 1500px) { .portal-main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr); grid-template-areas: "spray ev props"; } }
+/* THE BACK, PITCHES = THE MATCHUP (components/player/MatchupTab.js, 2026-10-23): pitch by pitch | the two zones, side by side
+   from 1080px; one column on a phone */
+.matchup-grid { display: grid; gap: 14px 22px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 1080px) { .matchup-grid { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); } }
 /* THE BACK, PITCHES: his pitches | tonight's pitcher */
 .portal-back3 { display: grid; gap: 6px 22px; align-items: start; grid-template-columns: minmax(0, 1fr); margin-bottom: 8px; }
 @media (min-width: 1080px) { .portal-back3 { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); } }   /* vs him moved to the EV log (2026-10-23) */
