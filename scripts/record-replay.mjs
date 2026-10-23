@@ -66,7 +66,11 @@ let chromium
 try { ({ chromium } = await import('playwright-core')) } catch { ({ chromium } = await import('playwright')) }
 const browser = await chromium.launch({
   executablePath: findBrowser([MAC_CHROME]),
-  args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--hide-scrollbars'],
+  // a Mac draws on its graphics card (Metal): minutes for a video. Elsewhere (the cloud copy, no GPU) the software renderer,
+  // about an hour for 80 s (2026-10-23)
+  args: process.platform === 'darwin'
+    ? ['--use-gl=angle', '--use-angle=metal', '--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--hide-scrollbars']
+    : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--hide-scrollbars'],
 })
 const page = await browser.newPage({ viewport: { width: W + 30, height: 1000 }, deviceScaleFactor: 1 })
 page.on('pageerror', (e) => console.error('page error:', e.message.slice(0, 200)))
