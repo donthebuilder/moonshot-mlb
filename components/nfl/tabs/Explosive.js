@@ -9,7 +9,6 @@ import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import PlayerFace from '../../PlayerFace'
 import { Para, Num, ConvictionClause, PowerLead, LensRow } from '../../power/PowerParts'
 import { convictionOf, percentileOf, standingPhrase } from '../../../lib/whyPick'
-import { btnStyle } from '../../ui'
 import { withNflFullSet } from '../../../lib/nfl/boardColumns'
 import LongestTds from '../LongestTds'
 
@@ -263,8 +262,7 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
           <Para theme={C} dim>A rate of big plays already made, from {matchup?.season || 'this season'}&apos;s play-by-play — not a chance of one this week.</Para>
         </PowerLead>
       )}
-      <LensRow theme={C} lenses={LENSES} value={lens} onChange={setLens}
-        btn={(color, on) => ({ ...btnStyle(color, on), border: `1px solid ${on ? `${color}99` : C.border}`, color: on ? color : C.text2 })} />
+      <LensRow theme={C} numFont={NUM_FONT} lenses={LENSES} value={lens} onChange={setLens} />
 
       {lens === 'longest' ? (
         <>

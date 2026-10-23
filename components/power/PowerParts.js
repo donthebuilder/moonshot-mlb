@@ -2,6 +2,7 @@
 import { C as MLB_C, NUM_FONT as MLB_NUM } from '../../lib/theme'
 import { alpha } from '../../lib/scales'
 import Tap from '../Tap'
+import { FLAT_CHIP_CLASS, flatChip } from '../../lib/chips'
 
 // THE POWER PAGE'S FRAME, SHARED (2026-09-29, Donovan: "did we ever do the
 // player powers for all the sports?"). Lifted out of MOONSHOT's
@@ -64,14 +65,15 @@ export function PowerLead({ color, kicker, name, meta, onName, onMeta = null, ch
 
 
 /** One board, several lenses: the pill is the board's title, the active
- *  lens's one-line answer rides the row. lenses: [{ k, label, tag, color }]. */
-export function LensRow({ lenses, value, onChange, theme = MLB_C, btn }) {
+ *  lens's one-line answer rides the row. lenses: [{ k, label, tag, color }]. Each lens is the standard chip (lib/chips
+ *  flatChip, 2026-10-22: "make things uniform to the site's harness and code") in its own colour. */
+export function LensRow({ lenses, value, onChange, theme = MLB_C, numFont = MLB_NUM }) {
   const C = theme
   const lens = lenses.find((l) => l.k === value) || lenses[0]
   return (
     <div style={{ display: 'flex', gap: 6, marginTop: 4, marginBottom: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
       {lenses.map((l) => (
-        <button key={l.k} onClick={() => onChange(l.k)} style={btn(l.color, value === l.k)}>
+        <button key={l.k} type="button" className={FLAT_CHIP_CLASS} aria-pressed={value === l.k} onClick={() => onChange(l.k)} style={flatChip(value === l.k, l.color || C.orange, C, numFont)}>
           {l.label}
         </button>
       ))}

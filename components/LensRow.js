@@ -20,6 +20,7 @@
 // a home run pick should not have to read past "Matchup Edge" to find HR.
 
 import { C, NUM_FONT } from '../lib/theme'
+import { FLAT_CHIP_CLASS, flatChip } from '../lib/chips'
 
 export default function LensRow({ label, options = [], value, onChange, title }) {
   if (!options.length) return null
@@ -44,17 +45,11 @@ export default function LensRow({ label, options = [], value, onChange, title })
             <button
               key={o.key}
               type="button"
+              className={FLAT_CHIP_CLASS}
               onClick={() => onChange?.(o.key)}
               aria-pressed={on}
               title={o.title || title}
-              style={{
-                padding: '5px 11px', borderRadius: 999, cursor: 'pointer',
-                fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT,
-                whiteSpace: 'nowrap',
-                border: `1px solid ${on ? accent : C.border}`,
-                background: on ? `${accent}22` : 'transparent',
-                color: on ? accent : C.text3,
-              }}
+              style={flatChip(on, accent, C, NUM_FONT)}
             >{o.label}</button>
           )
         })}

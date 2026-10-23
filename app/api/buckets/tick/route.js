@@ -13,6 +13,7 @@ import { easternToday, shiftDay } from '../../../../lib/data'
 import { storiesTick } from '../../../../lib/stories/record'
 import { writeFirstFeed, FIRST_KIND } from '../../../../lib/nba/firstFeed'
 import { writeOpening } from '../../../../lib/nba/openings'
+import { writeQuarters } from '../../../../lib/nba/quarters'
 import { readNbaBoard } from '../../../../lib/nba/boardRead'
 import { runNbaWriteups } from '../../../../lib/writeups/post'
 import { recordNbaLanes, gradeNbaLanes } from '../../../../lib/numerology/nbaTick'
@@ -164,6 +165,10 @@ export async function GET(request) {
     // once, from the same summary. Its own failure is logged and never holds the game open (a re-grade would write it again).
     const op = await writeOpening(db, s, { gameId: p.game_id, gameDate: p.game_date, season: p.season, seasonType: p.season_type, home: p.home, away: p.away }).catch((e) => String(e?.message || e))
     if (op) out.skipped.push({ game: p.game_id, why: `opening: ${op}` })
+    // QUARTER SPLITS (2026-10-22, lib/nba/quarters.js): every man's points / rebounds / assists / threes a period, for the bars' Q1..2H
+    // chips. Same summary; its own failure is logged and never holds the game open.
+    const qq = await writeQuarters(db, s, { gameId: p.game_id, gameDate: p.game_date, season: p.season, seasonType: p.season_type }).catch((e) => String(e?.message || e))
+    if (qq) out.skipped.push({ game: p.game_id, why: `quarters: ${qq}` })
     const closed = await db.from('buckets_games').update({ graded_at: gradedAt, state: 'final' }).eq('game_id', p.game_id)
     if (closed.error) { out.skipped.push({ game: p.game_id, why: `close: ${closed.error.message}` }); continue }
     // the lane nights of that game, graded from the same box (open switch only; never blocks the grade)

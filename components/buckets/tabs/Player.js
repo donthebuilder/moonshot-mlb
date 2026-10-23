@@ -378,7 +378,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
         <div style={{ margin: '4px 0 0', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12, minWidth: 0 }}>
           <StarMemory sport="nba" id={pid} />
           {/* THE BARS: one bar a game against the line + the L5..H2H hit rates (was THE BARS on The Read + the props grid, 10-21) */}
-          <PlayerBars log={data.log || []} logSeason={data.logSeason} pos={card.pos} pos5={card.pos5} blowLog={data.logs || []} seasonYears={data.seasonYears} blow={game && row ? blowoutFor('nba', game.spreadHome, { home: game.home?.abbrev, away: game.away?.abbrev, team: row.team }) : null} nextGame={data.nextGame} onOpenTeam={onOpenTeam} />
+          <PlayerBars log={data.log || []} logSeason={data.logSeason} quarters={data.quarters} pos={card.pos} pos5={card.pos5} blowLog={data.logs || []} seasonYears={data.seasonYears} blow={game && row ? blowoutFor('nba', game.spreadHome, { home: game.home?.abbrev, away: game.away?.abbrev, team: row.team }) : null} nextGame={data.nextGame} onOpenTeam={onOpenTeam} />
           <PlayerDdTd playerId={pid} />
           <ScoredFirst sport="nba" playerId={pid} word="Scored the first basket" color={C.purple} textColor={C.text2} />
         </div>
