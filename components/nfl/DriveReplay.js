@@ -100,7 +100,7 @@ function DriveStage({ data, rec = false }) {
     const W = el.clientWidth || 640, H = boxH(W, rec)
     const scene = new THREE.Scene()
     // THE WORLD: the electric board on a walnut table, a night game under four little light towers
-    buildElectricBoard(scene, { home: data.home, away: data.away, accent: C.green })
+    const board = buildElectricBoard(scene, { home: data.home, away: data.away, accent: C.green })
     // THE SWITCH on the near rim: a tin box, a lever, a pilot light. The open flips it ON; it is the board's motor
     const SW = new THREE.Vector3(-118, 3, BOARD.W / 2 + BOARD.RIM + 7)   // just outside the near rail, its plate to the camera
     // (a rounded tin box with OFF / ON stamped on its face plate, a chrome lever with a ball knob, a red pilot that glows)
@@ -291,8 +291,11 @@ function DriveStage({ data, rec = false }) {
       const j = buzzing ? 1 : 0
       for (const c of cast) {
         if (c.carrier) { carryRing.visible = true; carryRing.position.set(c.x, 0.5, c.z) }
-        c.fig.position.set(c.x + j * Math.sin(t * 0.061 + c.ph) * 0.35, 0, c.z + j * Math.sin(t * 0.047 + c.ph * 1.3) * 0.35)
-        c.fig.rotation.y = c.face + j * Math.sin(t * 0.033 + c.ph) * 0.12
+        // a celebration: a hop (the scorer) and a spin on his base (the scorer twice, his mates once)
+        const ha = c.hopAt != null ? (t - c.hopAt) / 1300 : 2, hop = ha >= 0 && ha < 1 ? Math.abs(Math.sin(ha * Math.PI * 4)) * 2.6 * (1 - ha) : 0
+        const sa = c.spinAt != null ? Math.min(1, Math.max(0, (t - c.spinAt) / 1100)) : 1, spin = (c.spinAmt || 0) * (1 - Math.pow(1 - sa, 3))
+        c.fig.position.set(c.x + j * Math.sin(t * 0.061 + c.ph) * 0.35, hop, c.z + j * Math.sin(t * 0.047 + c.ph * 1.3) * 0.35)
+        c.fig.rotation.y = c.face + spin + j * Math.sin(t * 0.033 + c.ph) * 0.12
         c.fig.userData.body.position.y = j * Math.abs(Math.sin(t * 0.09 + c.ph)) * 0.22
       }
     }
@@ -315,7 +318,39 @@ function DriveStage({ data, rec = false }) {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(10 * YD, FIELD_W), new THREE.MeshBasicMaterial({ color: new THREE.Color(C.green), transparent: true, depthWrite: false }))
       m.rotation.x = -Math.PI / 2; m.position.set(dir * 55 * YD, 0.11, 0); m.userData.op = 0.22; addLive(m, HOLD.td)
     }
-    const flag = (x, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.3, 1.6), new THREE.MeshStandardMaterial({ color: new THREE.Color(C.yellow), transparent: true })); m.position.set(x, 0.3, z); m.userData.op = 1; addLive(m, 1600) }
+    // THE FLAG: thrown from the official on the near sideline, tumbling in an arc to the spot of the foul
+    let flagThrow = null
+    const flag = (x, z) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.3, 1.6), new THREE.MeshStandardMaterial({ color: new THREE.Color(C.yellow), transparent: true }))
+      m.userData.op = 1; m.castShadow = true; addLive(m, 2200)
+      flagThrow = { m, from: new THREE.Vector3(x - 14, 6, FIELD_W / 2 + 4), to: new THREE.Vector3(x, 0.3, z), t0: nowMs() }
+    }
+    const stepFlag = (t) => {
+      if (!flagThrow) return
+      const u = Math.min(1, (t - flagThrow.t0) / 650), p = flagThrow.from.clone().lerp(flagThrow.to, u)
+      p.y = flagThrow.from.y * (1 - u) + flagThrow.to.y * u + Math.sin(u * Math.PI) * 14
+      flagThrow.m.position.copy(p); flagThrow.m.rotation.set(u * 9, u * 4, 0)
+      if (u >= 1) { flagThrow.m.rotation.set(0, 0.4, 0); flagThrow = null }
+    }
+    // THE CHAINS: on a new set of downs the crew walks both poles (and the chain) to the new line
+    let chainMove = null
+    const stepChains = (t) => {
+      if (!chainMove) return
+      const u = Math.min(1, (t - chainMove.t0) / 700), e = u * u * (3 - 2 * u)
+      const a = chainMove.a0 + (chainMove.a1 - chainMove.a0) * e, b = chainMove.b0 + (chainMove.b1 - chainMove.b0) * e
+      chainA.position.x = a; chainB.position.x = b
+      chain.geometry.setFromPoints([new THREE.Vector3(a, 6, -(FIELD_W / 2 + 6)), new THREE.Vector3(b, 6, -(FIELD_W / 2 + 6))])
+      if (u >= 1) chainMove = null
+    }
+    // big moments on the board: the scoreboard's line, the flash bulbs, the room
+    let bulbsUntil = -1e9, dimAt = -1e9, sbKey = ''
+    const showScore = (b) => {
+      const p = plays[b.i], [as, hs] = scoreAt(plays, data, b, 1)
+      const status = b.type === 'td' ? 'TOUCHDOWN' : b.type === 'pat' ? (p.pat === '1' ? 'IT\'S GOOD' : 'NO GOOD') : b.type === 'fg' ? 'IT\'S GOOD' : b.type === 'turnover' ? 'TURNOVER'
+        : b.type === 'quarter' ? `END ${plays[b.i - 1]?.period > 3 ? 'REG' : `Q${plays[b.i - 1]?.period}`}` : ''
+      const key = `${as}|${hs}|${p.period}|${status}`
+      if (key !== sbKey) { sbKey = key; board.setScore(as, hs, clockText(p), status) }
+    }
 
     // ── THE CLOCK ──
     let bt = 0, bIdx = -1, playingNow = false, last = nowMs(), introAt = null, introDone = false, introPhase = null, motor = false
@@ -326,11 +361,14 @@ function DriveStage({ data, rec = false }) {
       if (!scrim) return
       const dir = side(p.team) === 'home' ? 1 : -1, gainX = p.from + dir * p.dist
       losBar.position.x = wx(p.from); losBar.visible = true
-      chainA.position.x = wx(p.from); chainA.visible = true
+      chainA.visible = true
       if (gainX > 0 && gainX < 100) {
         gainBar.position.x = wx(gainX); gainBar.visible = true
-        chainB.position.x = wx(gainX); chainB.visible = true
-        chain.geometry.setFromPoints([new THREE.Vector3(wx(p.from), 6, -(FIELD_W / 2 + 6)), new THREE.Vector3(wx(gainX), 6, -(FIELD_W / 2 + 6))]); chain.visible = true
+        chainB.visible = true; chain.visible = true
+        // a first down moves the chains (walked, not jumped); otherwise they stay where they are
+        const a1 = p.down === 1 ? wx(p.from) : chainA.position.x || wx(p.from), b1 = wx(gainX)
+        if (p.down === 1 && (Math.abs(chainB.position.x - b1) > 1)) chainMove = { a0: chainA.position.x || a1, b0: chainB.position.x || b1, a1, b1, t0: nowMs() }
+        else { chainA.position.x = a1; chainB.position.x = b1; chain.geometry.setFromPoints([new THREE.Vector3(a1, 6, -(FIELD_W / 2 + 6)), new THREE.Vector3(b1, 6, -(FIELD_W / 2 + 6))]) }
       }
     }
     // enter a beat: set up what it draws (once), then `drawBeat` moves it
@@ -350,10 +388,17 @@ function DriveStage({ data, rec = false }) {
         else dropTrail()
         if (curPlay.kind === 'penalty') flag(wx(p.from) + curDir * 4, 6)
       }
-      if (b.type === 'td') { endzoneFlash(curDir); addLive(ring(wx(p.to), 0, ink, 4), 1400, 5) }
+      if (b.type === 'td') {
+        endzoneFlash(curDir); addLive(ring(wx(p.to), 0, ink, 4), 1400, 5)
+        // the scorer hops and spins twice, his mates spin once; the crowd's flash bulbs pop for the hold
+        const t = nowMs(); bulbsUntil = t + HOLD.td
+        for (const c of cast) if (c.k === side(p.team)) { c.spinAt = t + (c.carrier ? 0 : 150); c.spinAmt = c.carrier ? Math.PI * 4 : Math.PI * 2; if (c.carrier) c.hopAt = t }
+      }
+      if (b.type === 'quarter') dimAt = nowMs()
       if (b.type === 'fg') addLive(ring(wx(curDir > 0 ? 110 : -10), 0, ink, 3), 900, 4)
       if (b.type === 'turnover') addLive(ring(wx(p.to), 0, INK[side(p.team) === 'home' ? 'away' : 'home'], 3), 900, 4)
       if (b.type === 'gap' && (p.kind !== 'pass' || !p.incomplete)) addDriveStroke(p)
+      showScore(b)
       setNow({ b: k })
     }
     const drawBeat = (u, t) => {
@@ -450,6 +495,9 @@ function DriveStage({ data, rec = false }) {
         while (bIdx < k) enterBeat(bIdx + 1)
         drawBeat(clamp((bt - beats[bIdx].t) / beats[bIdx].dur, 0, 1), t)
       }
+      stepFlag(t); stepChains(t)
+      board.flashBulbs?.(t, t < bulbsUntil)
+      const qa = (t - dimAt) / HOLD.quarter; board.dim?.(qa >= 0 && qa < 1 ? 0.45 + 0.55 * Math.abs(qa * 2 - 1) : 1)
       fade(t); if (introAt == null) controls.update(); look.render(); if (!rec) raf = requestAnimationFrame(tick)
     }
     let raf = 0, onScreen = true
