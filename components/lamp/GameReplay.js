@@ -457,6 +457,7 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
     const stepIntro = (t) => {
       if (introAt == null) return
       const u = Math.min(1, (t - introAt) / INTRO_MS)
+      look.blur?.(u < 0.72 ? 3.4 : 3.4 - 2.2 * Math.min(1, (u - 0.72) / 0.28))
       const pull = Math.max(1, 2.2 / camera.aspect) * 1.02
       const broadcast = new THREE.Vector3(0, 112 * pull, 132 * pull)
       if (u < 0.5) {
@@ -468,14 +469,14 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
         // tilt up: the tower at the top of the dome, the puck waiting in its hole
         // (looking up at the tower's face from the near side of the ice, the puck waiting in the hole under it)
         const f = ease2((u - 0.5) / 0.22)
-        camera.position.set(-20 + f * 8, 7 + f * 12, 26 + f * 6); camera.lookAt(0, 3.5 + f * 44, 0)
+        camera.position.set(-20 + f * 18, 7 + f * 31, 26 + f * 12); camera.lookAt(0, 3.5 + f * 44, 0)
         puck.visible = true; puck.position.copy(rink.towerTop); look.focus.copy(rink.towerTop)
       } else {
         // the drop: the puck falls (gravity), the camera rides it down and out to the broadcast angle
         const f = (u - 0.72) / 0.28, fall = Math.min(1, f * 1.25)
         puck.visible = true; puck.position.set(0, rink.towerTop.y - (rink.towerTop.y - 0.4) * fall * fall, 0)
         const g = ease2(f)
-        camera.position.lerpVectors(new THREE.Vector3(-12, 19, 32), broadcast, g); camera.lookAt(0, puck.position.y * (1 - g), 6 * g)
+        camera.position.lerpVectors(new THREE.Vector3(-2, 38, 38), broadcast, g); camera.lookAt(0, puck.position.y * (1 - g), 6 * g)
         look.focus.copy(puck.position)
       }
       const ph = u < 0.12 ? 'ident' : u < 0.62 ? 'title' : 'data'
@@ -528,6 +529,7 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
       const ea = endUntil - t; rink.dim(ea <= 0 ? 1 : ea > 400 ? 0.55 : 0.55 + 0.45 * (1 - ea / 400))
       if (introAt == null) moveFigures(puck.visible ? puck.position.x : 0, puck.visible ? -puck.position.z : 0, dt, t)
       look.focus.copy(puck.visible ? puck.position : new THREE.Vector3())
+      if (introAt == null) look.blur?.(1.2)
       if (t - uiAt > 200) { uiAt = t; setGsUi(gs) }
       fade(t); if (introAt == null) controls.update(); look.render(); if (!rec) raf = requestAnimationFrame(tick)
     }
@@ -567,6 +569,7 @@ function ReplayStage({ data, goals = [], rec = false, sim = null }) {
         // a still at one moment (game seconds; the open skipped): for checking frames, not for the video
         jump: (g) => { if (introAt != null || !introDone) { introAt = null; introDone = true; controls.enabled = true; frame(); setIntro(null) } seek(g); playingNow = false; tick(); moveFigures(puck.position.x, -puck.position.z, 10); look.render() },
         // a still of the open at u (0..1), for checking frames
+        state: () => ({ gs, idx, perNow, endUntil, holdUntil, t: nowMs(), status: rink.statusNow, playing: playingNow }),
         openAt: (u) => { introAt = nowMs() - u * INTRO_MS; introDone = false; stepIntro(nowMs()); look.render(); introAt = null },
         goals: () => events.filter((e) => e.kind === 'goal').map((e) => gameSec(e)),
         total: () => total,
