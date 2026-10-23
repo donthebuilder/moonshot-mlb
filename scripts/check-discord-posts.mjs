@@ -89,6 +89,7 @@ for (const c of CASES) {
     const routed = foldedForDiscord(r.kind) ? { cut: true, folded: true, hooks: [] } : routeHooks(r.kind, r.sport === 'all' ? 'mlb' : r.sport, hooks)
     const channels = routed.cut ? [] : routed.hooks.map(keyOfFake)
     const res = checkDiscordPost(payload, { sport: r.sport === 'all' ? null : r.sport, source: r.text, channels: routed.cut ? null : channels, members: Boolean(r.members) })
+    if (r.legacy) { const old = res.errors.filter((e) => /^percentile wording/.test(e)); res.errors = res.errors.filter((e) => !old.includes(e)); res.warns.push(...old.map((e) => `${e} (stored before the change; new posts are plain)`)) }
     if (routed.folded) res.warns.push('FOLDED into plays_<sport> (SPORT_PLANS_ON): recorded, not delivered')
     else if (routed.cut) res.warns.push('CUT by the routing table (row recorded, nothing delivered)')
     errors += res.errors.length ? 1 : 0

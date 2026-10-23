@@ -275,7 +275,7 @@ const momentCases = [{
       const policy = mposting.policyFor(e.tier, { hasX: false, hasMembers: true })
       const base = { kind: `moment_${e.sport}`, sport: e.sport, day: e.day, label: `${e.who.name} · ${e.tier}`, text: discordLine, embed, png: true }
       if (policy.discord) out.push({ ...base, hooks: feedHooks(e.sport) })
-      if (policy.members) { const plain = mpost.momentMembersLine(line); out.push({ ...base, label: `${base.label} (#members copy)`, text: plain, embed: mpost.momentDiscordEmbed({ ...e, status: null }, { name: e.who.name, discordLine: plain, png: true, plain: true }), hooks: members(), members: true }) }
+      if (policy.members) { const plain = mpost.momentMembersLine(line); out.push({ ...base, label: `${base.label} (#members copy)`, text: plain, embed: mpost.momentDiscordEmbed({ ...e, status: null }, { name: e.who.name, discordLine: plain, png: true }), hooks: members(), members: true }) }
     }
     return out
   },
@@ -327,7 +327,9 @@ const writeupCases = ['nfl', 'nhl', 'nba'].map((sport) => ({
     const w = wt.renderWriteupSafe(r.payload.writeup)
     if (!w.ok) return [{ kind: r.kind, error: `write-up checker: ${(w.why || []).join('; ')}` }]
     const free = sport === 'nba' ? nbaOwnHooks().join(',') : sportHooks(sport).join(',')
-    return [{ kind: r.kind, sport, day: r.day, label: `${(r.payload.teams || []).join(' at ')}${r.payload.featured ? ' (featured)' : ' (not featured: site + #members only)'}`, text: w.full, hooks: r.payload.featured ? free : '' }]
+    // a stored write-up keeps the words it was written with: one written before the plain-words change (10-23) may still say 'top N%'
+    const legacy = String(r.payload.written_at || r.day) < '2026-10-24'
+    return [{ kind: r.kind, sport, day: r.day, legacy, label: `${(r.payload.teams || []).join(' at ')}${r.payload.featured ? ' (featured)' : ' (not featured: site + #members only)'}${legacy ? ' · written before 10-24' : ''}`, text: w.full, hooks: r.payload.featured ? free : '' }]
   },
 }))
 
