@@ -4,7 +4,7 @@
 const { ROUTES, PREFIX_ROUTES, routeOf, isCut, roomsOf, GRADING_KIND } = await import('../lib/dash/routing.js')
 let fail = 0
 const check = (name, ok, extra = '') => { if (!ok) fail += 1; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${extra ? `  -- ${extra}` : ''}`) }
-const ROOMS = new Set(['feed', 'sport', 'receipts', 'members', 'donovan', 'off'])
+const ROOMS = new Set(['feed', 'sport', 'receipts', 'members', 'donovan', 'network', 'off'])
 const all = [...Object.entries(ROUTES), ...PREFIX_ROUTES.map(([p, r]) => [p, r])]
 for (const [k, r] of all) {
   check(`rooms known: ${k}`, r.rooms.every((x) => ROOMS.has(x)), r.rooms.join(','))
@@ -25,5 +25,15 @@ check('card_today (sport room) narrows to the sport channel only', (() => { cons
 check('nhl_slate (sport room) never reaches the public feed', (() => { const r = routeHooks('nhl_slate', 'nhl', [U(1), U(4)]); return r.hooks.join() === U(4) })())
 check('recap goes to the receipts room only', (() => { const r = routeHooks('recap_nhl', 'nhl', hooksAll); return r.hooks.join() === U(5) })())
 check('members roundup goes to #members only', (() => { const r = routeHooks('members_roundup_nhl', 'nhl', hooksAll); return r.hooks.join() === U(6) })())
+// THE NETWORK ROOM and the table deciding (2026-10-23)
+check('receipt: the network room (#moonshot-mlb until DISCORD_OVERVIEW_WEBHOOK is set) + #called-it', (() => { const r = routeHooks('receipt', 'mlb', [U(1), U(2), U(5)]); return r.hooks.sort().join() === [U(2), U(5)].sort().join() })())
+process.env.DISCORD_OVERVIEW_WEBHOOK = U(7)
+check('receipt: with the network channel set, the network channel + #called-it, never #moonshot-mlb', (() => { const r = routeHooks('receipt', 'mlb', [U(1), U(2), U(5)]); return r.hooks.sort().join() === [U(5), U(7)].sort().join() })())
+check('slate / the five / film room / by the numbers: the network channel only', ['slate', 'the_five', 'film_room', 'by_numbers', 'card_double_result'].every((k) => routeHooks(k, 'mlb', [U(2)]).hooks.join() === U(7)))
+check('a no-cash receipt: #called-it only', routeHooks('receipt_nocash', 'mlb', [U(5)]).hooks.join() === U(5))
+delete process.env.DISCORD_OVERVIEW_WEBHOOK
+check('the hardest shot: #lamp, never #moonshot-mlb', routeHooks('nhlhardest', 'nhl', [U(1), U(2)]).hooks.join() === U(4))
+check('no fallback: an unset product room sends nowhere', (() => { const k = process.env.DISCORD_NHL_WEBHOOKS; delete process.env.DISCORD_NHL_WEBHOOKS; const r = routeHooks('nhl_slate', 'nhl', [U(2)]); process.env.DISCORD_NHL_WEBHOOKS = k; return r.hooks.length === 0 })())
+check('#members is never reached unless the poster asked for it', routeHooks('members_roundup_nhl', 'nhl', [U(2)]).hooks.length === 0)
 console.log(fail ? `\n${fail} FAILED` : '\nall ok')
 process.exit(fail ? 1 : 0)

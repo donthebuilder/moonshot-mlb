@@ -24,8 +24,8 @@ eq('unset -> empty receipts', receiptsHooks(), '')
 // today's behaviour (only HOMER + MLB set): NFL/NHL still ride the MLB list
 process.env.DISCORD_HOMER_WEBHOOK = 'HOMER'; process.env.DISCORD_MLB_WEBHOOKS = 'MLB'
 eq('mlb feed', feedHooks('mlb'), 'HOMER,MLB')
-eq('nfl falls back to MLB', feedHooks('nfl'), 'HOMER,MLB')
-eq('nhl falls back to MLB', feedHooks('nhl'), 'HOMER,MLB')
+eq('nfl does NOT fall back to MLB (2026-10-23)', feedHooks('nfl'), 'HOMER')
+eq('nhl does NOT fall back to MLB (2026-10-23)', feedHooks('nhl'), 'HOMER')
 
 // fully wired
 process.env.DISCORD_NFL_WEBHOOKS = 'NFL'; process.env.DISCORD_NHL_WEBHOOKS = 'NHL'; process.env.DISCORD_RECEIPTS_WEBHOOK = 'CALLED'

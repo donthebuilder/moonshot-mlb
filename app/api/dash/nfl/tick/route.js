@@ -405,7 +405,7 @@ async function runTouchdownTick(db, day) {
         // ON THE BOARD); the bare homer feed still gets every touchdown.
         const tdStatus = tdCallStatus({ on_bot: ev.onBot, td_board: ev.tdBoard })
         // a card linked to the scorer on TUDDY, in TUDDY's colour (2026-10-04)
-        const d = await postToDiscord(text, { png, sport: 'nfl', link: row.gsis_id ? playerHref('nfl', row.gsis_id) : null, embed: tdEmbed(ev, { extra: [reached], at: row.created_at || row.first_seen_at }) }, feedHooksFor('nfl', tdStatus))
+        const d = await postToDiscord(text, { png, sport: 'nfl', link: row.gsis_id ? playerHref('nfl', row.gsis_id) : null, embed: tdEmbed(ev, { extra: [reached], at: row.created_at || row.first_seen_at }), kind: 'td' }, feedHooksFor('nfl', tdStatus))
         if (d.ok) {
           patch.discord_sent = true; totals.discord += 1
           // written now, not at the end of the row: see the MLB tick (a kill or an overlapping tick re-sends the channel post)
@@ -675,7 +675,7 @@ async function runWeeklyContentTick(db, day) {
       const sent = sl.kind === 'nfl_whyboard'
         ? await sendMembers(text, { sport: 'nfl', kind: sl.kind })
         : foldedForDiscord(sl.kind) ? false   // SPORT_PLANS_ON: nfl_board is recorded, not delivered to the room (foldedForDiscord is false for every other slot)
-        : (await postToDiscord(text, { png }, FEED_WEBHOOKS())).ok
+        : (await postToDiscord(text, { png, kind: sl.kind, sportKey: 'nfl' }, FEED_WEBHOOKS())).ok
       if (sent) patch.discord_sent = true
       // The daily cap, by tier (lib/dash/xPolicy): the board is exempt, the results
       // a receipt, the rest facts / polls.
@@ -741,7 +741,7 @@ async function runMilestoneTick(db, day) {
 
   const msNamed = picks.map((p) => String(p.player?.player_id || '')).filter(Boolean)
   const patch = { payload: { ...withNamed({ picks: picks.map((p) => ({ player_id: p.player?.player_id || null, name: p.player?.name, market: p.marketKey, streak: p.streak })) }, msNamed), ...payloadFor('nfl_milestone') } }
-  const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
+  const d = await postToDiscord(text, { kind: 'nfl_milestone', sportKey: 'nfl' }, FEED_WEBHOOKS())
   if (d.ok) patch.discord_sent = true
   if (hasX() && await xOk(db, { day, kind: 'nfl_milestone', ids: msNamed, repeat: false })) {
     const r = await postToX(text, { kind: 'nfl_milestone' })
