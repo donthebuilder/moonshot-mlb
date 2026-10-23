@@ -6,6 +6,8 @@ import { tagGames, barChips, applyChips, marginOf, chipKey } from '../../lib/bar
 import { minutesInBlowouts } from '../../lib/blowout'
 import { C, NUM_FONT } from '../../lib/nba/theme'
 import { propLanesOf } from '../../lib/propLanes'
+import { SEGMENTS, segmentLine } from '../../lib/nba/quarters'
+import { FLAT_CHIP_CLASS, flatChip } from '../../lib/chips'
 import { useBucketsDefPos } from '../../lib/nba/useBuckets'
 import { posView, posKeyFor } from '../../lib/nba/defPos'
 import Tap from '../Tap'
@@ -23,20 +25,41 @@ import { Kicker, Pills, fmtTip, gameDay } from './ui'
 // BUCKETS' lanes with bars, from the one list per sport (lib/propLanes.js, 2026-10-22), in the shape this page reads
 const MARKETS = propLanesOf('nba').filter((l) => l.bars !== false).map((l) => ({ k: l.key, label: l.label, lines: l.lines, first: l.first, val: l.stat, chance: l.chance, rank: l.rank, word: l.word }))
 const WINDOWS = [['L5', 5], ['L10', 10], ['L20', 20], ['Season', Infinity]]
+// QUARTER SPLITS (2026-10-22, lib/nba/quarters.js): the same bars for one quarter or half. Counted from the play-by-play
+// (buckets_quarters); a game with no period rows on file is left out, never drawn as a zero. DD / TD are whole-game markets.
+// The lines are the ones a quarter / half prop is offered around, to tap through; nothing is fitted.
+const SEG_LINES = {
+  q: { pts: [[3, 5, 7, 9], 5], reb: [[1, 2, 3, 4], 2], ast: [[1, 2, 3], 1], '3pm': [[1, 2], 1], pra: [[6, 8, 10, 12], 8] },
+  h: { pts: [[6, 10, 12, 15], 10], reb: [[2, 3, 4, 5], 3], ast: [[2, 3, 4], 2], '3pm': [[1, 2, 3], 1], pra: [[12, 15, 18, 20], 15] },
+}
+const SEG_VAL = { pts: (q) => q.pts, reb: (q) => q.reb, ast: (q) => q.ast, '3pm': (q) => q.tpm, pra: (q) => q.pts + q.reb + q.ast }
+const segMarkets = (seg) => {
+  const band = SEG_LINES[seg[0]]
+  return MARKETS.filter((x) => SEG_VAL[x.k]).map((x) => ({ ...x, lines: band[x.k][0], first: band[x.k][1], rank: null,
+    val: (g) => (g._q ? SEG_VAL[x.k](g._q) : null), chance: x.k === '3pm' ? (g) => g._q?.tpa ?? null : undefined }))
+}
 const SOFT = 10
 const md = (iso) => { try { return new Date(`${gameDay(iso)}T12:00:00Z`).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', timeZone: 'UTC' }) } catch { return '' } }
 const pct = (ok, n) => (n ? Math.round((100 * ok) / n) : null)
 
-export default function PlayerBars({ log = [], logSeason = '', pos = '', pos5 = null, blow = null, blowLog = [], seasonYears = null, nextGame = null, onOpenTeam = null }) {
+export default function PlayerBars({ log = [], logSeason = '', pos = '', pos5 = null, blow = null, blowLog = [], seasonYears = null, nextGame = null, quarters = null, onOpenTeam = null }) {
   const [k, setK] = useState('pts')
   const [lines, setLines] = useState({})
   const [win, setWin] = useState('L10')
   const [picked, setPicked] = useState({})
   const [pin, setPin] = useState(null)   // a tapped bar: its game's line under the chart
+  const [seg, setSeg] = useState('full')   // the whole game, or one quarter / half (QUARTER SPLITS)
   const { data: dp } = useBucketsDefPos(null)
-  const m = MARKETS.find((x) => x.k === k)
-  const line = lines[k] ?? m.first
-  const games = useMemo(() => log.filter((g) => g.seasonType === 2 || g.seasonType === 3).slice().reverse(), [log])  // oldest -> newest
+  const all = useMemo(() => log.filter((g) => g.seasonType === 2 || g.seasonType === 3).slice().reverse(), [log])  // oldest -> newest
+  // his period rows by game ({ gameId: { period: row } }); the chips draw only when some of his games have them
+  const qByGame = useMemo(() => Object.fromEntries(Object.entries(quarters || {}).map(([id, rs]) => [id, Object.fromEntries(rs.map(([pr, pts, reb, ast, tpm, tpa]) => [pr, { pts, reb, ast, tpm, tpa }]))])), [quarters])
+  const hasQ = all.some((g) => qByGame[g.id])
+  const segOn = seg !== 'full' && hasQ
+  const games = useMemo(() => (segOn ? all.filter((g) => qByGame[g.id]).map((g) => ({ ...g, _q: segmentLine(qByGame[g.id], seg) })) : all), [all, segOn, seg, qByGame])
+  const markets = segOn ? segMarkets(seg) : MARKETS
+  const m = markets.find((x) => x.k === k) || markets[0]
+  const lineKey = (mk) => `${segOn ? seg[0] : 'full'}:${mk.k}`
+  const line = lines[lineKey(m)] ?? m.first
   // PG..C once the five-position table is ready this season, else G / F / C (lib/nba/defPos posView)
   const view = posView(dp)
   const p = posKeyFor(dp, pos, pos5)
@@ -59,7 +82,7 @@ export default function PlayerBars({ log = [], logSeason = '', pos = '', pos5 = 
   const bars = shown.map((g) => {
     const v = m.val(g), rk = rankOf(m, g.opp), c = m.chance ? m.chance(g) : null
     return { key: g.id, v, c, rk, soft: rk != null && rk <= SOFT, on: cleared(m, line, g), top: md(g.date), bot: <>{g.atVs === '@' ? '@' : ''}<Tap onClick={onOpenTeam && g.opp ? () => onOpenTeam(g.opp) : null}>{g.opp || ''}</Tap></>, sub: g.min != null ? `${g.min}m` : '',
-      title: `${md(g.date)} ${g.atVs === '@' ? '@' : 'vs'} ${g.opp}: ${v ?? '—'} ${m.word || m.label}${c != null ? ` of ${c} 3PA` : ''}${g.min != null ? `, ${g.min} min` : ''}` }
+      title: `${md(g.date)} ${g.atVs === '@' ? '@' : 'vs'} ${g.opp}${segOn ? ` (${SEGMENTS.find((x) => x.k === seg).label})` : ''}: ${v ?? '—'} ${m.word || m.label}${c != null ? ` of ${c} 3PA` : ''}${g.min != null ? `, ${g.min} min in the game` : ''}` }
   })
   if (!games.length) return null
   const winOpts = [...WINDOWS.map(([w]) => w), ...(nextGame ? ['H2H'] : [])]
@@ -67,16 +90,24 @@ export default function PlayerBars({ log = [], logSeason = '', pos = '', pos5 = 
     <section aria-label="The bars">
       <Kicker>THE BARS · {logSeason}</Kicker>
       {/* market chips with his hit rate at that market's line in the window you picked */}
-      <Pills ariaLabel="Market" value={k} onChange={setK} options={MARKETS.map((x) => {
-        const r = rate(x, lines[x.k] ?? x.first, windowGames(win, x))
+      <Pills ariaLabel="Market" value={m.k} onChange={setK} options={markets.map((x) => {
+        const r = rate(x, lines[lineKey(x)] ?? x.first, windowGames(win, x))
         return { key: x.k, text: `${x.label} ${r.n ? `${pct(r.ok, r.n)}%` : '—'}` }
       })} />
       {m.lines.length > 1 && (
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', margin: '8px 0 0', flexWrap: 'wrap' }}>
           <span style={{ color: C.text3, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.08em' }}>LINE</span>
-          <Pills ariaLabel={`${m.label} line`} value={line} onChange={(l) => setLines((st) => ({ ...st, [k]: l }))} options={m.lines.map((l) => ({ key: l, text: `${l}+` }))} />
+          <Pills ariaLabel={`${m.label} line`} value={line} onChange={(l) => setLines((st) => ({ ...st, [lineKey(m)]: l }))} options={m.lines.map((l) => ({ key: l, text: `${l}+` }))} />
         </div>
       )}
+      {hasQ ? (
+        <div role="group" aria-label="Part of the game" style={{ display: 'flex', gap: 6, alignItems: 'center', margin: '8px 0 0', flexWrap: 'wrap' }}>
+          {SEGMENTS.map((x) => (
+            <button key={x.k} type="button" className={FLAT_CHIP_CLASS} aria-pressed={seg === x.k} onClick={() => { setSeg(x.k); setPin(null) }}
+              style={flatChip(seg === x.k, C.purple, C, NUM_FONT)}>{x.label}</button>
+          ))}
+        </div>
+      ) : null}
       <div style={{ marginTop: 8 }}>
         <SplitChips chips={chips} picked={picked} onChange={setPicked} C={C} NUM_FONT={NUM_FONT} accent={C.purple} />
       </div>
@@ -91,7 +122,7 @@ export default function PlayerBars({ log = [], logSeason = '', pos = '', pos5 = 
         return (
           <div style={{ marginTop: 6, padding: '6px 10px', borderRadius: 8, font: `600 12px/1.5 ${NUM_FONT}`, color: C.text2, border: `1px solid ${C.border}`, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
             <b style={{ color: C.text }}>{md(g.date)} {g.atVs === '@' ? '@' : 'vs'} {g.opp}</b>
-            <span>{g.pts ?? '—'} PTS</span><span>{g.reb ?? '—'} REB</span><span>{g.ast ?? '—'} AST</span><span>{g.tpm ?? '—'} 3PM</span>{g.min != null ? <span>{g.min} MIN</span> : null}
+            {(() => { const L = g._q || g; return <>{segOn ? <span style={{ color: C.purple }}>{SEGMENTS.find((x) => x.k === seg).label}</span> : null}<span>{L.pts ?? '—'} PTS</span><span>{L.reb ?? '—'} REB</span><span>{L.ast ?? '—'} AST</span><span>{L.tpm ?? '—'} 3PM</span></> })()}{g.min != null ? <span>{g.min} MIN{segOn ? ' (game)' : ''}</span> : null}
             <button type="button" onClick={() => setPin(null)} aria-label="Unpin the game" style={{ marginLeft: 'auto', minHeight: 44, minWidth: 44, background: 'none', border: 'none', color: C.text3, cursor: 'pointer', font: 'inherit' }}>✕</button>
           </div>
         )
@@ -111,7 +142,7 @@ export default function PlayerBars({ log = [], logSeason = '', pos = '', pos5 = 
         })}
       </div>
       <p style={{ margin: '8px 0 0', fontSize: 11, color: C.text3, lineHeight: 1.4 }}>
-        Lit = cleared {line}+ · under each bar: his minutes{m.chance ? ' · hollow = 3PA' : ''}{ranked ? ` · R = how much that club gives up to ${view.words[p]?.toLowerCase()}, of 30` : ''}
+        Lit = cleared {line}+{segOn ? ` in ${SEGMENTS.find((x) => x.k === seg).label}` : ''} · under each bar: his minutes{segOn ? ' (whole game)' : ''}{m.chance ? ' · hollow = 3PA' : ''}{ranked ? ` · R = how much that club gives up to ${view.words[p]?.toLowerCase()}, of 30` : ''}
         <br />{chipKey({ soft: SOFT, hasRank: ranked })}
       </p>
       {nextGame ? (

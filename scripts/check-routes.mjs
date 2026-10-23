@@ -65,7 +65,6 @@ if (!R.isSport('nhl') || R.isSport('xfl') || R.isSport(null) || R.isSport('toStr
 const TERNARY_BASELINE = {
   'components/Header.js': 2,    // (ticker nav fixed 2026-09-26)
   'components/nfl/NflHeader.js': 3,
-  'components/ScoreRail.js': 1, // MOONSHOT keeps its pre-merge storage key
 }
 const TERNARY = /\b[\w.]*sport\w*(?:\.key)?\s*[!=]==?\s*['"](?:mlb|nfl|nhl|nba)['"]\s*\?/gi
 const SKIP = (f) => /fantasy|franchise/i.test(f) || f === 'lib/routes.js' || f === 'lib/nhl/routes.js' || f === 'lib/nba/routes.js'

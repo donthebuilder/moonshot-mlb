@@ -1,34 +1,24 @@
 'use client'
 import StoryTape from '../StoryTape'
-import { computeSlateStats } from '../SlateTiles'
 import PlayerFace from '../PlayerFace'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { etToday } from '../../lib/freshness'
 import { slateWhen } from '../../lib/slateWhen'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
-import LongshotsPreview from '../LongshotsPreview'
 import { logUrl, dataUrl } from '../../lib/dataSource'
-import { nameOf, teamOf, oppOf, clean, n, hrScore, hitScore } from '../../lib/player'
-import { boardOrder } from '../../lib/boardOrder'
-import { laneRecord } from '../../lib/lanes'
+import { teamOf, oppOf, clean, n, hrScore } from '../../lib/player'
 import { groupGames } from '../../lib/data'
 import { fetchPenFatigue, penTier } from '../../lib/bullpen'
 import { teamAbbrs } from '../../lib/gamelogs'
-import ScoreRail from '../ScoreRail'
-import { hr9Color, isLeaky } from '../../lib/hr9'
 import YourPlayers from '../YourPlayers'
 import Fold from '../Fold'
 import BotPicksStrip from '../BotPicksStrip'
 import TonightsCalls from '../phone/TonightsCalls'
-import { callOfTheNight } from '../ReadTeaser'
 import { airParts } from '../../lib/conditions'
 import { useSetupHomers, useBackToBack } from '../../lib/b2b'
-import { rankArms } from '../../lib/armLeak'
 import { slateProjHr } from '../ProjectedOutput'
 import { useClubHr } from '../../lib/clubHr'
-import { buildHeadlines, useLiveScores, nextPitch, fmtCountdown } from '../../lib/headlines'
-import { setSport } from '../../lib/sport'
-import { fetchCombinedGamesForMlbHome, combinedRenderState, CombinedTeamMark } from '../../lib/combinedRail'
+import { buildHeadlines, useLiveScores } from '../../lib/headlines'
 import { btnStyle } from '../ui'
 import { PillRow } from '../Filters'
 import dynamic from 'next/dynamic'
@@ -40,20 +30,13 @@ import TabLoading from '../TabLoading'
 const Scoreboard = dynamic(() => import('./Scoreboard'), { loading: TabLoading })
 const Boxes = dynamic(() => import('./Boxes'), { loading: TabLoading })
 const AtThePlate = dynamic(() => import('./AtThePlate'), { loading: TabLoading })
-import MoneyAnswer from '../MoneyAnswer'
 import { mlbSlateState } from '../../lib/mlbSlateState'
 import HeadlineStrip from '../HeadlineStrip'
 import FoundingMembersCard from '../FoundingMembersCard'
-import HeroStat from '../HeroStat'
 import { mlbNextGames, nextLine } from '../../lib/mlbNext'
-import { useLockedRecord } from '../../lib/useLockedRecord'
-import { lockedCallsLine, pickRange } from '../../lib/record/lockedRecord'
 import { onLiveRefresh } from '../../lib/liveRefresh'
 import MlbTonight from '../tonight/MlbTonight'
-import { TeamTap } from '../EntityTap'
-import { localTime } from '../../lib/localTime'
 import { sharedFetch } from '../../lib/sharedRead'
-import { ShowMoreButton } from '../ListPreview'
 import MlbOffseason from './MlbOffseason'
 import HomeGreeting from '../home/HomeGreeting'
 import SlateRow from '../home/SlateRow'
@@ -148,48 +131,8 @@ const greeting = (h) => {
   return ['LATE EDITION', '🌙']
 }
 
-// One line that changes every few seconds — the "living" part. All computed
-// from data already on the page; lines that can't be computed simply don't
-// enter the rotation.
-function useRotating(lines, ms = 6500) {
-  const [i, setI] = useState(0)
-  useEffect(() => {
-    if (lines.length < 2) return
-    const id = setInterval(() => setI((x) => (x + 1) % lines.length), ms)
-    return () => clearInterval(id)
-  }, [lines.length, ms])
-  return lines.length ? lines[i % lines.length] : null
-}
 
-// StatCell (the four-tile row) was deleted in the 2026-08-16 flow pass — see
-// the header note. Its four labels, four values, four sub-lines and their
-// hover text all live in the hero sentence now. `Fig` is what replaced it: a
-// number inside a sentence, still monospaced, still carrying its own tooltip.
-function Fig({ children, col = C.text, title }) {
-  return (
-    <b title={title} style={{ color: col, fontFamily: NUM_FONT, cursor: title ? 'inherit' : 'inherit' }}>{children}</b>
-  )
-}
 
-// ── THE HERO'S FACTS, AS CHIPS (2026-08-23) ────────────────────────────────
-//
-// Donovan, from a phone: "trim up the home page open, make it look nice and
-// cool." The paragraph below was written to REPLACE a four-tile row, and the
-// reasoning holds on a desktop — but at 13px over 1.75 line-height it runs
-// fourteen lines on a 390px screen before anything else on the page, and the
-// numbers it exists to deliver are buried mid-sentence.
-//
-// So the numbers come out and stand in a row, and the prose keeps only what
-// the chips do not say. This is NOT the old tile row coming back: that row was
-// deleted for repeating the paragraph, and the paragraph is now trimmed to the
-// half the chips don't carry. Nothing is dropped, including the honest
-// "not published yet" states — a chip with no number says so in words.
-// A welcome chip. It sizes itself from CSS now (.hero-stats > *) rather than
-// from its own text, so five of them make one even row — see MobileCSS.js.
-// Everything inside can shrink and ellipsis: a chip that is narrower than its
-// value must clip the value, never push the row back out of shape.
-// The pill is shared (components/HeroStat.js, 2026-09-26); same look.
-function Stat(props) { return <HeroStat {...props} /> }
 
 // ── TAB CONSOLIDATION (2026-08-16, owner-approved plan) ─────────────────────
 //
@@ -600,122 +543,6 @@ export default function Home({
     return best
   }, [players])
 
-  // The hit-call record. Was backtest_summary.json's overall_base_hit_accuracy
-  // (62.6% on 10-01), which adds up the post-game graded archive (re-run scores
-  // and picks). 2026-10-01 (queue 0d): the clean pregame record instead, with
-  // the base beside it, because on clean data the HIT call matches its base.
-  // 2026-10-06 (ledger audit P0-2): the LOCKED record -- the same reader the tier table
-  // on the Record page uses -- not the hard-coded Sep 9-30 rate. null while it loads.
-  const lockedRec = useLockedRecord()
-  const record = lockedRec?.picks?.HIT?.enough ? lockedRec.picks.HIT : null
-
-  // ── the rotating pulse line ──
-  const confirmed = useMemo(() => players.filter((p) => p?.lineup_confirmed === true).length, [players])
-  const weakStars = useMemo(() => players.filter((p) => p?.weak_spot_flag === true).length, [players])
-  const picks = useMemo(() => players.filter((p) => String(p?.game_pick_role || '').trim()).length, [players])
-  const homersSoFar = (results?.hr_capture_report?.all_homer_entries || results?.merged_homers || []).length
-  // The done slate's home-run count: the header's number (computeSlateStats,
-  // total_hrs_on_slate), so the chip and the ticker can't disagree.
-  const slateHrs = useMemo(() => computeSlateStats(players, results, games)?.actual ?? 0, [players, results, games])
-  // THREE LANES (A1, 2026-09-14) — the record is said in lanes, never as one
-  // blended number. lib/lanes.js.
-  const laneRec = useMemo(() => laneRecord(players, results?.hr_capture_report?.all_homer_entries || results?.merged_homers || []), [players, results])
-  // ── THE ROTATING LINE STOPPED COUNTING AND STARTED TELLING (2026-09-03) ──
-  //
-  // Donovan: "I'd like some storyline in those rotating messages — make sure
-  // they're saying what people are looking for. Who, what, when, where and
-  // why."
-  //
-  // Every line here was a COUNT ABOUT THE SITE: how many picks the bot made,
-  // how many hitters carry a star, what the archive grades at. All true, none
-  // of them naming a player, a park, an arm or a time — so the strip read as
-  // site telemetry rather than tonight's news, and a reader learned nothing
-  // they could act on.
-  //
-  // The facts to say it with were already computed one screen away and never
-  // used here: `topHrBat` (the board's own leader), `headline` (the game to
-  // circle), `airRanked[0]` (the best park and by how much), `firstPitch`.
-  //
-  // One line each for who, what, when, where and why, and every one of them
-  // names something. The trust line stays last, because a record is the one
-  // claim that should not rotate away before it is read.
-  // Same selection as the Read fold and the Bot page's hero — see the note
-  // where this feeds the pulse line below.
-  const theCall = useMemo(() => callOfTheNight(players), [players])
-
-  const lines = useMemo(() => {
-    const out = []
-    const top = boardOrder(players)[0] || null   // 2026-09-25: The Board's #1
-    const arm = clean(top?.pitcher_name, '')
-    const armHr9 = n(top?.pitcher_hr9, 0)
-    const air = airRanked[0]
-    // Counted here rather than read from `liveGames`, which is declared 80
-    // lines BELOW this memo -- referencing it would be a temporal dead zone
-    // at render, i.e. a ReferenceError the build cannot see because this
-    // component only runs with a slate in hand.
-    const nLive = games.filter((g) => g?.row?.game_state === 'live' || g?.live === true).length
-
-    // WHAT — the only thing that outranks a name is a ball already gone.
-    if (isLive && homersSoFar > 0) out.push(`⚡ ${homersSoFar} ball${homersSoFar > 1 ? 's have' : ' has'} already left a yard tonight — every pick on this page is grading live.`)
-    // THE RECORD, IN LANES. Picks is the slip; board is each game's top 8;
-    // rated is everyone scored. Three numbers, so none of them can borrow
-    // the others' credit.
-    if (laneRec.total > 0) out.push(`🎯 Tonight in lanes — picks ${laneRec.hit.picks} of ${laneRec.total} homers, board ${laneRec.hit.board} of ${laneRec.total}, rated ${laneRec.hit.rated} of ${laneRec.total}.`)
-
-    // WHO — the board's leader, the arm he draws, and what that arm gives up.
-    if (top) {
-      out.push(`💥 ${nameOf(top)} tops the HR board at ${hrScore(top).toFixed(1)}${teamOf(top) ? ` for ${teamOf(top)}` : ''}${
-        arm ? ` — he draws ${arm}${armHr9 > 0 ? `, ${armHr9.toFixed(2)} HR/9` : ''}` : ''}.`)
-    }
-
-    // WHERE — the park, the number, and who is standing in it.
-    if (air && air.edge > 0) {
-      out.push(`🌤 ${air.venue} is the best air on the slate at +${air.edge.toFixed(0)}%${air.matchup ? ` — ${air.matchup} plays there` : ''}.`)
-    }
-
-    // WHEN — a time, and whether the night has started.
-    if (firstPitch) {
-      const t = localTime(firstPitch)
-      out.push(isLive
-        ? `🕐 First pitch was ${t} — ${nLive} of ${games.length} game${games.length === 1 ? '' : 's'} under way.`
-        : `🕐 First pitch is ${t} — ${games.length} game${games.length === 1 ? '' : 's'} on the slate.`)
-    }
-
-    // THE GAME TO CIRCLE — named, with the two bats carrying it.
-    if (headline?.bats?.length) {
-      const who = headline.bats.map((b) => nameOf(b)).filter(Boolean).slice(0, 2)
-      if (who.length) {
-        out.push(`⭐ ${clean(headline.g.away, '?')} @ ${clean(headline.g.home, '?')} is the game to circle — ${who.join(' and ')} carry the heat.`)
-      }
-    }
-
-    // THE READ — the call of the night, in one line (2026-09-14). Donovan:
-    // both this and the game-to-circle line above were sitting a tap deep in
-    // the More drawer, unread by anyone who doesn't open it. Same source as
-    // the Read fold below and the Bot page's own hero — callOfTheNight() out
-    // of ReadTeaser.js is THE selection, so this line and that panel can
-    // never name different players.
-    if (theCall?.hero?.p) {
-      const c = theCall.hero
-      const clear = c.conv && c.conv.depth >= 3 && c.conv.gap != null && c.conv.z >= 0.8 ? c.conv : null
-      out.push(`📰 Tonight's read: ${nameOf(c.p)} is the call of the night — ${c.label}${
-        clear ? `, ${clear.gap.toFixed(1)} points clear of the field` : ''}.`)
-    }
-
-    // WHY — the count kept, but now it says what the star MEANS rather than
-    // how many there are.
-    if (weakStars > 0) out.push(`★ ${weakStars} hitters draw a lineup spot tonight's starter has already been beaten in — that is what a star means on every board.`)
-    if (picks > 0) out.push(`🎯 MOONSHOT designated ${picks} picks on this slate — The Four, just above, is the headline cut.`)
-    if (confirmed > 0 && players.length > 0) out.push(`✓ ${confirmed} of ${players.length} hitters are in confirmed lineups — the rest can still change before first pitch.`)
-    if (proj?.grade) out.push(`💣 MOONSHOT calls tonight's power grade "${proj.grade}" — the range is in the line above.`)
-    if (record) out.push(`📈 Every pick gets graded in public. On the ${lockedRec.source}, hit calls got a hit ${record.pct.toFixed(1)}% of the time${pickRange(record) ? ` (somewhere in ${pickRange(record)})` : ''} against ${record.base.toFixed(1)}% for the whole board, calls included (n=${record.n}).`)
-    // SCORES IN THE CRAWL (2026-09-06): every live game, then every final,
-    // interleaved so the strip reads like a scoreboard crawl and not a list.
-    const scores = live.items.filter((i) => i.live).concat(live.items.filter((i) => !i.live && !i.pregame))
-    scores.forEach((i, idx) => { out.splice(Math.min(out.length, 1 + idx * 2), 0, `${i.icon} ${i.text}${i.sub ? ` · ${i.sub}` : ''}`) })
-    return out
-  }, [isLive, homersSoFar, laneRec, picks, weakStars, confirmed, players, proj, record, lockedRec, airRanked, firstPitch, headline, games, live.items, theCall])
-  const pulse = useRotating(lines, 4200)
 
   const empty = !players.length
 
@@ -978,23 +805,4 @@ export default function Home({
       </>}
     </div>
   )
-}
-
-// NEXT PITCH, ITS OWN CLOCK (2026-10-04). First pitch: the earliest game that
-// hasn't started yet, else the last one. Ticks once a second only while a
-// game is still to start; once all are under way it checks once a minute.
-function NextPitchStat({ games }) {
-  const [, setTick] = useState(0)
-  const np = nextPitch(games)
-  const counting = np?.kind === 'next'
-  useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), counting ? 1000 : 60000)
-    return () => clearInterval(id)
-  }, [counting])
-  if (!np) return <Stat label="FIRST PITCH" value="not published" col={C.text3} title="No game times on the slate yet." />
-  return np.kind === 'next'
-    ? <Stat label="NEXT PITCH" value={fmtCountdown(np.ms)} sub={`${np.label} · ${localTime(np.at)}${np.remaining > 1 ? ` · ${np.remaining} still to start` : ''}`} col={C.orange}
-        title="Time until the next game on the slate starts, your local clock. Counts down live." />
-    : <Stat label="ALL UNDER WAY" value={localTime(np.at)} sub={`last first pitch · ${np.label}`} col={C.text}
-        title="Every game on the slate has started. This was the last first pitch." />
 }

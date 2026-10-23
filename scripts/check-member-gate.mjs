@@ -149,7 +149,7 @@ for (const f of ['components/CallStatusBadge.js', 'components/MemberGate.js', 'c
   eq(gameCountVisible([rowsOf[0], rowsOf[1]], { lockedOf }), false, 'games: one locked man and the per-game count is hidden (it would point at him)')
   eq(gameCountVisible([], { lockedOf }), true, 'games: no called man, nothing to hide')
   // the game surfaces must go through the mask / the lock, not read the role raw
-  for (const [f, needle] of [['components/tabs/Games.js', 'useMlbMask'], ['components/lamp/LampSlate.js', 'hideRow'], ['components/lamp/tabs/Home.js', 'readableCalls'], ['components/nfl/tabs/Home.js', 'lockOf('], ['components/ScoreRail.js', 'useMlbMask'], ['components/lamp/GoalieWeakSpots.js', 'useLockOf']]) {
+  for (const [f, needle] of [['components/tabs/Games.js', 'useMlbMask'], ['components/lamp/LampSlate.js', 'hideRow'], ['components/lamp/tabs/Home.js', 'readableCalls'], ['components/nfl/tabs/Home.js', 'lock: { key: String(call.player_id)'], ['components/lamp/GoalieWeakSpots.js', 'useLockOf']]) {
     ok(readFileSync(new URL(`../${f}`, import.meta.url), 'utf8').includes(needle), `${f} no longer goes through the member gate (${needle})`)
   }
   for (const f of ['components/GameWriteupBlock.js', 'components/nfl/WriteupBlock.js']) {

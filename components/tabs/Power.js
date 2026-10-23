@@ -7,7 +7,7 @@ import { n, clean, nameOf, teamOf, oppOf } from '../../lib/player'
 import { convictionOf, percentileOf, standingPhrase } from '../../lib/whyPick'
 import { airParts } from '../../lib/conditions'
 import { hrPerGame } from '../../lib/odds'
-import { btnStyle, Band } from '../ui'
+import { Band } from '../ui'
 import LongestBoard from './LongestBoard'
 import Power3Board from './Power3Board'
 import LuckReport from '../LuckReport'
@@ -407,7 +407,7 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
           below run with showTitle={false}. The active lens's own one-line
           answer rides the row rather than getting a paragraph of its own — the
           longer explanation belongs to the board and is printed by the board. */}
-      <LensRow lenses={LENSES} value={view} onChange={setView} btn={btnStyle} />
+      <LensRow lenses={LENSES} value={view} onChange={setView} />
 
       {view === 'shape' ? (
         /* 🧬 SHAPE. Same prop contract as the other two board lenses —

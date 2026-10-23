@@ -39,7 +39,7 @@ export const GET = bucketsRoute('player', async (q) => {
   if (!/^\d{2,10}$/.test(id)) return bad('id must be an ESPN athlete id')
   const sn = await nbaSeason()
   const db = adminClient()
-  const [card0, birthDate, logCur, logPrev, sCur, sPrev, shots, calls] = await Promise.all([
+  const [card0, birthDate, logCur, logPrev, sCur, sPrev, shots, calls, qrows] = await Promise.all([
     athleteFor(id).then(reduceAthlete),
     birthDateFor(id),
     // regular season + playoffs only, as lib/nba/hot.js reads: preseason games are not his "last games"
@@ -48,6 +48,8 @@ export const GET = bucketsRoute('player', async (q) => {
     seasonStats(sn.cur), seasonStats(sn.prev),
     db ? shotsOf(db, id) : { data: [] },
     db ? db.from('buckets_log').select('game_id, game_date, market, model_version, status, role, score, hit, actual, opp, void_reason, season_type').in('model_version', LIVE_VERSIONS).eq('player_id', id).order('game_date', { ascending: false }).limit(200) : { data: [] },
+    // QUARTER SPLITS (lib/nba/quarters.js, buckets_quarters): his period lines, both seasons, for the bars' Q1..2H chips
+    db ? db.from('buckets_quarters').select('game_id, period, pts, reb, ast, tpm, tpa').eq('player_id', id).order('game_date', { ascending: false }).limit(1500) : { data: [] },
   ])
   const card = card0 ? { ...card0, birthDate } : card0
   const floor = db ? await readNbaFloor(db).catch(() => null) : null
@@ -72,6 +74,8 @@ export const GET = bucketsRoute('player', async (q) => {
     logs: [...tag(logCur, sn.cur), ...tag(logPrev, sn.prev)], clubGames, nowSeason: sn.cur, seasonYears: { cur: seasonLabel(sn.cur), prev: seasonLabel(sn.prev) },
     xpts: proj?.ok ? { xpts: Math.round(proj.xpts * 10) / 10, minRecent: Math.round(proj.minRecent * 10) / 10, rate: Math.round(proj.rate * 1000) / 1000, oppFactor: Math.round(proj.oppFactor * 1000) / 1000, oppKnown: proj.oppKnown, n: proj.n, line: proj.line, opp: nextGame.opp, start: nextGame.start } : (proj ? { xpts: null, reason: proj.reason } : null),
     log: logCur.length ? logCur : logPrev, logSeason: logCur.length ? seasonLabel(sn.cur) : seasonLabel(sn.prev),
+    // { gameId: [[period, pts, reb, ast, tpm, tpa], ...] }; null when the read failed (the chips then don't draw -- never a zero line)
+    quarters: qrows.error ? null : (qrows.data || []).reduce((o, r) => { (o[r.game_id] ||= []).push([r.period, r.pts, r.reb, r.ast, r.tpm, r.tpa]); return o }, {}),
     // packed as the shots route packs them (lib/nba/shots.js): [x, y, made, three, game index, period] + shotGames [[id, date]]
     ...(() => { const p = packShots(shots.data || []); return { shots: p.shots, shotGames: p.games } })(),
     shotsFrom: shots.data?.length ? shots.data[shots.data.length - 1].game_date : null,
