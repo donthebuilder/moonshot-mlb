@@ -58,6 +58,7 @@ import { slateLoader } from '../../../../../lib/posts/slateLoad'
 import { recordPost } from '../../../../../lib/dash/xPostLog'
 import { isRested } from '../../../../../lib/dash/xRest'
 import { xEventsCalledOnly, discordEventsCalledOnly } from '../../../../../lib/dash/xEvents'
+import { mlbOpeningsTick } from '../../../../../lib/mlb/openings'
 import { timingSafeEqual } from 'node:crypto'
 
 import { easternToday, etHoursSinceNoon, slateDateFromRows, shiftDay } from '../../../../../lib/data'
@@ -1097,6 +1098,13 @@ async function mlbTick(request) {
   // is full (lib/dash/homerBackfill). Runs before the no-games exits on
   // purpose: an off day is exactly when there is time for it.
   const backfill = await backfillOneNight(db, day)
+  // ⚾ THE OPENINGS (2026-10-22, lib/mlb/openings.js): each final game's 1st inning, first hit, first run and first homer, written
+  // once for /api/mlb/openings. Every 15th minute, yesterday and today; a schedule read and one small select, a feed only for a
+  // game not yet on file. Before the no-games exit: last night's late games are finished by then. Never throws.
+  if (new Date().getUTCMinutes() % 15 === 7) {
+    const op = await mlbOpeningsTick(db, [shiftDay(day, -1), day]).catch((e) => ({ error: e?.message }))
+    if (op?.written || op?.error) console.log(`[homers] openings ${JSON.stringify(op)}`)
+  }
   // 📋 LIST POSTS (2026-09-27, BATCH-LIST-POSTS step 2): the season wrap, one
   // list a day from the morning after the regular season's last game --
   // played every game, the 40-homer club, 30-30, CALLED IT season

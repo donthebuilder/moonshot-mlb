@@ -1,9 +1,10 @@
 'use client'
 import React, { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { thresholdRates, lastSeasonRates, staffQuality, teamAbbrs, starterHands, streakRuns, MARKETS } from '../lib/gamelogs'
+import { thresholdRates, lastSeasonRates, teamAbbrs, starterHands, starterIds, starterRanks, RANK_WORD, streakRuns, MARKETS } from '../lib/gamelogs'
 import StreakRibbon, { StreakLine } from './StreakRibbon'
 import PropBars, { TeamTap } from './player/PropBars'
+import { propLanesOf } from '../lib/propLanes'
 import { gridQuote, fairOdds, fmtOdds } from '../lib/odds'
 import { verdictInk, verdictWash } from '../lib/scales'
 import FiltersSheet from './player/FiltersSheet'
@@ -55,19 +56,12 @@ const priceTone = (row) => {
   return { fg: C.text, bg: 'transparent' }
 }
 
-const LINES = { hit: [1, 2], tb2: [2, 3, 4], hr: [1, 2], hrr: [1, 2, 3], run: [1, 2], rbi: [1, 2], bb: [1, 2], k1: [1, 2] }
-const SHORT = { hit: 'Hit', tb2: 'TB', hr: 'HR', hrr: 'HRR', run: 'Run', rbi: 'RBI', bb: 'BB', k1: 'K' }
-const VAL = {
-  hit: (g) => g.h, tb2: (g) => g.tb, hr: (g) => g.hr,
-  run: (g) => g.r, rbi: (g) => g.rbi, hrr: (g) => g.h + g.r + g.rbi,
-  // Walks (2026-08-12): reads the same as every non-K lane — higher is
-  // better for the bat. bb rides the gameLog fetch lib/gamelogs.js already
-  // makes; no new data for this grid to show it.
-  bb: (g) => g.bb,
-  // K reads INVERTED from every other lane: a high K rate is the pitcher's
-  // prop, not the hitter's — the grid shades it the same, the read flips.
-  k1: (g) => g.k,
-}
+// the lines, short words and values per lane: ONE list per sport (lib/propLanes.js, 2026-10-22). K reads inverted (the pitcher's
+// prop) -- the grid shades it the same, the read flips; walks read like every other bat lane.
+const LANE = Object.fromEntries(propLanesOf('mlb').map((l) => [l.key, l]))
+const LINES = Object.fromEntries(Object.values(LANE).map((l) => [l.key, l.lines]))
+const SHORT = Object.fromEntries(Object.values(LANE).map((l) => [l.key, l.word]))
+const VAL = Object.fromEntries(Object.values(LANE).map((l) => [l.key, l.stat]))
 
 // ⚡ THE STREAK LENS'S FIVE CELLS.
 //
@@ -118,7 +112,11 @@ function StreakCells({ row, on }) {
 export default function ThresholdGrid({ playerId, odds }) {
   const [data, setData] = useState(null)
   const [ls, setLs] = useState(null)
-  const [staff, setStaff] = useState(null)
+  // THE OPPOSING STARTER (2026-10-22, Donovan: "I don't care about defense ranking in baseball, do pitcher rankings
+  // instead"): who started each game against him, and where that arm ranks this season on the active market's number.
+  // Replaces the whole-staff softness that drove the R label, the staff filter and the "soft staffs" pattern.
+  const [starters, setStarters] = useState(null)
+  const [ranks, setRanks] = useState(null)
   const [abbrs, setAbbrs] = useState(null)
   const [hands, setHands] = useState(null)
   const [handsState, setHandsState] = useState('idle')
@@ -137,7 +135,7 @@ export default function ThresholdGrid({ playerId, odds }) {
   // matrix under "on the road, vs righties, after a blank" is a question no
   // splits page can answer, because a splits page is pre-aggregated one
   // dimension at a time and this is per-game.
-  const [staffQ, setStaffQ] = useState('all')   // soft / tough opposing staff
+  const [staffQ, setStaffQ] = useState('all')   // soft / tough opposing STARTER (his rank on the active market)
   const [rest, setRest] = useState('all')       // day off before, or not
   const [after, setAfter] = useState('all')     // the game after a blank / a big one
   const [span, setSpan] = useState('L20')
@@ -157,7 +155,8 @@ export default function ThresholdGrid({ playerId, odds }) {
     setVenue('all'); setStaffQ('all'); setRest('all'); setAfter('all')
     thresholdRates(playerId).then((d) => { if (alive) setData(d) })
     lastSeasonRates(playerId).then((d) => { if (alive) setLs(d) })
-    staffQuality().then((d) => { if (alive) setStaff(d) })
+    starterIds(playerId).then((d) => { if (alive) setStarters(d) })
+    starterRanks().then((d) => { if (alive) setRanks(d) })
     teamAbbrs().then((d) => { if (alive) setAbbrs(d) })
     return () => { alive = false }
   }, [playerId])
@@ -179,6 +178,11 @@ export default function ThresholdGrid({ playerId, odds }) {
   const valFor = VAL[m.key]
   const clears = (g) => valFor(g) >= thr
   const dynLabel = `${thr}+ ${SHORT[m.key]}`
+  // the starter he faced in a game, and that arm's rank on this market (1 = gives up the most); soft 0..1 for the filters
+  const starterOf = (g) => starters?.[g.gamePk] || null
+  const rankOf = (g) => { const s0 = starterOf(g); return s0 && ranks?.[s0.id]?.[m.key] ? ranks[s0.id][m.key] : null }
+  const softOf = (g) => { const r = rankOf(g); return r ? (r.n > 1 ? 1 - (r.r - 1) / (r.n - 1) : 0.5) : null }
+  const rankReady = !!(starters && ranks)
 
   const full = data.logAll || data.log || []
   const armReady = arm === 'all' || (handsState === 'done' && hands)
@@ -207,8 +211,8 @@ export default function ThresholdGrid({ playerId, odds }) {
     .filter(({ g }) => (venue === 'all' ? true : venue === 'home' ? g.home : !g.home))
     .filter(({ g }) => ((arm === 'all' || !armReady) ? true : hands[g.gamePk] === arm))
     .filter(({ g }) => {
-      if (staffQ === 'all' || !staff) return true
-      const soft = staff[g.oppId]?.soft
+      if (staffQ === 'all' || !rankReady) return true
+      const soft = softOf(g)
       if (soft == null) return false
       return staffQ === 'soft' ? soft >= 0.6 : soft <= 0.4
     })
@@ -300,12 +304,12 @@ export default function ThresholdGrid({ playerId, odds }) {
     if (home.pct > away.pct) push('🏠', `Home hitter on ${dynLabel}`, home, away, 'venue is real for him')
     else push('✈️', `Road hitter on ${dynLabel}`, away, home, 'travels well')
   }
-  if (staff) {
-    const soft = rate(full.filter((g) => staff[g.oppId]?.soft >= 0.67))
-    const tough = rate(full.filter((g) => staff[g.oppId]?.soft <= 0.33))
+  if (rankReady) {
+    const soft = rate(full.filter((g) => softOf(g) >= 0.67))
+    const tough = rate(full.filter((g) => softOf(g) != null && softOf(g) <= 0.33))
     if (soft?.n >= 6 && tough?.n >= 6) {
-      if (soft.pct > tough.pct) push('🍰', 'Feasts on soft staffs', soft, tough, 'check tonight’s staff rank')
-      else push('🛡', 'Shows up against GOOD arms', tough, soft, 'the rarer kind of split')
+      if (soft.pct > tough.pct) push('🍰', 'Feasts on soft starters', soft, tough, `starters ranked on ${RANK_WORD[m.key]}; check tonight’s arm`)
+      else push('🛡', 'Shows up against GOOD starters', tough, soft, 'the rarer kind of split')
     }
   }
   if (armReady && hands && arm === 'all') {
@@ -532,9 +536,9 @@ export default function ThresholdGrid({ playerId, odds }) {
                 options: [['all', 'All'], ['home', 'Home'], ['away', 'Away']].map(([value, label]) => ({ value, label })) },
               { key: 'arm', label: 'Starter\'s arm', value: arm, defaultValue: 'all', onChange: wantArm,
                 options: [['all', 'Any arm'], ['R', 'vs RHP'], ['L', 'vs LHP']].map(([value, label]) => ({ value, label, title: 'Games where the opposing STARTER threw from this side' })) },
-              { key: 'staff', label: 'Opposing staff', value: staffQ, defaultValue: 'all', onChange: (v) => { setStaffQ(v); setSelGame(null) },
-                hint: 'Where the opponent\'s whole staff sits in the league\'s OPS-against range that season, not just the starter.',
-                options: [['all', 'Any staff'], ['soft', 'vs soft staffs'], ['tough', 'vs good staffs']].map(([value, label]) => ({ value, label })) },
+              { key: 'staff', label: 'Opposing starter', value: staffQ, defaultValue: 'all', onChange: (v) => { setStaffQ(v); setSelGame(null) },
+                hint: `Where the man who started against him ranks this season on ${RANK_WORD[m.key]} among starters with 5+ starts. Soft = the most generous third, good = the stingiest third.`,
+                options: [['all', 'Any starter'], ['soft', 'vs soft starters'], ['tough', 'vs good starters']].map(([value, label]) => ({ value, label })) },
               { key: 'rest', label: 'Rest', value: rest, defaultValue: 'all', onChange: (v) => { setRest(v); setSelGame(null) },
                 hint: 'Days between this game and his previous one. His first logged game has no answer and drops out of both.',
                 options: [['all', 'Any rest'], ['b2b', 'no day off'], ['rested', 'after a day off']].map(([value, label]) => ({ value, label })) },
@@ -585,17 +589,18 @@ export default function ThresholdGrid({ playerId, odds }) {
 
           {/* THE BARS: the shared chart every sport's card draws (components/player/PropBars.js, BUCKETS' PropFinder-style
               bars), oldest left: lit = cleared, the line across, his average dashed, the run band under, date and club
-              under each bar, R = how soft that club's staff is (1 = softest of 30, lit in the top 10). Tap one to pin it. */}
+              under each bar, R = the starter he faced, ranked this season on the market's number (1 = gives up the most,
+              lit in the most generous fifth). Tap one to pin it. */}
           {filteredLog.length > 0 && (
             <PropBars C={C} NUM_FONT={NUM_FONT} accent={C.orange} line={thr} selected={selGame} onSelect={setSelGame}
               games={[...filteredLog].reverse().map((g, gi) => {
                 const val = valFor(g)
-                const q = staff?.[g.oppId]
                 const ab2 = abbrs?.[g.oppId] || g.opp
-                const rk = q?.rank != null ? 31 - q.rank : null
-                return { key: `${g.date}${gi}`, v: val, on: val >= thr, rk, soft: rk != null && rk <= 10,
+                const sp = starterOf(g), rr = rankOf(g)
+                const rk = rr ? rr.r : null
+                return { key: `${g.date}${gi}`, v: val, on: val >= thr, rk, soft: rr != null && rr.r <= Math.max(1, Math.round(rr.n * 0.2)),
                   top: g.date, bot: <>{g.home ? '' : '@'}<TeamTap sport="mlb" code={ab2} /></>, sub: g.pa ? `${g.pa} PA` : '',
-                  title: `${g.date} ${g.home ? 'vs' : '@'} ${ab2} — ${val} (${g.h}H ${g.tb}TB ${g.hr}HR)${q ? ` · ${ab2} staff: OPS-against ${q.ops.toFixed(3)}, #${q.rank}/30 toughest` : ''}` }
+                  title: `${g.date} ${g.home ? 'vs' : '@'} ${ab2} — ${val} (${g.h}H ${g.tb}TB ${g.hr}HR)${sp?.name ? ` · vs ${sp.name}${rr ? `, #${rr.r} of ${rr.n} starters on ${RANK_WORD[m.key]} (${rr.v})` : ''}` : ''}` }
               })} />
           )}
 
@@ -604,7 +609,7 @@ export default function ThresholdGrid({ playerId, odds }) {
             const idx = rev.findIndex((g, gi) => `${g.date}${gi}` === selGame)
             if (idx < 0) return null
             const g = rev[idx]
-            const q = staff?.[g.oppId]
+            const sp = starterOf(g), rr = rankOf(g)
             const ab2 = abbrs?.[g.oppId] || g.opp
             const hand = hands?.[g.gamePk]
             return (
@@ -618,7 +623,7 @@ export default function ThresholdGrid({ playerId, odds }) {
                 <span style={{ color: g.hr > 0 ? verdictInk(true).color : undefined, fontWeight: g.hr > 0 ? 800 : 400 }}>{g.hr} HR</span>
                 <span>{g.r} R</span><span>{g.rbi} RBI</span><span style={{ color: C.text3 }}>{g.ab} AB</span>
                 {hand && <span style={{ color: C.text3 }}>{hand}HP started</span>}
-                {q && <span style={{ color: C.text3 }}>staff #{q.rank}/30 · OPS-ag {q.ops.toFixed(3)}</span>}
+                {sp?.name && <span style={{ color: C.text3 }}>vs {sp.name}{rr ? ` · #${rr.r}/${rr.n} on ${RANK_WORD[m.key]} (${rr.v})` : ''}</span>}
                 <button onClick={() => setSelGame(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: C.text3, cursor: 'pointer', fontSize: 11 }}>✕</button>
               </div>
             )
@@ -626,7 +631,7 @@ export default function ThresholdGrid({ playerId, odds }) {
 
           <div style={{ marginTop: 6 }}>
             <Brief text={`${filteredLog.length} games of ${dynLabel}, newest right. Tap a bar to pin it.`} label="Reading the chart"
-              help={`Bar height is the count. Lit bars cleared ${thr}+ (the orange line); the dashed line is his average. R over a bar is how soft that club's pitching staff was (1 = softest of 30, lit in the softest 10). The band under the bars is the streak: one segment per run, lit where he kept clearing, with the length on any run of three or more. Under each bar: the date, the club (@ = on the road) and his plate appearances.`} />
+              help={`Bar height is the count. Lit bars cleared ${thr}+ (the orange line); the dashed line is his average. R over a bar is the starter he faced, ranked this season among starters with 5+ starts on ${RANK_WORD[m.key]} (1 = gives up the most; lit in the most generous fifth). This season's numbers, not the number on that night. The band under the bars is the streak: one segment per run, lit where he kept clearing, with the length on any run of three or more. Under each bar: the date, the club (@ = on the road) and his plate appearances.`} />
           </div>
         </div>
         {/* ══ PATTERNS ══ */}

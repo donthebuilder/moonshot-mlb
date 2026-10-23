@@ -45,10 +45,13 @@ export function mlbLastLine(bot) {
 // rank only through rankInPool (top / bottom 10% of 30+ bats we hold).
 const STRIP = [
   { id: 'avg', label: 'AVG', get: (p, ls) => num(p?.season_avg ?? ls?.avg), fmt: (v) => v.toFixed(3).replace(/^0/, ''), better: 'high', title: 'Batting average this season.' },
-  { id: 'ops', label: 'OPS', get: (p, ls) => num(p?.season_ops ?? ls?.ops), fmt: (v) => v.toFixed(3).replace(/^0/, ''), better: 'high', title: 'On-base plus slugging this season.' },
-  { id: 'hr', label: 'HR', get: (p, ls) => num(p?.season_hr ?? ls?.hr), fmt: (v) => String(v), better: 'high', title: 'Home runs this season.' },
-  { id: 'l10', label: 'L10 HR', get: (p) => num(p?.last10_hr), fmt: (v) => String(v), better: 'high', noRank: true, title: 'Home runs in his last 10 games.' },
+  // IN THE HEADER (2026-10-23, Donovan: "move his batting average ... and barrel ... and use two other different stats than
+  // OPS and last 10 HR ... inside of the thing that has the player picture"): the contact quality, recent window -- the same
+  // window as the board's columns (lib/statline.js), so the header and the board never disagree.
   { id: 'barrel', label: 'Barrel', get: (p) => STATS.barrel.get(p), fmt: STATS.barrel.fmt, better: 'high', title: STATS.barrel.title },
+  { id: 'ev', label: 'EV', get: (p) => STATS.ev.get(p), fmt: STATS.ev.fmt, better: 'high', title: STATS.ev.title },
+  { id: 'hardhit', label: 'Hard hit', get: (p) => STATS.hardhit.get(p), fmt: STATS.hardhit.fmt, better: 'high', title: STATS.hardhit.title },
+  { id: 'hr', label: 'HR', get: (p, ls) => num(p?.season_hr ?? ls?.hr), fmt: (v) => String(v), better: 'high', title: 'Home runs this season.' },
 ]
 const num = (v) => { const x = Number(v); return v !== null && v !== '' && Number.isFinite(x) ? x : null }
 
