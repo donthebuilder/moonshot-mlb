@@ -10,7 +10,7 @@ let fail = 0
 const check = (name, ok, extra = '') => { if (!ok) fail += 1; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${extra ? `  -- ${extra}` : ''}`) }
 
 const U = (n) => `https://discord.com/api/webhooks/${n}/TEST-TOKEN`
-const HOOKS = { DISCORD_HOMER_WEBHOOK: U('1001'), DISCORD_MLB_WEBHOOKS: U('1002'), DISCORD_NFL_WEBHOOKS: U('1003'), DISCORD_NHL_WEBHOOKS: U('1004'), DISCORD_RECEIPTS_WEBHOOK: U('1006'), DISCORD_MEMBERS_WEBHOOK: U('1007') }
+const HOOKS = { DISCORD_HOMER_WEBHOOK: U('1001'), DISCORD_MLB_WEBHOOKS: U('1002'), DISCORD_NFL_WEBHOOKS: U('1003'), DISCORD_NHL_WEBHOOKS: U('1004'), DISCORD_RECEIPTS_WEBHOOK: U('1006'), DISCORD_MEMBERS_WEBHOOK: U('1007'), DISCORD_OVERVIEW_WEBHOOK: U('1008') }
 const ENV_KEYS = [...Object.keys(HOOKS), 'RECAP_POSTS_ON', 'NEXT_PUBLIC_SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'X_API_KEY', 'X_API_SECRET', 'X_ACCESS_TOKEN', 'X_ACCESS_SECRET']
 const setEnv = (extra = {}) => { for (const k of ENV_KEYS) delete process.env[k]; Object.assign(process.env, HOOKS, extra) }
 process.env.NEXT_PUBLIC_SITE_URL = 'https://site.test'
@@ -178,11 +178,11 @@ for (const [sport, input] of [['nfl', NFL_INPUT], ['nhl', { day: DAY, called: NH
   const sent = await postRecapOnce(db, { sport, day: DAY, load: readyLoad(input), now: T0 + SETTLE_MS + 6 * 60e3 })
   check(`S3 ${sport}: then posts once`, sent === 'posted (discord only)' && calls.length === 1, `${sent}, ${calls.length} calls`)
   const c = calls[0]
-  check(`S4 ${sport}: the receipts webhook only (never the public feed, the sport channel, #members or X)`, c?.url === HOOKS.DISCORD_RECEIPTS_WEBHOOK && calls.every((x) => x.url === HOOKS.DISCORD_RECEIPTS_WEBHOOK) && !calls.some((x) => /twitter|api\.x\.com/.test(x.url)), c?.url)
+  check(`S4 ${sport}: the network room only, #dash-network (never the public feed, the sport channel, #members or X)`, c?.url === HOOKS.DISCORD_OVERVIEW_WEBHOOK && calls.every((x) => x.url === HOOKS.DISCORD_OVERVIEW_WEBHOOK) && !calls.some((x) => /twitter|api\.x\.com/.test(x.url)), c?.url)
   const b = c ? bodyOf(c) : {}
   check(`S5 ${sport}: exactly one embed, no plain content, no mentions`, Array.isArray(b.embeds) && b.embeds.length === 1 && b.content === undefined && JSON.stringify(b.allowed_mentions) === '{"parse":[]}')
   check(`S6 ${sport}: the claim row is (${DAY}, ${kind}) with the payload and discord_sent`, db.rows.length === 1 && db.rows[0].kind === kind && db.rows[0].day === DAY && db.rows[0].discord_sent === true && Array.isArray(db.rows[0].payload?.cleared) && db.rows[0].payload.cleared.length === 2 && db.rows[0].payload.missed.length >= 1)
-  check(`S7 ${sport}: routed to receipts only; a recap is a grading kind and is never off`, roomsOf(kind)?.join() === 'receipts' && !isCut(kind) && GRADING_KIND.test(kind))
+  check(`S7 ${sport}: routed to the network room only; a recap is a grading kind and is never off`, roomsOf(kind)?.join() === 'network' && !isCut(kind) && GRADING_KIND.test(kind))
   check(`S8 ${sport}: tagged INFO, event-driven, group receipt`, tagOf(kind) === 'INFO' && modeOf(kind) === 'event' && kindInfo(kind)?.group === 'receipt')
   calls.length = 0
   _resetRecapForTests()
@@ -199,12 +199,12 @@ for (const [sport, input] of [['nfl', NFL_INPUT], ['nhl', { day: DAY, called: NH
   const g = await postRecapOnce(db, { sport: 'nfl', day: '2026-10-19', load: async () => ({ over: { ready: false, gaveUp: true, reason: '' }, input: { ...NFL_INPUT, day: '2026-10-19', events: [], games: [{ id: 'g1', final: true }] } }), now: T0 })
   check('S11 a game given up on: the recap goes out and shows its men as pending, not missed', g === 'settling' || g.startsWith('posted'), g)
 }
-// no receipts webhook: nothing claimed, never falls through to another room
+// no network webhook (neither #dash-network nor its stand-in #moonshot-mlb): nothing claimed, never falls through to another room
 {
-  setEnv({ RECAP_POSTS_ON: 'on' }); delete process.env.DISCORD_RECEIPTS_WEBHOOK; _resetRecapForTests(); calls.length = 0
+  setEnv({ RECAP_POSTS_ON: 'on' }); delete process.env.DISCORD_OVERVIEW_WEBHOOK; delete process.env.DISCORD_MLB_WEBHOOKS; _resetRecapForTests(); calls.length = 0
   const db = fakeDb()
   const r = await postRecapOnce(db, { sport: 'nhl', day: DAY, load: readyLoad({ day: DAY, called: NHL_LOG, goals: NHL_GOALS }), now: T0 + 3 * SETTLE_MS })
-  check('S12 no #called-it webhook: nothing claimed, nothing sent anywhere else', r === 'no-webhook' && db.rows.length === 0 && calls.length === 0, r)
+  check('S12 no network webhook: nothing claimed, nothing sent anywhere else', r === 'no-webhook' && db.rows.length === 0 && calls.length === 0, r)
 }
 // Discord down: the claim is released so the next tick retries
 {

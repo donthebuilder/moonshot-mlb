@@ -555,7 +555,37 @@ const adminCases = [{
   load: async (ctx) => [{ kind: 'admin_test', sport: 'all', day: ctx.today, label: 'to #buckets-nba, as picked on /admin/discord', text: wire.TEST_TEXT, hooks: sportHooks('nba').join(',') || process.env.DISCORD_MLB_WEBHOOKS || '' }],
 }]
 
-export const CASES = [...adminCases, ...roomAlertCases, ...winsCases, ...nflWeekCases, ...nbaCases, ...donPlaysCases, ...lampExtraCases, ...momentCases, ...pollCases, ...multiCases, ...writeupCases, ...slateCases, ...showCases, ...membersCases, ...cardCases, ...receiptCases, ...alertCases]
+// ── THE PARTNER FEED (lib/posts/partnerPack.js): other servers' free posts ───────────────────────────────────────────────────────
+const partner = await import('../../lib/posts/partnerPack.js')
+const partnerCases = [
+  {
+    kinds: ['partner_picks'],
+    load: async (ctx) => {
+      for (const { day, rows } of await cardDays(ctx)) {
+        // the moment before that day's first lead game: every Card locked by then, every lead still pregame
+        const starts = rows.filter((r) => r.lane === 'bot' && r.product === 'straight').map((r) => Date.parse(r.legs?.[0]?.start_at)).filter(Number.isFinite)
+        if (!starts.length) continue
+        const at = Math.max(...rows.filter((r) => r.lane === 'bot').map((r) => Date.parse(r.locks_at)).filter(Number.isFinite)) + 60e3      // just after the day's last Card lock (goTime)
+        const picks = partner.leadPicks(rows, at)
+        if (!picks.length) continue
+        return [{ kind: 'partner_picks', sport: 'all', day, label: `${picks.length} lead picks`, text: partner.picksText({ day, picks }), embed: partner.picksEmbed({ day, picks }), hooks: process.env.DISCORD_PARTNER_WEBHOOKS || 'https://discord.com/api/webhooks/0/DISCORD_PARTNER_WEBHOOKS' }]
+      }
+      return []
+    },
+  },
+  {
+    kinds: ['partner_top5'],
+    load: async (ctx) => {
+      const sports = await slateLoad.slateLoader({ day: ctx.today })()
+      const starts = sports.filter((x) => x.hasGames).map((x) => x.firstStartMs).filter(Number.isFinite)
+      const lists = partner.topFive(sports, starts.length ? Math.min(...starts) - 30 * 60e3 : Date.now())
+      if (!lists.length) return [{ kind: 'partner_top5', skip: "no CALLED names on today's boards yet (they lock inside the hour before the first game)" }]
+      return [{ kind: 'partner_top5', sport: 'all', day: ctx.today, text: partner.top5Text({ day: ctx.today, lists }), embed: partner.top5Embed({ day: ctx.today, lists }), hooks: process.env.DISCORD_PARTNER_WEBHOOKS || 'https://discord.com/api/webhooks/0/DISCORD_PARTNER_WEBHOOKS' }]
+    },
+  },
+]
+
+export const CASES = [...partnerCases, ...adminCases, ...roomAlertCases, ...winsCases, ...nflWeekCases, ...nbaCases, ...donPlaysCases, ...lampExtraCases, ...momentCases, ...pollCases, ...multiCases, ...writeupCases, ...slateCases, ...showCases, ...membersCases, ...cardCases, ...receiptCases, ...alertCases]
 
 /** Kinds that can reach Discord but are not rendered, each with the reason. */
 export const NOT_RENDERED = Object.freeze({

@@ -99,7 +99,7 @@ import { adminClient } from '../../../../../lib/supabase/admin'
 import { momentAfterTick } from '../../../../../lib/posts/momentTick'
 import { claimSlot as sharedClaimSlot, bytesOf as sharedBytesOf, knownTaken, markTaken } from '../../../../../lib/dash/postClaim'
 import { ordinal } from '../../../../../lib/format'
-import { feedHooks, feedHooksFor, receiptsHooks, withReceipts } from '../../../../../lib/dash/discordChannels'
+import { feedHooks, feedHooksFor, networkHooks, withReceipts } from '../../../../../lib/dash/discordChannels'
 import { postMembers, membersWebhook, MEMBERS_KINDS, mlbMembersBoard, mlbMembersGrade } from '../../../../../lib/dash/membersPost'
 
 export const dynamic = 'force-dynamic'
@@ -984,7 +984,7 @@ async function receiptTick(db, { day }) {
     const hooks = withReceipts(FEED_WEBHOOKS())
     // the morning after: yesterday's slate day, then today's (a night that ended before the day rolled)
     for (const d of [shiftDay(day, -1), day]) {
-      out[d] = await postReceiptOnce(db, { day: d, hooks, receiptsHook: receiptsHooks(), load: receiptLoader(db, { day: d }) })
+      out[d] = await postReceiptOnce(db, { day: d, hooks, receiptsHook: networkHooks(), load: receiptLoader(db, { day: d }) })
     }
     for (const period of periodsDue(phxClock(Date.now()))) {
       out[period.kind] = await postPeriodOnce(db, { period, hooks })
