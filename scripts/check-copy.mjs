@@ -52,17 +52,27 @@ const measure = () => {
 
 const b = await chromium.launch({ executablePath: exe, headless: true })
 const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
-const p = await ctx.newPage()
-const pages = []
-for (const r of routes) {
-  await p.goto(BASE + r.path, { waitUntil: 'networkidle', timeout: 60000 }).catch(() => {})
-  await p.waitForTimeout(2500)
-  const m = await p.evaluate(measure).catch(() => null)
-  if (!m) continue
-  const prose = m.blocks.reduce((a, x) => a + x.w, 0)
-  pages.push({ ...r, total: m.total, prose, blocks: m.blocks })
-  process.stdout.write('.')
+// FOUR TABS AT ONCE, 20 s CAP (2026-10-23, known issue 76): one tab per route in turn waited up to 60 s for a page that polls (it never goes
+// network-idle), so 104 routes ran past 10 minutes. Four tabs share the work in route order and a page that never settles is read at 20 s.
+// The count is the same measure on the same pages; only the waiting changed.
+const WORKERS = Number(arg('--workers', 4)) || 4
+const slots = new Array(routes.length).fill(null)
+let next = 0
+async function worker() {
+  const p = await ctx.newPage()
+  while (next < routes.length) {
+    const i = next++
+    const r = routes[i]
+    await p.goto(BASE + r.path, { waitUntil: 'networkidle', timeout: 20000 }).catch(() => {})
+    await p.waitForTimeout(2500)
+    const m = await p.evaluate(measure).catch(() => null)
+    if (m) slots[i] = { ...r, total: m.total, prose: m.blocks.reduce((a, x) => a + x.w, 0), blocks: m.blocks }
+    process.stdout.write('.')
+  }
+  await p.close()
 }
+await Promise.all(Array.from({ length: Math.min(WORKERS, routes.length) }, worker))
+const pages = slots.filter(Boolean)
 await b.close()
 console.log('')
 

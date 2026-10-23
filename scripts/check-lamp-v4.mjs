@@ -15,7 +15,7 @@ const near = (name, got, want) => eq(name, Math.abs(got - want) < 1e-9, true)
 
 // ── versions by date ──
 eq('V3_FROM / V4_FROM', [V3_FROM, V4_FROM], ['2026-10-03', '2026-10-18'])
-eq('every market has three entries', Object.values(VERSIONS).map((a) => a.length), [3, 3, 3, 3, 3, 3, 3, 3, 3])
+eq('every market has four entries (v5 added 2026-10-23)', Object.values(VERSIONS).map((a) => a.length), [4, 4, 4, 4, 4, 4, 4, 4, 4])
 eq('10-02 -> v2 era', [versionsFor('2026-10-02').goal, versionsFor('2026-10-02').sog, versionsFor('2026-10-02').pts, versionsFor('2026-10-02').ast], ['lamp-goal-v2', 'lamp-sog-v1', 'lamp-pts-v1', 'lamp-ast-v1'])
 eq('10-03 -> v3', [versionsFor('2026-10-03').goal, versionsFor('2026-10-03').sog, versionsFor('2026-10-03').pts, versionsFor('2026-10-03').ast], ['lamp-goal-v3', 'lamp-sog-v2', 'lamp-pts-v2', 'lamp-ast-v2'])
 eq('10-17 (tonight) stays v3', versionsFor('2026-10-17').goal, 'lamp-goal-v3')
@@ -23,8 +23,8 @@ eq('10-18 -> v4', [versionsFor('2026-10-18').goal, versionsFor('2026-10-18').sog
 eq('shadows: v3 dates keep their names, v4 dates bump', [versionsFor('2026-10-17').goalpos, versionsFor('2026-10-17').goalw, versionsFor('2026-10-17').goal2, versionsFor('2026-10-18').goalpos, versionsFor('2026-10-18').goalw, versionsFor('2026-10-18').goal2], ['lamp-goalpos-v1', 'lamp-goalw-v1', 'goal2_site_v1', 'lamp-goalpos-v2', 'lamp-goalw-v2', 'goal2_site_v2'])
 eq('isV3 stays true on v4 dates; isV4 only from V4_FROM', [isV3('2026-10-18'), isV4('2026-10-17'), isV4('2026-10-18'), isV4('2027-01-01'), isV4(null)], [true, false, true, true, false])
 eq('CURRENT is the last entry of each', CURRENT, Object.fromEntries(Object.entries(VERSIONS).map(([k, v]) => [k, v.at(-1)])))
-eq('model constants resolve the current version', [GOAL_V, SOG_V, PTS_V, AST_V], ['lamp-goal-v4', 'lamp-sog-v3', 'lamp-pts-v3', 'lamp-ast-v3'])
-eq('ALL_VERSIONS carries v1..v4 for the record', ALL_VERSIONS, ['lamp-goal-v1', 'lamp-goal-v2', 'lamp-goal-v3', 'lamp-goal-v4'])
+eq('model constants resolve the current version (v5 since 2026-10-23)', [GOAL_V, SOG_V, PTS_V, AST_V], ['lamp-goal-v5', 'lamp-sog-v4', 'lamp-pts-v4', 'lamp-ast-v4'])
+eq('ALL_VERSIONS carries v1..v5 for the record', ALL_VERSIONS, ['lamp-goal-v1', 'lamp-goal-v2', 'lamp-goal-v3', 'lamp-goal-v4', 'lamp-goal-v5'])
 
 // ── the pool (goalBoard passes prev only when !isV4(date); this is that rule) ──
 const cur = { gp: 20, shots: 60, g: 8, toi: 1000, pts: 14, a: 6 }
