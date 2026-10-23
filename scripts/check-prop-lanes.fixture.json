@@ -1,0 +1,903 @@
+{
+ "mlbMarkets": [
+  {
+   "key": "hit",
+   "label": "1+ Hit",
+   "tests": [
+    false,
+    true,
+    true,
+    true
+   ]
+  },
+  {
+   "key": "tb2",
+   "label": "2+ TB",
+   "tests": [
+    false,
+    true,
+    false,
+    true
+   ]
+  },
+  {
+   "key": "hr",
+   "label": "1+ HR",
+   "tests": [
+    false,
+    true,
+    false,
+    false
+   ]
+  },
+  {
+   "key": "hrr",
+   "label": "1+ HRR",
+   "tests": [
+    false,
+    true,
+    true,
+    true
+   ]
+  },
+  {
+   "key": "run",
+   "label": "1+ Run",
+   "tests": [
+    false,
+    true,
+    false,
+    true
+   ]
+  },
+  {
+   "key": "rbi",
+   "label": "1+ RBI",
+   "tests": [
+    false,
+    true,
+    false,
+    false
+   ]
+  },
+  {
+   "key": "bb",
+   "label": "1+ BB",
+   "tests": [
+    false,
+    true,
+    false,
+    false
+   ]
+  },
+  {
+   "key": "k1",
+   "label": "1+ K",
+   "tests": [
+    true,
+    false,
+    true,
+    true
+   ]
+  }
+ ],
+ "mlbLive": [
+  [
+   "hr",
+   {
+    "state": "live",
+    "n": 1,
+    "bar": 1,
+    "unit": "HR",
+    "cleared": true,
+    "clock": "▼5"
+   },
+   {
+    "state": "final",
+    "n": 0,
+    "bar": 1,
+    "unit": "HR",
+    "cleared": false,
+    "clock": "FINAL"
+   }
+  ],
+  [
+   "top",
+   {
+    "state": "live",
+    "n": 1,
+    "bar": 1,
+    "unit": "HR",
+    "cleared": true,
+    "clock": "▼5"
+   },
+   {
+    "state": "final",
+    "n": 0,
+    "bar": 1,
+    "unit": "HR",
+    "cleared": false,
+    "clock": "FINAL"
+   }
+  ],
+  [
+   "hr2",
+   {
+    "state": "live",
+    "n": 1,
+    "bar": 2,
+    "unit": "HR",
+    "cleared": null,
+    "clock": "▼5"
+   },
+   {
+    "state": "final",
+    "n": 0,
+    "bar": 2,
+    "unit": "HR",
+    "cleared": false,
+    "clock": "FINAL"
+   }
+  ],
+  [
+   "hit",
+   {
+    "state": "live",
+    "n": 2,
+    "bar": 1,
+    "unit": "H",
+    "cleared": true,
+    "clock": "▼5"
+   },
+   {
+    "state": "final",
+    "n": 0,
+    "bar": 1,
+    "unit": "H",
+    "cleared": false,
+    "clock": "FINAL"
+   }
+  ],
+  [
+   "hrr",
+   {
+    "state": "live",
+    "n": 4,
+    "bar": 2,
+    "unit": "H+R+RBI",
+    "cleared": true,
+    "clock": "▼5"
+   },
+   {
+    "state": "final",
+    "n": 0,
+    "bar": 2,
+    "unit": "H+R+RBI",
+    "cleared": false,
+    "clock": "FINAL"
+   }
+  ],
+  [
+   "contact",
+   {
+    "state": "live",
+    "n": 5,
+    "bar": 2,
+    "unit": "TB",
+    "cleared": true,
+    "clock": "▼5"
+   },
+   {
+    "state": "final",
+    "n": 0,
+    "bar": 2,
+    "unit": "TB",
+    "cleared": false,
+    "clock": "FINAL"
+   }
+  ],
+  [
+   "tb",
+   {
+    "state": "live",
+    "n": 5,
+    "bar": 2,
+    "unit": "TB",
+    "cleared": true,
+    "clock": "▼5"
+   },
+   {
+    "state": "final",
+    "n": 0,
+    "bar": 2,
+    "unit": "TB",
+    "cleared": false,
+    "clock": "FINAL"
+   }
+  ],
+  [
+   "zzz",
+   {
+    "state": "live",
+    "n": 1,
+    "bar": 1,
+    "unit": "HR",
+    "cleared": true,
+    "clock": "▼5"
+   },
+   {
+    "state": "final",
+    "n": 0,
+    "bar": 1,
+    "unit": "HR",
+    "cleared": false,
+    "clock": "FINAL"
+   }
+  ]
+ ],
+ "nflLive": [
+  [
+   "TD",
+   {
+    "state": "live",
+    "n": 1,
+    "bar": 1,
+    "unit": "TD",
+    "cleared": true,
+    "clock": "Q2 4:11"
+   },
+   {
+    "state": "final",
+    "n": 0,
+    "bar": 2,
+    "unit": "TD",
+    "cleared": false,
+    "clock": "FINAL"
+   }
+  ],
+  [
+   "TD2",
+   {
+    "state": "live",
+    "n": 1,
+    "bar": 1,
+    "unit": "TD",
+    "cleared": true,
+    "clock": "Q2 4:11"
+   },
+   {
+    "state": "final",
+    "n": 0,
+    "bar": 2,
+    "unit": "TD",
+    "cleared": false,
+    "clock": "FINAL"
+   }
+  ],
+  [
+   "REC_YDS",
+   {
+    "state": "live",
+    "n": 1,
+    "bar": 1,
+    "unit": "YDS",
+    "cleared": true,
+    "clock": "Q2 4:11"
+   },
+   {
+    "state": "final",
+    "n": 0,
+    "bar": 2,
+    "unit": "YDS",
+    "cleared": false,
+    "clock": "FINAL"
+   }
+  ],
+  [
+   "REC",
+   {
+    "state": "live",
+    "n": 1,
+    "bar": 1,
+    "unit": "REC",
+    "cleared": true,
+    "clock": "Q2 4:11"
+   },
+   {
+    "state": "final",
+    "n": 0,
+    "bar": 2,
+    "unit": "REC",
+    "cleared": false,
+    "clock": "FINAL"
+   }
+  ],
+  [
+   "RUSH_YDS",
+   {
+    "state": "live",
+    "n": 1,
+    "bar": 1,
+    "unit": "YDS",
+    "cleared": true,
+    "clock": "Q2 4:11"
+   },
+   {
+    "state": "final",
+    "n": 0,
+    "bar": 2,
+    "unit": "YDS",
+    "cleared": false,
+    "clock": "FINAL"
+   }
+  ],
+  [
+   "RUSH_ATT",
+   {
+    "state": "live",
+    "n": 1,
+    "bar": 1,
+    "unit": "ATT",
+    "cleared": true,
+    "clock": "Q2 4:11"
+   },
+   {
+    "state": "final",
+    "n": 0,
+    "bar": 2,
+    "unit": "ATT",
+    "cleared": false,
+    "clock": "FINAL"
+   }
+  ],
+  [
+   "PASS_YDS",
+   {
+    "state": "live",
+    "n": 1,
+    "bar": 1,
+    "unit": "YDS",
+    "cleared": true,
+    "clock": "Q2 4:11"
+   },
+   {
+    "state": "final",
+    "n": 0,
+    "bar": 2,
+    "unit": "YDS",
+    "cleared": false,
+    "clock": "FINAL"
+   }
+  ],
+  [
+   "KICK_PTS",
+   {
+    "state": "live",
+    "n": 1,
+    "bar": 1,
+    "unit": "PTS",
+    "cleared": true,
+    "clock": "Q2 4:11"
+   },
+   {
+    "state": "final",
+    "n": 0,
+    "bar": 2,
+    "unit": "PTS",
+    "cleared": false,
+    "clock": "FINAL"
+   }
+  ],
+  [
+   "X",
+   null,
+   null
+  ]
+ ],
+ "nhlLive": [
+  [
+   "GOAL",
+   {
+    "state": "live",
+    "n": 1,
+    "bar": 1,
+    "unit": "G",
+    "cleared": true,
+    "clock": "P2 10:00"
+   },
+   {
+    "state": "final",
+    "n": 1,
+    "bar": 1,
+    "unit": "G",
+    "cleared": true,
+    "clock": "FINAL"
+   }
+  ],
+  [
+   "G2",
+   {
+    "state": "live",
+    "n": 1,
+    "bar": 2,
+    "unit": "G",
+    "cleared": null,
+    "clock": "P2 10:00"
+   },
+   {
+    "state": "final",
+    "n": 1,
+    "bar": 2,
+    "unit": "G",
+    "cleared": false,
+    "clock": "FINAL"
+   }
+  ],
+  [
+   "PTS",
+   {
+    "state": "live",
+    "n": 2,
+    "bar": 1,
+    "unit": "PTS",
+    "cleared": true,
+    "clock": "P2 10:00"
+   },
+   {
+    "state": "final",
+    "n": 2,
+    "bar": 1,
+    "unit": "PTS",
+    "cleared": true,
+    "clock": "FINAL"
+   }
+  ],
+  [
+   "AST",
+   {
+    "state": "live",
+    "n": 1,
+    "bar": 1,
+    "unit": "A",
+    "cleared": true,
+    "clock": "P2 10:00"
+   },
+   {
+    "state": "final",
+    "n": 1,
+    "bar": 1,
+    "unit": "A",
+    "cleared": true,
+    "clock": "FINAL"
+   }
+  ],
+  [
+   "SOG",
+   {
+    "state": "live",
+    "n": 4,
+    "bar": 3,
+    "unit": "SOG",
+    "cleared": true,
+    "clock": "P2 10:00"
+   },
+   {
+    "state": "final",
+    "n": 1,
+    "bar": 3,
+    "unit": "SOG",
+    "cleared": false,
+    "clock": "FINAL"
+   }
+  ],
+  [
+   "X",
+   null,
+   null
+  ]
+ ],
+ "nbaLive": [
+  [
+   "pts",
+   {
+    "state": "live",
+    "n": 27,
+    "bar": 25,
+    "unit": "PTS",
+    "cleared": true,
+    "clock": "Q3 7:12"
+   },
+   {
+    "state": "live",
+    "n": 27,
+    "bar": 30,
+    "unit": "PTS",
+    "cleared": null,
+    "clock": "Q3 7:12"
+   }
+  ],
+  [
+   "reb",
+   {
+    "state": "live",
+    "n": 9,
+    "bar": 10,
+    "unit": "REB",
+    "cleared": null,
+    "clock": "Q3 7:12"
+   },
+   {
+    "state": "live",
+    "n": 9,
+    "bar": 30,
+    "unit": "REB",
+    "cleared": null,
+    "clock": "Q3 7:12"
+   }
+  ],
+  [
+   "ast",
+   {
+    "state": "live",
+    "n": 4,
+    "bar": 8,
+    "unit": "AST",
+    "cleared": null,
+    "clock": "Q3 7:12"
+   },
+   {
+    "state": "live",
+    "n": 4,
+    "bar": 30,
+    "unit": "AST",
+    "cleared": null,
+    "clock": "Q3 7:12"
+   }
+  ],
+  [
+   "3pm",
+   {
+    "state": "live",
+    "n": 3,
+    "bar": 4,
+    "unit": "3PM",
+    "cleared": null,
+    "clock": "Q3 7:12"
+   },
+   {
+    "state": "live",
+    "n": 3,
+    "bar": 30,
+    "unit": "3PM",
+    "cleared": null,
+    "clock": "Q3 7:12"
+   }
+  ],
+  [
+   "pra",
+   {
+    "state": "live",
+    "n": 40,
+    "bar": 35,
+    "unit": "PRA",
+    "cleared": true,
+    "clock": "Q3 7:12"
+   },
+   {
+    "state": "live",
+    "n": 40,
+    "bar": 30,
+    "unit": "PRA",
+    "cleared": true,
+    "clock": "Q3 7:12"
+   }
+  ],
+  [
+   "dd",
+   {
+    "state": "live",
+    "n": 1,
+    "bar": 2,
+    "unit": "10+",
+    "cleared": null,
+    "clock": "Q3 7:12"
+   },
+   {
+    "state": "live",
+    "n": 1,
+    "bar": 30,
+    "unit": "10+",
+    "cleared": null,
+    "clock": "Q3 7:12"
+   }
+  ],
+  [
+   "td",
+   {
+    "state": "live",
+    "n": 1,
+    "bar": 3,
+    "unit": "10+",
+    "cleared": null,
+    "clock": "Q3 7:12"
+   },
+   {
+    "state": "live",
+    "n": 1,
+    "bar": 30,
+    "unit": "10+",
+    "cleared": null,
+    "clock": "Q3 7:12"
+   }
+  ],
+  [
+   "x",
+   null,
+   null
+  ]
+ ],
+ "goalMarkets": [
+  {
+   "key": "g",
+   "label": "Goals",
+   "one": "goal",
+   "stat": "g",
+   "lines": [
+    1,
+    2
+   ],
+   "first": 1
+  },
+  {
+   "key": "sog",
+   "label": "Shots",
+   "one": "shot",
+   "stat": "shots",
+   "lines": [
+    2,
+    3,
+    4
+   ],
+   "first": 2
+  },
+  {
+   "key": "pts",
+   "label": "Points",
+   "one": "point",
+   "stat": "pts",
+   "lines": [
+    1,
+    2
+   ],
+   "first": 1
+  },
+  {
+   "key": "a",
+   "label": "Assists",
+   "one": "assist",
+   "stat": "a",
+   "lines": [
+    1,
+    2
+   ],
+   "first": 1
+  },
+  {
+   "key": "ppp",
+   "label": "PP points",
+   "one": "PP point",
+   "stat": "ppp",
+   "lines": [
+    1
+   ],
+   "first": 1
+  }
+ ],
+ "nflMarkets": [
+  [
+   "TD",
+   "Anytime TD",
+   "1+ rush or rec TD"
+  ],
+  [
+   "REC_YDS",
+   "Receiving yards",
+   "default bar 40"
+  ],
+  [
+   "REC",
+   "Receptions",
+   "default bar 4"
+  ],
+  [
+   "RUSH_YDS",
+   "Rushing yards",
+   "default bar 50"
+  ],
+  [
+   "RUSH_ATT",
+   "Rush attempts",
+   "default bar 12"
+  ],
+  [
+   "PASS_YDS",
+   "Passing yards",
+   "default bar 225"
+  ],
+  [
+   "KICK_PTS",
+   "Kicking points",
+   "FG×3 + PAT, bar 6"
+  ],
+  [
+   "DEF_TD",
+   "Defense/ST TD",
+   "1+ def or return TD"
+  ]
+ ],
+ "nflStatKey": {
+  "TD": "g_td",
+  "REC_YDS": "g_recyd",
+  "REC": "g_rec",
+  "RUSH_YDS": "g_ruyd",
+  "RUSH_ATT": "g_car",
+  "PASS_YDS": "g_payd",
+  "KICK_PTS": "g_kick"
+ },
+ "nbaBars": {
+  "pts": {
+   "bar": 25,
+   "label": "PTS 25+"
+  },
+  "reb": {
+   "bar": 10,
+   "label": "REB 10+"
+  },
+  "ast": {
+   "bar": 8,
+   "label": "AST 8+"
+  },
+  "3pm": {
+   "bar": 4,
+   "label": "3PM 4+"
+  },
+  "pra": {
+   "bar": 35,
+   "label": "PRA 35+"
+  },
+  "dd": {
+   "bar": 2,
+   "label": "DOUBLE-DOUBLE"
+  },
+  "td": {
+   "bar": 3,
+   "label": "TRIPLE-DOUBLE"
+  },
+  "first": {
+   "bar": null,
+   "label": "FIRST BASKET"
+  }
+ },
+ "thresholdGrid": {
+  "LINES": {
+   "hit": [
+    1,
+    2
+   ],
+   "tb2": [
+    2,
+    3,
+    4
+   ],
+   "hr": [
+    1,
+    2
+   ],
+   "hrr": [
+    1,
+    2,
+    3
+   ],
+   "run": [
+    1,
+    2
+   ],
+   "rbi": [
+    1,
+    2
+   ],
+   "bb": [
+    1,
+    2
+   ],
+   "k1": [
+    1,
+    2
+   ]
+  },
+  "SHORT": {
+   "hit": "Hit",
+   "tb2": "TB",
+   "hr": "HR",
+   "hrr": "HRR",
+   "run": "Run",
+   "rbi": "RBI",
+   "bb": "BB",
+   "k1": "K"
+  }
+ },
+ "playerBars": [
+  [
+   "pts",
+   "PTS",
+   [
+    10,
+    15,
+    20,
+    25,
+    30
+   ],
+   15
+  ],
+  [
+   "reb",
+   "REB",
+   [
+    4,
+    6,
+    8,
+    10
+   ],
+   6
+  ],
+  [
+   "ast",
+   "AST",
+   [
+    3,
+    5,
+    8
+   ],
+   5
+  ],
+  [
+   "3pm",
+   "3PM",
+   [
+    1,
+    2,
+    3,
+    4
+   ],
+   2
+  ],
+  [
+   "pra",
+   "PRA",
+   [
+    20,
+    25,
+    30,
+    35,
+    40
+   ],
+   25
+  ],
+  [
+   "dd",
+   "DD",
+   [
+    2
+   ],
+   2
+  ],
+  [
+   "td",
+   "TD",
+   [
+    3
+   ],
+   3
+  ]
+ ]
+}

@@ -28,7 +28,6 @@
   "components/lamp/goal/GoalShape.js": 4,
   "components/lamp/tabs/Board.js": 34,
   "components/lamp/tabs/Game.js": 43,
-  "components/lamp/tabs/Home.js": 7,
   "components/lamp/tabs/HotSticks.js": 15,
   "components/lamp/tabs/Leaders.js": 30,
   "components/lamp/tabs/Matchups.js": 12,
