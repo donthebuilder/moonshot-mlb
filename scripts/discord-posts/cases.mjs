@@ -411,7 +411,7 @@ const showCases = [
       const ro = await nums.readRosters(boards)
       if (!ro?.size) return [{ kind: 'by_numbers', skip: 'no roster read' }]
       const men = [...nums.nbaMen({ board: boards.nbaBoard, rosters: ro, now: 0 }), ...nums.nhlMen({ games: boards.nhlGames, rosters: ro, now: 0 })]
-      const pick = nums.pickNumbers(nums.findNumbers(men, { day }))
+      const pick = nums.pickDay(nums.dayFinds(men, { day }), { day })
       if (!pick) return [{ kind: 'by_numbers', skip: 'nothing lines up tonight' }]
       // sent with sportKey 'nba' to FEED_WEBHOOKS (the MLB rooms) by the homers tick
       return [{ kind: 'by_numbers', sport: 'all', day, text: nums.numbersText(pick), png: true, hooks: feedHooks('mlb') }]

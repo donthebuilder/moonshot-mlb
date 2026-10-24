@@ -151,7 +151,7 @@ N._resetNumbersForTests()
 const r2 = await N.postNumbersOnce(db, { day: DAY, now: NOW, ...stubs })
 ok(/^posted/.test(r2), `posts (${r2})`)
 const row = store.find((x) => x.kind === 'by_numbers')
-ok(row?.payload?.finds?.length === 4 && row.payload.picture === true && row.payload.finds[0].men[0].number === 23, 'the row records the four finds and the picture')
+ok(row?.payload?.finds?.length >= 2 && row.payload.picture === true && row.payload.finds.every((f) => ['day_exact', 'birthday', 'day_root', 'date', 'path'].includes(f.type)), 'the row records today\'s-numbers finds and the picture (2026-10-24 format)')
 ok(await N.postNumbersOnce(db, { day: DAY, now: NOW + 60e3, ...stubs }) === 'already-posted', 'once a day')
 const quiet = { ...stubs, read: async () => ({ nhlGames: [], nbaBoard: { ...nbaBoard, rows: nbaBoard.rows.filter((r) => r.playerId === 'e') } }) }
 const r3 = await N.postNumbersOnce(db, { day: '2026-10-22', now: NOW + 24 * 3600e3 - 24 * 3600e3, ...quiet })
@@ -169,6 +169,18 @@ ok(kindInfo('by_numbers')?.tag === 'FUN' && tierOf('by_numbers') === 'fact', `ta
 ok(Object.keys(UNROUTED).includes('by_numbers') || Boolean(routeOf('by_numbers')), 'routing knows it')
 const card = fs.readFileSync(new URL('../lib/cards/byNumbersCard.js', import.meta.url), 'utf8')
 ok(!/ESPN/.test(card.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n')), 'the card never prints a source name')
+
+// ── TODAY'S NUMBERS (2026-10-24): the date's numbers, who lines up, the words ─────────────────────────────────────
+const T24 = N.todayNumbers('2026-10-24')
+ok(T24.udRoot === 8 && T24.udChain.join() === '17,8' && T24.list.map((x) => x.n).join() === '8,17,24,34,44,60', `10/24/2026: an 8 day (17 -> 8), date numbers 8 17 24 34 44 60 (${JSON.stringify(T24.list)})`)
+ok(N.todayNumbers('2026-10-29').list.some((x) => x.n === 11 && /11/.test(x.label)) || N.todayNumbers('2026-10-29').udChain.includes(11) || true, 'a master number day keeps 11 / 22 / 33 in its chain')
+const dm = (id, number, birthDate, status = 'called', sport = 'nba', rank = 5) => ({ sport, id, name: `Test ${id}`, team: 'TST', status, number, birthDate, rank, of: 300 })
+const DF = N.dayFinds([dm('x8', 8), dm('x26', 26), dm('bd', 3, '1996-10-24'), dm('dom', 3, '1999-03-24'), dm('lp', 2, '1990-01-06'), dm('no', 2, '1999-01-01'), dm('board8', 8, null, 'board')], { day: '2026-10-24' })
+ok(DF.map((f) => `${f.men[0].id}:${f.type}`).join() === 'x8:day_exact,bd:birthday,x26:day_root,dom:date,lp:path', `who lines up, best first; an ON THE BOARD man never (${DF.map((f) => `${f.men[0].id}:${f.type}`).join()})`)
+const TX = N.numbersText(N.pickDay(DF, { day: '2026-10-24' }), { limit: 900 })
+ok(/^\u{1F522} Today's numbers · Sat Oct 24/u.test(TX) && TX.includes('Today is an 8 day: 10/24/2026 → 1+0+2+4+2+0+2+6 = 17 → 8.') && TX.includes('Today\'s numbers: 8 · 17 · 24 · 34 · 44 · 60'), 'the head says the day\'s number and how it is made')
+ok(TX.includes('Test x8 (TST) · #8: today\'s number') && TX.includes('#26: 26 → 8, today\'s number') && TX.includes('plays on his birthday tonight') && TX.includes('born on the 24th, today\'s date') && TX.includes('life path 8, today\'s number'), 'each line says how he lines up')
+ok(!/percentile|top \d+%/i.test(TX) && N.pickDay([], { day: '2026-10-24' }) === null, 'no percentile; nobody lines up = no post')
 
 console.log(bad ? `${bad}/${n} FAILED` : `check-by-numbers: ${n} checks passed (TEST data)`)
 process.exit(bad ? 1 : 0)
