@@ -41,7 +41,7 @@ import { hashParams, writeHash, cardViewPush } from '../../../lib/urlState'
 import { playerHref } from '../../../lib/routes'
 import { DETAIL_MARK, PEEK_MARK, VIEWS_KEY } from '../../../lib/useShellRoute'
 import { etToday } from '../../../lib/freshness'
-import { bornLine } from '../../../lib/birthday'
+import { bornLine, birthdayChip } from '../../../lib/birthday'
 import BornLine from '../../player/BirthdayChip'
 import { useBucketsPlayer, useBucketsBoard, useBucketsDefense } from '../../../lib/nba/useBuckets'
 import { blowoutFor } from '../../../lib/blowout'
@@ -58,6 +58,9 @@ import PlayerDdTd from '../PlayerDdTd'
 import ScoredFirst from '../../player/ScoredFirst'
 import { EmptyState, DelayedBanner, Loading, Kicker, BackBtn, PlayerFace, SeasonTypeChip, fmtDay, fmtTip, RimDot } from '../ui'
 import PlayerInjuryChip from '../../injuries/PlayerInjuryChip'
+import StatTiles, { rankIn } from '../../player/StatTiles'
+import { useIsPhone } from '../../MobileFold'
+import { flatChip, FLAT_CHIP_CLASS } from '../../../lib/chips'
 
 // 📄 ONE PLAYER -- MOONSHOT's card, as a page (NHL's components/lamp/tabs/Player.js is the closest pattern, TUDDY's
 // NflPlayerModal the other): a sticky header (who, which club, the board's word and score, his key numbers) over
@@ -70,19 +73,30 @@ import PlayerInjuryChip from '../../injuries/PlayerInjuryChip'
 // The season toggle (THIS SEASON | LAST SEASON | LAST 2 SEASONS) mirrors TUDDY's and appears only when both seasons
 // are on file (lib/nba/seasonWindow.js). Every number is ESPN's or the log's; projected points is a MEASURED projection
 // of a box-score count (lib/nba/expectedPoints.js), said so where it is shown.
-const VIEWS = [
-  { key: 'overview', label: 'Overview' },
+// 2026-10-23 THE MOONSHOT CARD, BUCKETS' WAY (Donovan: share the MLB card across all four sports; TUDDY and LAMP went first). The header holds
+// his numbers and the adds, the call sits over tonight's angle (the checklist's slot, components/player/StatTiles.js), his splits fill the right
+// half (BUCKETS on him one chip over, my note under it), and the front is his shot chart | his game log | his bars. The deeper views are pills.
+// On a phone the front's panels are the first pills, one at a time. Old links keep working: view=overview is the front; view=shots / log /
+// splits open that panel on a phone and the front on a wide screen.
+const FRONT_VIEWS = [{ key: 'front', label: '🏀 Front' }]
+const PAGE_VIEWS = [
+  { key: 'shots', label: '🎯 Shots' },
+  { key: 'log', label: '📋 Game log' },
+  { key: 'props', label: '📊 Props' },
+  { key: 'splits', label: '📅 Splits' },
+]
+const DEEP_VIEWS = [
   // THE READ and NUMBERS, their own pills as on MOONSHOT's card (2026-10-17): the sentences and the shape of his night; the season, model and opponent rows
   { key: 'read', label: 'The Read' },
-  { key: 'splits', label: '📅 Splits' },
-  { key: 'log', label: '📋 Game log' },
   { key: 'numbers', label: '🔢 Numbers' },
   { key: 'vs', label: '🆚 VS' },
-  { key: 'shots', label: '🎯 Shots' },
   { key: 'board', label: 'The board' },
 ]
-// the tab the address names (view=), else Overview
-const initialTab = () => { try { const v = hashParams().get('view'); return VIEWS.some((x) => x.key === v) ? v : 'overview' } catch { return 'overview' } }
+const VIEWS = [...FRONT_VIEWS, ...PAGE_VIEWS, ...DEEP_VIEWS]
+const VIEW_ALIAS = { overview: 'front' }
+const TABBED_BELOW = 1080
+// the tab the address names (view=), else the front
+const initialTab = () => { try { const v = hashParams().get('view'); const k = VIEW_ALIAS[v] || v; return VIEWS.some((x) => x.key === k) ? k : 'front' } catch { return 'front' } }
 
 const lineCols = [
   { key: 'label', label: 'Season', group: 'Season', w: 72, heat: false, sticky: true, bold: true },
@@ -124,7 +138,13 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
   const cur = peers.find((x) => x.id === pid) || { id: pid, name: card.name, team: card.team }
 
   // ── the tab, in the address ──
-  const [view, setViewState] = useState(initialTab)
+  const tabbed = useIsPhone(TABBED_BELOW - 1)
+  const [asked, setViewState] = useState(initialTab)
+  const [rightView, setRightView] = useState('splits')
+  // a phone shows the front's panels one at a time (its pills); a wide screen shows the whole front (a phone pill's link included)
+  const view = asked === 'front' && tabbed ? PAGE_VIEWS[0].key : (!tabbed && PAGE_VIEWS.some((t) => t.key === asked) ? 'front' : asked)
+  const showPanel = (k) => (tabbed ? view === k : view === 'front')
+  const visibleTabs = tabbed ? [...PAGE_VIEWS, ...DEEP_VIEWS] : [...FRONT_VIEWS, ...DEEP_VIEWS]
   useEffect(() => {
     const on = () => setViewState(initialTab())
     window.addEventListener('hashchange', on)
@@ -134,7 +154,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
     setViewState(k)
     try {
       const h = hashParams()
-      if (k === 'overview') h.delete('view'); else h.set('view', k)
+      if (k === 'front') h.delete('view'); else h.set('view', k)
       const mark = window.history.state?.[PEEK_MARK] || h.get('pm') ? PEEK_MARK : DETAIL_MARK
       writeHash(h, { push: true, state: cardViewPush(mark, VIEWS_KEY) })
     } catch { /* the tab still switches without the address */ }
@@ -199,7 +219,6 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
     { key: 'to', label: 'TO', group: 'Defense', w: 40, mono: true },
   ]
   const logPv = usePreview(logRows, 10)
-  const last5 = logRows.slice(0, 5)
   const shots = useMemo(() => unpackShots(data.shots, data.shotGames), [data])
   const calls = (data.calls || []).map((r, i) => ({ ...r, _id: `${r.game_date}-${r.market}-${i}`, marketLabel: NBA_MARKETS[r.market]?.label || (r.market === 'first_fg' ? 'FIRST BASKET' : r.market === 'first_pts' ? 'FIRST POINTS' : r.market) }))
   const callCols = [
@@ -222,20 +241,73 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
     { key: 'avg', label: 'SEASON PPG', group: 'Projected', w: 76, heat: false, mono: true, dp: 1, title: 'His season average, for comparison' },
   ]
 
+  // TONIGHT'S ANGLE, THE CHECKLIST'S SLOT (components/player/StatTiles.js, TUDDY's and LAMP's tiles): the board's own legs the header does not
+  // print, each ranked among tonight's scored players, and his last five against his season. A locked card (a free viewer, a CALLED pick before
+  // the tip) has no legs to show: only the last five, which is his public game log.
+  const angleTiles = (() => {
+    const tiles = []
+    const legs = shownRow?.legs
+    const pool = (board?.rows || []).filter((r) => r.status !== 'off' && r.legs)
+    const ranked = (id, label, v, get, title, fmt) => {
+      if (!Number.isFinite(Number(v))) return
+      const rk = rankIn(pool.map(get), v)
+      tiles.push({ id, label, value: fmt(Number(v)), rank: rk, rankTitle: rk ? `${rk.r} of ${rk.n} players tonight in ${title}` : '' })
+    }
+    if (legs) {
+      ranked('fga', 'Shots / game', legs.fgaPg, (r) => r.legs?.fgaPg, 'shots a game', (v) => v.toFixed(1))
+      ranked('fta', 'Free throws / game', legs.ftaPg, (r) => r.legs?.ftaPg, 'free throws a game', (v) => v.toFixed(1))
+      ranked('ppm', 'Points / minute', legs.minPg > 0 ? legs.ptsPg / legs.minPg : null, (r) => (r.legs?.minPg > 0 ? r.legs.ptsPg / r.legs.minPg : null), 'points a minute', (v) => v.toFixed(2))
+      if (Number.isFinite(Number(legs.oppPts))) {
+        const opps = [...new Map(pool.map((r) => [r.opp, r.legs?.oppPts])).values()]
+        const rk = rankIn(opps, legs.oppPts)
+        tiles.push({ id: 'opp', label: `${shownRow.opp} allows`, value: String(Math.round(legs.oppPts)), rank: rk, rankTitle: rk ? `${shownRow.opp} gives up the #${rk.r} most points of the ${rk.n} clubs playing tonight` : '' })
+      }
+    }
+    const l5 = logRows.slice(0, 5).map((g) => Number(g.pts)).filter(Number.isFinite)
+    if (l5.length) {
+      const avg = l5.reduce((a, b) => a + b, 0) / l5.length
+      const szn = Number(season1?.pts)
+      const arrow = l5.length >= 5 && szn > 0 ? (avg >= szn * 1.15 ? 'up' : avg <= szn * 0.85 ? 'down' : null) : null
+      tiles.push({ id: 'l5', label: `Points, last ${l5.length}`, value: avg.toFixed(1), arrow, arrowTitle: arrow === 'up' ? 'Scoring 15%+ above his season over his last 5' : 'Scoring 15%+ below his season over his last 5' })
+    }
+    return tiles.length ? <StatTiles tiles={tiles} className="nba-card-stats" /> : null
+  })()
+
+  // THE RIGHT HALF: his splits, BUCKETS on him one chip over; your note, your star and his double-double / first-basket lines under it
+  const splitsPanel = (
+    <>
+      <div className="chip-row" style={{ display: 'flex', gap: 5, marginBottom: 8, flexWrap: 'wrap' }}>
+        {[['splits', 'Splits'], ['onhim', 'BUCKETS on him']].map(([k, l]) => (
+          <button key={k} type="button" className={FLAT_CHIP_CLASS} aria-pressed={rightView === k} onClick={() => setRightView(k)} style={flatChip(rightView === k, C.purple, C, NUM_FONT)}>{l}</button>
+        ))}
+      </div>
+      {rightView === 'onhim'
+        ? <BucketsOnHim calls={data.calls} homeOf={homeOf} style={{ marginTop: 0 }} />
+        : <PlayerSplits games={games} label={windowLabel} onOpenTeam={onOpenTeam} />}
+      <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
+        <PlayerNotes playerId={pid} scope="nba" accent={C.purple} />
+        <StarMemory sport="nba" id={pid} />
+        <PlayerDdTd playerId={pid} />
+        <ScoredFirst sport="nba" playerId={pid} word="Scored the first basket" color={C.purple} textColor={C.text2} />
+        <InTheLedger sport="nba" id={pid} name={card.name} jersey={card.jersey} birthDate={card.birthDate} next={next} date={dateNow} />
+      </div>
+    </>
+  )
+
   return (
     <SportTheme theme={C} accent={C.purple} numFont={NUM_FONT}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {/* THE ONE TOOLBAR ROW, as MOONSHOT's card: Back at the left; at the right his flip Card and Save (a PREVIEW sport, shown only to a visitor
-            BUCKETS' gate lets in, and only for a player on tonight's board), the compare scale, previous / n of m / next, the group and the search, and
-            in a peek Full page. The card's close is in the header below (the `lead` mechanism LAMP's card uses, components/PlayerPeek.js). */}
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: onBack ? 'space-between' : 'flex-end', gap: 8 }}>
-          {onBack ? <BackBtn onBack={onBack} label={backLabel} /> : null}
-          <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6, minWidth: 0 }}>
+        {/* THE ONE TOOLBAR ROW, MOONSHOT's (app/globals.css .card-toolbar): Back at the left; at the right his flip Card and Save (only for a player on
+            tonight's board), Compare, previous / n of m / next, the group and the search, and in a peek Full page. One row on a phone too: it scrolls
+            sideways inside itself. The card's close is in the header below (the `lead` mechanism, components/PlayerPeek.js). */}
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'nowrap', overflowX: 'auto', scrollbarWidth: 'none', gap: 8 }}>
+          {onBack ? <span style={{ flex: '0 0 auto' }}><BackBtn onBack={onBack} label={backLabel} /></span> : null}
+          <span className="card-toolbar" style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'nowrap', gap: 6, marginLeft: 'auto', flex: '0 0 auto' }}>
             {row && !locked && <CardFlip sport="nba" id={String(card.id)} name={card.name} />}
             {!locked && <ShareCardButton sport="nba" what="his card" url={shareUrl({ kind: 'pick', sport: 'nba', id: card.id, market: 'pts', date: board?.date || null })} filename={`${slug(card.name, 'player')}_${stamp(board?.date)}.png`} />}
             {peers.length > 1 && (
               <button type="button" onClick={() => setCompareOpen(true)} title="Compare this player against another on tonight’s board" aria-label="Compare two players"
-                style={{ minWidth: 44, minHeight: 44, background: 'transparent', border: `1px solid ${C.border2}`, color: C.text2, borderRadius: 7, fontSize: 14, lineHeight: 1, cursor: 'pointer' }}>⚖</button>
+                style={{ minWidth: 44, minHeight: 44, background: 'transparent', border: `1px solid ${C.border2}`, color: C.text2, borderRadius: 7, fontSize: 14, lineHeight: 1, cursor: 'pointer' }}>⚖<span className="tb-word">Compare</span></button>
             )}
             {onStep && peers.length > 1 && <Navigator peers={peers} cur={cur} noun="player" onNavigate={(p) => onStep(p.id)} />}
             {lead?.full}
@@ -246,8 +318,10 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
         {/* THE OUTCOME LEADS once his called row is graded (MOONSHOT's PickVerdictStamp) */}
         <BucketsPickStamp row={row} />
 
-        {/* THE HEADER CARD (MOONSHOT's VerdictHero): his face inside the score ring, #number + name + injury chip, the market's badge, the club vs the
-            opponent and Game ›, his position line, the book's price at the end, and the card's close at the right. */}
+        <div className="portal-top">
+        <div className="portal-who" style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
+        {/* THE HEADER CARD (MOONSHOT's v3 VerdictHero): his face inside the score ring, #number + name + injury chip, the market's badge, the club vs the
+            opponent and Game ›, his position line, the book's price, the close at the right -- and his numbers and the watch / slip row in its footer. */}
         <VerdictHero
           style={{ marginBottom: 0 }} theme={C} numFont={NUM_FONT}
           photo={card.headshot || null}
@@ -264,49 +338,76 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
             {oppTxt ? <>{' '}{row?.home ?? data.nextGame?.home ? 'vs' : '@'}{' '}<Tap onClick={onOpenTeam ? () => onOpenTeam(row?.opp || data.nextGame?.opp) : null} title={`Open ${row?.opp || data.nextGame?.opp}`}>{row?.opp || data.nextGame?.opp}</Tap></> : null}
             {row?.gameId && onOpenGame ? <>{' · '}<Tap onClick={() => onOpenGame(row.gameId)} title="Open his game">Game ›</Tap></> : null}
           </>}
-          meta2={[meta2, tip ? (game?.state === 'live' ? 'LIVE' : game?.state === 'final' ? 'FINAL' : tipWord) : null].filter(Boolean).join(' · ') || null}
+          meta2={[meta2, card.age && !tabbed && !birthdayChip(card.birthDate, dateNow) ? `age ${card.age}` : null, tip ? (game?.state === 'live' ? 'LIVE' : game?.state === 'final' ? 'FINAL' : tipWord) : null].filter(Boolean).join(' · ') || null}
           metaRight={heroPrice}
           market={row ? `${ptsMarket.bar}+ points` : 'not on tonight’s board'}
           right={lead?.close || null}
+          footer={<div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <StatRow stats={nbaStatRow({ line: season1, xpts: x, seasonWord, stale })} noun="players" style={{ marginBottom: 0 }} />
+            {/* THE WATCH ROW (MOONSHOT's even row): Watch and a + for each market the books quote at the card's bar; BUCKETS' pick is a ★ on its cell,
+                the sentence only when no cell carries it. No price, no button. */}
+            <div data-pm="watch-row">
+              <BucketsSlipAdd id={pid} name={card.name} team={card.team} opp={row?.opp || data.nextGame?.opp || null} style={{ margin: 0 }} even
+                lead={<FollowButton sport="nba" id={pid} name={card.name} team={card.team} position={card.pos} cell />}
+                pickCode={shownRow?.status === 'called' ? 'pts' : null}
+                pickLine={<>BUCKETS&apos; pick: <b style={{ color: C.text2 }}>{nbaPickWord(shownRow, ptsMarket.label)}</b></>} />
+            </div>
+          </div>}
         />
-        {/* HIS BIRTHDAY (the real date from the league's athlete file; nothing when unknown) */}
-        {card.birthDate
-          ? <BornLine birth={card.birthDate} on={dateNow} accent={C.purple} C={C} font={NUM_FONT} style={{ marginTop: -6, marginBottom: 0 }} />
-          : card.age ? <div style={{ color: C.text3, fontSize: 12, lineHeight: '17px', marginTop: -6 }}>age {card.age}</div> : null}
+        {/* HIS BIRTHDAY (the league's athlete file): only on the day, the chip is the point; his age rides the header line otherwise */}
+        {birthdayChip(card.birthDate, dateNow) && <BornLine birth={card.birthDate} on={dateNow} accent={C.purple} C={C} font={NUM_FONT} style={{ marginTop: -6, marginBottom: 0 }} />}
 
-        {/* BUCKETS ON HIM (components/player/): the word, the score, the why, the flags, his record on the locked board and last week; no game says so in one line. */}
-        <VerdictBlock sport="nba" lock={lockIn} style={{ margin: 0 }} {...nbaVerdict({ board, row, whyLine, calls: data.calls, today: dateNow })} />
-        <StatRow stats={nbaStatRow({ line: season1, xpts: x, seasonWord, stale })} noun="players" style={{ marginBottom: 0 }} />
-
-        {/* THE WATCH ROW (MOONSHOT's): Watch, ADD TO SLIP with a + for each market the books quote at the card's bar, and the pick. No price, no button. */}
-        {/* 2026-10-22, the even row: Watch and the + cells are equal; BUCKETS' pick is a ★ on its cell, the sentence only when no cell carries it */}
-        <div data-pm="watch-row">
-          <BucketsSlipAdd id={pid} name={card.name} team={card.team} opp={row?.opp || data.nextGame?.opp || null} style={{ margin: 0 }} even
-            lead={<FollowButton sport="nba" id={pid} name={card.name} team={card.team} position={card.pos} cell />}
-            pickCode={shownRow?.status === 'called' ? 'pts' : null}
-            pickLine={<>BUCKETS&apos; pick: <b style={{ color: C.text2 }}>{nbaPickWord(shownRow, ptsMarket.label)}</b></>} />
+        {/* THE CALL, ONE ROW (MOONSHOT's VerdictBlock compact), then tonight's angle where MOONSHOT's checklist sits, then his numbers */}
+        <VerdictBlock sport="nba" compact lock={lockIn} style={{ margin: 0 }} {...nbaVerdict({ board, row, whyLine, calls: data.calls, today: dateNow })} />
+        {angleTiles}
+        <HisNumbers look="strip" name={card.name} jersey={card.jersey} birthDate={card.birthDate} next={next} nextWord="point" date={dateNow} theme={C} accent={C.purple} numFont={NUM_FONT} />
+        </div>
+        {!tabbed && <div className="portal-read"><section aria-label="Splits">{splitsPanel}</section></div>}
         </div>
 
-        {/* PILL TABS, the tab in the address (view=) */}
+        {/* THE PILLS: Front and the deeper views (desktop), or every panel one at a time (phone); the tab in the address (view=) */}
         <div className="chip-row" role="tablist" aria-label="Player tabs" style={{ display: 'flex', gap: 5, flexWrap: 'nowrap', overflowX: 'auto', padding: '2px 2px 8px', borderBottom: `1px solid ${C.border}` }}>
-          {VIEWS.map((t) => <TabBtn key={t.key} tall active={view === t.key} onClick={() => pick(t.key)}>{t.label}</TabBtn>)}
+          {visibleTabs.map((t) => <TabBtn key={t.key} tall active={view === t.key} onClick={() => pick(t.key)}>{t.label}</TabBtn>)}
         </div>
 
-        {view === 'overview' && (
+        {/* THE FRONT, MOONSHOT's portal-main: his shot chart | the game log | his bars (the props). The season toggle sits over the views it changes. */}
+        {(view === 'front' || PAGE_VIEWS.some((t) => t.key === view)) && (
           <>
-            {/* BUCKETS ON HIM (each market's locked record on him, MOONSHOT's BotOnHim), My note, his last five, the ledger, his numbers, then the PRICE
-                LAST (10-19, the rule Donovan set for TUDDY's page (k): the price timeline never leads) */}
-            <BucketsOnHim calls={data.calls} homeOf={homeOf} style={{ marginTop: 0 }} />
-            <PlayerNotes playerId={pid} scope="nba" accent={C.purple} />
-            {last5.length > 0 && (
-              <section aria-label="Last five">
-                <Kicker>LAST FIVE</Kicker>
-                <ScrollHint><BucketsTable rows={last5} columns={logCols} onRowClick={(r) => onOpenGame?.((r?._raw ?? r).id)} heatMode="standouts" maxHeight={9999} maxRows={5} caption="His last five games, newest first. Each row opens the game." /></ScrollHint>
-              </section>
-            )}
-            <InTheLedger sport="nba" id={pid} name={card.name} jersey={card.jersey} birthDate={card.birthDate} next={next} date={dateNow} />
-            <HisNumbers name={card.name} jersey={card.jersey} birthDate={card.birthDate} next={next} nextWord="point" date={dateNow} theme={C} accent={C.purple} numFont={NUM_FONT} />
-            {/* NO PRICE TIMELINE (2026-10-21, Donovan: "remove the price timeline inside of the player model ... remove it") */}
+            {(showPanel('shots') || showPanel('log') || showPanel('splits')) && opts.length > 0 && <SeasonToggle options={opts} value={seasonKey} onChange={setSeason} theme={C} numFont={NUM_FONT} accent={C.purple} yearLabel={yearLabel} />}
+            <div className="portal-main">
+              {showPanel('shots') && (
+                <section className="portal-spray" aria-label="Shot chart" style={{ minWidth: 0 }}>
+                  {shots.length > 0
+                    ? <>
+                        <Kicker>EVERY SHOT ON FILE · {shots.length} ATTEMPTS{data.shotsFrom ? ` SINCE ${fmtDay(data.shotsFrom).toUpperCase()}` : ''}</Kicker>
+                        <ShotChart urlKey="shots" shots={shots} filters={["result", "type"]} threeD title={`${card.name}, every field-goal attempt on file`}
+                          defense={row?.opp || data.nextGame?.opp || null} defenseNote={row?.opp ? 'tonight' : data.nextGame?.opp ? 'next game' : null}
+                          source="Every field-goal attempt on file for him, from ESPN play-by-play; free throws and end-of-quarter heaves left out." />
+                      </>
+                    : <EmptyState title="NO SHOTS ON FILE" note="We record shots from the play-by-play once games are played; none are on file for him yet." />}
+                </section>
+              )}
+              {showPanel('log') && (
+                <section className="portal-ev" aria-label="Game log" style={{ minWidth: 0 }}>
+                  <Kicker>GAME LOG · {logRows.length} GAMES{windowLabel ? ` · ${windowLabel}` : ''}</Kicker>
+                  {logRows.length
+                    ? <>
+                        <ScrollHint><BucketsTable rows={logPv.shown} columns={logCols} onRowClick={(r) => onOpenGame?.((r?._raw ?? r).id)} heatMode="standouts" maxHeight={9999} maxRows={logRows.length}
+                          caption="Newest first. Each row opens the game." /></ScrollHint>
+                        <ShowMoreButton open={logPv.open} restN={logPv.restN} toggle={logPv.toggle} total={logPv.total} itemWord="games" />
+                        {[...new Set(logRows.map((g) => g.seasonType))].filter((t) => t && t !== 2).map((t) => <SeasonTypeChip key={t} type={t} />)}
+                      </>
+                    : <EmptyState title="NO GAMES LOGGED" note="No regular-season games for him in that span yet. Try another season above." />}
+                </section>
+              )}
+              {showPanel('props') && (
+                <section className="portal-props" aria-label="Props" style={{ minWidth: 0 }}>
+                  {/* THE BARS: one bar a game against the line + the L5..H2H hit rates */}
+                  <PlayerBars log={data.log || []} logSeason={data.logSeason} quarters={data.quarters} pos={card.pos} pos5={card.pos5} blowLog={data.logs || []} seasonYears={data.seasonYears} blow={game && row ? blowoutFor('nba', game.spreadHome, { home: game.home?.abbrev, away: game.away?.abbrev, team: row.team }) : null} nextGame={data.nextGame} onOpenTeam={onOpenTeam} />
+                </section>
+              )}
+              {tabbed && showPanel('splits') && <section className="portal-splits" aria-label="Splits" style={{ minWidth: 0 }}>{splitsPanel}</section>}
+            </div>
           </>
         )}
 
@@ -333,36 +434,8 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
           <NumbersTab row={shownRow} locked={locked} stale={stale} seasonWord={seasonWord} lineRows={lineRows} oppAbbrev={row?.opp || data.nextGame?.opp || null} />
         )}
 
-        {['splits', 'log', 'vs', 'shots'].includes(view) && opts.length > 0 && <SeasonToggle options={opts} value={seasonKey} onChange={setSeason} theme={C} numFont={NUM_FONT} accent={C.purple} yearLabel={yearLabel} />}
-
-        {view === 'splits' && <PlayerSplits games={games} label={windowLabel} onOpenTeam={onOpenTeam} />}
-
-        {view === 'log' && (
-          <section aria-label="Game log">
-            <Kicker>GAME LOG · {logRows.length} GAMES{windowLabel ? ` · ${windowLabel}` : ''}</Kicker>
-            {logRows.length
-              ? <>
-                  <ScrollHint><BucketsTable rows={logPv.shown} columns={logCols} onRowClick={(r) => onOpenGame?.((r?._raw ?? r).id)} heatMode="standouts" maxHeight={9999} maxRows={logRows.length}
-                    caption="Newest first. Each row opens the game." /></ScrollHint>
-                  <ShowMoreButton open={logPv.open} restN={logPv.restN} toggle={logPv.toggle} total={logPv.total} itemWord="games" />
-                  {[...new Set(logRows.map((g) => g.seasonType))].filter((t) => t && t !== 2).map((t) => <SeasonTypeChip key={t} type={t} />)}
-                </>
-              : <EmptyState title="NO GAMES LOGGED" note="No regular-season games for him in that span yet. Try another season above." />}
-          </section>
-        )}
-
+        {view === 'vs' && opts.length > 0 && <SeasonToggle options={opts} value={seasonKey} onChange={setSeason} theme={C} numFont={NUM_FONT} accent={C.purple} yearLabel={yearLabel} />}
         {view === 'vs' && <VsTab card={card} games={games} logRows={logRows} nextGame={data.nextGame} row={row} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} logCols={logCols} windowLabel={windowLabel} />}
-
-        {view === 'shots' && (
-          shots.length > 0
-            ? <section>
-                <Kicker>EVERY SHOT ON FILE · {shots.length} ATTEMPTS{data.shotsFrom ? ` SINCE ${fmtDay(data.shotsFrom).toUpperCase()}` : ''}</Kicker>
-                <ShotChart urlKey="shots" shots={shots} filters={["result", "type"]} threeD title={`${card.name}, every field-goal attempt on file`}
-                  defense={row?.opp || data.nextGame?.opp || null} defenseNote={row?.opp ? 'tonight' : data.nextGame?.opp ? 'next game' : null}
-                  source="Every field-goal attempt on file for him, from ESPN play-by-play; free throws and end-of-quarter heaves left out." />
-              </section>
-            : <EmptyState title="NO SHOTS ON FILE" note="We record shots from the play-by-play once games are played; none are on file for him yet." />
-        )}
 
         {view === 'board' && (
           <section>
@@ -372,16 +445,6 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
               : <p style={{ margin: 0, fontSize: 12, color: C.text3 }}>No locked board rows on him yet. They start with the first night his game locks.</p>}
           </section>
         )}
-
-        {/* NO MORE FOLD (Donovan 10-20: "they all don't need more section"): its blocks sit on the page -- your star and its memory,
-            his bars (props) and his double-double / triple-double lines. */}
-        <div style={{ margin: '4px 0 0', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12, minWidth: 0 }}>
-          <StarMemory sport="nba" id={pid} />
-          {/* THE BARS: one bar a game against the line + the L5..H2H hit rates (was THE BARS on The Read + the props grid, 10-21) */}
-          <PlayerBars log={data.log || []} logSeason={data.logSeason} quarters={data.quarters} pos={card.pos} pos5={card.pos5} blowLog={data.logs || []} seasonYears={data.seasonYears} blow={game && row ? blowoutFor('nba', game.spreadHome, { home: game.home?.abbrev, away: game.away?.abbrev, team: row.team }) : null} nextGame={data.nextGame} onOpenTeam={onOpenTeam} />
-          <PlayerDdTd playerId={pid} />
-          <ScoredFirst sport="nba" playerId={pid} word="Scored the first basket" color={C.purple} textColor={C.text2} />
-        </div>
 
         {/* CARDS EARNED, at the END of the card (the first useful row never moves): his 30-point / 40-point / double-double / triple-double / 10-threes cards from his GRADED regular-season rows; no section until he has one */}
         <CardsEarned sport="nba" id={pid} name={card.name} />

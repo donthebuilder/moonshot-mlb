@@ -56,6 +56,8 @@ const Players = dynamic(() => import('./tabs/Players'), { loading: TabLoading })
 const Player = dynamic(() => import('./tabs/Player'), { loading: TabLoading })
 // next/dynamic returns a wrapper that does not carry the module's statics, so the flag PlayerPeek reads (the page holds the card's one toolbar and the close in its header) is set on the wrapper itself
 Player.peekToolbar = true
+// the card is MOONSHOT's v3 layout (2026-10-23): PlayerPeek opens it at MOONSHOT's full width
+Player.peekWide = true
 const Pairs = dynamic(() => import('./tabs/Pairs'), { loading: TabLoading })
 const Power = dynamic(() => import('./tabs/Power'), { loading: TabLoading })
 const Leaders = dynamic(() => import('./tabs/Leaders'), { loading: TabLoading })
