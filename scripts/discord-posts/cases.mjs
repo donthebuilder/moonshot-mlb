@@ -414,7 +414,7 @@ const showCases = [
       const pick = nums.pickDay(nums.dayFinds(men, { day }), { day })
       if (!pick) return [{ kind: 'by_numbers', skip: 'nothing lines up tonight' }]
       // sent with sportKey 'nba' to FEED_WEBHOOKS (the MLB rooms) by the homers tick
-      return [{ kind: 'by_numbers', sport: 'all', day, text: nums.numbersText(pick), png: true, hooks: feedHooks('mlb') }]
+      return [{ kind: 'by_numbers', sport: 'all', day, text: nums.numbersText(pick, { limit: nums.DISCORD_LIMIT }), png: true, hooks: feedHooks('mlb') }]
     },
   },
 ]
