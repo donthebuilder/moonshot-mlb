@@ -7,6 +7,7 @@ import {
   nn, n, clean, arr, obj, barrelRate, avgEV, pitchMixScore,
 } from '../../lib/player'
 import { tierRole, isAligned } from '../../lib/scoring'
+import { archetypeBadge } from '../../lib/verdict'
 import { discordParts } from '../../lib/discordText'
 import { byGameThenTeam, discordGameBlocks, gameTimeOf, startLabel } from '../../lib/watchGroups'
 import { dedupeGraded } from '../../lib/graded'
@@ -80,7 +81,8 @@ const EXPORT_COLUMNS = [
   { key: 'name',     label: 'Player',          get: (p) => nameOf(p) },
   { key: 'team',     label: 'Team',            get: (p) => teamOf(p) },
   { key: 'opp',      label: 'Opponent',        get: (p) => oppOf(p) },
-  { key: 'role',     label: 'Role',            get: (p) => tierRole(p) },
+  { key: 'role',     label: 'Role',            get: (p) => archetypeBadge(p).label },
+  { key: 'tier',     label: 'Conviction Tier', get: (p) => tierRole(p) },
   { key: 'botpick',  label: 'MOONSHOT Pick',        get: (p) => botPickOf(p) || 'No' },
   { key: 'hr',       label: 'HR Score',        get: (p) => hrScore(p).toFixed(1) },
   { key: 'hrr',      label: 'HRR Score',       get: (p) => prodScore(p).toFixed(1) },
@@ -121,12 +123,11 @@ function downloadCsv(items) {
 }
 
 // Plain-text list, formatted to echo the card/bot-board look: emoji + name +
-// score, one player per line. final_hr_role already starts with the role
-// emoji (🏆/🔥/🏁/🔭/💠/⛔), so this just reuses it directly rather than
-// re-deriving the symbol.
+// score, one player per line. The role is his archetype (lib/verdict), the
+// same word every board shows; the conviction tier is in the CSV's own column.
 function buildTextList(items) {
   const lines = items.map((p) => {
-    const role = tierRole(p)
+    const role = archetypeBadge(p).label
     const score = Math.round(hrScore(p))
     const align = isAligned(p) ? ' 🧩' : ''
     const bp = botPickOf(p)

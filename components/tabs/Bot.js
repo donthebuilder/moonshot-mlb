@@ -2,7 +2,8 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useMlbMask } from '../MemberGate'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
-import { tierTone } from '../../lib/roleBadge'
+import { tierRole } from '../../lib/scoring'
+import { archetypeBadge } from '../../lib/verdict'
 import { hrwRead } from '../../lib/hrwBand'
 import { PanelTitle, Empty, btnStyle } from '../ui'
 import { PillRow } from '../Filters'
@@ -44,14 +45,6 @@ import { pillMeta } from '../../lib/pills'
 // of the system now and get one definition: lib/hrwBand.js. See the note there.
 
 
-// Colour by TOKEN, not by glyph. This used to sniff the pictograph out of the
-// role string, which quietly made the emoji load-bearing: strip it for the
-// redesign and every row goes grey. tierTone matches the glyph OR the text,
-// so it works before and after the bot's format ever changes.
-function roleColor(role) {
-  return tierTone(role, C) || C.text2
-}
-
 // game_pick_role can now carry more than one tag on the same player
 // (2026-08-12: TOP is allowed to also hold HR, joined "TOP/HR") — read as
 // a list, not a single value, wherever a category match matters.
@@ -71,8 +64,9 @@ const PICK_TABS = [
 ]
 
 function BoardRow({ p, i, onPlayerClick }) {
-  const role = p.final_hr_role || ''
-  const col = roleColor(role)
+  // The visible role is his archetype (lib/verdict); the conviction tier is the tooltip.
+  const role = tierRole(p)
+  const arch = archetypeBadge(p)
   // Primary (first) role only, for the single-badge display — a TOP/HR
   // double-up shows as TOP here; it still surfaces in the HR tab/count below.
   const pick = String(p.game_pick_role || '').split('/')[0].trim()
@@ -132,7 +126,7 @@ function BoardRow({ p, i, onPlayerClick }) {
           )}
         </div>
         <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          <span style={{ color: col }}>{role}</span>
+          <span style={{ color: arch.color }} title={`${arch.why}${role ? ` — conviction tier: ${role}` : ''}`}>{arch.label}</span>
           {' · '}vs {p.pitcher_name} ({p.pitcher_throws}) · #{p.lineup_spot}
           {pills.length > 0 && <> · {pills.map((pl, pi) => (
             <span key={pi} title={pillMeta(pl).title} style={{ color: pillMeta(pl).color }}>{pl}{pi < pills.length - 1 ? ' ' : ''}</span>

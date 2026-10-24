@@ -24,7 +24,7 @@ import { alpha, catColor, verdictInk, verdictWash } from '../../lib/scales'
 // roleColor (2026-09-15): the registry's own "WATCH is coverage, never a
 // pick" rule (lib/verdict.js) — reused here instead of a fourth local copy
 // that would have had to invent its own colour for WATCH from scratch.
-import { roleColor } from '../../lib/verdict'
+import { roleColor, archetypeBadge } from '../../lib/verdict'
 import { fetchLiveSlate, lineupStatus, liveSlateStatus } from '../../lib/liveSlate'
 import LiveAtBats from '../LiveAtBats'
 import Explain from '../Explain'
@@ -122,10 +122,11 @@ function getRoleDisplay(p) {
   // best_bet_type arrives with a pictograph baked in ("🏆 HR Bet"), which used
   // to be rendered verbatim as the label. roleBadge strips it and resolves the
   // colour off a semantic token instead of substring-matching the display text.
+  // The visible word is his archetype (lib/verdict), same as Shortlist and the
+  // Rankings board; the tier moves to the title (Donovan 2026-10-24).
   const badge = roleBadge(p?.best_bet_type || p?.beginner_label, C)
-  const label = badge.label
-  const color = badge.color
-  return { label, color }
+  const arch = archetypeBadge(p)
+  return { label: arch.label, color: arch.color, title: `${arch.why}${badge.label ? ` — conviction tier: ${badge.label}` : ''}` }
 }
 
 // group games by time slot (same UTC hour)

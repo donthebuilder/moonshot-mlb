@@ -3,7 +3,8 @@ import { useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { useSpot } from '../lib/spotlight'
 import { nameOf, teamOf, oppOf, clean, mlbId, playerId } from '../lib/player'
-import { compactRole, roleColor, scoreFor, gradeFor, signalPills, riskPill, bestBet } from '../lib/scoring'
+import { compactRole, roleColor, scoreFor, gradeFor, signalPills, riskPill, bestBet, tierRole } from '../lib/scoring'
+import { archetypeBadge } from '../lib/verdict'
 import { roleBadge } from '../lib/roleBadge'
 import { hrwRead } from '../lib/hrwBand'
 import { hrGateVerdict } from '../lib/hrGate'
@@ -49,14 +50,15 @@ function lastHrRecency(p) {
 // encoding of a five-state read whose score never appeared anywhere.
 
 
-// WAS: pulled the leading pictograph off final_hr_role and rendered it as the
-// badge — emoji-as-UI in its purest form, and the reason the card's tier was
-// unreadable at a glance for anyone who didn't already know the glyph key.
-// The tier is now a word with a colour, resolved off a semantic token so it
-// survives the bot changing its string format. See lib/roleBadge.js.
+// The chip is his ARCHETYPE (lib/verdict hitterArchetype), the word the Rankings
+// board, Shortlist and Scoreboard already use. The conviction tier moves to the
+// tooltip (Donovan 2026-10-24). Still gated on a known tier, so a row the bot did
+// not rate gets no chip, as before. See lib/roleBadge.js for the tier.
 function roleTag(p) {
   const b = roleBadge(p?.final_hr_role, C)
-  return b.known ? b : null
+  if (!b.known) return null
+  const a = archetypeBadge(p)
+  return { label: a.label, color: a.color, tier: tierRole(p) }
 }
 
 const ALT_GLOW = {
@@ -191,7 +193,7 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
     // fix to the old problem, where a single card could carry a role
     // emoji, an HRW-zone emoji, a lock AND a target.
     const rt = roleTag(p)
-    if (rt) chipList.push(<RoleTag key="rt" label={rt.label} color={rt.color} glyph={rt.glyph} title={`Conviction tier: ${rt.label}`} />)
+    if (rt) chipList.push(<RoleTag key="rt" label={rt.label} color={rt.color} title={`${rt.label} — conviction tier: ${rt.tier}`} />)
     if (showRoleChip) chipList.push(<Chip key="role" color={color}>{role}</Chip>)
     if (showBetChip && bet !== role) chipList.push(<Chip key="bet" color={C.text2}>{bet}</Chip>)
     if (risk) chipList.push(<Chip key="risk" color={risk.color}>{risk.label}</Chip>)
