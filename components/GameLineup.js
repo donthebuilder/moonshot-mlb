@@ -6,7 +6,7 @@ import {
   nameOf, teamOf, n, nn, clean, hrScore, hitScore, prodScore, tbScore,
   pitchMixScore, barrelRate, ihrVal, recent375,
 } from '../lib/player'
-import { tierRole, isAligned } from '../lib/scoring'
+import { isAligned } from '../lib/scoring'
 import { designationOf, hitterRoleTitle, hitterLaneLabel, hitterLaneTitle, laneRanker } from '../lib/verdict'
 import { hrOverlayRead } from '../lib/hrOverlay'
 import DenseTable from './DenseTable'
