@@ -35,6 +35,7 @@ import { freezeDashLines } from '../../../../lib/dashLock'
 import { gradeDashLines } from '../../../../lib/dashGrade'
 import { freezeTdBoard, gradeBoardLock } from '../../../../lib/boardLock'
 import { monthPlan } from '../../../../lib/odds/budget'
+import { saveAtgDevig } from '../../../../lib/odds/devigStore'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -158,6 +159,8 @@ export async function GET(request) {
       const m = map.length ? await db.from('odds_events').upsert(map, { onConflict: 'event_id', ignoreDuplicates: true }) : { error: null }
       if (m.error) { out.skipped.push({ league, why: `event map write: ${m.error.message}` }); continue }
       try { await insertRows(db, rows) } catch (e) { out.skipped.push({ league, why: `list rows: ${e?.message}` }); continue }
+      // LAMP's anytime-goal devig (lib/odds/devig.js): from these same rows, no extra object; its own failure, logged
+      if (league === 'NHL') out.devigList = await saveAtgDevig(db, rows, date)
       if (lineRows.length) {
         const w = await db.from('odds_lines').upsert(lineRows, { onConflict: 'event_id,odd_id,snap', ignoreDuplicates: true })
         if (w.error) console.error(`[odds tick] list lines ${league}: ${w.error.message}`)
@@ -209,6 +212,7 @@ export async function GET(request) {
         const r = snapRows(ev, snap, takenAt, match)
         if (!dry) {
           try { await insertRows(db, r.rows) } catch (e) { out.skipped.push({ event: ev.eventID, snap, why: e?.message }); continue }
+          if (ev.leagueID === 'NHL' && snap === 'lock') (out.devigLock ||= []).push(await saveAtgDevig(db, r.rows, gameDate(ev)))
           const col = snap === 'lock' ? 'lock_at' : 'close_at'
           // an unchecked failure left lock_at / close_at null, so the event stayed due and was re-pulled (quota) every tick
           const stamp = await db.from('odds_events').update({ [col]: takenAt, starts_at: startsAt(ev) }).eq('event_id', ev.eventID)
