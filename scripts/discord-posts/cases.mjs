@@ -460,7 +460,10 @@ const nbaCases = [{
   kinds: ['nba30'],
   load: async (ctx) => {
     const { data } = await ctx.db.from('buckets_feed').select('*').neq('season_type', 1).order('game_date', { ascending: false }).limit(40)
-    const rows = (data || []).filter((r) => r.status === 'called' || r.status === 'board').slice(0, 2)
+    // 30 PIECES only (2026-10-23). buckets_feed also holds first_fg rows (lib/nba/firstFeed.js: written push_sent, never posted) and
+    // double/triple-double rows, whose post text needs the box line (`_line`) that app/api/buckets/moments builds live and never stores,
+    // so a stored row can't render it here. Both rendered as false 0-word ERRORs before.
+    const rows = (data || []).filter((r) => r.kind === nbaM.KIND && (r.status === 'called' || r.status === 'board')).slice(0, 2)
     return rows.map((r) => ({ kind: 'nba30', sport: 'nba', embedSport: 'nba', day: r.game_date, label: `${r.name} ${r.kind}`, text: r.kind === nbaM.KIND ? nbaM.momentText(r) : nbaM.ddtdText(r), hooks: feedHooksFor('nba', r.status) }))
   },
 }]
