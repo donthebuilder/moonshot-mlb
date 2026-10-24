@@ -59,6 +59,7 @@ import { recordPost } from '../../../../../lib/dash/xPostLog'
 import { isRested } from '../../../../../lib/dash/xRest'
 import { xEventsCalledOnly, discordEventsCalledOnly } from '../../../../../lib/dash/xEvents'
 import { mlbOpeningsTick } from '../../../../../lib/mlb/openings'
+import { lockFirstCalls, gradeFirstCalls } from '../../../../../lib/mlb/firstLock'
 import { timingSafeEqual } from 'node:crypto'
 
 import { easternToday, etHoursSinceNoon, slateDateFromRows, shiftDay } from '../../../../../lib/data'
@@ -1115,6 +1116,16 @@ async function mlbTick(request) {
   if (new Date().getUTCMinutes() % 15 === 7) {
     const op = await mlbOpeningsTick(db, [shiftDay(day, -1), day]).catch((e) => ({ error: e?.message }))
     if (op?.written || op?.error) console.log(`[homers] openings ${JSON.stringify(op)}`)
+    // FIRST HIT / FIRST HR GRADE (lib/mlb/firstLock.js): right after the openings land, the locked calls get their result
+    const fg = await gradeFirstCalls(db)
+    if (/^graded|error|failed/.test(fg)) console.log(`[homers] first-calls grade: ${fg}`)
+  }
+  // FIRST HIT / FIRST HR LOCK (lib/mlb/firstLock.js, known issue 70): each game's ranks written once in its last 20 minutes before first
+  // pitch, from the board's own lineups (the board read is cached; outside a game's window this is a loop over rows, no read)
+  {
+    await boardIndex(day).catch(() => null)
+    const fl = await lockFirstCalls(db, { day, rows: boardRows(), now: Date.now() })
+    if (/^locked|error|failed/.test(fl)) console.log(`[homers] first-calls lock: ${fl}`)
   }
   // 📋 LIST POSTS (2026-09-27, BATCH-LIST-POSTS step 2): the season wrap, one
   // list a day from the morning after the regular season's last game --

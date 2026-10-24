@@ -71,6 +71,7 @@ export default function Openings({ players = [], games = [], onPlayerClick }) {
   }, [pks])
   const calls = useMemo(() => (homeOf ? slateFirstCalls(players, { homeOf, teamOf: (p) => code(p.team) }) : new Map()), [players, homeOf])
   const projected = useMemo(() => [...calls.values()].some((c) => c.projected), [calls])
+  const rec = data?.firstRecord || null   // the call's own record, locked + graded (lib/mlb/firstLock.js)
   const teamsBy = useMemo(() => new Map((data?.teams || []).map((t) => [t.team, t])), [data])
   const byId = useMemo(() => new Map((data?.players || []).map((p) => [p.playerId, p])), [data])
 
@@ -174,7 +175,7 @@ export default function Openings({ players = [], games = [], onPlayerClick }) {
         <section aria-label="Tonight's openings">
           <div style={{ color: C.text2, font: `900 12px/1.2 ${NUM_FONT}`, letterSpacing: '.08em', margin: '0 0 6px' }}>TONIGHT · WHO STARTS FAST</div>
           <DenseTable rows={tonight} columns={tonightCols} heatMode="primary" maxRows={12} maxHeight={9999} initialSort={null}
-            caption={`${calls.size ? `The call ranks each game's 18 starters from season rates and the batting order${projected ? ' (projected lineups until they post)' : ''}. Replayed on 2,171 games this season, the #1 first-HR call hit it 9.3% of the time (a random starter 4.9%); the #1 first-hit call got it 20.1%, about the same as always taking the road leadoff man. ` : ''}Club rates are this season's; the first homer counts only games that had one.`} />
+            caption={`${calls.size ? `The call ranks each game's 18 starters from season rates and the batting order${projected ? ' (projected lineups until they post)' : ''}. ${rec?.hit?.of ? `Locked before first pitch and graded: #1 first hit ${rec.hit.won} of ${rec.hit.of}, #1 first HR ${rec.hr.won} of ${rec.hr.of}. ` : ''}Replayed on 2,171 games this season, the #1 first-HR call hit it 9.3% of the time (a random starter 4.9%); the #1 first-hit call got it 20.1%, about the same as always taking the road leadoff man. ` : ''}Club rates are this season's; the first homer counts only games that had one.`} />
         </section>
       )}
 

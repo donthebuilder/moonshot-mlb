@@ -52,19 +52,6 @@ const fmt = (v) => (v == null ? '—' : `${v.toFixed(0)}%`)
 // wearing a costume.
 const se = (p, n) => (n > 0 && p != null ? 100 * Math.sqrt(Math.max((p / 100) * (1 - p / 100), 1e-6) / n) : null)
 
-// The Storylines shape: an icon, then a line you can read. A number with its
-// clause attached beats a number in a box, because every number here needs one.
-function Line({ children }) {
-  return (
-    <div style={{
-      display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 12,
-      lineHeight: 1.55, padding: '3px 0', color: C.text2,
-    }}>
-      <span style={{ minWidth: 0 }}>{children}</span>
-    </div>
-  )
-}
-
 export default function ColdCase({ playerId, player, onlyLine = false }) {
   const [data, setData] = useState(undefined)
   const [staff, setStaff] = useState(null)
@@ -200,115 +187,48 @@ export default function ColdCase({ playerId, player, onlyLine = false }) {
     )
   }
 
+  // TILES, NOT SENTENCES (2026-10-23, Donovan on The Read: "make that not just sentences"; this replaces the 08-15 sentence rule). Each finding
+  // is a tile: the label, one big number, a short line under it; a tile that matters tonight lights in the accent. Same numbers, same gates
+  // (a split shows only when it clears both error bars; the bounce only when it has 6+ games and clears its own bar).
+  const tiles = []
+  tiles.push({
+    k: 'last', label: 'LAST BLANK', big: read.sinceIdx === 0 ? 'Last game' : `${read.sinceIdx} G ago`,
+    small: [read.last ? `${read.last.date} ${read.last.home ? 'vs' : '@'} ${ab}, ${read.last.h}-for-${read.last.ab}` : null, read.median != null ? `one every ~${read.median} games` : null].filter(Boolean).join(' · '),
+    on: read.sinceIdx === 0 || Boolean(read.median && read.sinceIdx > read.median),
+  })
+  tiles.push({ k: 'rate', label: 'BLANK RATE', big: fmt(read.rate), small: `${read.donuts} of ${read.n} games`, on: false })
+  if (read.after > 0) {
+    tiles.push({
+      k: 'after', label: 'HIT AFTER A BLANK', big: fmt(read.afterHit),
+      small: read.after < 6 ? `${read.after} chances: too few to read` : bounceReal ? (bounceGap > 0 ? `vs ${fmt(read.baseHit)} normally · he answers one` : `vs ${fmt(read.baseHit)} normally · blanks travel`) : `vs ${fmt(read.baseHit)} normally · no real difference`,
+      on: bounceReal,
+    })
+  }
+  if (read.avgAbDonut != null) {
+    tiles.push({ k: 'ab', label: 'AT-BATS IN A BLANK', big: read.avgAbDonut.toFixed(1), small: [read.avgAbOther != null ? `${read.avgAbOther.toFixed(1)} otherwise` : null, read.shortDonuts ? `${read.shortDonuts} on 2 trips or fewer` : null].filter(Boolean).join(' · '), on: false })
+  }
+  for (const s2 of read.splits.slice(0, 3)) {
+    tiles.push({ k: `split-${s2.label}`, label: `BLANKS ${s2.hi.toUpperCase()}`, big: `${s2.hiPct.toFixed(0)}%`, small: `vs ${s2.loPct.toFixed(0)}% ${s2.lo} · ${s2.hiN}/${s2.loN} games`, on: true })
+  }
+  if (read.l10Hit != null && read.l10Hit >= 65) {
+    tiles.push({ k: 'form', label: 'HIT, LAST 10', big: fmt(read.l10Hit), small: `${(read.l10Hit - read.baseHit).toFixed(0)} pts over his season · ±${(se(read.l10Hit, 10) || 0).toFixed(0)} is noise`, on: false })
+  }
   return (
     <div style={{ marginTop: 8, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 7, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12, fontWeight: 800 }}>The cold case</span>
-        <span style={{ fontSize: 11, color: C.text3 }}>
-          the argument against him — a <b style={{ color: C.text2 }}>blank</b> is a game he batted and
-          produced nothing at all: no hit, no run, no RBI
-        </span>
+        <span style={{ fontSize: 11, color: C.text3 }}>a blank = no hit, no run, no RBI</span>
       </div>
-
-      {/* SENTENCES, NOT TILES (2026-08-15). Donovan: "i dont like the tile
-          style id rather text just like the storylines section." Four big
-          numbers in four boxes made you decode a dashboard; every one of them
-          needed a clause anyway — "31%" is not the finding, "he blanks 31% of
-          the time, one every ~3 games" is. Same shape Storylines uses: an
-          icon, then a line. */}
-      <div style={{ marginBottom: 9 }}>
-        <Line>
-          <b style={{ color: C.text }}>Last blank</b>{' '}
-          {read.sinceIdx === 0
-            ? <>was <b style={{ color: C.orange }}>his last game</b></>
-            : <><b style={{ fontFamily: NUM_FONT, color: read.median && read.sinceIdx > read.median ? C.orange : C.text }}>{read.sinceIdx}</b> games ago</>}
-          {read.last && <> — {read.last.date} {read.last.home ? 'vs' : '@'} {ab}, {read.last.h}-for-{read.last.ab}</>}
-          {read.median != null && <>. He has one every <b style={{ fontFamily: NUM_FONT }}>~{read.median}</b> games</>}.
-        </Line>
-        <Line>
-          <b style={{ color: C.text }}>Blank rate</b>{' '}
-          <b style={{ fontFamily: NUM_FONT, color: C.text }}>{fmt(read.rate)}</b> —{' '}
-          {read.donuts} of his {read.n} games this season.
-        </Line>
-        {read.after > 0 && (
-          <Line>
-            <b style={{ color: C.text }}>After one</b> he gets a hit{' '}
-            <b style={{ fontFamily: NUM_FONT, color: !bounceReal ? C.text : bounceGap > 0 ? C.orange : C.text }}>{fmt(read.afterHit)}</b>{' '}
-            of the time ({read.after} chances), against <b style={{ fontFamily: NUM_FONT }}>{fmt(read.baseHit)}</b> normally.
-          </Line>
-        )}
-        {read.avgAbDonut != null && (
-          <Line>
-            <b style={{ color: C.text }}>Blank at-bats</b>{' '}
-            <b style={{ fontFamily: NUM_FONT }}>{read.avgAbDonut.toFixed(1)}</b>
-            {read.avgAbOther != null && <> against <b style={{ fontFamily: NUM_FONT }}>{read.avgAbOther.toFixed(1)}</b> otherwise</>}
-            {read.shortDonuts ? <> — <b style={{ fontFamily: NUM_FONT }}>{read.shortDonuts}</b> of them came on two trips or fewer, which is a night he barely got</> : ''}.
-          </Line>
-        )}
-      </div>
-
-      {/* THE BOUNCE, said in words, because the number alone doesn't say which
-          way to act on it. */}
-      <div style={{
-        fontSize: 12, color: C.text2, lineHeight: 1.55, padding: '2px 0 2px 10px',
-        borderLeft: `2px solid ${bounceReal ? C.orange : C.border2}`,
-      }}>
-        {read.after < 6 ? (
-          <>Only <b style={{ color: C.text }}>{read.after}</b> of his blanks have a game after them in this
-            log — not enough to say whether he answers one.</>
-        ) : bounceReal && bounceGap > 0 ? (
-          <><b style={{ color: C.orange }}>He answers a blank.</b> After a game with nothing, he gets a hit{' '}
-            <b style={{ color: C.text }}>{fmt(read.afterHit)}</b> of the time against{' '}
-            <b style={{ color: C.text }}>{fmt(read.baseHit)}</b> normally
-            {read.afterHrr != null && <> — and clears 1+ H+R+RBI <b style={{ color: C.text }}>{fmt(read.afterHrr)}</b> vs {fmt(read.baseHrr)}</>}.
-            The night after a blank is his best night to back, on this sample.</>
-        ) : bounceReal ? (
-          <><b style={{ color: C.orange }}>A blank travels with him.</b> The game after one, he gets a hit
-            only <b style={{ color: C.text }}>{fmt(read.afterHit)}</b> of the time against{' '}
-            <b style={{ color: C.text }}>{fmt(read.baseHit)}</b> normally. For him a blank is the start of a
-            quiet run, not the end of one — his numbers do not point to a rebound.</>
-        ) : (
-          <>His rate the game after a blank (<b style={{ color: C.text }}>{fmt(read.afterHit)}</b>, {read.after} of
-            them) is inside the error bar of his normal rate (<b style={{ color: C.text }}>{fmt(read.baseHit)}</b>).
-            A blank tells you nothing about his next game — which is itself worth knowing, because
-            &ldquo;he is about to rebound&rdquo; is the most common thing said about a hitter who just went 0-for-4.</>
-        )}
-      </div>
-
-      {read.splits.length > 0 && (
-        <div style={{ marginTop: 9 }}>
-          <div style={{ fontSize: 11, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800, marginBottom: 5 }}>
-            Where his blanks come from
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 170px), 1fr))', gap: 6 }}>
+        {tiles.map((t) => (
+          <div key={t.k} style={{ border: `1px solid ${t.on ? C.orange : C.border}`, borderRadius: 3, padding: '7px 9px 8px', minWidth: 0 }}>
+            <div style={{ font: `800 10px/1.1 ${NUM_FONT}`, letterSpacing: '.07em', color: t.on ? C.orange : C.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.label}</div>
+            <div style={{ font: `900 20px/1.15 ${NUM_FONT}`, color: t.on ? C.text : C.text2, marginTop: 4, whiteSpace: 'nowrap' }}>{t.big}</div>
+            {t.small ? <div style={{ fontSize: 11, lineHeight: 1.3, color: C.text3, marginTop: 2 }}>{t.small}</div> : null}
           </div>
-          {read.splits.slice(0, 3).map((s2) => (
-            <Line key={s2.label}>
-              He blanks <b style={{ color: C.orange, fontFamily: NUM_FONT }}>{s2.hiPct.toFixed(0)}%</b> {s2.hi} against{' '}
-              <b style={{ fontFamily: NUM_FONT }}>{s2.loPct.toFixed(0)}%</b> {s2.lo}
-              <span style={{ color: C.text3 }}> — {s2.hiN}/{s2.loN} games, {s2.note}</span>.
-            </Line>
-          ))}
-        </div>
-      )}
-
-      {/* THE FORM TRAP — his own hot streak, priced honestly. */}
-      {read.l10Hit != null && read.l10Hit >= 65 && (
-        <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.55, marginTop: 9 }}>
-          <b style={{ color: C.orange }}>Reading his form honestly:</b> he has a hit in{' '}
-          <b style={{ color: C.text }}>{fmt(read.l10Hit)}</b> of his last ten, against{' '}
-          <b style={{ color: C.text }}>{fmt(read.baseHit)}</b> across the season — so the last ten are
-          running <b style={{ color: C.text }}>{(read.l10Hit - read.baseHit).toFixed(0)} points</b> hot.
-          Ten games carries an error bar of about <b style={{ color: C.text }}>±{(se(read.l10Hit, 10) || 0).toFixed(0)}</b>{' '}
-          points on its own, so most of that gap is the sample rather than the hitter. He still blanks{' '}
-          <b style={{ color: C.text }}>{fmt(read.rate)}</b> of the time, and nothing in a hot ten changes that number.
-        </div>
-      )}
-
-      <div style={{ fontSize: 11, color: C.text3, marginTop: 8, lineHeight: 1.5 }}>
-        His own game log this season, {read.n} games. A split only appears when the two rates are
-        further apart than their own error bars allow — which is why most hitters show none. Lineup
-        spot isn&apos;t in the league&apos;s game log, so &ldquo;he only blanks batting 7th&rdquo; is a
-        question this panel can&apos;t answer yet.
+        ))}
       </div>
+      <div style={{ fontSize: 11, color: C.text3, marginTop: 6 }}>His game log this season, {read.n} games. A split shows only when it clears its error bars.</div>
     </div>
   )
 }

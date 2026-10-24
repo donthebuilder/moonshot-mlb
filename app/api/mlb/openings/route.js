@@ -5,6 +5,8 @@
 // chance. Public and read-only; cached 6 hours: the tables change once a game.
 import { adminClient } from '../../../../lib/supabase/admin'
 import { aggregateMlbOpenings } from '../../../../lib/mlb/openingsAgg'
+import { recordOf } from '../../../../lib/mlb/firstLock'
+import { VERSION as FIRST_VERSION } from '../../../../lib/mlb/firstModel'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -55,7 +57,10 @@ export async function GET(request) {
     if (season == null) return json(empty, 300)
     const { games, players } = await readRows(db, season, PARTS[part])
     const through = games.reduce((m, g) => (String(g.game_date) > m ? String(g.game_date) : m), '')
-    return json({ ...aggregateMlbOpenings(games, players, { where, last }), season, through }, 21600)
+    // THE CALL'S OWN RECORD (lib/mlb/firstLock.js): the #1 first-hit / first-HR call over the graded games, every game it locked (no table yet: null)
+    const fl = await db.from('mlb_first_log').select('game_pk, hit_rank, hr_rank, first_hit, first_hr, graded_at').eq('model_version', FIRST_VERSION).not('graded_at', 'is', null).limit(5000)
+    const firstRecord = fl.error ? null : recordOf(fl.data || [])
+    return json({ ...aggregateMlbOpenings(games, players, { where, last }), season, through, firstRecord }, 21600)
   } catch (e) {
     console.error(`[mlb/openings] ${e?.message}`)
     return json({ ...empty, error: 'openings' }, 60, 502)
