@@ -87,16 +87,6 @@ export const HEAT_MODES = ['full', 'standouts', 'primary', 'sorted', 'none']
 
 const STANDOUT_SLICE = 0.2   // top 20% and bottom 20% of a column
 
-// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
-// module-level literal keeps the palette it was imported with. See #23.
-export const moreBtn = () => ({
-  border: `1px solid ${C.orange}66`, background: `${C.orange}14`, color: C.orange,
-  // Padding widened 2026-09-13 (Donovan: "buttons/tap targets too small or
-  // cramped" on mobile) — this pill is every "show N more"/"show all" button
-  // on every table site-wide, so the fix here is a one-edit, every-table fix.
-  borderRadius: 999, padding: '5px 10px', cursor: 'pointer', '--chip': '1',   // the oval chip (10-22); --chip keeps its 44px touch target (globals.css)
-  font: `800 9px/1.4 ${NUM_FONT}`, letterSpacing: '.04em',
-})
 
 export default function DenseTable({
   // TWO SPORTS, ONE TABLE (2026-09-20). The ⓘ in these headers has worked

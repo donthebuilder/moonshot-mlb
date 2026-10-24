@@ -533,6 +533,25 @@ const winsCases = [{
   },
 }]
 
+// ── #MEMBERS LIVE CHECK (lib/card/legsLive.js): the ✅ line a members pick's leg gets when its homer / TD / goal lands. Real card rows and real
+// stored events: every leg of the recent card days that the feed settles (graded rows too, so a quiet day still renders the copy).
+const legsLive = await import('../../lib/card/legsLive.js')
+winsCases.push({
+  kinds: ['card_members_leg_'],
+  load: async (ctx) => {
+    for (const { day, rows } of await cardDays(ctx)) {
+      const all = wins.dayPicks(rows).map((r) => ({ ...r, result: null }))
+      const legs = legsLive.openLegs(all)
+      if (!legs.length) continue
+      const ev = await legsLive.eventsFor(ctx.db, legs)
+      const inN = legs.filter((x) => ev.has(legsLive.legKey(x))).map((x) => ({ ...x, done: 1 }))
+      if (!inN.length) continue
+      return [{ kind: legsLive.claimKind(inN[0].row, inN[0].i), sport: inN[0].sport, day, label: `${inN.length} legs that landed`, text: legsLive.legsText(inN), hooks: members(), members: true }]
+    }
+    return [{ kind: 'card_members_leg_', skip: 'no card leg landed on the recent card days' }]
+  },
+})
+
 // ── LIVE-ROOM ALERTS (lib/dash/discordAlerts.js, from lib/dash/pushRules.js). Built from a live game state with no stored input, so these render
 // the copy's own TEST samples (lib/copy/notifications.js CATALOG): the WORDS are checked, the data is labelled TEST.
 const copy = await import('../../lib/copy/notifications.js')
