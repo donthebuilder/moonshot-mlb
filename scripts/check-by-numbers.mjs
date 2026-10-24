@@ -178,7 +178,9 @@ const dm = (id, number, birthDate, status = 'called', sport = 'nba', rank = 5) =
 const DF = N.dayFinds([dm('x8', 8), dm('x26', 26), dm('bd', 3, '1996-10-24'), dm('dom', 3, '1999-03-24'), dm('lp', 2, '1990-01-06'), dm('no', 2, '1999-01-01'), dm('board8', 8, null, 'board')], { day: '2026-10-24' })
 ok(DF.map((f) => `${f.men[0].id}:${f.type}`).join() === 'x8:day_exact,bd:birthday,x26:day_root,dom:date,lp:path', `who lines up, best first; an ON THE BOARD man never (${DF.map((f) => `${f.men[0].id}:${f.type}`).join()})`)
 const TX = N.numbersText(N.pickDay(DF, { day: '2026-10-24' }), { limit: 900 })
-ok(/^\u{1F522} Today's numbers · Sat Oct 24/u.test(TX) && TX.includes('Today is an 8 day: 10/24/2026 → 1+0+2+4+2+0+2+6 = 17 → 8.') && TX.includes('Today\'s numbers: 8 · 17 · 24 · 34 · 44 · 60'), 'the head says the day\'s number and how it is made')
+ok(/^\u{1F522} Today's numbers · Sat Oct 24/u.test(TX) && TX.includes('\nToday is an 8 day.\n') && !TX.includes('1+0+2') && TX.includes('Today\'s numbers: 8 · 17 · 24 · 34 · 44 · 60'), 'the head says the day\'s number and the date\'s numbers, no sum')
+const CW = N.numbersCardWords(N.pickDay(DF, { day: '2026-10-24' }), { day: '2026-10-24' })
+ok(CW.head === 'TODAY IS AN 8 DAY' && CW.sub === "TODAY'S NUMBERS 8 · 17 · 24 · 34 · 44 · 60" && CW.rows.length === 3, `the picture's head and sub (${CW.head} / ${CW.sub})`)
 ok(TX.includes('Test x8 (TST) · #8: today\'s number') && TX.includes('#26: 26 → 8, today\'s number') && TX.includes('plays on his birthday tonight') && TX.includes('born on the 24th, today\'s date') && TX.includes('life path 8, today\'s number'), 'each line says how he lines up')
 ok(!/percentile|top \d+%/i.test(TX) && N.pickDay([], { day: '2026-10-24' }) === null, 'no percentile; nobody lines up = no post')
 
