@@ -106,7 +106,16 @@ function NumbersStrip({ name, jersey, birthDate, next, nextWord, date, C, accent
     return `${who.join(' · ')} = ${r}`
   })
   const lanes = date ? displayLanes(matchLanes({ name, jersey: j, birthDate, next: n, team: null, opp: null }, { date })) : []
-  const cipherHits = lanes.filter((m) => m.cipher).map((m) => ({ tag: LANE_SHORT[m.lane] || m.short, text: m.text }))
+  // one tag per lane family (2026-10-23 fix): two ciphers on the same lane read "name=date (red, rev red)", not "name=date · red · name=date · rev red"
+  const byFam = new Map()
+  for (const m of lanes.filter((x) => x.cipher)) {
+    const [fam, ciph] = String(LANE_SHORT[m.lane] || m.short || '').split(' · ')
+    const e = byFam.get(fam) || { ciphers: [], texts: [] }
+    if (ciph) e.ciphers.push(ciph)
+    e.texts.push(m.text)
+    byFam.set(fam, e)
+  }
+  const cipherHits = [...byFam.entries()].map(([fam, e]) => ({ tag: e.ciphers.length ? `${fam} (${e.ciphers.join(', ')})` : fam, text: e.texts.join(' · ') }))
   const aligned = shared.length > 0 || cipherHits.length > 0
   return (
     <section aria-label="His numbers" style={{ margin: '0 0 8px' }}>

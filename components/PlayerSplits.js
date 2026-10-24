@@ -501,7 +501,6 @@ export default function PlayerSplits({ player, slateMode }) {
     )
   }
 
-  const thin = fileTables.some((t) => t.rows.some((r) => r.pa < THIN_PA))
   const cols = [
     { key: 'split', label: 'Split', heat: false, w: 78, bold: true, sticky: true },
     { key: 'g',     label: 'G',   w: 38 },
@@ -580,13 +579,45 @@ export default function PlayerSplits({ player, slateMode }) {
       {toggle}
       {sharePost}
       {lrTiles}
+      {/* COMBINE FILTERS FIRST (2026-10-23, Donovan: "move the combined filters thing up to the top"): the one tool on this tab, above the sheet */}
+      {/* ── COMBINE FILTERS (2026-08-13) ─────────────────────────────────
+          Donovan: "how a player does on monday splits then at home in a
+          win day game... i can't filter like that." See the dated comment
+          on ComboFilter above for why day-of-week/home-away/result/day-
+          night specifically CAN be intersected, and RISP/outs/count/
+          runners-on still can't. */}
+      {(win === 'this' ? Array.isArray(data?.games) : true) && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 800 }}>🔀 Combine filters</span>
+            <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+              {win === 'this' ? 'day of week + home/away + result + day-night, all at once' : 'day of week + home/away + result, all at once'}
+            </span>
+          </div>
+          {!comboGames ? (
+            <div style={{ fontSize: 10.5, color: C.text3, padding: '6px 0' }}>
+              This season&apos;s per-game rows aren&apos;t published for him yet, so there is nothing to combine for {winWord}.
+            </div>
+          ) : !comboGames.length ? (
+            <div style={{ fontSize: 10.5, color: C.text3, padding: '6px 0' }}>
+              {win === 'this'
+                ? 'This hitter\u2019s file doesn\u2019t carry per-game rows yet \u2014 publishes on the next slate this runs for.'
+                : 'He has no games in this window to combine.'}
+            </div>
+          ) : (
+            <ComboFilter key={win} games={comboGames} cols={cols} scopeWord={win === 'this' ? 'this season' : winWord} dnOk={win === 'this'} />
+          )}
+          {win !== 'this' && comboGames?.length > 0 && (
+            <div style={{ fontSize: 9.5, color: C.text3, marginTop: 4 }}>Day / night isn&apos;t offered here: the game log&apos;s day-night field isn&apos;t reliable, so that filter is this-season only.</div>
+          )}
+        </div>
+      )}
+
       <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 10, lineHeight: 1.6, maxWidth: 760 }}>
         {win === 'this'
           ? <>{clean(data?.name, '')} · {n(data?.games_logged, 0)} games logged · {clean(data?.season, '')} season.</>
           : <>{clean(data?.name || player?.name || player?.player_name, '')} · {winTag}{comboGames ? ` · ${comboGames.length} games` : ''}.</>}
-        {' '}Every column is shaded against its own range <b style={{ color: C.text2 }}>within each table</b>,
-        so a bright cell means high for this hitter across that one split — never across splits or
-        against the league. K% is inverted; everything else reads bright-is-better for the bat.
+        {' '}Bright = high for him within that one table. K% is inverted.
       </div>
 
       {/* ── ONE LONG SHEET (2026-08-15) ──────────────────────────────────
@@ -676,46 +707,6 @@ export default function PlayerSplits({ player, slateMode }) {
         )}
       </div>
 
-      {/* ── COMBINE FILTERS (2026-08-13) ─────────────────────────────────
-          Donovan: "how a player does on monday splits then at home in a
-          win day game... i can't filter like that." See the dated comment
-          on ComboFilter above for why day-of-week/home-away/result/day-
-          night specifically CAN be intersected, and RISP/outs/count/
-          runners-on still can't. */}
-      {(win === 'this' ? Array.isArray(data?.games) : true) && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
-            <span style={{ fontSize: 12, fontWeight: 800 }}>🔀 Combine filters</span>
-            <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-              {win === 'this' ? 'day of week + home/away + result + day-night, all at once' : 'day of week + home/away + result, all at once'}
-            </span>
-          </div>
-          {!comboGames ? (
-            <div style={{ fontSize: 10.5, color: C.text3, padding: '6px 0' }}>
-              This season&apos;s per-game rows aren&apos;t published for him yet, so there is nothing to combine for {winWord}.
-            </div>
-          ) : !comboGames.length ? (
-            <div style={{ fontSize: 10.5, color: C.text3, padding: '6px 0' }}>
-              {win === 'this'
-                ? 'This hitter\u2019s file doesn\u2019t carry per-game rows yet \u2014 publishes on the next slate this runs for.'
-                : 'He has no games in this window to combine.'}
-            </div>
-          ) : (
-            <ComboFilter key={win} games={comboGames} cols={cols} scopeWord={win === 'this' ? 'this season' : winWord} dnOk={win === 'this'} />
-          )}
-          {win !== 'this' && comboGames?.length > 0 && (
-            <div style={{ fontSize: 9.5, color: C.text3, marginTop: 4 }}>Day / night isn&apos;t offered here: the game log&apos;s day-night field isn&apos;t reliable, so that filter is this-season only.</div>
-          )}
-        </div>
-      )}
-
-      {thin && (
-        <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, marginTop: -4 }}>
-          Situational splits are the most over-read numbers in baseball. A hitter who is &quot;better at
-          night&quot; usually just faced different pitchers at night. Nothing here is park- or
-          opponent-adjusted, so a home/away gap partly measures the two ballparks and not the hitter.
-        </div>
-      )}
     </div>
   )
 }

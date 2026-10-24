@@ -133,6 +133,7 @@ export default function Openings({ players = [], games = [], onPlayerClick }) {
     { key: 'team', label: 'Tm', group: 'Player', w: 44, heat: false, mono: true, teamMark: 'mlb' },
     { key: 'pos', label: 'Pos', group: 'Player', w: 38, heat: false, numeric: false, dim: true },
     { key: 'slot', label: 'Slot', group: 'Player', w: 40, heat: false, title: 'The lineup spot he has started in most often (BATS % shows how often that put him at the plate in the 1st)' },
+    { key: 'slotPct', label: 'IN SLOT', group: 'Player', w: 52, heat: false, fmt: pc, title: 'How many of his starts were in that slot. Under about 70%: he moves around the lineup, so his slot is a guess for tonight' },
     ...(showCalls ? [
       { key: 'hitRank', label: '1ST HIT', group: 'The call', w: 52, fmt: rk, invert: true, primary: lane === 'hit', title: 'His rank in his game for the first hit (#1 = the top call of its 18 starters)' },
       { key: 'hrRank', label: '1ST HR', group: 'The call', w: 52, fmt: rk, invert: true, primary: lane === 'hr', title: 'His rank in his game for the first homer (#1 = the top call of its 18 starters)' },

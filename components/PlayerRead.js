@@ -41,7 +41,7 @@ export function Line({ icon, children, fs = 11 }) {
 }
 
 const ORD = ['', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th']
-const B = ({ col = C.text, children }) => <b style={{ fontFamily: NUM_FONT, color: col }}>{children}</b>
+const LINK = { color: 'inherit', textDecoration: 'underline', textDecorationColor: 'rgba(255,255,255,.25)', textUnderlineOffset: 2 }
 
 // bestBet() returns the bot's free-text market ("HR", "Hit", "Contact 2+ TB"…).
 // Map it onto the odds categories so the price line prices the SAME bet.
@@ -119,186 +119,78 @@ export default function PlayerRead({ p, odds }) {
   // ── 6. the bot's own note, folded in instead of orphaned at the bottom ───
   const note = clean(p?.note || p?.summary, '')
 
-  const lines = []
-
-  lines.push(
-    <Line key="call" fs={12}>
-      {skipHr ? (
-        <>MOONSHOT tags him <b style={{ color: C.text }}>Skip HR</b> — no homer case tonight, and his
-          other scores don&apos;t make one elsewhere either{Number.isFinite(spot) && spot >= 1 && spot <= 9 && <>. He hits <B>{ORD[spot]}</B></>}.</>
-      ) : (
-        <>MOONSHOT tags him <b style={{ color: C.text }}>{role}</b>, grade <B col={gradeCol}>{grade}</B> on
-          that market — best play <b style={{ color: C.text }}>{bet}</b>
-          {Number.isFinite(spot) && spot >= 1 && spot <= 9 && <>, hitting <B>{ORD[spot]}</B></>}.</>
-      )}
-      {hasEdge && <> His bat profiles against this arm&apos;s pitch mix — the strongest single separator the backtest found.</>}
-    </Line>
-  )
-
-  if (hasContact) {
-    lines.push(
-      <Line key="contact" fs={12}>
-        <b style={{ color: C.text }}>The bat:</b>{' '}
-        {Number.isFinite(dMax) && dMax > 0 && <>his best recent ball went <B col={dMax >= 390 ? C.orange : C.text}>{Math.round(dMax)} ft</B>{Number.isFinite(eMax) && eMax > 0 && <> at <B>{eMax.toFixed(0)} mph</B></>}{(Number.isFinite(brl) || Number.isFinite(hh)) && <>, </>}</>}
-        {Number.isFinite(brl) && <>barreling <B col={brl >= 0.12 ? C.orange : brl <= 0.04 ? C.text2 : C.text}>{Math.round(brl * 100)}%</B></>}
-        {Number.isFinite(brl) && Number.isFinite(hh) && <> with </>}
-        {Number.isFinite(hh) && <><B col={hh >= 0.45 ? C.orange : C.text}>{Math.round(hh * 100)}%</B> hard contact</>}
-        {' '}in his recent window
-        {hotBat ? <> — <b style={{ color: C.orange }}>the contact is live</b></> : coldBat ? <> — <b style={{ color: C.text2 }}>quiet bat lately</b></> : null}.
-      </Line>
-    )
-  }
-
-  if (arm && arm !== '—') {
-    lines.push(
-      <Line key="arm" fs={12}>
-        <b style={{ color: C.text }}>The arm:</b> {arm}
-        {throwsH && throwsH !== '—' && <> ({throwsH}HP{p?.pitcher_projected ? <span title="No probable announced — rotation projection, not an official listing" style={{ color: C.text3 }}> ≈</span> : null})</>}
-        {Number.isFinite(hr9) && <> gives up <B col={hr9Col}>{hr9.toFixed(2)} HR/9</B></>}
-        {Number.isFinite(whip) && <>{Number.isFinite(hr9) ? ' on' : ' carries'} a <B>{whip.toFixed(2)}</B> WHIP</>}
-        {weakSide && <>
-          {' '}— and he is weakest against <b style={{ color: matchesWeak ? C.orange : C.text }}>{weakSide}</b>
-          {matchesWeak && <b style={{ color: C.orange }}>, which is this hitter&apos;s side ✓</b>}
-        </>}.
-      </Line>
-    )
-  }
-
-  // ── THE MISTAKE (2026-08-23) ─────────────────────────────────────────────
-  //
-  // Donovan: "meat ball percent needs to be used in hr for sure hand splits and
-  // everything. wtf ."
-  //
-  // The bot now publishes an arm's middle-middle rate AGAINST THIS BAT'S SIDE
-  // and folds it into the HR score, plus meatball_fit_score — the edge between
-  // sides crossed with whether this bat punishes a mistake — as a graded
-  // column worth zero points. This is where a reader meets it, in the same
-  // sentence voice as everything else here, because a number nobody sees was
-  // the whole complaint.
-  //
-  // FOUR WAYS IT STAYS SILENT, and they are not the same:
-  //   · the field is absent entirely — a slate published before this shipped.
-  //     Renders nothing at all; a line saying "no meatball data" on every
-  //     hitter of every old slate would be worse than the gap it describes.
-  //   · status "missing" — no Statcast pitch data for this arm. Says so, once,
-  //     and only when the reader is already looking at a matchup line.
-  //   · status "no_side_split" — real rate, no usable hand split. Prints the
-  //     overall number and does not claim a split it does not have.
-  //   · a genuinely even arm — the note itself says "even both ways" and the
-  //     line reads as the non-event it is.
+  // ── THE READ AS TILES (2026-10-23, Donovan: "The read ... hell of words"): the same facts, each a tile -- the label, one big
+  // number, a short line under it; a tile that favours the bat lights in the accent. Same data, same rules (a Skip HR has no price,
+  // a market without a rate gets no verdict); only the sentences are gone.
+  // the mistake (meatball fit) and the run (steal spot): the bot's own fields, each silent when absent / refused (see the 08-23 notes in git)
   const mbNote = txt(p?.meatball_fit_note)
   const mbFit = n(p?.meatball_fit_score, null)
-  const mbEdge = n(p?.meatball_edge_pp, 0)
   const mbStatus = String(p?.meatball_fit_status || '')
-  if (mbNote && mbStatus && mbStatus !== 'missing') {
-    lines.push(
-      <Line key="meatball" fs={12}>
-        <b style={{ color: C.text }}>The mistake:</b> he leaves{' '}
-        <B col={mbEdge >= 1 ? C.orange : C.text}>{mbNote}</B>
-        {mbFit != null && mbFit > 0 && <>
-          {' '}— a <B col={mbFit >= 65 ? C.orange : mbFit <= 35 ? C.text2 : C.text}>{mbFit.toFixed(0)}</B> on
-          MOONSHOT&apos;s mistake-fit column, which crosses that with what this bat does to one
-        </>}.
-        {/* NO trailing "not enough pitches to split him" clause here. The bot's
-            own note already ends with exactly that sentence on a no_side_split
-            row, and printing it twice in one line is how a caveat stops being
-            read — caught in the render:
-            "…not enough pitches to split by hand — a 75 on the bot's
-             mistake-fit column… Not enough pitches to split him by hand, so
-             that is his rate against everybody."
-            One source for the caveat, and it is the one that knows the numbers. */}
-      </Line>
-    )
-  }
-
-  // ── THE RUN (2026-08-23) ─────────────────────────────────────────────────
-  //
-  // The other half of the six stats Donovan asked for. steal_risk_score is the
-  // bot's steal-spot model — how often he runs, how easily this arm gets run
-  // on, whether the catcher can throw, scaled by how often he reaches base.
-  // Worth zero points in every other model on this site.
-  //
-  // It only speaks for a man who actually runs. Status "no_runner" is a
-  // REFUSAL, not a low score, and printing "steal spot: 0" for a catcher who
-  // has never attempted a base would be the exact thing the model was fixed to
-  // stop doing. Silence is the correct output there.
   const steal = n(p?.steal_risk_score, null)
   const stealStatus = String(p?.steal_risk_status || '')
   const catcher = txt(p?.opp_catcher_name)
   const catcherRate = n(p?.opp_catcher_cs_rate, null)
+  const tiles = []
+  const spotWord = Number.isFinite(spot) && spot >= 1 && spot <= 9 ? `bats ${ORD[spot]}` : null
+  tiles.push(skipHr
+    ? { k: 'call', label: 'THE CALL', big: 'Skip HR', small: ['no homer case tonight', spotWord].filter(Boolean).join(' · '), on: false }
+    : { k: 'call', label: 'THE CALL', big: grade, small: [`${role} · best: ${bet}`, spotWord, hasEdge ? 'pitch-mix edge ✓' : null].filter(Boolean).join(' · '), on: /^A/.test(grade) })
+  if (hasContact) {
+    const big = Number.isFinite(dMax) && dMax > 0 ? `${Math.round(dMax)} ft` : Number.isFinite(brl) ? `${Math.round(brl * 100)}%` : `${Math.round(hh * 100)}%`
+    const bits = [
+      Number.isFinite(dMax) && dMax > 0 && Number.isFinite(eMax) && eMax > 0 ? `${eMax.toFixed(0)} mph` : null,
+      Number.isFinite(brl) && !(big.endsWith('%') && !Number.isFinite(dMax)) ? `barrel ${Math.round(brl * 100)}%` : null,
+      Number.isFinite(hh) ? `hard ${Math.round(hh * 100)}%` : null,
+      hotBat ? 'contact is live' : coldBat ? 'quiet lately' : null,
+    ].filter(Boolean)
+    tiles.push({ k: 'bat', label: 'THE BAT', big, small: bits.join(' · '), on: hotBat })
+  }
+  if (arm && arm !== '—') {
+    tiles.push({
+      k: 'arm', label: 'THE ARM', big: Number.isFinite(hr9) ? `${hr9.toFixed(2)} HR/9` : (throwsH && throwsH !== '—' ? `${throwsH}HP` : '—'),
+      small: <>{p?.pitcher_id ? <a href={`#sport=mlb&tab=pitchers&pitcher=${p.pitcher_id}`} style={LINK} title="Open the pitcher's file">{arm}</a> : arm}{[throwsH && throwsH !== '—' ? ` (${throwsH}HP${p?.pitcher_projected ? ' ≈' : ''})` : '', Number.isFinite(whip) ? ` · WHIP ${whip.toFixed(2)}` : '', weakSide ? ` · weak vs ${weakSide}${matchesWeak ? ' ✓' : ''}` : ''].join('')}</>,
+      on: Boolean(matchesWeak) || hr9Col === C.orange,
+    })
+  }
+  if (mbNote && mbStatus && mbStatus !== 'missing') {
+    tiles.push({ k: 'mistake', label: 'THE MISTAKE', big: mbFit != null && mbFit > 0 ? mbFit.toFixed(0) : '—', small: mbNote, on: mbFit != null && mbFit >= 65 })
+  }
   if (steal != null && steal > 0 && stealStatus && stealStatus !== 'no_runner' && stealStatus !== 'missing') {
-    lines.push(
-      <Line key="steal" fs={12}>
-        <b style={{ color: C.text }}>The run:</b> a{' '}
-        <B col={steal >= 60 ? C.orange : steal <= 35 ? C.text2 : C.text}>{steal.toFixed(0)}</B> steal
-        spot tonight — {txt(p?.steal_risk_note)}
-        {catcher && catcherRate != null && <>
-          {' '}·{' '}<B col={catcherRate <= 0.16 ? C.orange : catcherRate >= 0.28 ? C.text2 : C.text}>{p?.opp_catcher_id
-            ? <a href={playerHref('mlb', p.opp_catcher_id)} style={{ color: 'inherit', textDecoration: 'underline', textDecorationColor: 'rgba(255,255,255,.25)', textUnderlineOffset: 2 }} title="Open the catcher's card">{catcher}</a>
-            : catcher}</B> is
-          catching{p?.opp_catcher_source === 'roster' ? <span style={{ color: C.text3 }}> (lineup not posted — likeliest man)</span> : null}
-        </>}.
-        {stealStatus === 'thin' && <span style={{ color: C.text3 }}>
-          {' '}Half the matchup is unmeasured, so that score is built on what landed.
-        </span>}
-      </Line>
-    )
+    tiles.push({
+      k: 'run', label: 'THE RUN', big: steal.toFixed(0),
+      small: <>{[txt(p?.steal_risk_note), stealStatus === 'thin' ? 'half measured' : null].filter(Boolean).join(' · ')}{catcher && catcherRate != null ? <>{' · '}{p?.opp_catcher_id ? <a href={playerHref('mlb', p.opp_catcher_id)} style={LINK} title="Open the catcher's card">{catcher}</a> : catcher} catching{p?.opp_catcher_source === 'roster' ? ' (likeliest)' : ''}</> : null}</>,
+      on: steal >= 60,
+    })
   }
-
   if (Number.isFinite(since)) {
-    if (since === 0) {
-      lines.push(
-        <Line key="pow" fs={12}>
-          <b style={{ color: C.text }}>The power:</b> he went yard <b style={{ color: C.orange }}>his last game</b>
-          {n(p?.season_hr, 0) > 0 && <> — <B>{n(p?.season_hr, 0)}</B> on the season</>}.
-        </Line>
-      )
-    } else if (since >= 2 && closeScore >= 2) {
-      lines.push(
-        <Line key="pow" fs={12}>
-          <b style={{ color: C.text }}>The power:</b> <B col={since >= 10 ? C.orange : since >= 5 ? C.orange : C.text}>{since} games</B> since a homer,
-          but one was close — the contact above is homer-shaped
-          {walls > 0 && <>, with <B col={C.orange}>{walls} wall-scraper{walls > 1 ? 's' : ''}</B> in his recent hard contact</>}.
-          Drought, not decline.
-        </Line>
-      )
-    } else if (since >= 4) {
-      lines.push(
-        <Line key="pow" fs={12}>
-          <b style={{ color: C.text }}>The power:</b> <B col={since >= 10 ? C.orange : C.orange}>{since} games</B> since a homer,
-          and the recent contact does not argue bad luck — nothing in his window reached the wall. That is a slump reading, not a due reading.
-        </Line>
-      )
-    }
+    if (since === 0) tiles.push({ k: 'pow', label: 'THE POWER', big: 'Last game', small: `homered his last game${n(p?.season_hr, 0) > 0 ? ` · ${n(p?.season_hr, 0)} on the season` : ''}`, on: true })
+    else if (since >= 2 && closeScore >= 2) tiles.push({ k: 'pow', label: 'THE POWER', big: `${since} G`, small: `since a homer · one was close${walls > 0 ? ` · ${walls} wall-scraper${walls > 1 ? 's' : ''}` : ''} · drought, not decline`, on: true })
+    else if (since >= 4) tiles.push({ k: 'pow', label: 'THE POWER', big: `${since} G`, small: 'since a homer · nothing reached the wall · a slump', on: false })
   }
-
   if (q && q.matches) {
-    lines.push(
-      <Line key="price" fs={12}>
-        <b style={{ color: C.text }}>The price:</b> the book has his {cat === 'CONTACT' ? '2+ TB' : `${cat} ${cat === 'HRR' ? '2+' : '1+'}`} at{' '}
-        <B>{fmtOdds(q.over)}</B>, which needs <B>{need != null ? `${need.toFixed(0)}%` : '—'}</B>
-        {diff != null && fair != null ? (
-          diff >= 3
-            ? <> — his own rate says <B>{rate.toFixed(0)}%</B> (fair {fmtOdds(fair)}), so <b style={{ color: C.orange }}>the book is paying more than his season says it should</b>.</>
-            : diff <= -3
-              ? <> — his own rate says only <B>{rate.toFixed(0)}%</B> (fair {fmtOdds(fair)}), so <b style={{ color: C.text }}>the price is asking more than his season delivers</b>.</>
-              : <> — right about where his own <B>{rate.toFixed(0)}%</B> rate prices it.</>
-        ) : (
-          <> to break even. No verdict on this market — the slate publishes a score for it, not a rate, and a score is not a probability.</>
-        )}
-      </Line>
-    )
+    const mk = cat === 'CONTACT' ? '2+ TB' : `${cat} ${cat === 'HRR' ? '2+' : '1+'}`
+    const verdict = diff != null && fair != null ? (diff >= 3 ? 'paying more than his season says' : diff <= -3 ? 'asking more than he delivers' : 'about fair') : 'no verdict: a score is not a rate'
+    tiles.push({
+      k: 'price', label: `THE PRICE · ${mk}`, big: fmtOdds(q.over),
+      small: [`needs ${need != null ? `${need.toFixed(0)}%` : '—'}`, diff != null && fair != null ? `his rate ${rate.toFixed(0)}% (fair ${fmtOdds(fair)})` : null, verdict].filter(Boolean).join(' · '),
+      on: diff != null && diff >= 3,
+    })
   }
 
-  if (note && note !== '—') {
-    lines.push(
-      <Line key="note" fs={12}>
-        <b style={{ color: C.text }}>MOONSHOT&apos;s note:</b> {note}
-      </Line>
-    )
-  }
-
-  return <ReadFrame calm sub="tonight in sentences">{lines}</ReadFrame>
+  return (
+    <ReadFrame calm sub="tonight at a glance">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 170px), 1fr))', gap: 6 }}>
+        {tiles.map((t) => (
+          <div key={t.k} style={{ border: `1px solid ${t.on ? C.orange : C.border}`, background: t.on ? 'rgba(255,255,255,.03)' : 'transparent', borderRadius: 3, padding: '7px 9px 8px', minWidth: 0 }}>
+            <div style={{ font: `800 10px/1.1 ${NUM_FONT}`, letterSpacing: '.07em', color: t.on ? C.orange : C.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.label}</div>
+            <div style={{ font: `900 20px/1.15 ${NUM_FONT}`, color: t.on ? C.text : C.text2, marginTop: 4, whiteSpace: 'nowrap' }}>{t.big}</div>
+            {t.small ? <div style={{ fontSize: 11, lineHeight: 1.3, color: C.text3, marginTop: 2 }}>{t.small}</div> : null}
+          </div>
+        ))}
+      </div>
+      {note && note !== '—' ? <div style={{ fontSize: 12, color: C.text3, marginTop: 6, lineHeight: 1.4 }}><b style={{ color: C.text2 }}>MOONSHOT&apos;s note:</b> {note}</div> : null}
+    </ReadFrame>
+  )
 }
 
 /** The Read's head and body: "🧭 The read" and its promise, then the lines. */

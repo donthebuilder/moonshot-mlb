@@ -239,16 +239,17 @@ function Row({ label, value, mono = true, term, explain, title }) {
 // ... pitches, the numbers, things like that"). The front is the page itself; every other view is one tap in the row
 // above it and fills the same space. Pitches is three panels side by side: his pitches, tonight's pitcher, him vs that
 // pitcher. Old addresses still land: view=pitcher and view=bvp open Pitches, view=splits the front's Splits panel.
+// B4 (2026-10-23, Donovan: "game log and the numbers on the same thing and put the little sim thing somewhere"): the game log and
+// the numbers are one pill (his games, then the evidence), and the sim is a small fold at the foot of Pitches, beside the arm it
+// plays against. Old links: view=log opens the one pill, view=sim opens Pitches with the sim open.
 const TABS = [
   { key: 'pitch',    label: '🎯 Pitches' },
-  { key: 'log',      label: '📋 Game log' },
-  { key: 'numbers',  label: '🔢 Numbers' },
+  { key: 'numbers',  label: '📋 Game log + numbers' },
   { key: 'read',     label: 'The Read' },
-  { key: 'sim',      label: '🎮 Sim' },
   { key: 'sheet',    label: '📅 All splits' },
 ]
 const FRONT = { key: 'front', label: '🃏 Front' }
-const VIEW_ALIAS = { pitcher: 'pitch', bvp: 'pitch' }
+const VIEW_ALIAS = { pitcher: 'pitch', bvp: 'pitch', log: 'numbers', sim: 'pitch' }
 // ON A PHONE THE PAGE IS TABS TOO (2026-10-22, Donovan: "a full-fledged version ... for the phone, like how it had the
 // things where you can click through each ... form-fitted for the phone instead of having it so long"). Where two columns
 // don't fit (under 1080px, the same line as app/globals.css .portal-main), the page's own panels become the first tabs and
@@ -264,7 +265,7 @@ const PAGE_KEYS = PAGE_TABS.map((t) => t.key)
 // the views that are the page itself (old tabs, still valid in links and pushes); 'overview' is the page's top
 const PAGE_VIEWS = ['overview', 'ev', 'front', ...PAGE_KEYS]
 // an off-slate (live API) player has no bot panels: these run on live pulls only (no head-to-head without a pitcher)
-const API_TABS = ['sheet', 'log', 'read']
+const API_TABS = ['sheet', 'numbers', 'read']
 const API_PAGE = ['spray', 'splits', 'props']
 const firstTab = (apiOnly, tabbed = false) => (tabbed ? 'spray' : 'front')
 const TABBED_BELOW = 1080
@@ -321,6 +322,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   const [detail, setDetail] = useState(null)
   const [detailState, setDetailState] = useState('idle')
   const [compareOpen, setCompareOpen] = useState(false)
+  const [simOpen, setSimOpen] = useState(false)
   // THE PLAYER MODEL (2026-10-08): the verdict's record + last-week lines and the role table read ONE fetch
   const botData = useMlbBot(player?.player_id || player?.id)
 
@@ -498,6 +500,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
       return
     }
     const allowed = player?.api_only ? API_TABS : TABS.map((t) => t.key)
+    if (initialTab === 'sim') setSimOpen(true)
     if (allowed.includes(view)) { pickedRef.current = true; setTab(view) }
     else onViewChange?.('')
   }, [player, initialTab, tabbed])   // eslint-disable-line react-hooks/exhaustive-deps
@@ -1017,11 +1020,21 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               {apiOnly
                 ? <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Not on tonight’s slate, so there’s no starter to match him against.</div>
                 : <MatchupTab player={p} detail={detail} slateMode={slateMode} />}
+              {/* 🎮 THE SIM, a small fold under the matchup (B4): him against tonight's arm, played out, one tap away */}
+              {!apiOnly && (
+                <div style={{ marginTop: 12, borderTop: `1px solid ${C.border}`, paddingTop: 8 }}>
+                  <button type="button" onClick={() => setSimOpen((v) => !v)} aria-expanded={simOpen}
+                    className={FLAT_CHIP_CLASS} style={{ ...flatChip(simOpen, C.orange, C, NUM_FONT), minHeight: 44 }}>🎮 {simOpen ? 'Hide the sim' : 'Sim him vs this arm'}</button>
+                  {simOpen && <div style={{ marginTop: 8 }}><BatterSim player={p} name={nameOf(p)} /></div>}
+                </div>
+              )}
             </section>
           )}
 
+          {/* GAME LOG + NUMBERS, one pill (B4): his games first, then the evidence behind the read */}
+          {tab === 'numbers' && <MlbGameLog pid={pid} />}
           {tab === 'numbers' && !apiOnly && (
-              <div style={{ marginBottom: 14 }}>
+              <div style={{ marginBottom: 14, marginTop: 12 }}>
               {/* Same anchored-section shape as the cold case, so the page
                   reads as chapters instead of one unbroken wall. */}
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 2, flexWrap: 'wrap' }}>
@@ -1111,7 +1124,6 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
 
 
           {/* his game-by-game line, one row a game (the live game log the props grid already reads) */}
-          {tab === 'log' && <MlbGameLog pid={pid} />}
 
 
           {/* where he puts the ball */}
@@ -1122,7 +1134,6 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               any bot file, which is why this is the one place the site goes to
               an outside source. Context only — none of it moves a score. */}
           {/* ⚡ EV LOG and 🎮 SIM, their own tabs again (10-20) -- `p` is the merged slate row + detail file */}
-          {tab === 'sim' && !apiOnly && <BatterSim player={p} name={nameOf(p)} />}
           {tab === 'sheet' && (
             <>
               {/* every split as one long sheet (Donovan, 2026-08-15); the front's Splits panel is the quick read */}

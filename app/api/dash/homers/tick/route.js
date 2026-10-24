@@ -1034,7 +1034,18 @@ async function mlbTick(request) {
       const slateOff = await slateTick(db, { day: easternToday() })
       const receiptOff = await receiptTick(db, { day: easternToday() })   // the night receipt is cross-sport too: a football night ends in the MLB offseason
       const fiveOff = await fiveTick(db)
-      return Response.json({ skipped: 'offseason', season, slate: slateOff, receipt: receiptOff, the_five: fiveOff })
+      // ⚾ SPRING TRAINING OPENINGS (known issue 65, 2026-10-23): the season guard counts regular season and October only, so spring training
+      // reads as the offseason and the openings step below never ran. The openings writer already takes spring games (season_type 1, its own
+      // lane: Openings' default filter is regular season + October). Same 15-minute beat, and only from Feb 15 to Mar 31 so the rest of the
+      // winter makes no schedule reads at all.
+      let springOp = null
+      const md = easternToday().slice(5)
+      if (md >= '02-15' && md <= '03-31' && new Date().getUTCMinutes() % 15 === 7) {
+        const t = easternToday()
+        springOp = await mlbOpeningsTick(db, [shiftDay(t, -1), t]).catch((e) => ({ error: e?.message }))
+        if (springOp?.written || springOp?.error) console.log(`[homers] spring openings ${JSON.stringify(springOp)}`)
+      }
+      return Response.json({ skipped: 'offseason', season, slate: slateOff, receipt: receiptOff, the_five: fiveOff, spring_openings: springOp })
     }
   }
 

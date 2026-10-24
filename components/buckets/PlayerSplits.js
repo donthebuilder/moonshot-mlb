@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import BucketsTable from './BucketsTable'
 import Tap from '../Tap'
 import { C, NUM_FONT } from '../../lib/nba/theme'
+import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 import { usePreview, ShowMoreButton } from '../ListPreview'
 import { Kicker, EmptyState } from './ui'
 import { SPLIT_GROUPS, THIN_GP, splitRows, recentRows, filterGames, aggregate } from '../../lib/nba/splits'
@@ -35,12 +36,6 @@ const COLS = [
   { key: 'fta', label: 'FTA', group: 'Shooting', w: 44, fmt: f1 },
   { key: 'ptsPer36', label: 'PTS/36', group: 'Rates', w: 54, fmt: f1, title: 'Points per 36 minutes: his scoring rate per minute on the floor.' },
 ]
-
-const pillStyle = (on) => ({
-  flex: '0 0 auto', minHeight: 44, padding: '0 14px', borderRadius: 999, cursor: 'pointer', whiteSpace: 'nowrap',
-  border: `1px solid ${on ? C.purple : C.border2}`, background: on ? `${C.purple}1a` : 'transparent',
-  color: on ? C.purple : C.text2, font: `800 12px/1 ${NUM_FONT}`, letterSpacing: '.04em',
-})
 
 function Section({ id, title, meta, rows, columns, caption, preview = 6, itemWord = 'rows' }) {
   const pv = usePreview(rows, preview)
@@ -132,10 +127,11 @@ export default function PlayerSplits({ games = [], label = '', onOpenTeam = null
       {games.length > 0 && (
         <>
           <div role="group" aria-label="Pick a split" className="chip-row" style={{ display: 'flex', gap: 6, overflowX: 'auto', margin: '0 -2px', padding: '0 2px', WebkitOverflowScrolling: 'touch' }}>
-            {pills.map((p) => <button key={p.key} type="button" aria-pressed={shownKey === p.key} onClick={() => setActive(p.key)} style={pillStyle(shownKey === p.key)}>{p.label}</button>)}
+            {pills.map((p) => <button key={p.key} type="button" aria-pressed={shownKey === p.key} onClick={() => setActive(p.key)} className={FLAT_CHIP_CLASS} style={{ ...flatChip(shownKey === p.key, C.purple, C, NUM_FONT), flexShrink: 0 }}>{p.label}</button>)}
           </div>
-          <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.6, maxWidth: 760 }}>
-            Pick a split. Every row shows its games (GP) and is flagged <b style={{ color: C.text }}>THIN</b> under {THIN_GP}: a few games prove little.
+          {/* the words, short (2026-10-23, as LAMP's: quick, not wordy): what THIN means, nothing else */}
+          <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.5 }}>
+            <b style={{ color: C.text }}>THIN</b> = under {THIN_GP} games.{noRest ? ' No rest-day split: his club’s schedule could not be read.' : ''}
           </div>
           {sections.filter(({ g }) => g.key === shownKey).map(({ g, rows }) => (
             <Section key={g.key} id={g.key} title={g.label} caption={g.caption}
@@ -144,13 +140,6 @@ export default function PlayerSplits({ games = [], label = '', onOpenTeam = null
               columns={g.key === 'opp' && onOpenTeam ? COLS.map((c) => (c.key === 'split' ? { ...c, fmt: (v) => <Tap onClick={() => onOpenTeam(v)} title={`Open ${v}`} style={{ minWidth: 44, display: 'inline-block', fontWeight: 800 }}>{v}</Tap> } : c)) : COLS} />
           ))}
           {shownKey === 'combo' && <Combo games={games} />}
-          <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.6 }}>
-            <b style={{ color: C.text2 }}>Starter vs bench: not here.</b> ESPN&apos;s game log does not say who started, and it holds no game he did not play, so that split (and a with-or-without-a-teammate split) can&apos;t be answered from what we hold.
-            {noRest ? ' Rest days are left out: his club’s schedule could not be read.' : ''}
-          </div>
-          <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.6 }}>
-            Situational splits are the most over-read numbers in a season. Nothing here is opponent-adjusted, so a home/away or by-opponent gap partly measures the opponents, not him.
-          </div>
         </>
       )}
     </section>
