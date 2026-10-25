@@ -444,6 +444,19 @@ await ok('policy: with 18 counted posts today the receipt waits; with 17 it goes
     assert.equal((await G.admit(db, { day, kind: 'receipt', repeat: false })).state, want, `${k} counted`)
   }
 })
+await ok('post: X\'s daily cap skips X, never Discord (2026-10-25: a capped receipt was held every tick and reached no channel 10-22..10-24)', async () => {
+  reset()
+  const seen = new Date(Date.parse(BUD.etDayWindow(DAY)[0]) + 60e3).toISOString()
+  const full = Array.from({ length: 18 }, (_, i) => ({ day: DAY, kind: 'list_mlb', x_post_id: String(100 + i), seen_at: seen, payload: {} }))
+  const db = fakeDb({ homer_feed_posts: [...posts(), ...full], fact_posts: [] })
+  await RC.postReceiptOnce(db, { day: DAY, load: load(mixed()), hooks: 'https://discord.test/a', now: T0 })
+  assert.equal(await RC.postReceiptOnce(db, { day: DAY, load: load(mixed()), hooks: 'https://discord.test/a', now: T0 + RC.SETTLE_MS + 1 }), 'posted (discord only)')
+  assert.equal(tweets.filter((t) => !t.reply).length, 0, 'nothing top-level on X'); assert.equal(discords.length, 1, 'Discord got it')
+  const row = db.tables.homer_feed_posts.find((r) => r.kind === 'receipt')
+  assert.equal(row.x_post_id, 'skipped'); assert.equal(row.discord_sent, true)
+  assert.equal(await RC.postReceiptOnce(db, { day: DAY, load: load(mixed()), hooks: 'https://discord.test/a', now: T0 + 1e7 }), 'already-posted')
+  assert.equal(discords.length, 1, 'never twice')
+})
 
 // ═══ 9. RETIRED KINDS ARE UNREACHABLE ═══════════════════════════════════════
 await ok('retired: accountability, recap and board_results are retired forever -- the claim gate refuses them, the schedule marks them retired, nothing posts them', async () => {
