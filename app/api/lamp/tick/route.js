@@ -28,6 +28,7 @@ import { cronAuthorized, adminClient } from '../../../../lib/supabase/admin'
 import { LOCK_WINDOW_MS, readBoard } from '../../../../lib/nhl/boardRead'
 import { startersFromPlayByPlay, goaliesFromBoxscore } from '../../../../lib/nhl/goalies'
 import { shotsFromPlayByPlay, writeShots } from '../../../../lib/nhl/shots'
+import { boxRowsNhl, writeBox } from '../../../../lib/nhl/box'
 import { teamGameRows, writeTeamGames } from '../../../../lib/nhl/teamXg'
 import { postLongshotsOnce } from '../../../../lib/dash/longshotsPost'
 import { postMultiClubOnce } from '../../../../lib/dash/multiClubPost'
@@ -247,6 +248,12 @@ export async function GET(request) {
           if (tg.missing) console.error('[lamp tick] team xg: lamp_team_game_xg is not there yet (run 202610081200_lamp_team_game_xg.sql)')
         } catch (e) { console.error(`[lamp tick] shots ${p.game_id}: ${e?.message}`) }
       }
+      // THE BOX ARCHIVE (2026-10-25, lib/nhl/box.js): every dressed player's line from this same boxscore, for LAMP Trending and
+      // WITHOUT. Its own failure, logged; a table that is not there yet (202610252200_lamp_box.sql not run) is skipped, never the grade.
+      try {
+        const bx = await writeBox(db, boxRowsNhl(box))
+        if (bx.missing) console.error('[lamp tick] box: lamp_box is not there yet (run 202610252200_lamp_box.sql)')
+      } catch (e) { console.error(`[lamp tick] box ${p.game_id}: ${e?.message}`) }
       // LAMP SHOTS grade, off the same boxscore: value = sog, hit = 3+, not
       // dressed = void. Scoring columns untouched; its own failure, logged.
       let sogGraded = null
