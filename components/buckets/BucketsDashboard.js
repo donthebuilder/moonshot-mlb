@@ -67,6 +67,7 @@ const Results = dynamic(() => import('./tabs/Results'), { loading: TabLoading })
 const Guide = dynamic(() => import('./tabs/Guide'), { loading: TabLoading })
 const Binder = dynamic(() => import('./tabs/Binder'), { loading: TabLoading })   // 2026-10-12: cards earned by the players I follow (hidden with the rest of BUCKETS)
 const BucketsOdds = dynamic(() => import('./BucketsOdds'))
+const Trending = dynamic(() => import('./tabs/Trending'), { loading: TabLoading })
 import { useBucketsSaves } from '../../lib/nba/useBucketsSaves'
 import DashFooter from '../DashFooter'
 import PlayerPeek from '../PlayerPeek'
@@ -146,6 +147,7 @@ export default function BucketsDashboard() {
             {tab === 'games' && <CardSection sport="nba" Table={BucketsTable} compact />}
             {tab === 'game' && <Game id={gameId} {...nav} backLabel={backLabel('scores')} onBack={() => goBack('scores')} />}
             {tab === 'odds' && <BucketsOdds date={date} onOpenPlayer={peekPlayer} />}
+            {tab === 'trending' && <Trending onOpenPlayer={peekPlayer} />}
             {tab === 'storylines' && <StorylinesPage sport="nba" previewGames={4} eyebrow="BUCKETS · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.purple} onOpenPlayer={peekPlayer} onOpenGame={openGame} date={date} />}
             {tab === 'watchlist' && <Watchlist onOpenPlayer={peekPlayer} onOpenTeam={openTeam} onOpenGame={openGame} />}
             {/* THE LEDGER (2026-10-13): Tonight | Called | Record | Archive, as LAMP's (components/pages/LedgerShell; Called and Archive: tabs/CalledLedger) */}
