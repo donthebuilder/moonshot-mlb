@@ -124,7 +124,9 @@ export default function Watchlist({ data, matchup, logs, picks = null, onPlayerC
   const liveGames = useMemo(() => (data?.games || []).filter((g) => g.state === 'in' && pins.some((p) => p.game_id === g.game_id)), [data, pins])
   const offFollows = useMemo(() => following.rows.filter((f) => !pins.some((p) => String(p.player_id) === String(f.id))), [following.rows, pins])
 
-  const open = (r, market) => { if (r.player) onPlayerClick?.(r.player, market || 'TD', rows.map((x) => x.player).filter(Boolean)) }
+  // a pin not in this week's file (bye, out, unrated) opens his player page instead of nothing (2026-10-24)
+  const openId = (id, market) => { const p = byId.get(String(id)); if (p) onPlayerClick?.(p, market || 'TD'); else if (id != null) window.location.assign(playerHref('nfl', id)) }
+  const open = (r, market) => { if (r.player) onPlayerClick?.(r.player, market || 'TD', rows.map((x) => x.player).filter(Boolean)); else openId(r.pin?.player_id, market) }
   const remove = (r) => {
     toggle(r.player || { player_id: r.pin.player_id, name: r.pin.name })
     setUndo({ pin: r.pin, name: r.pin.name || 'Player' })
@@ -178,8 +180,8 @@ export default function Watchlist({ data, matchup, logs, picks = null, onPlayerC
             </div>
           )}
         </section>
-        <FollowingStrip sport="nfl" liveIds={new Set(byId.keys())} onPlayerClick={(row) => { const p = byId.get(String(row.id)); if (p) onPlayerClick?.(p, 'TD') }} />
-        <WatchRecord sport="nfl" theme={C} accent={C.green} onOpen={(r) => { const p = byId.get(String(r.id)); if (p) onPlayerClick?.(p, 'TD') }} />
+        <FollowingStrip sport="nfl" liveIds={new Set(byId.keys())} onPlayerClick={(row) => openId(row.id)} />
+        <WatchRecord sport="nfl" theme={C} accent={C.green} onOpen={(r) => openId(r.id)} />
         <TuddyRecentAlerts />
         <Style />
       </div>
@@ -287,7 +289,7 @@ export default function Watchlist({ data, matchup, logs, picks = null, onPlayerC
         <NflTable
           nameCell="player" faceOf={(r) => (r._player ? { sport: 'nfl', espnId: r._player.espn_id, team: r._player.team, name: r._player.name } : null)}
           {...table}
-          onRowClick={(row) => { if (row?._player) onPlayerClick?.(row._player, 'TD', rows.map((x) => x.player).filter(Boolean)) }}
+          onRowClick={(row) => { if (row?._player) onPlayerClick?.(row._player, 'TD', rows.map((x) => x.player).filter(Boolean)); else openId(row?._id) }}
           caption="Your saved players, by this week's anytime-TD score. # is his place on the TD board; the arrow is places moved since the board's last update. Move is measured against the score showing when you saved him, on that same market. Tap a row for his card."
         />
       ) : (
@@ -319,11 +321,11 @@ export default function Watchlist({ data, matchup, logs, picks = null, onPlayerC
       </div>
 
       {offFollows.length > 0 && (
-        <FollowingStrip sport="nfl" liveIds={new Set(byId.keys())} onPlayerClick={(row) => { const p = byId.get(String(row.id)); if (p) onPlayerClick?.(p, 'TD') }} />
+        <FollowingStrip sport="nfl" liveIds={new Set(byId.keys())} onPlayerClick={(row) => openId(row.id)} />
       )}
 
       {/* MOONSHOT's "Your nights, graded" (components/watch/WatchRecord.js), TUDDY's bars. */}
-      <WatchRecord sport="nfl" theme={C} accent={C.green} onOpen={(r) => { const p = byId.get(String(r.id)); if (p) onPlayerClick?.(p, 'TD') }} />
+      <WatchRecord sport="nfl" theme={C} accent={C.green} onOpen={(r) => openId(r.id)} />
       {/* ALERTS (2026-10-13): where alerts stand, one tap from the list they are about; at the END, so the first row is where it was. */}
       <AlertsEntry C={C} accent={C.green} NUM_FONT={NUM_FONT} />
       <TuddyRecentAlerts />
