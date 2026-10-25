@@ -19,6 +19,8 @@ import { Kicker, EmptyState } from '../ui'
 // A hit rate counts games that happened; nothing here is a chance (no implied %). Data: /api/buckets/trending.
 
 const LANE_PILLS = [['all', 'All'], ['pts', 'PTS'], ['reb', 'REB'], ['ast', 'AST'], ['3pm', '3PM'], ['pra', 'PRA']]
+// MINUTES (2026-10-25): only games he played that long (the defense's starters too); the route counts them (?min=)
+const MIN_PILLS = [[null, 'Any min'], [20, '20+ min'], [25, '25+ min'], [30, '30+ min']]
 const MIN_N = HR_THIN
 
 const pctCell = (c) => (!c || !c.n ? '—' : (
@@ -28,7 +30,8 @@ const pctCell = (c) => (!c || !c.n ? '—' : (
 ))
 
 export default function Trending({ onOpenPlayer }) {
-  const { data, loading } = useLiveFetch('/api/buckets/trending')
+  const [minMin, setMinMin] = useState(null)
+  const { data, loading } = useLiveFetch(`/api/buckets/trending${minMin ? `?min=${minMin}` : ''}`, { keep: 'trending' })
   const [lane, setLane] = useState('all')
   const [hot, setHot] = useState(false)
   const rows = useMemo(() => {
@@ -37,11 +40,12 @@ export default function Trending({ onOpenPlayer }) {
     return (hot ? ranked.filter((r) => (r.own.L10?.pct ?? 0) >= 70) : ranked).map((r) => ({
       _key: r.key, _raw: r, name: r.name, team: r.team, prop: `${r.word} o${r.line}`,
       l5: r.own.L5?.pct ?? null, l10: r.own.L10?.pct ?? null, l20: r.own.L20?.pct ?? null, season: r.own.Season?.pct ?? null,
-      ha: r.own.HA?.pct ?? null, h2h: r.own.H2H?.pct ?? null, avg: r.avg, price: r.odds,
+      ha: r.own.HA?.pct ?? null, h2h: r.own.H2H?.pct ?? null, dL10: r.dvp?.L10?.pct ?? null, dSeason: r.dvp?.Season?.pct ?? null, avg: r.avg, price: r.odds,
     }))
   }, [data, lane, hot])
   const pv = usePreview(rows, 25)
   const cell = (k) => (v, r) => pctCell(r._raw.own[k])
+  const dcell = (k) => (v, r) => pctCell(r._raw.dvp?.[k])
   const columns = [
     { key: 'name', label: 'Player', group: 'Player', w: 132, sticky: true, bold: true, numeric: false, heat: false, link: (r) => (onOpenPlayer ? () => onOpenPlayer(r.id) : null) },
     { key: 'prop', label: 'Prop', group: 'Tonight', w: 84, numeric: false, heat: false, mono: true },
@@ -51,6 +55,8 @@ export default function Trending({ onOpenPlayer }) {
     { key: 'season', label: 'SINCE 25-26', group: 'Over the line', w: 64, fmt: cell('Season') },
     { key: 'ha', label: 'HM/AW', group: 'Over the line', w: 56, fmt: cell('HA'), title: 'His games at tonight’s venue side (home or away)' },
     { key: 'h2h', label: 'H2H', group: 'Over the line', w: 52, fmt: cell('H2H'), title: 'His games against tonight’s club' },
+    { key: 'dL10', label: 'D L10', group: 'Tonight’s defense', w: 56, fmt: dcell('L10'), title: 'The last 10 starter games at his spot (G / F / C) against tonight’s defense: how many went over his line' },
+    { key: 'dSeason', label: 'D SINCE 25-26', group: 'Tonight’s defense', w: 70, fmt: dcell('Season'), title: 'Every starter game at his spot against tonight’s defense since last season, over his line' },
     { key: 'avg', label: 'AVG', group: 'His games', w: 48, fmt: (v) => (v == null ? '—' : v.toFixed(1)) },
     { key: 'price', label: 'PRICE', group: 'Book', w: 58, heat: false, mono: true, fmt: (v) => (v == null ? '—' : fmtOdds(v)) },
     { key: 'slip', label: '', group: 'Book', w: 48, heat: false, numeric: false, fmt: (v, r) => {
@@ -68,6 +74,9 @@ export default function Trending({ onOpenPlayer }) {
         {LANE_PILLS.map(([k, l]) => (
           <button key={k} type="button" className={FLAT_CHIP_CLASS} aria-pressed={lane === k} onClick={() => setLane(k)} style={flatChip(lane === k, C.purple, C, NUM_FONT)}>{l}</button>
         ))}
+        {MIN_PILLS.map(([k, l]) => (
+          <button key={l} type="button" className={FLAT_CHIP_CLASS} aria-pressed={minMin === k} onClick={() => setMinMin(k)} style={flatChip(minMin === k, C.purple, C, NUM_FONT)}>{l}</button>
+        ))}
         <button type="button" className={FLAT_CHIP_CLASS} aria-pressed={hot} onClick={() => setHot((v) => !v)} title="L10 at 70% or better" style={flatChip(hot, C.purple, C, NUM_FONT)}>{hot ? '✓ 70%+ L10' : '70%+ L10'}</button>
       </div>
       {loading && !data ? <div style={{ fontSize: 12, color: C.text3 }}>Reading tonight’s lines…</div> : null}
@@ -77,7 +86,7 @@ export default function Trending({ onOpenPlayer }) {
           <Kicker>{rows.length} PROPS · L10 FIRST · {`UNDER ${MIN_N} GAMES LEFT OUT`}</Kicker>
           <BucketsTable rows={pv.shown} columns={columns} maxHeight={9999} maxRows={rows.length} heatMode="standouts" initialSort={null} />
           <ShowMoreButton open={pv.open} restN={pv.restN} toggle={pv.toggle} total={pv.total} itemWord="props" />
-          <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.5 }}>% = games he went over tonight’s line; small = the count. Price = the best book over.</div>
+          <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.5 }}>% = games he went over tonight’s line; small = the count. D = starters at his spot vs tonight’s defense, at his line.{minMin ? ` Only games of ${minMin}+ minutes.` : ''} Price = the best book over.</div>
         </>
       ) : null}
     </div>
