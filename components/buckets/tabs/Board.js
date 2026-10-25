@@ -62,6 +62,9 @@ function withLastNight(columns, cln) {
 // MERGED WITH RANKINGS (2026-10-06): this is the Rankings page. One market at a time, or ALL MARKETS
 // (the old every-market table), the table first, and a WHY on every row.
 const ALL = 'all'
+// CALLED ONLY on ALL MARKETS (2026-10-25, Donovan: "how will I see all the called players for each team"): the 0c rule -- CALLED in any
+// lane = CALLED; each all-markets row carries every lane's status as st_<lane> (tabs/FullBoard.js). It used to ignore the switch.
+const calledAnyLane = (r) => Object.keys(r).some((k) => k.startsWith('st_') && r[k] === 'called')
 const MARKET_PILLS = [...MARKET_OPTIONS, { key: ALL, text: 'ALL MARKETS' }]
 const ordW = (p) => { const n = Math.round(p); const r = n % 100; return `${n}${r >= 11 && r <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'}` }
 const LEG_WORDS = { ptsPg: 'points per game', rebPg: 'rebounds per game', astPg: 'assists per game', minPg: 'minutes', fgaPg: 'shot attempts', ftaPg: 'free throw attempts', tpmPg: 'threes made', tpaPg: 'threes tried', tpPct: 'three-point shooting', praPg: 'points, rebounds and assists', fgaShare: 'share of his team’s shots', ddRate: 'share of his games with a double-double', ddAdj: 'share of his games with a double-double, scaled by his opponent', ddRecentAdj: 'double-doubles in his last 10 games, scaled by his opponent', tdAdj: 'share of his games with a triple-double, scaled by his opponent', ddRecent: 'double-doubles in his last 10 games', tdRate: 'share of his games with a triple-double', oppPts: 'points his opponent allows', oppReb: 'rebounds his opponent allows', oppAst: 'assists his opponent allows', oppTpm: 'threes his opponent allows' }
@@ -294,7 +297,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
       {m !== ALL && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}><Pills ariaLabel="Layout" value={layout} onChange={setLayout} options={layoutOptions} />{shareBtn()}</div>}
       <FiltersDrawer ledger="nba" {...drawerProps}>{drawerSections}</FiltersDrawer>
       </>)}
-      {m === ALL ? <FullBoard embedded keep={(r) => (!needle || `${r.name} ${r.team} ${r.opp}`.toLowerCase().includes(needle)) && (!team || r.team === team) && (!gameF || r.gameId === gameF) && (!gameSel.length || gameSel.includes(r.gameId)) && pf.test(r)} empty={pf.active ? <PositionEmpty control={pf.control} othersActive={chips.length + drawerChips.length - 1 > 0 || heldTop > 0} onClearAll={clearAll} /> : null} date={date} setDate={setDate} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} /> : (<>
+      {m === ALL ? <FullBoard embedded keep={(r) => (!calledOnly || calledAnyLane(r)) && (!needle || `${r.name} ${r.team} ${r.opp}`.toLowerCase().includes(needle)) && (!team || r.team === team) && (!gameF || r.gameId === gameF) && (!gameSel.length || gameSel.includes(r.gameId)) && pf.test(r)} empty={pf.active ? <PositionEmpty control={pf.control} othersActive={chips.length + drawerChips.length - 1 > 0 || heldTop > 0} onClearAll={clearAll} /> : null} date={date} setDate={setDate} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} /> : (<>
       <DelayedBanner error={error} what="the board" />
       {loading && !data ? <Loading what="the board" /> : null}
       {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Nothing to rank. Try another day, or open the Slate." />}
