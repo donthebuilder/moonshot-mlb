@@ -6,6 +6,7 @@ import { useLampBoard, useLampGoalieWeakMany } from '../../lib/nhl/useLamp'
 import { useHashFilter } from '../../lib/filterHash'
 import { useIsPhone } from '../MobileFold'
 import PageHeader from '../PageHeader'
+import CalledExport from '../CalledExport'
 import Tap from '../Tap'
 import GameHeadRow from '../slate/GameHeadRow'
 import { Dial } from '../VerdictHero'
@@ -185,7 +186,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
   return (
     <div className="slate-tight phone-slate">
       <PageHeader eyebrow="LAMP · SLATE" title="Slate" theme={C} numFont={NUM_FONT} accent={C.ice}
-        note="Tonight’s games, puck drop first." />
+        note="Tonight’s games, puck drop first." right={<CalledExport sport="nhl" date={shown || null} C={C} NUM_FONT={NUM_FONT} accent={C.ice} />} />
       {/* desktop: day nav + search + team + game + Table|Games on ONE row (app/globals.css .slate-tight); phone: a plain block, unchanged */}
       <div className="slate-bar">
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
