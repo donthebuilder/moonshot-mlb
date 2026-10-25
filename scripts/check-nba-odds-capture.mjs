@@ -2,7 +2,7 @@
 // NBA ODDS CAPTURE (2026-10-24) -- offline: an NBA event the snapshot table cannot store yields no snapshot rows, while its
 // over/under lines still come out. TEST event below is made up (labelled TEST); no network.
 //   node --import ./scripts/_esm-resolve.mjs scripts/check-nba-odds-capture.mjs
-import { snapRows, MARKETS } from '../lib/odds/snap.js'
+import { snapRows, MARKETS, listWaits } from '../lib/odds/snap.js'
 import { linesRows } from '../lib/odds/lines.js'
 
 let failed = 0
@@ -21,5 +21,7 @@ check(MARKETS.NBA.stored === false, 'NBA first basket is not stored until the od
 check(snapRows(ev, 'lock', '2098-12-31T23:00:00Z', () => '1').rows.length === 0, 'snapRows gives NBA nothing (no refused write to block the lock)')
 const L = linesRows(ev, 'lock', '2098-12-31T23:00:00Z', () => '1').rows
 check(L.some((r) => r.market === 'pts'), 'the points over/under line still comes out')
+check(listWaits('NBA', 0) && listWaits('NBA', 11) && !listWaits('NBA', 12), 'NBA\'s day list waits until noon ET')
+check(!listWaits('NHL', 0) && !listWaits('NFL', 0) && !listWaits('MLB', 0), 'every other league lists at the first tick, as before')
 if (failed) { console.log(`\n${failed} check(s) failed`); process.exit(1) }
 console.log('\nall nba odds capture checks ok')
