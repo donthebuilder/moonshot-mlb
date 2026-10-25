@@ -16,6 +16,8 @@ export const maxDuration = 60
 const LANES = propLanesOf('nba').filter((l) => NBA_ODDS_KEY[l.key])
 // THE MINUTES FILTER (2026-10-25): ?min=20|25|30 counts only games he (and, for DVP, the starter) played that long
 const MIN_STEPS = new Set([20, 25, 30])
+// SHOT ATTEMPTS (2026-10-25): ?fga=10|15|20 counts only games with that many field-goal attempts (buckets_box.fga)
+const FGA_STEPS = new Set([10, 15, 20])
 
 async function all(q) {
   const out = []
@@ -32,14 +34,15 @@ export const GET = bucketsRoute('trending', async (q, request) => {
   if (!db) return bad('no database')
   const origin = new URL(request.url).origin
   const minMin = MIN_STEPS.has(Number(q.get('min'))) ? Number(q.get('min')) : null
-  const keep = gameKeep({ minMin })
+  const minFga = FGA_STEPS.has(Number(q.get('fga'))) ? Number(q.get('fga')) : null
+  const keep = gameKeep({ minMin, minFga })
   const getJSON = (u) => fetch(`${origin}${u}`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
   const [odds, board, sn] = await Promise.all([getJSON('/api/odds/latest?sport=nba'), getJSON('/api/buckets/board'), nbaSeason()])
   const lined = odds?.by_player_id || {}
   const ids = Object.keys(lined)
   if (!ids.length) return ok({ date: board?.date || null, rows: [], why: odds?.reason || 'no book lines on file yet' }, 30)   // an empty read (lines not posted, or the odds read cold) is retried soon, never held
   const tonight = new Map((board?.rows || []).map((r) => [String(r.playerId), r]))
-  const box = await all(() => db.from('buckets_box').select('player_id, name, pos, game_id, game_date, team, opp, home, min, pts, reb, ast, tpm')
+  const box = await all(() => db.from('buckets_box').select('player_id, name, pos, game_id, game_date, team, opp, home, min, fga, pts, reb, ast, tpm')
     .in('player_id', ids).in('season', [sn.prev, sn.cur]).eq('season_type', 2).order('game_date', { ascending: false }))
   const logs = new Map()
   for (const r of box) { const k = String(r.player_id); if (!logs.has(k)) logs.set(k, []); logs.get(k).push(r) }
@@ -48,7 +51,7 @@ export const GET = bucketsRoute('trending', async (q, request) => {
   const opps = [...new Set([...tonight.values()].map((r) => r.opp).filter(Boolean))]
   const vsD = new Map()
   if (opps.length) {
-    const drows = await all(() => db.from('buckets_box').select('opp, pos, game_date, min, pts, reb, ast, tpm')
+    const drows = await all(() => db.from('buckets_box').select('opp, pos, game_date, min, fga, pts, reb, ast, tpm')
       .in('opp', opps).in('season', [sn.prev, sn.cur]).eq('season_type', 2).eq('starter', true).order('game_date', { ascending: false }))
     for (const r of drows) { if (keep && !keep(r)) continue; const k = `${r.opp}|${r.pos}`; if (!vsD.has(k)) vsD.set(k, []); vsD.get(k).push(r) }
   }
@@ -70,5 +73,5 @@ export const GET = bucketsRoute('trending', async (q, request) => {
       rows.push({ ...row, gameId: t?.gameId || null, book: quote.best_book || null })
     }
   }
-  return ok({ date: board?.date || null, since: sn.prev, minMin, rows }, 900)
+  return ok({ date: board?.date || null, since: sn.prev, minMin, minFga, rows }, 900)
 })
