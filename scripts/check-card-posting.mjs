@@ -17,7 +17,7 @@ const check = (ok, what) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`); if
 const calls = []
 globalThis.fetch = async (url, init = {}) => {
   const u = String(url)
-  calls.push({ url: u, body: init.body, method: init.method })
+  calls.push({ url: u.replace(/\?wait=true$/, ''), body: init.body, method: init.method })   // a #members post asks for its message id (?wait=true)
   if (u.includes('api.x.com/2/media/upload')) return { ok: true, status: 200, statusText: 'OK', headers: { get: () => null }, json: async () => ({ data: { id: 'm-1' } }) }
   if (u.includes('api.x.com')) return { ok: true, status: 200, statusText: 'OK', headers: { get: () => null }, json: async () => ({ data: { id: 't-1' } }) }
   return { ok: true, status: 204, statusText: 'No Content', headers: { get: () => null }, json: async () => ({}) }
