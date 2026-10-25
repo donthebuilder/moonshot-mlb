@@ -16,6 +16,7 @@ import { fmtOdds, impliedPct, profitOn } from '../../lib/odds'
 import HelpTip from '../HelpTip'
 import CallStatusBadge from '../CallStatusBadge'
 import { combined, bySport } from '../../lib/slip/core'
+import { hitRateOf, hitWords } from '../../lib/slip/grade'
 import { BRAND } from '../../lib/routes'
 import { SPORT_ACCENT } from '../../lib/sportAccent'
 
@@ -29,7 +30,7 @@ const money = (v) => `$${v >= 1000 ? Math.round(v).toLocaleString() : v.toFixed(
 
 // ONE SLIP, EVERY SPORT (2026-10-25): legs from more than one sport sit under the product's name in its own accent. A leg's price can be set to
 // the user's own (their book's number, marked "yours"): the slip holds one price per leg, so this is how a different book is used. Never invented.
-export default function BetSlip({ legs, onRemove, onClear, onSetPrice = null, statusOf = null, pairNotes = [], partners = [], onAdd = null, C, NUM_FONT, accent }) {
+export default function BetSlip({ legs, onRemove, onClear, onSetPrice = null, statusOf = null, hitIndex = null, pairNotes = [], partners = [], onAdd = null, C, NUM_FONT, accent }) {
   const [stake, setStake] = useState(10)
   const [editing, setEditing] = useState(null)   // `${sport}|${key}` of the leg whose price is being typed
   const [draft, setDraft] = useState('')
@@ -64,8 +65,10 @@ export default function BetSlip({ legs, onRemove, onClear, onSetPrice = null, st
             const ek = `${l.sport || sp || ''}|${l.key}`
             const isEd = editing === ek
             const commit = () => { if (draft.trim() && onSetPrice) onSetPrice(l.key, draft.trim().replace(/[^0-9+-]/g, ''), l.sport || sp); setEditing(null) }
+            const hr = hitIndex ? hitRateOf(l, hitIndex) : null
             return (
-              <div key={ek} style={{ display: 'flex', alignItems: 'center', gap: 8, borderTop: `1px solid ${C.border}`, minHeight: 44, fontSize: 12.5 }}>
+              <div key={ek} style={{ borderTop: `1px solid ${C.border}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 44, fontSize: 12.5 }}>
                 <b style={{ color: C.text, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.name}</b>
                 <span style={{ color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap' }}>{l.market}</span>
                 {statusOf && statusOf(l) === 'called' ? <CallStatusBadge status="called" accent={SPORT_ACCENT[l.sport] || accent} theme={C} numFont={NUM_FONT} /> : null}
@@ -86,6 +89,13 @@ export default function BetSlip({ legs, onRemove, onClear, onSetPrice = null, st
                 <span style={{ fontFamily: NUM_FONT, color: C.text3, whiteSpace: 'nowrap' }}>{s && l.price != null ? `wins ${money(profitOn(l.price, s))}` : ''}</span>
                 <button type="button" onClick={() => onRemove(l.key, l.sport)} aria-label={`Remove ${l.name} from the slip`}
                   style={{ minHeight: 44, minWidth: 44, border: 'none', background: 'transparent', color: C.text3, fontSize: 16, cursor: 'pointer' }}>×</button>
+              </div>
+              {hr && (
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', margin: '-4px 0 6px', fontFamily: NUM_FONT, fontSize: 11.5, color: C.text2 }}>
+                  {hr.own && <span title="How often he went over this line in his last 10 games">His L10 <b style={{ color: C.text }}>{hitWords(hr.own)}</b>{hr.own.thin ? ' (few games)' : ''}</span>}
+                  {hr.dvp && <span title="How often starters at his spot went over this line against tonight's defense, last 10 games">vs this D L10 <b style={{ color: C.text }}>{hitWords(hr.dvp)}</b>{hr.dvp.thin ? ' (few games)' : ''}</span>}
+                </div>
+              )}
               </div>
             )
           })

@@ -6,7 +6,7 @@ import { landedTogether, LANDED_TOGETHER_START, MIN_NIGHTS } from '../lib/slip/l
 import { lampAlsoPriced } from '../lib/nhl/lampQuote.js'
 import { nbaQuote } from '../lib/nba/oddsQuote.js'
 import { findLegs, playerLegs } from '../lib/slip/candidates.js'
-import { callStatusOf } from '../lib/slip/grade.js'
+import { callStatusOf, hitIndex, hitRateOf, hitWords } from '../lib/slip/grade.js'
 import { rowLeg, mlbHrLeg, nflLeg, nhlGoalLeg, nbaLeg, longshotLeg, oddsRowLeg, marketCode } from '../lib/slip/rowLegs.js'
 let fail = 0
 const eq = (name, got, want) => { const ok = JSON.stringify(got) === JSON.stringify(want); fail += !ok; console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${ok ? '' : `: got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`}`) }
@@ -174,6 +174,33 @@ eq('grade: a member sees CALLED on a called leg', callStatusOf({ key: 'N1|pts' }
 eq('grade: a non-member sees nothing outside the free four', callStatusOf({ key: 'N1|pts' }, pubT, 'free'), null)
 eq('grade: a non-member sees a free-four call', callStatusOf({ key: 'N1|reb' }, pubT, 'free'), 'called')
 eq('grade: no published calls, or a leg not called, is silent (never "not on the board")', [callStatusOf({ key: 'N1|pts' }, null, 'member'), callStatusOf({ key: 'ZZ|pts' }, pubT, 'member')], [null, null])
+
+// HIT RATE STRIP (TEST rows in main's Hit Rater shape): a leg finds its row by sport + id + lane + line, over side only, never a model %
+const c10 = (ok, n) => ({ ok, n, pct: Math.round((100 * ok) / n) })
+const HR_ROWS = [
+  { sport: 'nba', id: 'N1', lane: 'pts', line: 24.5, side: 'over', own: { L10: c10(7, 10) }, dvp: { L10: c10(6, 10) } },
+  { sport: 'nhl', id: 'H1', lane: 'g', line: 0.5, side: 'over', own: { L10: c10(3, 10) }, dvp: null },
+  { sport: 'nfl', id: 'F1', lane: 'REC_YDS', line: 59.5, side: 'over', own: { L10: c10(2, 4) }, dvp: { L10: c10(5, 10) } },
+  { sport: 'nba', id: 'N1', lane: 'pts', line: 24.5, side: 'under', own: { L10: c10(3, 10) }, dvp: null },
+]
+const HX = hitIndex(HR_ROWS)
+const legNba = { key: 'N1|pts', sport: 'nba', id: 'N1', line: 'o24.5' }
+eq('hit rate: BUCKETS leg finds its row; words are percent first, the count after', [hitWords(hitRateOf(legNba, HX).own), hitWords(hitRateOf(legNba, HX).dvp)], ['70% 7/10', '60% 6/10'])
+eq('hit rate: the over row, not the under row', hitRateOf(legNba, HX).own.pct, 70)
+eq('hit rate: LAMP GOAL leg maps to lane g, no defense number is silent', [hitRateOf({ key: 'H1|GOAL', sport: 'nhl', id: 'H1', line: 'o0.5' }, HX).own.pct, hitRateOf({ key: 'H1|GOAL', sport: 'nhl', id: 'H1', line: 'o0.5' }, HX).dvp], [30, null])
+eq('hit rate: TUDDY lane key is the market code; under 5 games is flagged thin', [hitRateOf({ key: 'F1|REC_YDS', sport: 'nfl', id: 'F1', line: 'o59.5' }, HX).own.thin, hitRateOf({ key: 'F1|REC_YDS', sport: 'nfl', id: 'F1', line: 'o59.5' }, HX).dvp.thin], [true, false])
+eq('hit rate: another line, an unknown man, no index, or MOONSHOT (no rows) is no strip', [hitRateOf({ ...legNba, line: 'o29.5' }, HX), hitRateOf({ key: 'ZZ|pts', sport: 'nba', id: 'ZZ', line: 'o24.5' }, HX), hitRateOf(legNba, null), hitRateOf({ key: 'M1|HR', sport: 'mlb', id: 'M1', line: 'o0.5' }, HX)], [null, null, null, null])
+
+// CROSS-SPORT PARLAYS (2026-10-25): legs from different products ride one slip and one combined price
+const mix = withLegs([], [
+  { key: 'N1|pts', sport: 'nba', price: 100, game: { key: 'AAA-BBB', label: 'AAA · BBB' } },
+  { key: 'H1|GOAL', sport: 'nhl', price: 200, game: { key: 'CCC-DDD', label: 'CCC · DDD' } },
+  { key: 'F1|TD', sport: 'nfl', price: 300, game: { key: 'EEE-FFF', label: 'EEE · FFF' } },
+  { key: 'N2|reb', sport: 'nba', price: -200, game: { key: 'AAA-BBB', label: 'AAA · BBB' } },
+], NOW)
+eq('cross-sport: three products on one slip, grouped in sport order', bySport(mix).map(([s, ls]) => [s, ls.length]), [['nfl', 1], ['nhl', 1], ['nba', 2]])
+eq('cross-sport: one combined price across sports (2.0 x 3.0 x 4.0 x 1.5)', combined(mix).decimal, 36)
+eq('cross-sport: taking a whole sport off leaves the others', withoutLeg(withoutLeg(mix, 'N1|pts', 'nba'), 'N2|reb', 'nba').map((l) => l.sport), ['nhl', 'nfl'])
 
 if (fail) { console.error(`\n${fail} FAILED`); process.exit(1) }
 console.log('\nall ok')

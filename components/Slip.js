@@ -10,7 +10,7 @@
 import { useEffect, useRef, useState } from 'react'
 import BetSlip from './props/BetSlip'
 import AddLeg from './slip/AddLeg'
-import { callStatusOf } from '../lib/slip/grade'
+import { callStatusOf, hitIndex } from '../lib/slip/grade'
 import { useSlip, useCalls, slipClearAll } from '../lib/slip/store'
 import { calledLegs } from '../lib/slip/core'
 import { landedTogether } from '../lib/slip/landed'
@@ -54,6 +54,21 @@ function placeChip(chip, fullH) {
   chip.dataset.pos = best.slot
 }
 
+// THE GRADE'S NUMBERS (2026-10-25): main's Hit Rater rows for every sport, one read (/api/trending, held 15 minutes at the edge), only while the sheet is
+// open with something on the slip. Nothing here polls; a failed read is no strip.
+let trendingP = null
+function useTrendingIndex(active) {
+  const [idx, setIdx] = useState(null)
+  useEffect(() => {
+    if (!active || idx) return undefined
+    let alive = true
+    trendingP ||= fetch('/api/trending').then((r) => (r.ok ? r.json() : null)).catch(() => null).then((j) => { if (!j) trendingP = null; return j ? hitIndex(j.rows) : null })
+    trendingP.then((m) => { if (alive && m) setIdx(m) })
+    return () => { alive = false }
+  }, [active, idx])
+  return idx
+}
+
 const SPORT_WORD = { mlb: 'home-run', nfl: 'touchdown', nhl: 'goal', nba: 'points' }
 
 function useLanded(sport, open) {
@@ -75,6 +90,7 @@ export default function Slip({ sport = 'mlb', C, NUM_FONT, accent, onOpenProps =
   const [open, setOpen] = useState(false)
   const { legs, all, remove, addMany, setPrice } = useSlip(sport)   // `all`: ONE slip across the sports (2026-10-25); `legs`: this sport's
   const pub = useCalls(sport)
+  const hits = useTrendingIndex(open && all.length > 0)
   const memberState = useMemberState()
   const landed = useLanded(sport, open)
   const [note, setNote] = useState('')
@@ -163,7 +179,7 @@ export default function Slip({ sport = 'mlb', C, NUM_FONT, accent, onOpenProps =
             </div>
             {all.length === 0 && <div style={{ ...quiet, margin: '2px 0 8px' }}>Nothing on your slip yet. Tap + slip on a prop or a player page to add it.</div>}
             <AddLeg all={all} C={C} NUM_FONT={NUM_FONT} accent={accent} />
-            <BetSlip legs={all} statusOf={(l) => (l.sport === sport ? callStatusOf(l, pub, memberState) : null)} onRemove={remove} onClear={slipClearAll} onSetPrice={setPrice} C={C} NUM_FONT={NUM_FONT} accent={accent} />
+            <BetSlip legs={all} hitIndex={hits} statusOf={(l) => (l.sport === sport ? callStatusOf(l, pub, memberState) : null)} onRemove={remove} onClear={slipClearAll} onSetPrice={setPrice} C={C} NUM_FONT={NUM_FONT} accent={accent} />
 
             <div style={{ display: 'grid', gap: 6, margin: '6px 0 12px' }}>
               <button type="button" onClick={addCalled} style={btn}>{member ? 'Add tonight’s called picks' : 'Try an example slip'}</button>
