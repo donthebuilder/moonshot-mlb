@@ -5,6 +5,7 @@ import { weakSpotRoles, softLine, plainRole, fitsSoft } from '../../lib/nfl/dvpS
 import { WeakSpotGrid } from '../slate/WeakSpotCard'
 import { SubLabel } from '../matchup/MatchupParts'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
+import { useAvailable } from '../injuries/useAvailable'
 
 // TUDDY'S WEAK SPOTS (2026-09-28, parity plan 00Q step 2). MOONSHOT's "★ Weak
 // spots" -- a starter's soft lineup slot and the hitter standing in it -- is,
@@ -17,7 +18,11 @@ import { C, NUM_FONT } from '../../lib/nfl/theme'
 // Same card as MOONSHOT's (components/slate/WeakSpotCard.js). Nothing new is
 // computed; a defense with no standout soft role has no card.
 
-export default function NflWeakSpots({ matchup, players = [], games = [], onPlayerClick, onOpenTeam = null }) {
+export default function NflWeakSpots({ matchup, players: allPlayers = [], games = [], onPlayerClick, onOpenTeam = null }) {
+  // tonight's out / IR / doubtful men leave. Nobody is moved up a role by us (Donovan 10-24: the next WR1 is not always
+  // the WR2; only the real depth chart says who): the roles stay as the bot's chart has them.
+  const avail = useAvailable()
+  const players = useMemo(() => avail(allPlayers), [avail, allPlayers])
   // the card title opens the club (0g A3): the prop, else TUDDY's team door
   const teamNav = useTeamNav()
   const openTeam = onOpenTeam || teamNav

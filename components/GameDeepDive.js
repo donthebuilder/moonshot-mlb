@@ -14,6 +14,7 @@ import TeamVsStarter from './TeamVsStarter'
 import TeamMark from './TeamMark'
 import AttackSheet from './game/AttackSheet'
 import { mlbAttackRows } from '../lib/mlb/attackSheet'
+import { useAvailable } from './injuries/useAvailable'
 import { SPORT_ACCENT } from '../lib/sportAccent'
 
 // GAME DEEP DIVE — what clicking a game actually earns you (2026-08-06).
@@ -477,6 +478,8 @@ function SidePanel({ team, rows, odds, onPlayerClick }) {
 
 export default function GameDeepDive({ game, allPlayers = [], slateDate = '', results, odds = null, onPlayerClick, section = 'all' }) {
   const gp = game?.players || []
+  // the attack sheet's bats lose tonight's out / IL men (2026-10-24): the next bat answers the row; the rank pool stays whole
+  const avail = useAvailable()
   if (!gp.length) return null
   const any = gp[0]
   const teams = [...new Set(gp.map((p) => clean(p?.team, '')).filter(Boolean))]
@@ -505,8 +508,8 @@ export default function GameDeepDive({ game, allPlayers = [], slateDate = '', re
       {teams.length === 2 && (
         <div style={{ marginTop: 10 }}>
           <AttackSheet sport="mlb" teams={teams} C={C} NUM_FONT={NUM_FONT} accent={SPORT_ACCENT.mlb} kicker="HOW TO ATTACK THE STARTER"
-            rowsFor={(off) => mlbAttackRows(gp, allPlayers, off)} turn={() => 'bats'} answerWord="WHO BEATS HIM"
-            head={(def) => { const r = mlbAttackRows(gp, allPlayers, def === teams[0] ? teams[1] : teams[0]).find((x) => x.rank != null); return `${def} STARTER${r ? ` · RANK OF ${r.of} TONIGHT` : ''}` }}
+            rowsFor={(off) => mlbAttackRows(avail(gp), allPlayers, off)} turn={() => 'bats'} answerWord="WHO BEATS HIM"
+            head={(def) => { const r = mlbAttackRows(avail(gp), allPlayers, def === teams[0] ? teams[1] : teams[0]).find((x) => x.rank != null); return `${def} STARTER${r ? ` · RANK OF ${r.of} TONIGHT` : ''}` }}
             onPick={onPlayerClick ? (p) => onPlayerClick(p) : null}
             note="Fly balls, contact and his pitch mix are the usual answer to that trait; the hitter and his number are real." />
         </div>

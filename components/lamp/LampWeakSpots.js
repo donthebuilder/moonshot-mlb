@@ -6,6 +6,7 @@ import { C, NUM_FONT } from '../../lib/nhl/theme'
 import { WeakSpotGrid } from '../slate/WeakSpotCard'
 import { SubLabel } from '../matchup/MatchupParts'
 import { spotOf, pct1 } from './tabs/Board'
+import { useAvailable } from '../injuries/useAvailable'
 
 // LAMP'S WEAK SPOTS (2026-09-28, parity plan 00Q step 2). MOONSHOT's "★ Weak
 // spots" (a starter's soft slot and the hitter in it), in hockey, from the
@@ -33,7 +34,10 @@ export function weakCuts(games) {
   return { pkCut: third(pks, false), gaCut: third([...gas.values()], true) }
 }
 
-export default function LampWeakSpots({ items = [], games = [], onOpenPlayer }) {
+export default function LampWeakSpots({ items: allItems = [], games = [], onOpenPlayer }) {
+  // tonight's out / IL / doubtful skaters are not who faces a soft defense: the next one takes the slot
+  const avail = useAvailable()
+  const items = useMemo(() => avail(allItems, ({ r }) => ({ player_id: r?.playerId, name: r?.name, team: r?.team })), [avail, allItems])
   // the card title opens the club (0g A3): LAMP's team door
   const openTeam = useTeamNav()
   const cards = useMemo(() => {

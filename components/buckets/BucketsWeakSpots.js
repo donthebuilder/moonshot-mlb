@@ -5,13 +5,17 @@ import { STATUS_WORD } from '../../lib/callStatus'
 import { C, NUM_FONT } from '../../lib/nba/theme'
 import { WeakSpotGrid } from '../slate/WeakSpotCard'
 import { SubLabel } from '../matchup/MatchupParts'
+import { useAvailable } from '../injuries/useAvailable'
 
 // BUCKETS' WEAK SPOTS -- MOONSHOT's "★ Weak spots" card (components/slate/
 // WeakSpotCard.js), LAMP's twin's rule, from the fields the points board
 // already carries: a defence whose points allowed a game (the board's oppPts
 // leg) is in TONIGHT's top third, and the called players and best scorers
 // facing it. "Tonight's third" is measured over the clubs playing and says so.
-export default function BucketsWeakSpots({ rows = [], games = [], onOpenPlayer }) {
+export default function BucketsWeakSpots({ rows: allRows = [], games = [], onOpenPlayer }) {
+  // tonight's out / IL / doubtful men are not who faces a soft defense: the next scorer takes the slot
+  const avail = useAvailable()
+  const rows = useMemo(() => avail(allRows), [avail, allRows])
   const openTeam = useTeamNav()
   const cards = useMemo(() => {
     const allow = new Map()
