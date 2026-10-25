@@ -49,6 +49,7 @@ const Ledger = dynamic(() => import('./tabs/Ledger'), { loading: TabLoading })
 const Matchups = dynamic(() => import('./tabs/Matchups'), { loading: TabLoading })
 const Power = dynamic(() => import('./tabs/Power'), { loading: TabLoading })
 const Watchlist = dynamic(() => import('./tabs/Watchlist'), { loading: TabLoading })
+const Trending = dynamic(() => import('./tabs/Trending'), { loading: TabLoading })
 const Binder = dynamic(() => import('./tabs/Binder'), { loading: TabLoading })   // 2026-10-12: cards earned by the players I follow
 const Longshots = dynamic(() => import('../Longshots'), { loading: TabLoading })
 import OddsWithLongshots from '../OddsWithLongshots'
@@ -190,6 +191,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'binder' && <Binder />}
             {tab === 'storylines' && <StorylinesPage sport="nhl" previewGames={4} eyebrow="LAMP · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.ice} onOpenPlayer={peekPlayer} onOpenGame={openGame} date={date} />}
             {/* MOONSHOT's Odds page, sport="nhl" (2026-10-02, components/lamp/LampOdds.js) */}
+            {tab === 'trending' && <Trending onOpenPlayer={peekPlayer} />}
             {tab === 'odds' && <OddsWithLongshots odds={<LampOdds onOpenPlayer={peekPlayer} />} longshots={<Longshots sport="nhl" eyebrow="LAMP · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.ice} Table={LampTable} onOpenPlayer={peekPlayer} />} />}
             {tab === 'shotmap' && <ShotMap onOpenPlayer={peekPlayer} />}
             {tab === 'numerology' && <Numerology date={date} onOpenPlayer={peekPlayer} />}
