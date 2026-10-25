@@ -25,7 +25,7 @@ import { whichSeason } from '../../../../lib/nhl/whichSeason'
 import { cronAuthorized, adminClient } from '../../../../lib/supabase/admin'
 import { hasKey, monthUsage, eventsBetween, eventsById } from '../../../../lib/odds/sgo'
 import { playerJoin } from '../../../../lib/odds/playerJoin'
-import { activeLeagues, nbaOddsCapture, MARKETS, snapRows, startsAt, gameDate } from '../../../../lib/odds/snap'
+import { activeLeagues, nbaOddsCapture, MARKETS, snapRows, startsAt, gameDate, listWaits } from '../../../../lib/odds/snap'
 import { bucketsPublic } from '../../../../lib/nba/gate'
 import { linesRows } from '../../../../lib/odds/lines'
 import { twoPlusRows } from '../../../../lib/odds/twoPlus'
@@ -120,6 +120,8 @@ export async function GET(request) {
   for (const league of activeLeagues(bucketsPublic(), nbaOddsCapture())) {
     const sport = MARKETS[league].sport
     if (league === 'NHL' && !nhlLive) continue
+    // today's NBA list waits for noon ET, when its props are posted (lib/odds/snap listWaits): no object spent before then
+    if (date === easternToday() && listWaits(league, Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' }).format(new Date())))) continue
     if (!dry) {
       const have = await db.from('odds_events').select('event_id').eq('sport', sport).eq('game_date', date).limit(1)
       if (have.error) { out.skipped.push({ league, why: `event map: ${have.error.message}` }); continue }
