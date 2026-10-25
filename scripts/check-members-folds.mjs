@@ -18,7 +18,7 @@ const KEYS = [...Object.keys(PUB), 'DISCORD_MEMBERS_WEBHOOK', 'MEMBERS_FOLDS_ON'
 const env = (extra = {}) => { for (const k of KEYS) delete process.env[k]; Object.assign(process.env, PUB, { DISCORD_MEMBERS_WEBHOOK: MEM, NEXT_PUBLIC_SITE_URL: 'https://site.test' }, extra) }
 
 const calls = []
-globalThis.fetch = async (url, init) => { calls.push({ url: String(url), body: init?.body }); return { ok: true, status: 204, statusText: 'No Content', headers: { get: () => null }, json: async () => ({}) } }
+globalThis.fetch = async (url, init) => { calls.push({ url: String(url).replace(/\?wait=true$/, ""), body: init?.body }); return { ok: true, status: 204, statusText: 'No Content', headers: { get: () => null }, json: async () => ({}) } }
 const sent = () => calls.filter((c) => /discord/.test(c.url))
 const bodyText = (c) => (typeof c.body === 'string' ? c.body : '')
 

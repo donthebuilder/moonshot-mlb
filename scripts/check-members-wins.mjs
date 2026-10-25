@@ -12,7 +12,7 @@ process.env.DISCORD_MEMBERS_WEBHOOK = MEM
 process.env.NEXT_PUBLIC_SITE_URL = 'https://site.test'
 for (const k of ['DISCORD_HOMER_WEBHOOK', 'DISCORD_MLB_WEBHOOKS', 'DISCORD_NFL_WEBHOOKS', 'DISCORD_NHL_WEBHOOKS', 'MEMBERS_WINS_OFF', 'CARD_POSTS_PAUSE', 'X_API_KEY']) delete process.env[k]
 const calls = []
-globalThis.fetch = async (url, init = {}) => { if (/discord\.com/.test(String(url))) calls.push({ url: String(url), body: init.body }); return new Response(null, { status: /discord\.com/.test(String(url)) ? 204 : 503 }) }
+globalThis.fetch = async (url, init = {}) => { if (/discord\.com/.test(String(url))) calls.push({ url: String(url).replace(/\?wait=true$/, ""), body: init.body }); return new Response(null, { status: /discord\.com/.test(String(url)) ? 204 : 503 }) }
 
 const { winKind, dayPicks, gradedParts, gradedText, winsText, winsEmbed } = await import('../lib/card/wins.js')
 const { postMembersWins, postMembersGraded } = await import('../lib/card/post.js')

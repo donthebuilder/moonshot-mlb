@@ -30,7 +30,8 @@ const ENV_KEYS = [...Object.keys(PUBLIC_ENV), 'DISCORD_MEMBERS_WEBHOOK', 'DISCOR
 const setEnv = (extra = {}) => { for (const k of ENV_KEYS) delete process.env[k]; Object.assign(process.env, PUBLIC_ENV, extra) }
 
 const calls = []
-globalThis.fetch = async (url) => { calls.push(String(url)); return { ok: true, status: 204, statusText: 'No Content', headers: { get: () => null }, json: async () => ({}) } }
+// a #members post asks Discord for its message (?wait=true, lib/dash/discordBot.js): the webhook is the URL before it
+globalThis.fetch = async (url) => { calls.push(String(url).replace(/\?wait=true$/, '')); return { ok: true, status: 204, statusText: 'No Content', headers: { get: () => null }, json: async () => ({}) } }
 
 // a database that only knows the one table postOnce touches
 function fakeDb() {

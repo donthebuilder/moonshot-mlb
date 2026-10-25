@@ -26,7 +26,7 @@ const setEnv = (extra = {}) => { for (const k of ENV_KEYS) delete process.env[k]
 const calls = []
 let nextStatus = []
 globalThis.fetch = async (url, init = {}) => {
-  calls.push({ url: String(url), body: init.body, headers: init.headers })
+  calls.push({ url: String(url).replace(/\?wait=true$/, ""), body: init.body, headers: init.headers })   // a #members post asks for its message id (?wait=true)
   const status = nextStatus.shift() ?? 204
   return { ok: status < 300, status, statusText: 'x', headers: { get: () => null }, json: async () => ({ retry_after: 0.01 }) }
 }
