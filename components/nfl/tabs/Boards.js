@@ -198,6 +198,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
     const kept = pool.filter((p) => {
       if (!showLow && p.low_sample) return false
       if (team !== 'all' && p.team !== team) return false
+      if (top?.called && !top.called.has(String(p.player_id))) return false   // Called only (BoardHub): CALLED in any market
       if (needle && !String(p.name || '').toLowerCase().includes(needle)) return false
       if (onlyWatched && !watchlist.isPinned(p.player_id)) return false
       if (onlyPriced) {
@@ -211,7 +212,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
       return true
     })
     return kept
-  }, [bandFiltered, drawer, angle, angles, data, market, showLow, query, team, odds, onlyPriced, onlyUpcoming, onlyWatched, watchlist, now])
+  }, [bandFiltered, drawer, angle, angles, data, market, showLow, query, team, odds, onlyPriced, onlyUpcoming, onlyWatched, watchlist, now, top?.called])
   // POSITION (2026-10-10): the shared multi-select row (lib/positions.js), pos= in the address; roles share the row
   const pf = usePositionFilter('nfl', marketPool, { posOf: (p) => p.position, extraOf: roleKeys, extraOrder: ROLE_PILLS, countRows: beforePos })
   const rows = useMemo(() => {

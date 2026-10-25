@@ -99,11 +99,12 @@ export default function TwoTouchdowns({ data, matchup, odds, onPlayerClick, odds
     const needle = query.trim().toLowerCase()
     let out = bandFiltered.filter(drawer.test)
     if (team !== 'all') out = out.filter((p) => p.team === team)
+    if (top?.called) out = out.filter((p) => top.called.has(String(p.player_id)))   // Called only (BoardHub): CALLED in any market
     if (needle) out = out.filter((p) => String(p.name || '').toLowerCase().includes(needle))
     if (onlyWatched) out = out.filter((p) => watchlist.isPinned(p.player_id))
     if (onlyUpcoming) out = out.filter((p) => { const t = kickoffFor(data?.games, p); return t != null && t > now })
     return out
-  }, [bandFiltered, drawer, query, team, onlyWatched, onlyUpcoming, watchlist, data, now])
+  }, [bandFiltered, drawer, query, team, onlyWatched, onlyUpcoming, watchlist, data, now, top?.called])
   const pf = usePositionFilter('nfl', rows, { posOf: (p) => p.position, extraOf: roleKeys, extraOrder: ROLE_PILLS, countRows: beforePos })
   const filtered = useMemo(() => beforePos.filter(pf.test), [beforePos, pf.test])
   const capped = all ? filtered : filtered.slice(0, SOFT_CAP)
