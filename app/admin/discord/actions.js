@@ -5,7 +5,7 @@
 import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '../../../lib/supabase/server'
 import { isAdminUser } from '../../../lib/admin'
-import { isRoomKey, sendTest } from '../../../lib/dash/discordWire'
+import { isRoomKey, sendTest, sendBotTest } from '../../../lib/dash/discordWire'
 
 export async function sendDiscordTest(formData) {
   const supabase = await createSupabaseServerClient()
@@ -15,4 +15,13 @@ export async function sendDiscordTest(formData) {
   if (!isRoomKey(key)) redirect('/admin/discord')
   const r = await sendTest(key)
   redirect(`/admin/discord?sent=${encodeURIComponent(key)}&ok=${r.ok ? 1 : 0}${r.status ? `&status=${encodeURIComponent(String(r.status))}` : ''}`)
+}
+
+// THE BOT TEST (2026-10-25): a test line in #members, then the bot's reply under it. The result comes back as ?bot=<step>&ok=1|0.
+export async function sendBotTestAction() {
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } = {} } = supabase ? await supabase.auth.getUser() : {}
+  if (!user || !isAdminUser(user)) redirect('/')
+  const r = await sendBotTest()
+  redirect(`/admin/discord?bot=${encodeURIComponent(r.step)}&ok=${r.ok ? 1 : 0}${r.status ? `&status=${encodeURIComponent(String(r.status))}` : ''}`)
 }

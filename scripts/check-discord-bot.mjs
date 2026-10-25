@@ -77,5 +77,17 @@ await t('the bot posts only where our members webhook posted (a stored channel i
   assert.equal((await B.replyTo({ id: '555', channel_id: '777' }, 'TEST')).skipped, 'no bot or no message')
 })
 
+await t('the admin bot test: one #members line by webhook, then the bot reply under it; no bot = nothing sent', async () => {
+  const W = await import('../lib/dash/discordWire.js')
+  calls.length = 0
+  assert.equal((await W.sendBotTest()).step, 'no-bot'); assert.equal(calls.length, 0)
+  process.env.DISCORD_BOT_TOKEN = TOKEN; botStatus = 200
+  const r = await W.sendBotTest()
+  assert.equal(r.step, 'done'); assert.equal(calls.length, 2)
+  assert.equal(calls[0].url, `${MEM}?wait=true`)
+  assert.equal(calls[1].url, 'https://discord.com/api/v10/channels/777/messages'); assert.equal(calls[1].body.message_reference.message_id, '555')
+  delete process.env.DISCORD_BOT_TOKEN
+})
+
 console.log(bad ? `${bad}/${n} FAILED` : `OK: discord bot (${n} checks, TEST data)`)
 process.exit(bad ? 1 : 0)
