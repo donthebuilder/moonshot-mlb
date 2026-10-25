@@ -15,6 +15,7 @@ import BucketsPickStamp from '../BucketsPickStamp'
 import { createPortal } from 'react-dom'
 import { fmtOdds } from '../../../lib/odds'
 import { nbaQuote } from '../../../lib/nba/oddsQuote'
+import LineHitRates from '../LineHitRates'
 import { useLiveFetch } from '../../../lib/useLiveFetch'
 import { LEG_LABEL, fmtLeg } from '../../../lib/nba/legs'
 import HisNumbers from '../../HisNumbers'
@@ -395,6 +396,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
                         <ScrollHint><BucketsTable rows={logPv.shown} columns={logCols} onRowClick={(r) => onOpenGame?.((r?._raw ?? r).id)} heatMode="standouts" maxHeight={9999} maxRows={logRows.length}
                           caption="Newest first. Each row opens the game." /></ScrollHint>
                         <ShowMoreButton open={logPv.open} restN={logPv.restN} toggle={logPv.toggle} total={logPv.total} itemWord="games" />
+                        <LineHitRates rows={logRows} odds={odds} pid={pid} />
                         {[...new Set(logRows.map((g) => g.seasonType))].filter((t) => t && t !== 2).map((t) => <SeasonTypeChip key={t} type={t} />)}
                       </>
                     : <EmptyState title="NO GAMES LOGGED" note="No regular-season games for him in that span yet. Try another season above." />}
@@ -403,7 +405,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
               {showPanel('props') && (
                 <section className="portal-props" aria-label="Props" style={{ minWidth: 0 }}>
                   {/* THE BARS: one bar a game against the line + the L5..H2H hit rates */}
-                  <PlayerBars log={data.log || []} logSeason={data.logSeason} quarters={data.quarters} pos={card.pos} pos5={card.pos5} blowLog={data.logs || []} seasonYears={data.seasonYears} blow={game && row ? blowoutFor('nba', game.spreadHome, { home: game.home?.abbrev, away: game.away?.abbrev, team: row.team }) : null} nextGame={data.nextGame} onOpenTeam={onOpenTeam} />
+                  <PlayerBars log={data.log || []} logSeason={data.logSeason} quarters={data.quarters} pos={card.pos} pos5={card.pos5} blowLog={data.logs || []} seasonYears={data.seasonYears} blow={game && row ? blowoutFor('nba', game.spreadHome, { home: game.home?.abbrev, away: game.away?.abbrev, team: row.team }) : null} nextGame={data.nextGame} onOpenTeam={onOpenTeam} playerId={pid} />
                 </section>
               )}
               {tabbed && showPanel('splits') && <section className="portal-splits" aria-label="Splits" style={{ minWidth: 0 }}>{splitsPanel}</section>}

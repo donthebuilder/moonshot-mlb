@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import BucketsTable from './BucketsTable'
 import Tap from '../Tap'
 import { C, NUM_FONT } from '../../lib/nba/theme'
@@ -7,7 +7,8 @@ import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 import { usePreview, ShowMoreButton } from '../ListPreview'
 import { Kicker, EmptyState } from './ui'
 import { SPLIT_GROUPS, THIN_GP, splitRows, recentRows, filterGames, aggregate } from '../../lib/nba/splits'
-import { withoutLines, withoutScan } from '../../lib/nba/without'
+import { withoutLines, withoutScan, rankMates } from '../../lib/nba/without'
+import { useBucketsWithout } from '../../lib/nba/useBuckets'
 import { useInjuryLayer } from '../injuries/InjuryLayer'
 import { BLOCKS } from '../../lib/injuries/statuses'
 import { findEntry } from '../../lib/injuries/lookup'
@@ -109,7 +110,6 @@ function Combo({ games }) {
 
 const sgn = (v) => (v == null || !Number.isFinite(v) ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(1)}`)
 const sgnPct = (v) => (v == null || !Number.isFinite(v) ? '—' : `${v > 0 ? '+' : ''}${(v * 100).toFixed(1)}`)
-const lastName = (n) => String(n || '').replace(/\s+(Jr\.?|Sr\.?|II|III|IV)$/i, '').split(' ').slice(-1)[0]
 const NOT_STATS = ['split', 'gp', 'thin']
 // THE CHANGE ROW: the same columns, each cell = without minus with (a % in points of %).
 const DELTA_COLS = COLS.map((c) => (NOT_STATS.includes(c.key) ? c : { ...c, fmt: (v, r) => (r._delta ? (c.key.endsWith('Pct') ? sgnPct(v) : sgn(v)) : c.fmt(v, r)) }))
@@ -129,27 +129,15 @@ const SCAN_COLS = [
 // WITHOUT (2026-10-24): his line in the games a teammate missed. Teammates as chips (whoever the injury report has OUT tonight
 // first, then most points a game); two picked = both out. The pair table carries the full split columns + a change row.
 function Without({ games, playerId }) {
-  const [mates, setMates] = useState(null)
+  const { data: wo, loading } = useBucketsWithout(playerId)
+  const mates = wo?.mates ?? (loading ? null : [])
   const [pick, setPick] = useState(null)
   const layer = useInjuryLayer()
-  useEffect(() => {
-    let live = true
-    setMates(null)
-    fetch(`/api/buckets/without?pid=${encodeURIComponent(playerId)}`).then((r) => (r.ok ? r.json() : null)).then((j) => { if (live) setMates(j?.mates || []) }).catch(() => { if (live) setMates([]) })
-    return () => { live = false }
-  }, [playerId])
-  const ids = useMemo(() => new Set(games.map((g) => g.id)), [games])
-  const list = useMemo(() => (mates || [])
-    .map((m) => ({ ...m, on: m.on.filter((x) => ids.has(x)), out: m.out.filter((x) => ids.has(x)) }))
-    .filter((m) => m.on.length && m.out.length)
-    // by ESPN id only: a name match would mark Seth Curry out when Stephen is
-    .map((m) => { const e = layer?.index ? findEntry(layer.index, { player_id: m.id }) : null; return { ...m, tonight: Boolean(e && BLOCKS.has(e.status)) } })
-    .sort((a, b) => (b.tonight - a.tonight) || (b.ppg - a.ppg)), [mates, ids, layer])
-  // two men with one last name read "S. Curry"
-  const label = useMemo(() => {
-    const n = {}; for (const m of list) n[lastName(m.name)] = (n[lastName(m.name)] || 0) + 1
-    return (m) => (n[lastName(m.name)] > 1 ? `${m.name[0]}. ${lastName(m.name)}` : lastName(m.name))
-  }, [list])
+  const list = useMemo(() => rankMates(mates, new Set(games.map((g) => g.id)), (m) => {
+    const e = layer?.index ? findEntry(layer.index, { player_id: m.id }) : null   // by ESPN id: a name match can hit a teammate's entry
+    return e && BLOCKS.has(e.status)
+  }), [mates, games, layer])
+  const label = (m) => m.label
   const chosen = pick || (list[0] ? [list[0].id] : [])
   const picked = chosen.map((id) => list.find((m) => m.id === id)).filter(Boolean)
   const toggle = (id) => setPick(chosen.includes(id) ? chosen.filter((x) => x !== id) : [...chosen, id].slice(-2))
@@ -162,7 +150,7 @@ function Without({ games, playerId }) {
   ] : null
   const scan = useMemo(() => withoutScan(games, list).map(({ m, with: w, without: o }) => ({
     _key: m.id, _raw: m, who: label(m), gp: o.gp, thin: o.gp < THIN_GP, ptsW: w.pts, ptsO: o.pts, ...deltaOf(w, o),
-  })).sort((a, b) => (a.thin - b.thin) || (b.pts - a.pts)), [games, list, label])
+  })).sort((a, b) => (a.thin - b.thin) || (b.pts - a.pts)), [games, list])
   const pv = usePreview(scan, 5)
   if (mates == null) return <div style={{ fontSize: 12, color: C.text3 }}>Reading his teammates…</div>
   if (!list.length) return <EmptyState title="NO TEAMMATE MISSED A GAME" note="Nobody on his club missed one of his games in this window." />
