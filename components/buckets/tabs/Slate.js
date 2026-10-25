@@ -1,6 +1,7 @@
 'use client'
 import { Fragment, useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
+import CalledExport from '../../CalledExport'
 import Tap from '../../Tap'
 import GameHeadRow from '../../slate/GameHeadRow'
 import TeamMark, { MatchLogos } from '../../TeamMark'
@@ -130,7 +131,7 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
   return (
     <div className="slate-tight phone-slate">
       <PageHeader eyebrow="BUCKETS · SLATE" title="Slate" theme={C} numFont={NUM_FONT} accent={C.purple}
-        note="Tonight’s games, tip-off first." />
+        note="Tonight’s games, tip-off first." right={<CalledExport sport="nba" date={shown || null} C={C} NUM_FONT={NUM_FONT} accent={C.purple} />} />
       {/* desktop: day nav + search + team + game + Table|Games on ONE row (app/globals.css .slate-tight); phone: a plain block */}
       <div className="slate-bar">
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>

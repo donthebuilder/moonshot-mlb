@@ -7,6 +7,7 @@ import { alignedSignals } from '../../../lib/nfl/dvpSignal'
 import MatchupBadge from '../MatchupBadge'
 import NflTable from '../NflTable'
 import PageHeader from '../../PageHeader'
+import { NflCalledExport } from '../../CalledExport'
 import NflSlate from '../NflSlate'
 import { ViewPills } from '../../slate/SlateParts'
 import BoardTopBar from '../../BoardTopBar'
@@ -264,6 +265,7 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
           stylesheet. */}
       <PageHeader
         eyebrow="TUDDY · SLATE"
+        right={<NflCalledExport data={data} picks={picks} C={C} NUM_FONT={NUM_FONT} accent={C.green} />}
         title="Slate"
         theme={C}
         numFont={NUM_FONT}

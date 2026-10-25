@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 import CallStatusBadge from './CallStatusBadge'
 import { playerHref } from '../lib/routes'
 import Tap from './Tap'
+import { TeamTap } from './EntityTap'
 import { useLockOf, CardLockLine } from './MemberGate'
 
 /**
@@ -63,7 +64,8 @@ export default function GameWriteupBlock({ w, theme, words, onOpen, depth = null
               <span style={{ minWidth: 0 }}>{(st.parts || []).map((x, j) => (x.t === 'name'
                 ? (x.v === st.name && st.player_id && !String(st.player_id).startsWith('team:')
                   ? <a key={j} href={playerHref(w.sport, st.player_id)} style={{ color: C.text, fontWeight: 800, textDecoration: 'none' }}>{x.v}</a>
-                  : <b key={j} style={{ color: C.text }}>{x.v}</b>)
+                  // a club code in a story ("faces SF") opens the club, as StoryRow draws it (check-clickable, 10-25)
+                  : <b key={j} style={{ color: C.text }}><TeamTap abbr={x.v} sport={w.sport} px={14}>{x.v}</TeamTap></b>)
                 : x.t === 'num' ? <b key={j} style={{ fontFamily: NUM_FONT, color: ACCENT }}>{x.v}</b> : <span key={j}>{x.v}</span>))}</span>
             </div>
           ))}

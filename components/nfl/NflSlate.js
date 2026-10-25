@@ -307,8 +307,12 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
                 sub={(() => {
                   const oc = outCounts([g.away, g.home])
                   const bits = [g.venue, airText(g), oc?.out ? `${oc.out} out` : null].filter(Boolean)
-                  const drive = g.state === 'in' && (g.down_distance || g.possession) ? [g.possession ? `${g.possession} ball` : null, g.down_distance || null, g.red_zone ? 'RED ZONE' : null].filter(Boolean).join(' · ') : null
-                  return bits.length || drive ? <>{bits.join(' · ')}{drive ? <span style={{ color: C.green, fontWeight: 800 }}>{bits.length ? ' · ' : ''}{drive}</span> : null}</> : null
+                  // the live drive; the club with the ball opens its page like every other team code (check-clickable, 10-25)
+                  const live = g.state === 'in' && (g.down_distance || g.possession)
+                  const club = (t) => <Tap onClick={onOpenTeam ? () => onOpenTeam(t) : null} title={`Open ${t}`}>{t}</Tap>
+                  // "1st & 10 at SF 48": the side of the field is a club too
+                  const dd = live && g.down_distance ? (() => { const m = /^(.*\bat )([A-Z]{2,3})(\b.*)$/.exec(g.down_distance); return m ? <>{m[1]}{club(m[2])}{m[3]}</> : g.down_distance })() : null
+                  return bits.length || live ? <>{bits.join(' · ')}{live ? <span style={{ color: C.green, fontWeight: 800 }}>{bits.length ? ' · ' : ''}{g.possession ? <>{club(g.possession)} ball</> : null}{g.possession && dd ? ' · ' : ''}{dd}{g.red_zone ? ' · RED ZONE' : ''}</span> : null}</> : null
                 })()} />
               <div style={{ padding: '0 14px 12px' }}>
                 <GameTotalLine sport="nfl" row={gameTotals?.[String(g.game_id)]} style={{ marginTop: 8 }} />
