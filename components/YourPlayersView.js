@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { C as MLB_C, NUM_FONT as MLB_NUM, TYPE } from '../lib/theme'
 import { useFollowing } from '../lib/dash/follow'
+import { playerHref } from '../lib/routes'
 import { useDashAccount } from '../lib/dash/sync'
 import { useAlertPrefs } from '../lib/dash/alerts'
 import AlertsEntry from './AlertsEntry'
@@ -205,12 +206,13 @@ export default function YourPlayersView({
             data-bell={alertPrefs.on || muted(r.id) ? '1' : undefined}
             role="button"
             tabIndex={0}
-            onClick={() => r.p && onPlayerClick?.(r.p)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && r.p) onPlayerClick?.(r.p) }}
-            title={r.p ? 'Open his card' : 'Not on tonight’s board — nothing to open'}
+            // not on tonight's board: his player page instead of nothing (2026-10-24, Donovan: "I can't see the player's card")
+            onClick={() => (r.p ? onPlayerClick?.(r.p) : window.location.assign(playerHref(sport, r.id)))}
+            onKeyDown={(e) => { if (e.key === 'Enter') (r.p ? onPlayerClick?.(r.p) : window.location.assign(playerHref(sport, r.id))) }}
+            title={r.p ? 'Open his card' : 'Open his player page'}
             style={{
               display: 'flex', alignItems: 'baseline', gap: 9, padding: '6px 9px',
-              borderRadius: 8, cursor: r.p ? 'pointer' : 'default',
+              borderRadius: 8, cursor: 'pointer',
               opacity: r.status === 'off' ? 0.5 : 1,
             }}
           >
