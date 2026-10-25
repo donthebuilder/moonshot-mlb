@@ -48,6 +48,7 @@ import dynamic from 'next/dynamic'
 // Dashboard pattern. A tab you never open costs nothing.
 import TabLoading from '../TabLoading'
 const Watchlist = dynamic(() => import('./tabs/Watchlist'), { loading: TabLoading })
+const Trending = dynamic(() => import('./tabs/Trending'), { loading: TabLoading })
 const Binder = dynamic(() => import('../binder/Binder'), { loading: TabLoading })   // 2026-10-12: cards earned by the players I follow
 const Games = dynamic(() => import('./tabs/Games'), { loading: TabLoading })
 const Bot = dynamic(() => import('./tabs/Bot'), { loading: TabLoading })
@@ -138,7 +139,7 @@ const cardViewOf = (h) => {
   return CARD_VIEWS.has(v) ? v : ''
 }
 // the pages that print a price (see the effect that loads the quotes)
-const ODDS_TABS = new Set(['players', 'games', 'picks', 'research'])
+const ODDS_TABS = new Set(['players', 'games', 'picks', 'research', 'trending'])
 const NFL_TAB_KEEP = { pos: new Set(['research']), lens: new Set(['odds', 'live']), player: new Set(['players']), team: new Set(['players', 'team']), game: new Set(['games']), lv: new Set(['ledger']), sec: new Set(['team']), sv: new Set(['team']) }   // sec=: the team page's section (components/team/TeamPage.js); lv=: The Ledger's sub-tab (lib/ledger/views.js)
 
 export default function NflDashboard({ palettePass = 0 }) {
@@ -567,6 +568,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'explosive' && <Explosive matchup={matchup} data={data} onPlayerClick={openPlayer} />}
             {tab === 'redzone' && <RedZone data={data} matchup={matchup} onPlayerClick={openPlayer} />}
             {/* MOONSHOT's Odds page, sport="nfl" (2026-10-02): this week's players, their prices, moves and books */}
+            {tab === 'trending' && <Trending data={data} logs={logs} odds={odds} onPlayerClick={openPlayer} />}
             {tab === 'odds' && <OddsWithLongshots odds={<OddsBoard sport="nfl" players={data?.players || []} theme={C} numFont={NUM_FONT} Table={NflTable} onPlayerClick={(p) => p && openPlayer(p, 'TD')} startedOf={(p) => { const t = kickoffFor(data?.games, p); return Number.isFinite(t) && t <= Date.now() }} />}
               longshots={<Longshots sport="nfl" eyebrow="TUDDY · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.green} Table={NflTable} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p, 'TD') }} />} />}
             {tab === 'numerology' && <Numerology data={data} onPlayerClick={openPlayer} />}
