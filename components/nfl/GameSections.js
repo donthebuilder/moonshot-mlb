@@ -14,6 +14,7 @@ import { Kicker } from './Kicker'
 import { roleLabel } from '../../lib/nfl/roles'
 import { sideFor } from '../../lib/nfl/whoLines'
 import NflTable from './NflTable'
+import { useAvailable } from '../injuries/useAvailable'
 
 // THE GAME PAGE'S PLAIN SECTIONS (2026-10-06, fix5-nflgame). Donovan on the old
 // page: "the boxes or bubbles with the stats in there are not even big, you can't
@@ -110,9 +111,16 @@ export function KeyPlayers({ matchup, data, game, onPlayerClick, onOpenTeam }) {
 export function MatchupScoreboard({ matchup, data, game, onPlayerClick = null }) {
   const chart = Number(matchup?.chart_season)
   const slate = Number(data?.season) || null
+  // out men off the sheet (2026-10-24): the next receiver / back takes the row; an out starting QB takes his rows with him
+  const avail = useAvailable()
+  const players = avail(data?.players || [])
+  const gone = new Set((data?.players || []).filter((p) => !players.includes(p)).map((p) => p.player_id))
+  const live = gone.size && matchup?.qb_pressure?.starter
+    ? { ...matchup, qb_pressure: { ...matchup.qb_pressure, starter: Object.fromEntries(Object.entries(matchup.qb_pressure.starter).filter(([, id]) => !gone.has(id))) } }
+    : matchup
   return (
     <AttackSheet sport="nfl" teams={[game.away, game.home]} start={game.home} C={C} NUM_FONT={NUM_FONT} accent={C.green} Kicker={Kicker}
-      ariaLabel="How they defend" rowsFor={(off, def) => attackRows(matchup, data?.players, off, def)} head={(def) => `${def} DEFENSE · RANK OF 32`}
+      ariaLabel="How they defend" rowsFor={(off, def) => attackRows(live, players, off, def)} head={(def) => `${def} DEFENSE · RANK OF 32`}
       onPick={onPlayerClick ? (p) => onPlayerClick(p, 'TD') : null}
       note={`Quick throws, go deep, run it: the usual answer to that trait; the player and his number are real.${chart && slate && chart < slate ? ` Pass rush, coverage and receivers vs zone / man: ${chart}.` : ''}`} />
   )

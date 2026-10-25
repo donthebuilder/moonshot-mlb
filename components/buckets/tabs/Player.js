@@ -283,7 +283,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
       </div>
       {rightView === 'onhim'
         ? <BucketsOnHim calls={data.calls} homeOf={homeOf} style={{ marginTop: 0 }} />
-        : <PlayerSplits games={games} label={windowLabel} onOpenTeam={onOpenTeam} />}
+        : <PlayerSplits games={games} label={windowLabel} onOpenTeam={onOpenTeam} playerId={pid} />}
       <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
         <PlayerNotes playerId={pid} scope="nba" accent={C.purple} />
         <StarMemory sport="nba" id={pid} />

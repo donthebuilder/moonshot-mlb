@@ -5,6 +5,8 @@ import { weakSpotRoles, softLine, plainRole, fitsSoft } from '../../lib/nfl/dvpS
 import { WeakSpotGrid } from '../slate/WeakSpotCard'
 import { SubLabel } from '../matchup/MatchupParts'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
+import { useAvailable } from '../injuries/useAvailable'
+import { slideRoles } from '../../lib/nfl/roles'
 
 // TUDDY'S WEAK SPOTS (2026-09-28, parity plan 00Q step 2). MOONSHOT's "★ Weak
 // spots" -- a starter's soft lineup slot and the hitter standing in it -- is,
@@ -17,7 +19,16 @@ import { C, NUM_FONT } from '../../lib/nfl/theme'
 // Same card as MOONSHOT's (components/slate/WeakSpotCard.js). Nothing new is
 // computed; a defense with no standout soft role has no card.
 
-export default function NflWeakSpots({ matchup, players = [], games = [], onPlayerClick, onOpenTeam = null }) {
+export default function NflWeakSpots({ matchup: rawMatchup, players: allPlayers = [], games = [], onPlayerClick, onOpenTeam = null }) {
+  // tonight's out / IR / doubtful men leave, and the man under each moves up his depth role (WR2 -> WR1), so a soft
+  // role is answered by who will actually line up there (lib/nfl/roles slideRoles)
+  const avail = useAvailable()
+  const players = useMemo(() => avail(allPlayers), [avail, allPlayers])
+  const matchup = useMemo(() => {
+    if (!rawMatchup?.roles || players === allPlayers) return rawMatchup
+    const keep = new Set(players.map((p) => p.player_id))
+    return { ...rawMatchup, roles: slideRoles(rawMatchup.roles, allPlayers, (p) => !keep.has(p.player_id)) }
+  }, [rawMatchup, players, allPlayers])
   // the card title opens the club (0g A3): the prop, else TUDDY's team door
   const teamNav = useTeamNav()
   const openTeam = onOpenTeam || teamNav

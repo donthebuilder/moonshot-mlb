@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import TeamMark from '../TeamMark'
 import Tap from '../Tap'
+import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 
 // HOW TO ATTACK THEM, EVERY SPORT (2026-10-20, Donovan: "i damn near need that how to attack for all sports"). TUDDY's
 // attack sheet (Donovan 10-19, "G2") lifted out of components/nfl/GameSections.js so MOONSHOT, LAMP and BUCKETS draw the
@@ -21,19 +22,21 @@ import Tap from '../Tap'
  */
 export default function AttackSheet({ sport, teams, rowsFor, head, turn = () => 'ball', note = '', C, NUM_FONT, accent, onPick = null, kicker = 'HOW TO ATTACK THEM', ariaLabel = 'How to attack them', start = null, answerWord = 'WHO BEATS IT', Kicker = null }) {
   const [away, home] = teams
-  const [ball, setBall] = useState(start || home)
+  // the pick only counts while it is a club in THIS game: the slate swaps games in place, and a pick kept from the last
+  // game (DEN) answered the new game's defense with the old game's players (2026-10-24)
+  const [picked, setBall] = useState(null)
+  const ball = teams.includes(picked) ? picked : (start || home)
   const def = ball === home ? away : home
   const rows = rowsFor(ball, def) || []
   if (!(rowsFor(home, away) || []).length && !(rowsFor(away, home) || []).length) return null
-  const pill = (t) => ({ minHeight: 0, padding: '6px 12px', borderRadius: 999, cursor: 'pointer', font: `800 12px/1 ${NUM_FONT}`, background: 'transparent',
-    border: `1px solid ${t === ball ? accent : C.border2}`, color: t === ball ? accent : C.text2, display: 'inline-flex', alignItems: 'center', gap: 6 })
+  const pill = (t) => flatChip(t === ball, accent, C, NUM_FONT)   // the one chip (lib/chips, 10-22)
   return (
     <section aria-label={ariaLabel} style={{ marginBottom: 16 }}>
       {Kicker ? <Kicker>{kicker}</Kicker> : <div style={{ font: `800 11px/1.2 ${NUM_FONT}`, letterSpacing: '.12em', color: C.text3, margin: '0 0 8px' }}>{kicker}</div>}
       <div role="group" aria-label="Whose turn" style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
         {[away, home].map((t) => (
-          <button key={t} type="button" className="tap-box" aria-pressed={t === ball} onClick={() => setBall(t)} style={pill(t)}>
-            <TeamMark sport={sport} abbr={t} variant="logo" px={16} />{t} {turn(t)}
+          <button key={t} type="button" className={FLAT_CHIP_CLASS} aria-pressed={t === ball} onClick={() => setBall(t)} style={pill(t)}>
+            <TeamMark sport={sport} abbr={t} variant="logo" px={14} />{t} {turn(t)}
           </button>
         ))}
       </div>
