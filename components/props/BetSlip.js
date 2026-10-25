@@ -14,6 +14,7 @@ import { useState } from 'react'
 import { TYPE } from '../../lib/theme'
 import { fmtOdds, impliedPct, profitOn } from '../../lib/odds'
 import HelpTip from '../HelpTip'
+import CallStatusBadge from '../CallStatusBadge'
 import { combined, bySport } from '../../lib/slip/core'
 import { BRAND } from '../../lib/routes'
 import { SPORT_ACCENT } from '../../lib/sportAccent'
@@ -28,7 +29,7 @@ const money = (v) => `$${v >= 1000 ? Math.round(v).toLocaleString() : v.toFixed(
 
 // ONE SLIP, EVERY SPORT (2026-10-25): legs from more than one sport sit under the product's name in its own accent. A leg's price can be set to
 // the user's own (their book's number, marked "yours"): the slip holds one price per leg, so this is how a different book is used. Never invented.
-export default function BetSlip({ legs, onRemove, onClear, onSetPrice = null, pairNotes = [], partners = [], onAdd = null, C, NUM_FONT, accent }) {
+export default function BetSlip({ legs, onRemove, onClear, onSetPrice = null, statusOf = null, pairNotes = [], partners = [], onAdd = null, C, NUM_FONT, accent }) {
   const [stake, setStake] = useState(10)
   const [editing, setEditing] = useState(null)   // `${sport}|${key}` of the leg whose price is being typed
   const [draft, setDraft] = useState('')
@@ -67,6 +68,7 @@ export default function BetSlip({ legs, onRemove, onClear, onSetPrice = null, pa
               <div key={ek} style={{ display: 'flex', alignItems: 'center', gap: 8, borderTop: `1px solid ${C.border}`, minHeight: 44, fontSize: 12.5 }}>
                 <b style={{ color: C.text, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.name}</b>
                 <span style={{ color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap' }}>{l.market}</span>
+                {statusOf && statusOf(l) === 'called' ? <CallStatusBadge status="called" accent={SPORT_ACCENT[l.sport] || accent} theme={C} numFont={NUM_FONT} /> : null}
                 {isEd ? (
                   <input autoFocus type="text" inputMode="text" value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit}
                     onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(null) }}

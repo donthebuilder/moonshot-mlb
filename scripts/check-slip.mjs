@@ -5,6 +5,8 @@ import { SLIP_KEYS, SLIP_KEY_ALL, CALLED_CAP, readLegs, withLeg, withLegs, witho
 import { landedTogether, LANDED_TOGETHER_START, MIN_NIGHTS } from '../lib/slip/landed.js'
 import { lampAlsoPriced } from '../lib/nhl/lampQuote.js'
 import { nbaQuote } from '../lib/nba/oddsQuote.js'
+import { findLegs, playerLegs } from '../lib/slip/candidates.js'
+import { callStatusOf } from '../lib/slip/grade.js'
 import { rowLeg, mlbHrLeg, nflLeg, nhlGoalLeg, nbaLeg, longshotLeg, oddsRowLeg, marketCode } from '../lib/slip/rowLegs.js'
 let fail = 0
 const eq = (name, got, want) => { const ok = JSON.stringify(got) === JSON.stringify(want); fail += !ok; console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${ok ? '' : `: got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`}`) }
@@ -154,6 +156,24 @@ eq('legs group in sport order, empty sports left out', bySport([...x].reverse())
 eq('a cross-sport slip prices as one parlay when every leg is priced', combined(x).decimal, 3 * 2.5)
 eq('your own price sets the leg and marks it yours', withPrice(x, 'K1', 'nba', '-120').map((l) => [l.sport, l.price, Boolean(l.priceEdited)]), [['mlb', 200, false], ['nba', -120, true]])
 eq('a bad price (blank, junk, under 100) changes nothing', [withPrice(x, 'K1', 'nba', ''), withPrice(x, 'K1', 'nba', 'abc'), withPrice(x, 'K1', 'nba', '50')].every((r) => r === x), true)
+
+// ADD A LEG (2026-10-25, TEST data): a typed name -> only players with a real price on the bet's own bar
+const IDX = { nba: [{ id: 'N1', name: 'TEST Nine One', team: 'AAA' }, { id: 'N2', name: 'TEST Nine Two', team: 'BBB' }], nhl: [{ id: 'H1', name: 'TEST Hockey One', team: 'CCC' }] }
+const ODDS = { nba: TEST_NBA, nhl: { by_player_id: { H1: { player_anytime_goal: { line: 0.5, over: 400 } } } } }
+eq('add a leg: under 2 letters finds nothing', findLegs('t', IDX, ODDS), [])
+const f1 = findLegs('test nine', IDX, ODDS)
+eq('add a leg: only the player the books price (N2 has no quote)', f1.map((h) => [h.sport, h.id, h.legs.map((l) => l.key)]), [['nba', 'N1', ['N1|pts', 'N1|reb']]])
+eq('add a leg: a leg is the existing builder\'s (real price, by hand, no game)', [f1[0].legs[0].price, f1[0].legs[0].source, f1[0].legs[0].sport, f1[0].legs[0].game], [-110, 'player', 'nba', null])
+eq('add a leg: it searches across products', findLegs('test', IDX, ODDS).map((h) => h.sport).sort(), ['nba', 'nhl'])
+eq('add a leg: a product with no prices loaded is skipped, never guessed', findLegs('test hockey', IDX, { nba: TEST_NBA }), [])
+eq('add a leg: no odds, no legs', playerLegs('nba', IDX.nba[0], null), [])
+eq('add a leg: the leg goes on the shared slip once', withLegs([], [f1[0].legs[0], f1[0].legs[0]], NOW).length, 1)
+// GRADE: CALLED only for a pick the product published; a non-member never sees a pick outside the free four
+const pubT = { cands: [{ key: 'N1|pts', free: false, leg: { key: 'N1|pts' } }, { key: 'N1|reb', free: true, leg: { key: 'N1|reb' } }] }
+eq('grade: a member sees CALLED on a called leg', callStatusOf({ key: 'N1|pts' }, pubT, 'member'), 'called')
+eq('grade: a non-member sees nothing outside the free four', callStatusOf({ key: 'N1|pts' }, pubT, 'free'), null)
+eq('grade: a non-member sees a free-four call', callStatusOf({ key: 'N1|reb' }, pubT, 'free'), 'called')
+eq('grade: no published calls, or a leg not called, is silent (never "not on the board")', [callStatusOf({ key: 'N1|pts' }, null, 'member'), callStatusOf({ key: 'ZZ|pts' }, pubT, 'member')], [null, null])
 
 if (fail) { console.error(`\n${fail} FAILED`); process.exit(1) }
 console.log('\nall ok')

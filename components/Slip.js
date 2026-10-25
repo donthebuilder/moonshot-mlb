@@ -9,6 +9,8 @@
 // MLB's old floating Slip (HR / Hit / HRR / TB legs, no price) is this component now: the same chip, the same slip.
 import { useEffect, useRef, useState } from 'react'
 import BetSlip from './props/BetSlip'
+import AddLeg from './slip/AddLeg'
+import { callStatusOf } from '../lib/slip/grade'
 import { useSlip, useCalls, slipClearAll } from '../lib/slip/store'
 import { calledLegs } from '../lib/slip/core'
 import { landedTogether } from '../lib/slip/landed'
@@ -160,7 +162,8 @@ export default function Slip({ sport = 'mlb', C, NUM_FONT, accent, onOpenProps =
               <button type="button" onClick={() => setOpen(false)} aria-label="Close the slip" style={{ minHeight: 44, minWidth: 44, border: 'none', background: 'transparent', color: C.text2, fontSize: 20, cursor: 'pointer' }}>✕</button>
             </div>
             {all.length === 0 && <div style={{ ...quiet, margin: '2px 0 8px' }}>Nothing on your slip yet. Tap + slip on a prop or a player page to add it.</div>}
-            <BetSlip legs={all} onRemove={remove} onClear={slipClearAll} onSetPrice={setPrice} C={C} NUM_FONT={NUM_FONT} accent={accent} />
+            <AddLeg all={all} C={C} NUM_FONT={NUM_FONT} accent={accent} />
+            <BetSlip legs={all} statusOf={(l) => (l.sport === sport ? callStatusOf(l, pub, memberState) : null)} onRemove={remove} onClear={slipClearAll} onSetPrice={setPrice} C={C} NUM_FONT={NUM_FONT} accent={accent} />
 
             <div style={{ display: 'grid', gap: 6, margin: '6px 0 12px' }}>
               <button type="button" onClick={addCalled} style={btn}>{member ? 'Add tonight’s called picks' : 'Try an example slip'}</button>
