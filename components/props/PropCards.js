@@ -217,7 +217,7 @@ export default function PropCards({
   // THE SLIP: ONE store per sport (lib/slip/store.js), the same slip the floating slip bar (components/Slip.js) and every player page add to.
   const sport = aIn.sportKey
   const storiesBy = useStoriesByPlayer(sport, date)
-  const { legs: slip, toggle: toggleLeg, remove: removeLeg, clear: clearSlip, addMany } = useSlip(sport)
+  const { legs: slip, toggle: toggleLeg, remove: removeLeg, clear: clearSlip, addMany, setPrice: setSlipPrice } = useSlip(sport)
   const slipKeyOf = (r, k) => `${a.keyOf(r)}|${k}`
   // PAIRING HELP ON THE SLIP (the deleted Parlay Builder's useful parts, lib/slipPairs.js): only a product whose
   // adapter has the rules (MOONSHOT) gets the pair notes and the suggested partners; the rest are unchanged.
@@ -484,7 +484,7 @@ export default function PropCards({
 
       {gateOf && <HiddenCalledLine n={gateOf.hidden} C={C} NUM_FONT={NUM_FONT} style={{ marginTop: 2 }} />}
       {seedNote && <div role="status" style={{ fontSize: TYPE.body, color: C.text2, margin: '4px 0 6px', lineHeight: 1.5 }}>{seedNote}</div>}
-      <BetSlip pairNotes={pairNotes} partners={partnerPicks} onAdd={(p) => toggleSlip(p.r, p.k)} legs={slip} onRemove={removeLeg} onClear={clearSlip} C={C} NUM_FONT={NUM_FONT} accent={accent} />
+      <BetSlip pairNotes={pairNotes} partners={partnerPicks} onAdd={(p) => toggleSlip(p.r, p.k)} legs={slip} onRemove={removeLeg} onClear={clearSlip} onSetPrice={setSlipPrice} C={C} NUM_FONT={NUM_FONT} accent={accent} />
       {sameGame.length > 0 && (
         <div style={{ fontSize: TYPE.body, color: C.text2, margin: '4px 0 6px', lineHeight: 1.5 }}>
           {sameGameLine(sameGame.map((x) => ({ label: x.label, n: x.ids.size })))}

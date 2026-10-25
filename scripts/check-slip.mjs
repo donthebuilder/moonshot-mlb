@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // THE SLIP (2026-10-17). TEST DATA only: made-up names, prices and results, labelled TEST. No real players.
 //   node --import ./scripts/_esm-resolve.mjs scripts/check-slip.mjs
-import { SLIP_KEYS, CALLED_CAP, readLegs, withLeg, withLegs, withoutLeg, toggledLeg, combined, calledLegs } from '../lib/slip/core.js'
+import { SLIP_KEYS, SLIP_KEY_ALL, CALLED_CAP, readLegs, withLeg, withLegs, withoutLeg, toggledLeg, combined, calledLegs, mergeLegacy, withPrice, legsOfSport, bySport } from '../lib/slip/core.js'
 import { landedTogether, LANDED_TOGETHER_START, MIN_NIGHTS } from '../lib/slip/landed.js'
 import { lampAlsoPriced } from '../lib/nhl/lampQuote.js'
 import { nbaQuote } from '../lib/nba/oddsQuote.js'
@@ -135,6 +135,25 @@ eq('row leg: source is always player (never called), no status field', [sneaky.s
 eq('row legs for every sport are by-hand', [h1, nflLeg(TEST_NFL, { player_id: 'T1', name: 'TEST One' }, 'TD'), nhlGoalLeg(TEST_NHL2, { id: 'H1', name: 'TEST H1' }), nbaLeg(TEST_NBA, { id: 'N1', name: 'TEST N1' }, 'pts'), longshotLeg('nfl', { id: 'L1', name: 'TEST L', best: 300 })].every((l) => l.source === 'player'), true)
 eq('a row leg goes on the shared slip and toggles off', toggledLeg(toggledLeg([], h1, NOW), h1, NOW).length, 0)
 eq('market codes: the player pages\' codes', [marketCode('nfl', 'player_anytime_td'), marketCode('nhl', 'player_shots_on_goal'), marketCode('nba', 'player_points'), marketCode('mlb', 'batter_home_runs')], ['TD', 'SOG', 'pts', 'HR'])
+
+// ONE SHARED SLIP (2026-10-25, TEST legs): every sport in one list, the four old keys carried over once
+eq('the shared slip key', SLIP_KEY_ALL, 'dash_slip_v2')
+const rawOld = {
+  mlb: JSON.stringify([{ key: 'TEST1|HR', name: 'TEST M1', market: 'HR', price: 300, at: NOW - 3600e3 }]),
+  nba: JSON.stringify([{ key: 'TEST1|pts', name: 'TEST N1', market: 'PTS', price: -110, at: NOW - 3600e3 }, { key: 'TEST9|pts', name: 'TEST N9', price: 100, at: NOW - 30 * 3600e3 }]),
+  nhl: null,
+}
+const merged = mergeLegacy(rawOld, NOW)
+eq('legacy keys merge: each leg stamped with its sport, stale dropped', merged.map((l) => [l.sport, l.key]), [['mlb', 'TEST1|HR'], ['nba', 'TEST1|pts']])
+eq('merging again adds nothing new (a leg is kept once)', withLegs(merged, merged, NOW).length, 2)
+const x = withLegs([], [{ key: 'K1', sport: 'mlb', price: 200 }, { key: 'K1', sport: 'nba', price: 150 }], NOW)
+eq('the same key in two sports is two legs', x.map((l) => l.sport), ['mlb', 'nba'])
+eq('removing by key + sport takes only that sport\'s leg', withoutLeg(x, 'K1', 'nba').map((l) => l.sport), ['mlb'])
+eq('a sport\'s legs are only its own', legsOfSport(x, 'nba').map((l) => l.price), [150])
+eq('legs group in sport order, empty sports left out', bySport([...x].reverse()).map(([s]) => s), ['mlb', 'nba'])
+eq('a cross-sport slip prices as one parlay when every leg is priced', combined(x).decimal, 3 * 2.5)
+eq('your own price sets the leg and marks it yours', withPrice(x, 'K1', 'nba', '-120').map((l) => [l.sport, l.price, Boolean(l.priceEdited)]), [['mlb', 200, false], ['nba', -120, true]])
+eq('a bad price (blank, junk, under 100) changes nothing', [withPrice(x, 'K1', 'nba', ''), withPrice(x, 'K1', 'nba', 'abc'), withPrice(x, 'K1', 'nba', '50')].every((r) => r === x), true)
 
 if (fail) { console.error(`\n${fail} FAILED`); process.exit(1) }
 console.log('\nall ok')
