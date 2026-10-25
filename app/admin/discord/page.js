@@ -5,7 +5,7 @@ import { hasSupabaseConfig } from '../../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../../lib/supabase/server'
 import { isAdminUser, adminDenyReason } from '../../../lib/admin'
 import start from '../../start/start.module.css'
-import { wiringReport, DISCORD_ROOMS } from '../../../lib/dash/discordWire'
+import { wiringReport, probeBot, DISCORD_ROOMS } from '../../../lib/dash/discordWire'
 import { sendDiscordTest } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -34,7 +34,7 @@ export default async function DiscordAdminPage({ searchParams }) {
   if (!user || !isAdminUser(user)) { console.warn(`[admin/discord] 404: ${adminDenyReason(user)}`); notFound() }
   const q = (await searchParams) || {}
   const sent = DISCORD_ROOMS.find((r) => r.key === q.sent)
-  const report = await wiringReport()
+  const [report, bot] = await Promise.all([wiringReport(), probeBot()])
   return (
     <main className={start.page}>
       <header className={start.bar}>
@@ -62,6 +62,12 @@ export default async function DiscordAdminPage({ searchParams }) {
             </div>
           )
         })}
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '4px 12px', alignItems: 'center', padding: '12px 0', borderTop: '1px solid var(--line)' }}>
+          <span style={{ fontSize: 15, fontWeight: 600 }}>DASH bot <small style={{ fontWeight: 400, color: 'var(--dim)' }}>replies under the #members picks post</small></span>
+          <strong style={{ color: bot.ok && bot.seesMembers ? 'var(--accent)' : bot.set ? 'var(--ink)' : 'var(--dim)', textAlign: 'right' }}>{bot.ok && bot.seesMembers ? 'wired' : !bot.set ? 'not set' : bot.ok ? "can't see #members" : 'broken'}</strong>
+          <small style={{ color: 'var(--dim)', fontSize: 12, minWidth: 0, overflowWrap: 'anywhere' }}>{!bot.set ? 'No bot token in Vercel.' : !bot.ok ? `Discord refused the token${bot.status ? ` (HTTP ${bot.status})` : bot.error ? ` (${bot.error})` : ''}.` : `Signed in as "${bot.name || '?'}". ${bot.seesMembers ? 'Sees #members.' : 'Add it to #members (channel permissions).'}`} <code>DISCORD_BOT_TOKEN</code></small>
+          <span />
+        </div>
       </section>
     </main>
   )
