@@ -5,10 +5,10 @@ import SlipPlus from '../../SlipPlus'
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nfl/theme'
 import { flatChip, FLAT_CHIP_CLASS } from '../../../lib/chips'
-import { propLanesOf } from '../../../lib/propLanes'
-import { hitRaterRow, trending, HR_THIN } from '../../../lib/hitRater'
+import { trending, HR_THIN } from '../../../lib/hitRater'
 import { fmtOdds } from '../../../lib/odds'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
+import TrendingAll from '../../TrendingAll'
 
 // 🔥 TUDDY TRENDING (2026-10-25, Donovan: Trending "shared", "5 good props ... from different sports"; BUCKETS' twin,
 // components/buckets/tabs/Trending.js, on the same core lib/hitRater.js). This week's props that keep clearing: every book line on
@@ -18,10 +18,9 @@ import { usePreview, ShowMoreButton } from '../../ListPreview'
 // (nfl_logs.json, one row a game) and the odds feed -- no extra request. "+" puts the BOOK's line on TUDDY's slip.
 // A hit rate counts games that happened; nothing here is a chance (no implied %).
 
-// the odds feed's market for each lane (lib/odds/latest.js SPORTS.nfl + the anytime TD snap market)
-const ODDS_KEY = { TD: 'player_anytime_td', REC_YDS: 'player_reception_yds', REC: 'player_receptions', RUSH_YDS: 'player_rush_yds', RUSH_ATT: 'player_rush_attempts', PASS_YDS: 'player_pass_yds', KICK_PTS: 'player_kicking_points' }
-const LANES = propLanesOf('nfl').filter((l) => ODDS_KEY[l.key] && l.stat)
-const LANE_PILLS = [['all', 'All'], ...LANES.map((l) => [l.key, l.short || l.label])]
+import { tuddyTrendingRows, NFL_TREND_LANES } from '../../../lib/nfl/trending'
+
+const LANE_PILLS = [['all', 'All'], ...NFL_TREND_LANES.map((l) => [l.key, l.short || l.label])]
 
 const pctCell = (c) => (!c || !c.n ? '—' : (
   <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.15 }}>
@@ -29,34 +28,9 @@ const pctCell = (c) => (!c || !c.n ? '—' : (
   </span>
 ))
 
-/** The rows: every lined man x lane whose game has not kicked off. Pure over the three files the shell holds. */
-export function tuddyTrendingRows({ data, logs, odds, now = Date.now() }) {
-  const lined = odds?.by_player_id || {}
-  const byId = new Map((data?.players || []).map((p) => [String(p.player_id), p]))
-  const gameOf = (team) => (data?.games || []).find((g) => g.home === team || g.away === team)
-  const out = []
-  for (const [id, quotes] of Object.entries(lined)) {
-    const p = byId.get(id)
-    const log = logs?.logs?.[id]?.log
-    if (!p || !Array.isArray(log) || !log.length) continue
-    const g = gameOf(p.team)
-    if (!g || !(Date.parse(g.kickoff) > now)) continue   // this week's game, not under way
-    const games = log.slice().reverse().map((x) => ({ ...x, home: x.h === 1 ? true : x.h === 0 ? false : null }))
-    const next = { opp: g.home === p.team ? g.away : g.home, home: g.home === p.team }
-    for (const lane of LANES) {
-      const q = quotes?.[ODDS_KEY[lane.key]]
-      const line = Number(q?.line)
-      if (!Number.isFinite(line)) continue
-      const best = Number(q.best_over ?? q.over)
-      const row = hitRaterRow({ p: { sport: 'nfl', id, name: p.name, team: p.team, pos: p.position }, lane: { key: lane.key, word: lane.short || lane.label, stat: (x) => x[lane.stat] }, line, odds: Number.isFinite(best) ? best : null, games, next })
-      out.push({ ...row, gameId: g.game_id })
-    }
-  }
-  return out
-}
-
 export default function Trending({ data, logs, odds, onPlayerClick }) {
   const [lane, setLane] = useState('all')
+  const [every, setEvery] = useState(false)   // ALL SPORTS (components/TrendingAll.js)
   const [hot, setHot] = useState(false)
   const all = useMemo(() => tuddyTrendingRows({ data, logs, odds }), [data, logs, odds])
   const rows = useMemo(() => {
@@ -92,6 +66,12 @@ export default function Trending({ data, logs, odds, onPlayerClick }) {
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 10 }}>
       <PageHeader eyebrow="TUDDY · TRENDING" title="Trending" theme={C} numFont={NUM_FONT} accent={C.green}
         note="This week’s lines that keep clearing. Tap + to build a slip." />
+      <div role="group" aria-label="Which sports" style={{ display: 'flex', gap: 6 }}>
+        {[[false, 'TUDDY'], [true, 'All sports']].map(([k, l]) => (
+          <button key={l} type="button" className={FLAT_CHIP_CLASS} aria-pressed={every === k} onClick={() => setEvery(k)} style={flatChip(every === k, C.green, C, NUM_FONT)}>{l}</button>
+        ))}
+      </div>
+      {every ? <TrendingAll C={C} NUM_FONT={NUM_FONT} accent={C.green} Table={NflTable} /> : (<>
       <div role="group" aria-label="Market" className="chip-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {LANE_PILLS.map(([k, l]) => (
           <button key={k} type="button" className={FLAT_CHIP_CLASS} aria-pressed={lane === k} onClick={() => setLane(k)} style={flatChip(lane === k, C.green, C, NUM_FONT)}>{l}</button>
@@ -108,6 +88,7 @@ export default function Trending({ data, logs, odds, onPlayerClick }) {
           <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.5 }}>% = games he went over this week’s line; small = the count. Price = the best book over.</div>
         </>
       ) : null}
+      </>)}
     </div>
   )
 }
