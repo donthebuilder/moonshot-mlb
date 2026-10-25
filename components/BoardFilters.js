@@ -10,6 +10,9 @@ import RangeDual from './RangeDual'
 import FiltersDrawer from './FiltersDrawer'
 import MLB_BT from '../lib/mlbAngleBacktest.json'
 import { CalledLastFilter } from './CalledLastNight'
+import { callStatus } from '../lib/callStatus'
+import { flatChip, FLAT_CHIP_CLASS } from '../lib/chips'
+import { useMemberState } from './MemberGate'
 
 // MEASURED (2026-10-05, Donovan: "needs to be ran for all sports and all props"): each category on
 // every bar the calls are graded on, from scripts/mlb/angle-backtest.mjs over the archived pregame
@@ -230,6 +233,9 @@ export function useBoardFilter(players, scoreType = null, lens = null, opts = nu
   const [gameSel, setGameSel] = useState([])       // selected game_pks, [] = all
   const [timeWindow, setTimeWindow] = useState('all')
   const [pitcherSel, setPitcherSel] = useState([])  // selected pitcher_names, [] = all
+  // CALLED ONLY (2026-10-25, Donovan: "add Called only to TUDDY and MOONSHOT Rankings, any market counts"): lib/callStatus's own
+  // word -- a CALLED role in any lane (TOP / HR / HIT / HRR / CONTACT) -- with the team / game pickers = every CALLED bat of a club
+  const [calledOnly, setCalledOnly] = useState(false)
 
   const games = useMemo(() => gamesOf(players), [players])
   const pitchers = useMemo(() => pitchersOf(players), [players])
@@ -264,16 +270,17 @@ export function useBoardFilter(players, scoreType = null, lens = null, opts = nu
       }
       if (q && !`${nameOf(p)} ${teamOf(p)} ${oppOf(p)} ${clean(p?.pitcher_name, '')}`.toLowerCase().includes(q)) return false
       if (lens?.on && !lens.test(p?.player_id ?? p?.id)) return false
+      if (calledOnly && callStatus({ role: p?.game_pick_role }) !== 'called') return false   // the board's own read (tabs/RankedBoard statusOf)
       return true
     })
-  }, [lens, players, bands, scoreDef, scoreMin, scoreMax, cats, catMode, hand, minEV, minPA, query, gameSel, pitcherSel, timeWindow])
+  }, [calledOnly, lens, players, bands, scoreDef, scoreMin, scoreMax, cats, catMode, hand, minEV, minPA, query, gameSel, pitcherSel, timeWindow])
   const pf = usePositionFilter('mlb', wantPos ? players : NO_PLAYERS, { posOf, countRows: wantPos ? beforePos : NO_PLAYERS, ready: !wantPos || peopleLoaded, version: people.size })   // eslint-disable-line react-hooks/exhaustive-deps
   const filtered = useMemo(() => (wantPos ? beforePos.filter(pf.test) : beforePos), [wantPos, beforePos, pf.test]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const scoreActive = !!scoreDef && (scoreMin > 0 || scoreMax < 100)
   const otherActive = bands.length > 0 || scoreActive
     || cats.length > 0 || hand !== 'all' || minEV > 0 || minPA > 0 || Boolean(query)
-    || gameSel.length > 0 || pitcherSel.length > 0 || timeWindow !== 'all' || Boolean(lens?.on)
+    || gameSel.length > 0 || pitcherSel.length > 0 || timeWindow !== 'all' || Boolean(lens?.on) || calledOnly
   const active = otherActive || (wantPos && pf.active)
   const reset = () => {
     if (wantPos) pf.clear()
@@ -282,7 +289,7 @@ export function useBoardFilter(players, scoreType = null, lens = null, opts = nu
     setScoreMin(0); setScoreMax(100)
     setCats([]); setCatMode('any')
     setHand('all'); setMinEV(0); setMinPA(0); setQuery('')
-    setGameSel([]); setPitcherSel([]); setTimeWindow('all')
+    setGameSel([]); setPitcherSel([]); setTimeWindow('all'); setCalledOnly(false)
   }
 
   // One entry per active dimension, each independently removable — this is
@@ -315,17 +322,18 @@ export function useBoardFilter(players, scoreType = null, lens = null, opts = nu
     if (timeWindow !== 'all') out.push({ key: 'time', label: TIME_WINDOWS.find((w) => w.key === timeWindow)?.label, onRemove: () => setTimeWindow('all') })
     if (query) out.push({ key: 'q', label: `“${query}”`, onRemove: () => setQuery('') })
     if (lens?.chip) out.push(lens.chip)
+    if (calledOnly) out.push({ key: 'called', label: 'Called only', onRemove: () => setCalledOnly(false) })
     if (wantPos && pf.chip) out.push(pf.chip)
     return out
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scoreActive, scoreDef, scoreMin, scoreMax, bands, hand, minEV, minPA, cats, gameSel, pitcherSel, pitchers, timeWindow, query, games, lens, wantPos, pf.chip])
+  }, [scoreActive, scoreDef, scoreMin, scoreMax, bands, hand, minEV, minPA, cats, gameSel, pitcherSel, pitchers, timeWindow, query, games, lens, wantPos, pf.chip, calledOnly])
 
   const state = {
     bands, toggleBand, setBandRange, removeBand, cats, setCats, catMode, setCatMode,
     hand, setHand, minEV, setMinEV, minPA, setMinPA, query, setQuery, active, reset,
     scoreDef, scoreMin, setScoreMin, scoreMax, setScoreMax,
     games, gameSel, setGameSel, pitchers, pitcherSel, setPitcherSel, timeWindow, setTimeWindow,
-    activeFilters, activeCount: activeFilters.length, cln: lens,
+    activeFilters, activeCount: activeFilters.length, cln: lens, calledOnly, setCalledOnly,
     positions: wantPos ? pf : null, otherFiltersActive: otherActive,
   }
   return { filtered, state }
@@ -364,8 +372,10 @@ export default function BoardFilters({ state, total, shown, compact = false, bes
     hand, setHand, minEV, setMinEV, minPA, setMinPA, query, setQuery, active, reset,
     scoreDef, scoreMin, setScoreMin, scoreMax, setScoreMax,
     games, gameSel, setGameSel, pitchers, pitcherSel, setPitcherSel, timeWindow, setTimeWindow,
-    activeFilters, activeCount, cln, positions,
+    activeFilters, activeCount, cln, positions, calledOnly, setCalledOnly,
   } = state
+  // members only: before the lock a CALLED pick is members' (components/MemberGate), so the switch is not a way round it
+  const member = useMemberState() === 'member'
 
   const toggleCat = (k) => setCats((c) => (c.includes(k) ? c.filter((x) => x !== k) : [...c, k]))
   const toggleGame = (pk) => setGameSel((g) => (g.includes(pk) ? g.filter((x) => x !== pk) : [...g, pk]))
@@ -530,6 +540,14 @@ export default function BoardFilters({ state, total, shown, compact = false, bes
         {/* the picked categories' measured record, as words (works on tap, not only hover) */}
         {cats.map((k) => { const l = measuredLine(k); const c = CATEGORIES.find((x) => x.key === k); return l && c ? <div key={k} style={{ fontSize: 11, color: C.text3, marginTop: 4, lineHeight: 1.45 }}>{c.label}: {l}</div> : null })}
       </div>
+
+      {member && setCalledOnly ? (
+        <div>
+          <div style={lbl()}>Called</div>
+          <button type="button" className={FLAT_CHIP_CLASS} aria-pressed={Boolean(calledOnly)} onClick={() => setCalledOnly((v) => !v)} title="Only the men CALLED in any lane tonight (pick a team or a game above for a club's)"
+            style={flatChip(Boolean(calledOnly), C.orange, C, NUM_FONT)}>{calledOnly ? '✓ Called only' : 'Called only'}</button>
+        </div>
+      ) : null}
 
       <CalledLastFilter lens={cln} />
 

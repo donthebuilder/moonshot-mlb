@@ -224,6 +224,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
     let out = bandFiltered.filter(drawer.test)
     if (cln.on) out = out.filter((p) => cln.test(p.player_id))
     if (team !== 'all') out = out.filter((p) => p.team === team)
+    if (top?.called) out = out.filter((p) => top.called.has(String(p.player_id)))   // Called only (BoardHub): CALLED in any market
     if (needle) out = out.filter((p) => String(p.name || '').toLowerCase().includes(needle))
     if (angle) { const d = angles.find((x) => x.key === angle); if (d) out = out.filter(d.test) }
     if (onlyWatched) out = out.filter((p) => watchlist.isPinned(p.player_id))
@@ -236,7 +237,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
       return !!q && q.over != null && q.matches !== false
     })
     return out
-  }, [bandFiltered, drawer, query, team, angle, angles, onlyWatched, onlyUpcoming, onlyPriced, matchup, watchlist, odds, data, now, cln])
+  }, [bandFiltered, drawer, query, team, angle, angles, onlyWatched, onlyUpcoming, onlyPriced, matchup, watchlist, odds, data, now, cln, top?.called])
   // POSITION (2026-10-10): one multi-select row for every sport (lib/positions.js, lib/usePositionFilter.js), pos= in the
   // address. Position and depth role (RB1, WR1 ...) are pills in the same row; picking several shows any of them.
   // QB ANYTIME TD (Donovan, 2026-10-10): the board lists whoever the bot scores for TD (data.markets[TD].positions). Until

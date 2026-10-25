@@ -26,6 +26,9 @@ import { useIsPhone } from '../../MobileFold'
 import { ViewSwitch } from '../NflBoardExtras'
 import ShareCardButton from '../../card/ShareCardButton'
 import { shareUrl, stamp, slug } from '../../../lib/cards/saveCard'
+import { nflCalled } from '../../../lib/calledGather'
+import { useMemberState } from '../../MemberGate'
+import { flatChip, FLAT_CHIP_CLASS } from '../../../lib/chips'
 
 const MARKETS = HUB_MARKETS   // lib/nfl/boardMarkets.js: the seven scored markets + 2+ TD (our own new model)
 
@@ -123,12 +126,23 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
     onTitle?.(view === 'board' && market === 'TD' ? null : `NFL ${words} ${view === 'called' && !OWN_MODEL_MARKETS.has(market) ? 'calls, graded' : 'board'} \u00b7 TUDDY`)
   }, [market, view]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => onTitle?.(null), []) // eslint-disable-line react-hooks/exhaustive-deps
+  const gameCalls = useGameCalls()
   const twoCount = useMemo(() => twoBoard(slate, matchup).rows.length, [slate, matchup])
   const counts = Object.fromEntries(MARKETS.map(([k]) => [k, OWN_MODEL_MARKETS.has(k) ? twoCount : (k === 'TD' ? (slate?.players || []) : (data?.players || [])).filter((p) => Number.isFinite(p.scores?.[k]) && (k === 'TD' || !p.low_sample)).length]))
   const marketOptions = MARKETS.map(([key, label]) => ({ key, label, count: counts[key] }))
   const teams = useMemo(() => [...new Set((slate?.players || data?.players || []).map((p) => p.team).filter(Boolean))].sort(), [slate, data])
   const games = useMemo(() => nflGameOptions(slate?.games || data?.games), [slate, data])
-  const top = { query, team, game }
+  // CALLED ONLY (2026-10-25, Donovan: "add Called only to TUDDY and MOONSHOT Rankings, any market counts"): the men CALLED in ANY
+  // market this week -- the TD ladder, the game calls and every market's pick card (lib/calledGather nflCalled, the same list as Copy
+  // called) -- kept on whichever market's board is open. MEMBERS ONLY: the list is the unmasked card, so a free viewer gets no switch.
+  const member = useMemberState() === 'member'
+  const [calledOnly, setCalledOnly] = useState(false)
+  const calledIds = useMemo(() => (member ? new Set(nflCalled(slate, picks, gameCalls).entries.map((e) => e.id)) : null), [member, slate, picks, gameCalls])
+  const top = { query, team, game, called: member && calledOnly ? calledIds : null }
+  const calledChip = member ? (
+    <button type="button" className={FLAT_CHIP_CLASS} aria-pressed={calledOnly} onClick={() => setCalledOnly((v) => !v)} title="Only the men CALLED in any market this week (pick a team for a club's)"
+      style={flatChip(calledOnly, C.green, C, NUM_FONT)}>{calledOnly ? '✓ Called only' : 'Called only'}</button>
+  ) : null
   // NOT SCORED (10-18): this market's positions (TD's for the own-model markets), ranked by nobody, with their numbers
   const unscored = useMemo(() => {
     const ms = data?.markets || []
@@ -141,7 +155,6 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
   // ON THE BOARD -- never re-derived here.
   // ONE CALL RULE (10-05): the TD ladder, then the game's call -- the board's Status
   // column, this example row and Home's TONIGHT strip all read lib/nfl/tdStatus
-  const gameCalls = useGameCalls()
   const tdStatus = useMemo(() => tdStatusFor({ picksCard: picks?.card, gameCalls, games: slate?.games, board: tdPool(slate).rows }), [picks, gameCalls, slate])
   const howRow = useMemo(() => {
     const rows = tdPool(slate).rows
@@ -180,24 +193,30 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
           {view === 'board' && market === 'TD' && howRow && <HowToRead id="nfl-td-board" accent={C.green} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-          <button type="button" onClick={() => setOpts((v) => !v)} aria-expanded={opts} style={{ flex: '0 0 auto', minHeight: 44, padding: '0 14px', borderRadius: 999, cursor: 'pointer', fontSize: TYPE.body, fontWeight: 900, fontFamily: NUM_FONT, whiteSpace: 'nowrap', border: `1px solid ${opts || query || team !== 'all' && team || game ? C.green : C.border}`, background: opts ? alpha(C.green, 0.14) : 'transparent', color: opts ? C.green : C.text3 }}>▤ Filters{(query || (team && team !== 'all') || game) ? ' ·' : ''}</button>
+          <button type="button" onClick={() => setOpts((v) => !v)} aria-expanded={opts} style={{ flex: '0 0 auto', minHeight: 44, padding: '0 14px', borderRadius: 999, cursor: 'pointer', fontSize: TYPE.body, fontWeight: 900, fontFamily: NUM_FONT, whiteSpace: 'nowrap', border: `1px solid ${opts || query || team !== 'all' && team || game ? C.green : C.border}`, background: opts ? alpha(C.green, 0.14) : 'transparent', color: opts ? C.green : C.text3 }}>▤ Filters{(query || (team && team !== 'all') || game || calledOnly) ? ' ·' : ''}</button>
           <LedgerChip sport="nfl" />
           <WatchChip sport="nfl" />
           {/* 📸 this market's ranking as a picture: in this control row so it is there without opening Filters (Touchdowns keeps its own for Anytime TD on a desktop) */}
           {shareBtn(true)}
           <div style={{ flex: '1 1 100%', minWidth: 0 }}><PillRow value={market} options={marketOptions} onChange={setMarket} /></div>
         </div>
-        {opts && (
+        {opts && (<>
           <BoardTopBar inDrawer query={query} setQuery={setQuery} placeholder="Search player or team…"
             team={team} setTeam={setTeam} teams={teams} teamLabel="🏈 All teams"
             game={game} setGame={setGame} games={games} gameLabel="All games" />
-        )}
+          {calledChip ? <div style={{ margin: '4px 0 10px' }}>{calledChip}</div> : null}
+        </>)}
       </>) : (<>
       <p style={{ margin: '0 0 10px', fontSize: TYPE.body, lineHeight: 1.45, color: C.text2 }}><NflNote tab="research" /></p>
       {(
-        <BoardTopBar query={query} setQuery={setQuery} placeholder="Search player or team…"
-          team={team} setTeam={setTeam} teams={teams} teamLabel="🏈 All teams"
-          game={game} setGame={setGame} games={games} gameLabel="All games" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+            <BoardTopBar query={query} setQuery={setQuery} placeholder="Search player or team…"
+              team={team} setTeam={setTeam} teams={teams} teamLabel="🏈 All teams"
+              game={game} setGame={setGame} games={games} gameLabel="All games" />
+          </div>
+          {calledChip}
+        </div>
       )}
       {/* The parent tier, MOONSHOT's Boards / Power pills: a shade bigger than
           the market pills under the rule, so "which page" and "which market"
