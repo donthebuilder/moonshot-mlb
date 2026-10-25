@@ -6,7 +6,7 @@ import { createSupabaseServerClient } from '../../../lib/supabase/server'
 import { isAdminUser, adminDenyReason } from '../../../lib/admin'
 import start from '../../start/start.module.css'
 import { wiringReport, probeBot, DISCORD_ROOMS } from '../../../lib/dash/discordWire'
-import { sendDiscordTest } from './actions'
+import { sendDiscordTest, sendBotTestAction } from './actions'
 
 export const dynamic = 'force-dynamic'
 export async function generateMetadata() {
@@ -45,6 +45,7 @@ export default async function DiscordAdminPage({ searchParams }) {
       </header>
       <section style={{ padding: '18px 0 40px', maxWidth: 640 }}>
         <p style={{ margin: '0 0 12px', color: 'var(--dim)' }}>Asked Discord just now. Checking posts nothing; &quot;Send test&quot; posts one short line to that channel.</p>
+        {q.bot ? <p role="status" style={{ margin: '0 0 12px', fontWeight: 600 }}>{q.ok === '1' ? 'Bot test sent: a test line in #members with the bot\'s reply under it.' : `Bot test stopped at: ${{ 'no-bot': 'no bot token', 'no-members': 'no #members webhook', post: 'the #members test line', reply: 'the bot\'s reply' }[q.bot] || q.bot}${q.status ? ` (HTTP ${q.status})` : ''}.`}</p> : null}
         {sent ? <p role="status" style={{ margin: '0 0 12px', fontWeight: 600 }}>{q.ok === '1' ? `Test sent to ${sent.label}.` : `Test to ${sent.label} failed${q.status ? ` (HTTP ${q.status})` : ''}.`}</p> : null}
         {report.map((r) => {
           const s = stateOf(r)
@@ -66,7 +67,11 @@ export default async function DiscordAdminPage({ searchParams }) {
           <span style={{ fontSize: 15, fontWeight: 600 }}>DASH bot <small style={{ fontWeight: 400, color: 'var(--dim)' }}>replies under the #members picks post</small></span>
           <strong style={{ color: bot.ok && bot.seesMembers ? 'var(--accent)' : bot.set ? 'var(--ink)' : 'var(--dim)', textAlign: 'right' }}>{bot.ok && bot.seesMembers ? 'wired' : !bot.set ? 'not set' : bot.ok ? "can't see #members" : 'broken'}</strong>
           <small style={{ color: 'var(--dim)', fontSize: 12, minWidth: 0, overflowWrap: 'anywhere' }}>{!bot.set ? 'No bot token in Vercel.' : !bot.ok ? `Discord refused the token${bot.status ? ` (HTTP ${bot.status})` : bot.error ? ` (${bot.error})` : ''}.` : `Signed in as "${bot.name || '?'}". ${bot.seesMembers ? 'Sees #members.' : 'Add it to #members (channel permissions).'}`} <code>DISCORD_BOT_TOKEN</code></small>
-          <span />
+          {bot.ok && bot.seesMembers ? (
+            <form action={sendBotTestAction}>
+              <button type="submit" style={{ minHeight: 44, padding: '0 16px', borderRadius: 999, border: '1px solid var(--line)', background: 'transparent', color: 'inherit', font: 'inherit', fontSize: 14, cursor: 'pointer' }}>Send test reply</button>
+            </form>
+          ) : <span />}
         </div>
       </section>
     </main>
