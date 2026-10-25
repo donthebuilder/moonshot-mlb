@@ -19,7 +19,8 @@ import { AngleRow, PillRow, PositionNote, PositionEmpty } from '../../Filters'
 import usePositionFilter from '../../../lib/usePositionFilter'
 import { overallRanks } from '../../../lib/positions'
 import BoardTopBar from '../../BoardTopBar'
-import FiltersDrawer, { DrawerSection, drawerChip } from '../../FiltersDrawer'
+import { WEAK_KEY, weakSpotMap, weakSpotCell, weakSpotColumn, hasWeakSpot } from '../../../lib/nba/weakSpot'
+import FiltersDrawer,{ DrawerSection, drawerChip } from '../../FiltersDrawer'
 import RangeDual from '../../RangeDual'
 import { bucketsAngles } from '../../../lib/nba/angles'
 import { BucketsCards } from '../BucketsCard'
@@ -57,6 +58,10 @@ function withLastNight(columns, cln) {
   const col = { ...lastNightColumn({ group: LAST_NIGHT_GROUP }), cset: 'lean' }
   const at = columns.findIndex((c) => c.key === 'oppTxt')
   return at < 0 ? [...columns, col] : [...columns.slice(0, at + 1), col, ...columns.slice(at + 1)]
+}
+// THE WEAK SPOT COLUMN (2026-10-25): optional, off by default, switched on in the Filters sheet (lib/nba/weakSpot.js, LAMP's GOALIE WEAK ZONE twin)
+function withWeakSpot(columns, map, open) {
+  return map ? [...columns, weakSpotColumn({ open })] : columns
 }
 
 // MERGED WITH RANKINGS (2026-10-06): this is the Rankings page. One market at a time, or ALL MARKETS
@@ -150,6 +155,9 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
   // ANGLES (2026-10-05): measured on 2025-26, every market (lib/nba/angles.js); only the ones with an edge
   const [angle, setAngle] = useState(null)
   const angles = useMemo(() => bucketsAngles(all, mk), [all, mk])
+  // WEAK SPOT column: the cut is over the whole night's clubs, never the filtered rows
+  const [weakCol, setWeakCol] = useState(false)
+  const weakMap = useMemo(() => (weakCol && m !== ALL ? weakSpotMap(all, mk) : null), [weakCol, all, mk, m])
   const angleDef = angle ? angles.find((a) => a.key === angle) : null
   const pool = angleDef ? all.filter(angleDef.test) : all
   const needle = q.trim().toLowerCase()
@@ -223,6 +231,13 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
         </DrawerSection>
       )}
       <CalledLastFilter lens={cln} />
+      {hasWeakSpot(mk) && (
+        <DrawerSection label="Weak spot column" hint="Adds a column: his opponent gives up this stat in the top third of tonight's clubs, with the number. Information, not a forecast.">
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
+            <button type="button" onClick={() => setWeakCol((x) => !x)} style={drawerChip(weakCol)}>{weakCol ? 'On' : 'Off'}</button>
+          </div>
+        </DrawerSection>
+      )}
       {XPTS_MARKETS.includes(mk) && (
         <DrawerSection label="Projected points (xPTS) at least" hint="Recent minutes x points a minute x the opponent's allowed. Rotation players only; a measured projection, not a probability.">
           <div style={{ fontSize: 12, fontFamily: NUM_FONT, color: C.text, marginTop: 2 }}>{minX > 0 ? `${minX}+` : 'any'}</div>
@@ -316,7 +331,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
         <BucketsCards market={mk} day={shown || ''} onOpen={onOpenPlayer} rankOf={(r) => cardRank.get(r._id || `${r.gameId}-${r.playerId}`)} rows={[...rows].filter((r) => r.score != null && Number.isFinite(Number(r.score))).sort((a, b) => b.score - a.score).map((r) => ({ ...r, rankMove: rankMv.cell(r._id) }))} />
       )}
       {rows.length > 0 && !noStarters && layout === 'table' && (
-        <BucketsTable sets rows={rows.map((r) => ({ ...r, ...(cln.on ? { cln: cln.cell(r.playerId) } : null), rankMove: rankMv.cell(r._id) }))} columns={withLastNight(boardColumns(m, { onOpenTeam, onOpenGame, withXpts: true, liveOf: (r) => nbaLiveStatus(m, r, live, NBA_MARKETS[m]?.bar), whyCol: whyColumn({ textOf: (r) => (r.status === 'off' && r.reason ? r.reason : plainWhy(r, m)?.short || ''), itemOf: (r) => whyItemFor(r, m, r.nightRank), open: openWhy, theme: C, numFont: NUM_FONT, w: 165, tidy: true }) }), cln)} statusOf={(r) => r.status}
+        <BucketsTable sets rows={rows.map((r) => ({ ...r, ...(cln.on ? { cln: cln.cell(r.playerId) } : null), ...(weakMap ? { [WEAK_KEY]: weakSpotCell(r, weakMap, mk) } : null), rankMove: rankMv.cell(r._id) }))} columns={withWeakSpot(withLastNight(boardColumns(m, { onOpenTeam, onOpenGame, withXpts: true, liveOf: (r) => nbaLiveStatus(m, r, live, NBA_MARKETS[m]?.bar), whyCol: whyColumn({ textOf: (r) => (r.status === 'off' && r.reason ? r.reason : plainWhy(r, m)?.short || ''), itemOf: (r) => whyItemFor(r, m, r.nightRank), open: openWhy, theme: C, numFont: NUM_FONT, w: 165, tidy: true }) }), cln), weakMap, onOpenGame)} statusOf={(r) => r.status}
           liveOf={(r) => nbaLiveStatus(m, r, live, NBA_MARKETS[m]?.bar)}
           onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} nameCell="player" faceOf={faceOf}
           dimRow={(r) => Boolean(r.voidReason) || r.status === 'off'}

@@ -3,6 +3,7 @@ import { useMemo } from 'react'
 import { useTeamNav } from '../../lib/teamNav'
 import { STATUS_WORD } from '../../lib/callStatus'
 import { C, NUM_FONT } from '../../lib/nba/theme'
+import { weakSpotSet } from '../../lib/nba/weakSpot'
 import { WeakSpotGrid } from '../slate/WeakSpotCard'
 import { SubLabel } from '../matchup/MatchupParts'
 import { useAvailable } from '../injuries/useAvailable'
@@ -18,16 +19,12 @@ export default function BucketsWeakSpots({ rows: allRows = [], games = [], onOpe
   const rows = useMemo(() => avail(allRows), [avail, allRows])
   const openTeam = useTeamNav()
   const cards = useMemo(() => {
-    const allow = new Map()
-    for (const r of rows) { const v = Number(r.legs?.oppPts); if (Number.isFinite(v)) allow.set(r.opp, v) }
-    const vals = [...allow.values()].sort((a, b) => a - b)
-    if (vals.length < 3) return []
-    const cut = vals[Math.floor((vals.length - 1) * (2 / 3))]
+    const soft = weakSpotSet(rows, 'oppPts')   // the one top-third rule (lib/nba/weakSpot.js)
     const out = []
     for (const g of games) {
       for (const [def, att] of [[g.home.abbrev, g.away.abbrev], [g.away.abbrev, g.home.abbrev]]) {
-        const pa = allow.get(def)
-        if (!(pa >= cut)) continue
+        const pa = soft.get(def)
+        if (pa == null) continue
         const facing = rows.filter((r) => r.gameId === g.id && r.team === att && r.score != null).sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
         const picked = [...facing.filter((r) => r.status === 'called'), ...facing.filter((r) => r.status !== 'called')].slice(0, 4)
         if (!picked.length) continue
