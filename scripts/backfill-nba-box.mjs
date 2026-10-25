@@ -1,4 +1,4 @@
-// node --env-file=.env.local --import ./scripts/_esm-resolve.mjs scripts/backfill-nba-box.mjs [--from 2025-10-21] [--to 2026-04-12] [--season 2026] [--jsonl file] [--dry]
+// node --env-file=.env.local --import ./scripts/_esm-resolve.mjs scripts/backfill-nba-box.mjs [--from 2025-10-21] [--to 2026-04-12] [--season 2026] [--jsonl file] [--dry] [--refill]
 // BUCKETS' BOX BACKFILL (2026-10-19, defense vs position): every regular-season game's box score into buckets_box,
 // the same row shape the tick writes (lib/nba/defPos.js boxRows over lib/nba/api.js reduceBox). Idempotent (upsert
 // on game_id + player_id) and resumable: a game already in the table is skipped. Gentle on ESPN: one game at a time,
@@ -13,6 +13,8 @@ import { nbaTeam } from '../lib/nba/teams.js'
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d }
 const FROM = arg('--from', '2025-10-21'), TO = arg('--to', '2026-04-12'), SEASON = Number(arg('--season', '2026')), JSONL = arg('--jsonl', null), DRY = process.argv.includes('--dry')
+// --refill (2026-10-25, the FGA / 3PA columns): re-read every game whose rows have no fga yet; the upsert updates them in place
+const REFILL = process.argv.includes('--refill')
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } })
 
@@ -44,7 +46,9 @@ if (JSONL) {
     for (const g of day) {
       const game = { gameId: g.id, gameDate: date, season: g.seasonYear || SEASON, seasonType: 2, home: g.home.abbrev, away: g.away.abbrev, homeScore: g.home.score, awayScore: g.away.score }
       if (!real(game)) { skipped++; continue }
-      const have = await db.from('buckets_box').select('player_id', { head: true, count: 'exact' }).eq('game_id', g.id)
+      const have = REFILL
+        ? await db.from('buckets_box').select('player_id', { head: true, count: 'exact' }).eq('game_id', g.id).not('fga', 'is', null)
+        : await db.from('buckets_box').select('player_id', { head: true, count: 'exact' }).eq('game_id', g.id)
       if ((have.count || 0) > 0) { skipped++; continue }
       const s = await summaryFor(g.id, true).catch(() => null)
       if (!s) { failed++; console.log(`  ${date} ${g.away.abbrev}@${g.home.abbrev}: summary failed (left for a re-run)`); continue }

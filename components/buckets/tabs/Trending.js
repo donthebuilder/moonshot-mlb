@@ -10,6 +10,7 @@ import { trending, HR_THIN } from '../../../lib/hitRater'
 import { fmtOdds } from '../../../lib/odds'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
 import { Kicker, EmptyState } from '../ui'
+import TrendingAll from '../../TrendingAll'
 
 // 🔥 TRENDING (2026-10-25, Donovan: "see if we could get like 5 good props ... and just put them together"; Doink's Hit Rater +
 // Trending Insights). Tonight's props that keep clearing: every book line on file (PTS / REB / AST / 3PM / PRA), how often the
@@ -37,6 +38,7 @@ export default function Trending({ onOpenPlayer }) {
   const qs = new URLSearchParams({ ...(minMin ? { min: String(minMin) } : {}), ...(minFga ? { fga: String(minFga) } : {}) }).toString()
   const { data, loading } = useLiveFetch(`/api/buckets/trending${qs ? `?${qs}` : ''}`, { keep: 'trending' })
   const [lane, setLane] = useState('all')
+  const [every, setEvery] = useState(false)   // ALL SPORTS (components/TrendingAll.js)
   const [hot, setHot] = useState(false)
   const rows = useMemo(() => {
     const all = (data?.rows || []).filter((r) => lane === 'all' || r.lane === lane)
@@ -74,6 +76,12 @@ export default function Trending({ onOpenPlayer }) {
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 10 }}>
       <PageHeader eyebrow="BUCKETS · TRENDING" title="Trending" theme={C} numFont={NUM_FONT} accent={C.purple}
         note="Tonight’s lines that keep clearing. Tap + to build a slip." />
+      <div role="group" aria-label="Which sports" style={{ display: 'flex', gap: 6 }}>
+        {[[false, 'BUCKETS'], [true, 'All sports']].map(([k, l]) => (
+          <button key={l} type="button" className={FLAT_CHIP_CLASS} aria-pressed={every === k} onClick={() => setEvery(k)} style={flatChip(every === k, C.purple, C, NUM_FONT)}>{l}</button>
+        ))}
+      </div>
+      {every ? <TrendingAll C={C} NUM_FONT={NUM_FONT} accent={C.purple} Table={BucketsTable} /> : (<>
       <div role="group" aria-label="Lane" className="chip-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {LANE_PILLS.map(([k, l]) => (
           <button key={k} type="button" className={FLAT_CHIP_CLASS} aria-pressed={lane === k} onClick={() => setLane(k)} style={flatChip(lane === k, C.purple, C, NUM_FONT)}>{l}</button>
@@ -96,6 +104,7 @@ export default function Trending({ onOpenPlayer }) {
           <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.5 }}>% = games he went over tonight’s line; small = the count. D = starters at his spot vs tonight’s defense, at his line.{minMin ? ` Only games of ${minMin}+ minutes.` : ''}{minFga ? ` Only games of ${minFga}+ shots.` : ''} Price = the best book over.</div>
         </>
       ) : null}
+      </>)}
     </div>
   )
 }
