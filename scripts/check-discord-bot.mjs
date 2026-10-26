@@ -42,6 +42,16 @@ await t('a #members post asks Discord for its message (?wait=true) and hands it 
   const plain = await X.postToDiscord('TEST', { kind: 'card_members_day' }, MEM)
   assert.equal(calls[0].url, MEM); assert.deepEqual(plain.messages, [])
 })
+await t('#members posts carry the DASH Network name and logo; a free room keeps its webhook name', async () => {
+  calls.length = 0
+  await X.postToDiscord('TEST picks', { kind: 'card_members_day' }, MEM)
+  assert.equal(calls[0].body.username, 'DASH Network'); assert.match(calls[0].body.avatar_url, /\/icon-512\.png$/)
+  process.env.DISCORD_MLB_WEBHOOKS = 'https://discord.com/api/webhooks/222/TEST-free'
+  calls.length = 0
+  await X.postToDiscord('TEST', {}, process.env.DISCORD_MLB_WEBHOOKS)
+  assert.equal(calls[0].body.username, undefined)
+  delete process.env.DISCORD_MLB_WEBHOOKS
+})
 await t('the reply body: the post itself, a reply reference, no pings', () => {
   const b = B.replyBody('TEST check', { msg: { id: '555', channel_id: '777' } })
   assert.equal(b.content, 'TEST check')
