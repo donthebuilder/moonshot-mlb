@@ -183,6 +183,18 @@ process.env.MOMENT_POSTS_ON = 'on'
   check(f.calls.delete <= 3 && f.calls.delete >= 1 && sh.sent.discord.length <= 4, `C: a channel outage with nothing else sent retries only a few times (${sh.sent.discord.length} tries, ${f.calls.delete} releases), then stops`)
 }
 
+// ── C2. a TIMED-OUT send is not "nothing went out" (batch 3, 2026-10-26) ──────────────────────────────────────
+// postToDiscord answers status 0 when its 8 s request is aborted, and its own note says Discord MAY have posted it. Releasing the claim then
+// re-sends a post that is already out (up to three copies). Only a real answer (429, 5xx) proves nothing was posted.
+{
+  reset()
+  const f0 = fakeDb(); const s0 = senders({ hasX: false, noMembers: true, discordResult: () => ({ ok: false, status: 0, failed: [{ status: 0, error: 'timeout' }] }) })
+  for (let i = 0; i < 6; i++) await MP.postMomentEvents(f0.db, [hat], { now: NOW + i * 60e3, deps: s0.d })
+  const dig = (await import('node:fs')).readFileSync(new URL('../lib/posts/digestPost.js', import.meta.url), 'utf8')
+  check(!/discordStatus === 0/.test(dig) && /discordStatus === 429 \|\| discordStatus >= 500/.test(dig), 'C2: the night digest releases only on a real 429 / 5xx too')
+  check(s0.sent.discord.length === 1 && f0.calls.delete === 0, `C2: a timed-out Discord send (status 0) is sent ONCE and the claim is kept (${s0.sent.discord.length} sends, ${f0.calls.delete} releases)`)
+}
+
 // ── D. the cap ───────────────────────────────────────────────────────────────────────────────────────────
 {
   check(XP.tierOf('moment_nhl_11_1_ht3') === 'writeup' && XP.tierOf('postseason_mlb_1_2') === 'writeup' && !XP.isCapExempt('moment_nhl_11_1_ht3') && !XP.isCapExempt('postseason_mlb_1_2'), 'D: moment and postseason kinds are the counted write-up tier, NOT exempt')
