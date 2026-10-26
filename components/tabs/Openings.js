@@ -5,7 +5,7 @@ import DenseTable from '../DenseTable'
 import FiltersSheet from '../player/FiltersSheet'
 import { PillRow } from '../Filters'
 import { DelayedBanner } from '../StaleBanner'
-import { C, NUM_FONT } from '../../lib/theme'
+import { C, NUM_FONT, DIAMOND } from '../../lib/theme'
 import { useLiveFetch } from '../../lib/useLiveFetch'
 import { useHashLens } from '../../lib/useHashLens'
 import { teamKey } from '../../lib/mlbTeams'
@@ -194,7 +194,7 @@ export default function Openings({ players = [], games = [], onPlayerClick }) {
       )}
 
       {data?.games > 0 && wallGames.length > 0 && (
-        <FaceWallByGame title="First run · by game" games={wallGames} logOf={(t) => teamsBy.get(t)?.log} sport="mlb" C={C} NUM_FONT={NUM_FONT} accent={C.orange} nameOf={nameOf}
+        <FaceWallByGame title="First run · by game" games={wallGames} logOf={(t) => teamsBy.get(t)?.log} sport="mlb" C={C} NUM_FONT={NUM_FONT} accent={C.orange} nameOf={nameOf} floor={{ kind: 'diamond', ...DIAMOND }}
           words={{ ring: 'first hit', first: 'Scored the first run', both: 'First run + first hit', wasted: 'First hit, not the run', none: 'Neither' }} />
       )}
 
