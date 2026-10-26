@@ -132,16 +132,19 @@ export default function Openings({ date, onOpenPlayer, onOpenTeam, onOpenGame })
     { key: 'q1Ag', label: 'Q1 allowed', fmt: f1, higher: false },
     { key: 'q1FgPct', label: 'Q1 FG%', fmt: pc, higher: true },
   ]
+  // percent first, the count small under it (Trending's cell; Donovan: "I like the percentages")
+  const rate = (ok, n) => (v) => (!Number.isFinite(v) ? '—' : (
+    <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.15 }}>
+      <span>{v.toFixed(0)}%</span><span style={{ font: `600 10px/1.1 ${NUM_FONT}`, color: C.text3 }}>{`${ok}/${n}`}</span>
+    </span>
+  ))
   const targetCols = [
     { key: 'name', label: 'Player', group: 'Player', w: 150, heat: false, sticky: true, bold: true },
     { key: 'team', label: 'Tm', group: 'Player', w: 52, heat: false, mono: true, teamMark: 'nba', link: (r) => (onOpenTeam ? () => onOpenTeam(r.team) : null) },
-    { key: 'gp', label: 'GP', group: 'Sample', w: 40, heat: false },
-    { key: 'firstFgPct', label: '1ST FG %', group: 'First basket', w: 64, fmt: pc, primary: true, title: 'How often he made the game’s first basket' },
-    { key: 'firstFg', label: '1ST FG', group: 'First basket', w: 52, title: 'First baskets of the game he made' },
-    { key: 'firstShotPct', label: '1ST SHOT %', group: 'First basket', w: 72, fmt: pc, title: 'How often he took the game’s first shot' },
-    { key: 'top3ShotPct', label: 'TOP-3 %', group: 'First basket', w: 60, fmt: pc, title: 'How often he took one of the game’s first three shots' },
-    { key: 'w1Fga', label: 'FGA', group: 'First 3 min', w: 44, fmt: f1 },
-    { key: 'w1FgPct', label: 'FG%', group: 'First 3 min', w: 52, fmt: pc },
+    { key: 'firstFgPct', label: '1ST FG', group: 'First basket', w: 52, primary: true, fmt: (v, r) => rate(r.firstFg, r.gp)(v), title: 'How often he made the game’s first basket (first baskets / games)' },
+    { key: 'firstShotPct', label: 'TAKES', group: 'First basket', w: 52, fmt: (v, r) => rate(r.firstShots, r.gp)(v), title: 'How often he took the game’s first shot' },
+    { key: 'firstShotMadePct', label: 'MAKES', group: 'First basket', w: 52, fmt: (v, r) => rate(r.firstShotMade, r.firstShots)(v), title: 'When he took the game’s first shot, how often it went in' },
+    { key: 'w1FgPct', label: '3M FG%', group: 'First basket', w: 56, fmt: pc, title: 'His field-goal % in the first 3 minutes' },
   ]
   const targetSort = (a, b) => (b.firstFgPct ?? -1) - (a.firstFgPct ?? -1) || (b.firstShotPct ?? -1) - (a.firstShotPct ?? -1)
 

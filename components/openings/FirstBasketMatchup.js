@@ -56,7 +56,7 @@ export default function FirstBasketMatchup({ games = [], teams, players = [], st
       {game ? <Table rows={versus} columns={versusCols} heatMode="none" maxRows={versus.length} maxHeight={9999} caption={`${game.away} against ${game.home}: each club's record in the games on file. The better side is lit.`} /> : null}
       <div style={{ color: C.text2, font: `900 12px/1.2 ${NUM_FONT}`, letterSpacing: '.08em', marginTop: 4 }}>{`${words.first.toUpperCase()} TARGETS · ${game ? game.label : 'TONIGHT'}`}</div>
       {targets.length
-        ? <Table nameCell="player" faceOf={faceOf} rows={targets} columns={targetCols} heatMode="primary" maxRows={game ? 12 : 15} maxHeight={9999}
+        ? <Table nameCell="player" faceOf={faceOf} rows={targets} columns={targetCols} heatMode="primary" maxRows={6} maxHeight={9999}
             onRowClick={onOpenPlayer ? (r) => onOpenPlayer((r?._raw ?? r).playerId) : undefined}
             caption={`Regular starters (${minGp}+ games) on ${game ? 'these two clubs' : 'tonight’s clubs'}, ranked by their ${words.first.toLowerCase()} record. Out tonight = left out. A record, not a chance.`} />
         : <div style={{ fontSize: 12, color: C.text3 }}>No regular starter with {minGp}+ games on file for {game ? 'these clubs' : 'tonight’s clubs'} yet.</div>}

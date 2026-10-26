@@ -9,7 +9,7 @@ import { ok, bad, bucketsRoute } from '../../../../lib/nba/respond'
 import { aggregateOpenings } from '../../../../lib/nba/openingsAgg'
 
 export const dynamic = 'force-dynamic'
-const GAME_COLS = 'game_id, game_date, season, season_type, home, away, jump_win_team, jump_players, first_att_team, first_att_player, first_score_team, first_score_player, first_score_clock_s, win1_home_pts, win1_away_pts, win2_home_pts, win2_away_pts, p1_home_pts, p1_away_pts'
+const GAME_COLS = 'game_id, game_date, season, season_type, home, away, jump_win_team, jump_players, first_att_team, first_att_player, first_att_clock_s, first_score_team, first_score_player, first_score_clock_s, win1_home_pts, win1_away_pts, win2_home_pts, win2_away_pts, p1_home_pts, p1_away_pts'
 const PLAYER_COLS = 'game_id, player_id, name, team, pos, starter, first_att_order, win1_att, win1_made, win1_pts, win1_fta, win1_tov, win2_att, win2_made, win2_pts, win2_fta, win2_tov, p1_att, p1_made, p1_pts, p1_fta, p1_tov, p1_reb, p1_ast'   // *_made: the FG% columns (10-25)
 
 async function pageAll(q) {
