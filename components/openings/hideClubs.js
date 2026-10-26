@@ -19,8 +19,8 @@ export function useHidden(key) {
   return { hidden, toggle, clear }
 }
 
-/** The "Hide teams" chip: opens a wrap of club chips, each pressed = hidden. Renders nothing when there are no clubs. */
-export function HideClubs({ clubs = [], h, C, NUM_FONT, accent, word = 'teams' }) {
+/** The "Hide teams" chip: opens a wrap of club chips, each pressed = hidden (`label(id)` draws a player's name). Renders nothing when there are none. */
+export function HideClubs({ clubs = [], h, C, NUM_FONT, accent, word = 'teams', label = (c) => c }) {
   const [open, setOpen] = useState(false)
   if (!clubs.length) return null
   const n = clubs.filter((c) => h.hidden.has(String(c))).length
@@ -33,7 +33,7 @@ export function HideClubs({ clubs = [], h, C, NUM_FONT, accent, word = 'teams' }
       {open ? (
         <div role="group" aria-label={`Hide ${word}`} style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {clubs.map((c) => (
-            <button key={c} type="button" className={FLAT_CHIP_CLASS} aria-pressed={h.hidden.has(String(c))} onClick={() => h.toggle(c)} style={flatChip(h.hidden.has(String(c)), accent, C, NUM_FONT)}>{c}</button>
+            <button key={c} type="button" className={FLAT_CHIP_CLASS} aria-pressed={h.hidden.has(String(c))} onClick={() => h.toggle(c)} style={flatChip(h.hidden.has(String(c)), accent, C, NUM_FONT)}>{label(c)}</button>
           ))}
         </div>
       ) : null}
