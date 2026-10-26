@@ -5,6 +5,8 @@ import { NBA_NAV } from '../../../lib/nba/routes'
 import { useBucketsBoard } from '../../../lib/nba/useBuckets'
 import { sortGames } from '../GameList'
 import BucketsHeadline from '../BucketsHeadline'
+import CalledList from '../../CalledList'
+import BucketsTable from '../BucketsTable'
 import { EmptyState, DelayedBanner, Loading, NavBtn } from '../ui'
 import NbaTonight from '../../tonight/NbaTonight'
 import HeadlineStrip from '../../HeadlineStrip'
@@ -78,6 +80,9 @@ export default function Home({ today, date, setTab, onOpenPlayer, onOpenGame, on
       </HomeGreeting>
       <DelayedBanner error={today?.error} what="the league’s scores" />
       {!day && today?.loading ? <Loading what="tonight" /> : null}
+
+      {/* THE CALLED LIST (2026-10-25): the locked Card as a table, three rows and a link to the full list; silent until a card is locked */}
+      <CalledList sport="nba" theme={C} numFont={NUM_FONT} accent={C.purple} Table={BucketsTable} preview={3} onOpenList={() => setTab?.('calledlist')} onOpenPlayer={(e) => onOpenPlayer?.(e.playerId)} />
 
       <BucketsHeadline theme={C} numFont={NUM_FONT} boards={{ pts: pts.data, reb: reb.data, ast: ast.data, '3pm': tpm.data, pra: pra.data }} onOpenPlayer={onOpenPlayer} />
       {/* TONIGHT (2026-10-04): who cleared, who's still to go (components/tonight/NbaTonight.js) */}

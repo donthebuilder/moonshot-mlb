@@ -11,6 +11,7 @@ import { readCard, latestCardDate } from '../../../../lib/card/store'
 import { listEntries, listCounts } from '../../../../lib/card/listRows'
 import { viewerIsMember } from '../../../../lib/members/viewer'
 import { easternToday } from '../../../../lib/data'
+import { hiddenCardGate } from '../../../../lib/cards/hiddenGate'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -23,6 +24,9 @@ export async function GET(request) {
   const q = new URL(request.url).searchParams
   const sport = String(q.get('sport') || '').toLowerCase()
   if (!hasCards(sport)) return json({ error: 'NOT FOUND', detail: 'no card for that sport' }, 404)
+  // a hidden sport (BUCKETS before its switch) answers exactly the 404 a sport without cards gets
+  const gate = await hiddenCardGate(sport)
+  if (gate.no) return gate.no
   const want = q.get('date')
   if (want && !DATE_RE.test(want)) return json({ error: 'BAD REQUEST', detail: 'bad date' }, 400)
   let db = null
