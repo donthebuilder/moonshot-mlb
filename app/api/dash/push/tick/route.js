@@ -31,6 +31,7 @@ import webpush from 'web-push'
 import { createHash, timingSafeEqual } from 'node:crypto'
 
 import { easternToday } from '../../../../../lib/data'
+import { readPaged } from '../../../../../lib/record/paged'
 import { fetchLiveSlate } from '../../../../../lib/liveSlate'
 import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
 import { scoreFor } from '../../../../../lib/nhl/api'
@@ -659,10 +660,14 @@ export async function GET(request) {
   // `sports` is the per-device sport choice. If its migration has not run the
   // select errors; fall back to the old columns rather than silencing every
   // push (a missing column must never be a missing night).
-  let { data: subs, error: subsError } = await db.from('dash_push_subscriptions').select('endpoint,user_id,p256dh,auth,sports')
+  // PAGED (known-issues #87): the API cuts one read at 1,000 rows without saying so, and the 1,001st device would
+  // simply never be pushed to. `endpoint` is the table's key, so the order is total. Up to 1,000 devices this is the
+  // same single request as before.
+  const readSubs = (cols) => readPaged(() => db.from('dash_push_subscriptions').select(cols).order('endpoint'))
+  let { data: subs, error: subsError } = await readSubs('endpoint,user_id,p256dh,auth,sports')
   if (subsError) {
     console.error(`[push] sports column unavailable (${subsError.message}) -- sending to all sports`)
-    ;({ data: subs } = await db.from('dash_push_subscriptions').select('endpoint,user_id,p256dh,auth'))
+    ;({ data: subs } = await readSubs('endpoint,user_id,p256dh,auth'))
   }
   if (!subs?.length) return Response.json({ sent: 0, reason: 'no-subscriptions' })
 
@@ -733,7 +738,8 @@ export async function GET(request) {
     for (const e of r.dead) if (!dead.includes(e)) dead.push(e)
   }
 
-  if (dead.length) await db.from('dash_push_subscriptions').delete().in('endpoint', dead)
+  // a push endpoint is a ~150-300 character URL, so a long list of dead ones goes in small bites (a long .in() URL is refused)
+  for (let i = 0; i < dead.length; i += 15) await db.from('dash_push_subscriptions').delete().in('endpoint', dead.slice(i, i + 15))
   // PRUNE HOURLY, NOT EVERY MINUTE (2026-09-27, cost cut): both prunes drop
   // rows older than days, so running them 1,440 times a day bought nothing
   // over 24. Once an hour per warm instance (_lastPrune is module state,
