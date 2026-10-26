@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react'
 import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 import { useAvailable } from '../injuries/useAvailable'
-import { JumpCircle, FirstRain, DotWall, FaceWall, OpeningCombo } from './OpeningViz'
+import { FaceWall } from './OpeningViz'
 
 // 🏁 THE FIRST-SCORE MATCHUP, SHARED (2026-10-25, Donovan: "the first basket things need like matchups and filter by games ... each
 // game [its two clubs] against each other, and the [top] first basket target ... this should be shared when built"). One product's
@@ -23,9 +23,9 @@ import { JumpCircle, FirstRain, DotWall, FaceWall, OpeningCombo } from './Openin
  *          the bar pulls with when the row's own value is text, e.g. the jumper's tip win %)
  * targetCols, targetSort(a, b), minGp, Table, C, NUM_FONT, accent, words: { first, onOpenPlayer }
  */
-export default function FirstBasketMatchup({ sport, games = [], teams, players = [], stats = [], targetCols = [], targetSort, minGp = 20, Table, C, NUM_FONT, accent, words, onOpenPlayer = null, onOpenTeam = null, faceOf = null }) {
+export default function FirstBasketMatchup({ sport, floor = null, games = [], teams, players = [], stats = [], targetCols = [], targetSort, minGp = 20, Table, C, NUM_FONT, accent, words, onOpenPlayer = null, onOpenTeam = null, faceOf = null }) {
   const [pick, setPick] = useState('all')
-  const [look, setLook] = useState('faces')   // MOCK (10-25): the abstract views (./OpeningViz.js) vs the plain table, to compare
+  const [look, setLook] = useState('faces')   // the face wall (./OpeningViz.js) or the plain table (Donovan 10-25: "faces and table")
   const avail = useAvailable()
   const nameOf = useMemo(() => new Map(players.map((p) => [String(p.playerId), p.name])), [players])
   const game = games.find((g) => g.key === pick) || null
@@ -39,11 +39,7 @@ export default function FirstBasketMatchup({ sport, games = [], teams, players =
       const a = s.barOf ? s.barOf(A) : A[s.key], h = s.barOf ? s.barOf(H) : H[s.key]
       const better = s.higher == null || !Number.isFinite(a) || !Number.isFinite(h) || a === h ? null : (s.higher ? (a > h ? 'away' : 'home') : (a < h ? 'away' : 'home'))
       // keys clubA / clubB: a table skin reads 'home' / 'away' as its own venue fields
-      // the tug of war: each side's pull is its share of the two; a lower-is-better row (points allowed) pulls with the OTHER side's
-      // number, so the longer bar is always the better club
-      const ok = Number.isFinite(a) && Number.isFinite(h) && a + h > 0
-      const pullA = !ok ? null : (s.higher === false ? h / (a + h) : a / (a + h))
-      return { _id: s.key, stat: s.label, clubA: s.fmt(A[s.key], A), clubB: s.fmt(H[s.key], H), better, pullA }
+      return { _id: s.key, stat: s.label, clubA: s.fmt(A[s.key], A), clubB: s.fmt(H[s.key], H), better }
     })
   }, [game, teams, stats])
   const lit = (side) => (v, r) => <span style={{ fontWeight: r.better === side ? 900 : 600, color: r.better === side ? accent : C.text2 }}>{v}</span>
@@ -64,17 +60,14 @@ export default function FirstBasketMatchup({ sport, games = [], teams, players =
       {game ? (
         <>
           <div role="group" aria-label="Look" className="chip-row" style={{ display: 'flex', gap: 6, overflowX: 'auto' }}>
-            {[['faces', 'Faces'], ['wall', 'Wall'], ['circle', 'Circle'], ['rain', 'Rain'], ['combo', 'Combo'], ['table', 'Table']].map(([k, l]) => (
+            {[['faces', 'Faces'], ['table', 'Table']].map(([k, l]) => (
               <button key={k} type="button" className={FLAT_CHIP_CLASS} aria-pressed={look === k} onClick={() => setLook(k)} style={{ ...flatChip(look === k, accent, C, NUM_FONT), flexShrink: 0 }}>{l}</button>
             ))}
           </div>
           {look === 'table'
             ? <Table rows={versus} columns={versusCols} heatMode="none" maxRows={versus.length} maxHeight={9999} caption={`${game.away} against ${game.home}: each club's record in the games on file. The better side is lit.`} />
-            : (() => {
-              const V = { faces: FaceWall, combo: OpeningCombo, circle: JumpCircle, rain: FirstRain, wall: DotWall }[look]
-              const logs = { away: teams.get(game.away)?.log || [], home: teams.get(game.home)?.log || [] }
-              return <V key={game.key} game={game} rows={versus} logs={logs} nameOf={nameOf} sport={sport} C={C} NUM_FONT={NUM_FONT} accent={accent} />
-            })()}
+            : <FaceWall key={game.key} game={game} rows={versus} logs={{ away: teams.get(game.away)?.log || [], home: teams.get(game.home)?.log || [] }}
+                nameOf={nameOf} sport={sport} C={C} NUM_FONT={NUM_FONT} accent={accent} floor={floor} />}
         </>
       ) : null}
       <div style={{ color: C.text2, font: `900 12px/1.2 ${NUM_FONT}`, letterSpacing: '.08em', marginTop: 4 }}>{`${words.first.toUpperCase()} TARGETS · ${game ? game.label : 'TONIGHT'}`}</div>

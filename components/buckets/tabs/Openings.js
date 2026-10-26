@@ -172,7 +172,7 @@ export default function Openings({ date, onOpenPlayer, onOpenTeam, onOpenGame })
       )}
 
       {data?.games > 0 && matchGames.length > 0 && (
-        <FirstBasketMatchup sport="nba" games={matchGames} teams={teamsBy} players={data?.players || []} stats={matchStats} targetCols={targetCols} targetSort={targetSort}
+        <FirstBasketMatchup sport="nba" floor={{ a: C.wood1, b: C.wood2, line: C.courtLine }} games={matchGames} teams={teamsBy} players={data?.players || []} stats={matchStats} targetCols={targetCols} targetSort={targetSort}
           minGp={minGp} Table={BucketsTable} C={C} NUM_FONT={NUM_FONT} accent={C.purple} words={{ first: 'First basket' }}
           onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })} />
       )}
