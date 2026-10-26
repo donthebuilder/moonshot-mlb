@@ -122,6 +122,9 @@ async function record(db, day) {
       const r = idOf.get(name)
       const id = r && (r.player_id ?? r.id)
       if (!r || id == null) continue
+      // a probability that is not a number (a bad rate upstream) is skipped, not written: one NaN used to fail the whole batch insert, and the
+      // whole night's log with it (known-issues #83, 2026-10-26). That man simply has no row; "no row" is honest, a null or a zero is not.
+      if (!Number.isFinite(p)) continue
       out.push({
         day,
         player_id: String(id),
