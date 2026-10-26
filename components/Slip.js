@@ -9,7 +9,9 @@
 // MLB's old floating Slip (HR / Hit / HRR / TB legs, no price) is this component now: the same chip, the same slip.
 import { useEffect, useRef, useState } from 'react'
 import BetSlip from './props/BetSlip'
-import { useSlip, useCalls } from '../lib/slip/store'
+import AddLeg from './slip/AddLeg'
+import { callStatusOf, hitIndex } from '../lib/slip/grade'
+import { useSlip, useCalls, slipClearAll } from '../lib/slip/store'
 import { calledLegs } from '../lib/slip/core'
 import { landedTogether } from '../lib/slip/landed'
 import { useMemberState } from './MemberGate'
@@ -52,6 +54,21 @@ function placeChip(chip, fullH) {
   chip.dataset.pos = best.slot
 }
 
+// THE GRADE'S NUMBERS (2026-10-25): main's Hit Rater rows for every sport, one read (/api/trending, held 15 minutes at the edge), only while the sheet is
+// open with something on the slip. Nothing here polls; a failed read is no strip.
+let trendingP = null
+function useTrendingIndex(active) {
+  const [idx, setIdx] = useState(null)
+  useEffect(() => {
+    if (!active || idx) return undefined
+    let alive = true
+    trendingP ||= fetch('/api/trending').then((r) => (r.ok ? r.json() : null)).catch(() => null).then((j) => { if (!j) trendingP = null; return j ? hitIndex(j.rows) : null })
+    trendingP.then((m) => { if (alive && m) setIdx(m) })
+    return () => { alive = false }
+  }, [active, idx])
+  return idx
+}
+
 const SPORT_WORD = { mlb: 'home-run', nfl: 'touchdown', nhl: 'goal', nba: 'points' }
 
 function useLanded(sport, open) {
@@ -71,8 +88,9 @@ function useLanded(sport, open) {
 
 export default function Slip({ sport = 'mlb', C, NUM_FONT, accent, onOpenProps = null }) {
   const [open, setOpen] = useState(false)
-  const { legs, remove, clear, addMany } = useSlip(sport)
+  const { legs, all, remove, addMany, setPrice } = useSlip(sport)   // `all`: ONE slip across the sports (2026-10-25); `legs`: this sport's
   const pub = useCalls(sport)
+  const hits = useTrendingIndex(open && all.length > 0)
   const memberState = useMemberState()
   const landed = useLanded(sport, open)
   const [note, setNote] = useState('')
@@ -130,6 +148,8 @@ export default function Slip({ sport = 'mlb', C, NUM_FONT, accent, onOpenProps =
         .slipChip[data-pos=right-up],.slipChip[data-pos=left-up]{margin-bottom:52px}
         .slipChip[data-pos=tab]{right:0;border-radius:22px 0 0 22px!important;transform:translateX(calc(100% - 24px))}
         .slipChip[data-hide]{visibility:hidden;pointer-events:none}
+        /* the sheet's inputs (stake, Add a leg, a leg's own price) stay 16px: components/MobileCSS.js makes every phone input 12px !important, and iOS zooms the page on a focused input under 16px */
+        .slipSheet input{font-size:16px!important}
         .slipChip{transition:translate .22s ease,opacity .22s ease}
         body:has(.mobileTabBar.tucked:not(:focus-within)) .slipChip{translate:0 calc(100% + 140px);opacity:0;pointer-events:none}
         @media(prefers-reduced-motion:reduce){.slipChip{transition:none}}
@@ -145,22 +165,23 @@ export default function Slip({ sport = 'mlb', C, NUM_FONT, accent, onOpenProps =
         }
         @media(orientation:landscape) and (max-height:500px){main.dashboard-main{padding-bottom:132px!important}}   /* a phone on its side: the last row scrolls clear of the dock and the chip */
       `}</style>
-      <button type="button" className="slipChip" ref={chipRef} data-empty={legs.length ? undefined : '1'} onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open}
-        aria-label={`Your slip, ${legs.length} ${legs.length === 1 ? 'pick' : 'picks'}. Open it.`}
-        style={{ minHeight: 44, minWidth: 44, display: 'inline-flex', alignItems: 'center', gap: 8, padding: '0 14px', background: C.bg2, color: C.text, border: `1px solid ${legs.length ? accent : C.border2}`, borderRadius: 22, boxShadow: '0 8px 28px rgba(0,0,0,.6)', fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: NUM_FONT }}>
+      <button type="button" className="slipChip" ref={chipRef} data-empty={all.length ? undefined : '1'} onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open}
+        aria-label={`Your slip, ${all.length} ${all.length === 1 ? 'pick' : 'picks'}. Open it.`}
+        style={{ minHeight: 44, minWidth: 44, display: 'inline-flex', alignItems: 'center', gap: 8, padding: '0 14px', background: C.bg2, color: C.text, border: `1px solid ${all.length ? accent : C.border2}`, borderRadius: 22, boxShadow: '0 8px 28px rgba(0,0,0,.6)', fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: NUM_FONT }}>
         <span aria-hidden="true">🧾</span>
-        <span>Slip · {legs.length}</span>
+        <span>Slip · {all.length}</span>
       </button>
       {open && (
         <>
           <button type="button" aria-label="Close the slip" onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 415, border: 0, background: 'rgba(0,0,0,.55)', cursor: 'default' }} />
           <section className="slipSheet" role="dialog" aria-label="Your slip" style={{ background: C.bg, border: `1px solid ${C.border2}`, borderRadius: 16, padding: '4px 12px 14px', color: C.text }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 48 }}>
-              <b style={{ fontSize: 14 }}>🧾 Slip · {legs.length}</b>
+              <b style={{ fontSize: 14 }}>🧾 Slip · {all.length}</b>
               <button type="button" onClick={() => setOpen(false)} aria-label="Close the slip" style={{ minHeight: 44, minWidth: 44, border: 'none', background: 'transparent', color: C.text2, fontSize: 20, cursor: 'pointer' }}>✕</button>
             </div>
-            {legs.length === 0 && <div style={{ ...quiet, margin: '2px 0 8px' }}>Nothing on your slip yet. Tap + slip on a prop or a player page to add it.</div>}
-            <BetSlip legs={legs} onRemove={remove} onClear={clear} C={C} NUM_FONT={NUM_FONT} accent={accent} />
+            {all.length === 0 && <div style={{ ...quiet, margin: '2px 0 8px' }}>Nothing on your slip yet. Tap + slip on a prop or a player page to add it.</div>}
+            <AddLeg all={all} C={C} NUM_FONT={NUM_FONT} accent={accent} />
+            <BetSlip legs={all} hitIndex={hits} statusOf={(l) => (l.sport === sport ? callStatusOf(l, pub, memberState) : null)} onRemove={remove} onClear={slipClearAll} onSetPrice={setPrice} C={C} NUM_FONT={NUM_FONT} accent={accent} />
 
             <div style={{ display: 'grid', gap: 6, margin: '6px 0 12px' }}>
               <button type="button" onClick={addCalled} style={btn}>{member ? 'Add tonight’s called picks' : 'Try an example slip'}</button>

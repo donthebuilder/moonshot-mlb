@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 // THE SLIP (2026-10-17). TEST DATA only: made-up names, prices and results, labelled TEST. No real players.
 //   node --import ./scripts/_esm-resolve.mjs scripts/check-slip.mjs
-import { SLIP_KEYS, CALLED_CAP, readLegs, withLeg, withLegs, withoutLeg, toggledLeg, combined, calledLegs } from '../lib/slip/core.js'
+import { SLIP_KEYS, SLIP_KEY_ALL, CALLED_CAP, readLegs, withLeg, withLegs, withoutLeg, toggledLeg, combined, calledLegs, mergeLegacy, withPrice, legsOfSport, bySport } from '../lib/slip/core.js'
 import { landedTogether, LANDED_TOGETHER_START, MIN_NIGHTS } from '../lib/slip/landed.js'
 import { lampAlsoPriced } from '../lib/nhl/lampQuote.js'
 import { nbaQuote } from '../lib/nba/oddsQuote.js'
+import { findLegs, playerLegs } from '../lib/slip/candidates.js'
+import { callStatusOf, hitIndex, hitRateOf, hitWords } from '../lib/slip/grade.js'
 import { rowLeg, mlbHrLeg, nflLeg, nhlGoalLeg, nbaLeg, longshotLeg, oddsRowLeg, marketCode } from '../lib/slip/rowLegs.js'
 let fail = 0
 const eq = (name, got, want) => { const ok = JSON.stringify(got) === JSON.stringify(want); fail += !ok; console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${ok ? '' : `: got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`}`) }
@@ -135,6 +137,72 @@ eq('row leg: source is always player (never called), no status field', [sneaky.s
 eq('row legs for every sport are by-hand', [h1, nflLeg(TEST_NFL, { player_id: 'T1', name: 'TEST One' }, 'TD'), nhlGoalLeg(TEST_NHL2, { id: 'H1', name: 'TEST H1' }), nbaLeg(TEST_NBA, { id: 'N1', name: 'TEST N1' }, 'pts'), longshotLeg('nfl', { id: 'L1', name: 'TEST L', best: 300 })].every((l) => l.source === 'player'), true)
 eq('a row leg goes on the shared slip and toggles off', toggledLeg(toggledLeg([], h1, NOW), h1, NOW).length, 0)
 eq('market codes: the player pages\' codes', [marketCode('nfl', 'player_anytime_td'), marketCode('nhl', 'player_shots_on_goal'), marketCode('nba', 'player_points'), marketCode('mlb', 'batter_home_runs')], ['TD', 'SOG', 'pts', 'HR'])
+
+// ONE SHARED SLIP (2026-10-25, TEST legs): every sport in one list, the four old keys carried over once
+eq('the shared slip key', SLIP_KEY_ALL, 'dash_slip_v2')
+const rawOld = {
+  mlb: JSON.stringify([{ key: 'TEST1|HR', name: 'TEST M1', market: 'HR', price: 300, at: NOW - 3600e3 }]),
+  nba: JSON.stringify([{ key: 'TEST1|pts', name: 'TEST N1', market: 'PTS', price: -110, at: NOW - 3600e3 }, { key: 'TEST9|pts', name: 'TEST N9', price: 100, at: NOW - 30 * 3600e3 }]),
+  nhl: null,
+}
+const merged = mergeLegacy(rawOld, NOW)
+eq('legacy keys merge: each leg stamped with its sport, stale dropped', merged.map((l) => [l.sport, l.key]), [['mlb', 'TEST1|HR'], ['nba', 'TEST1|pts']])
+eq('merging again adds nothing new (a leg is kept once)', withLegs(merged, merged, NOW).length, 2)
+const x = withLegs([], [{ key: 'K1', sport: 'mlb', price: 200 }, { key: 'K1', sport: 'nba', price: 150 }], NOW)
+eq('the same key in two sports is two legs', x.map((l) => l.sport), ['mlb', 'nba'])
+eq('removing by key + sport takes only that sport\'s leg', withoutLeg(x, 'K1', 'nba').map((l) => l.sport), ['mlb'])
+eq('a sport\'s legs are only its own', legsOfSport(x, 'nba').map((l) => l.price), [150])
+eq('legs group in sport order, empty sports left out', bySport([...x].reverse()).map(([s]) => s), ['mlb', 'nba'])
+eq('a cross-sport slip prices as one parlay when every leg is priced', combined(x).decimal, 3 * 2.5)
+eq('your own price sets the leg and marks it yours', withPrice(x, 'K1', 'nba', '-120').map((l) => [l.sport, l.price, Boolean(l.priceEdited)]), [['mlb', 200, false], ['nba', -120, true]])
+eq('a bad price (blank, junk, under 100) changes nothing', [withPrice(x, 'K1', 'nba', ''), withPrice(x, 'K1', 'nba', 'abc'), withPrice(x, 'K1', 'nba', '50')].every((r) => r === x), true)
+
+// ADD A LEG (2026-10-25, TEST data): a typed name -> only players with a real price on the bet's own bar
+const IDX = { nba: [{ id: 'N1', name: 'TEST Nine One', team: 'AAA' }, { id: 'N2', name: 'TEST Nine Two', team: 'BBB' }, { id: 'N3', name: 'TEST Nine Three', team: 'AAA' }], nhl: [{ id: 'H1', name: 'TEST Hockey One', team: 'CCC' }] }
+const TEST_NBA2 = { by_player_id: { ...TEST_NBA.by_player_id, N3: { player_points: { line: 9.5, over: -130 }, player_rebounds: { line: 4.5, over: 110 } } } }
+const ODDS = { nba: TEST_NBA2, nhl: { by_player_id: { H1: { player_anytime_goal: { line: 0.5, over: 400 } } } } }
+eq('add a leg: under 2 letters finds nothing', findLegs('t', IDX, ODDS), [])
+const f1 = findLegs('test nine', IDX, ODDS)
+eq('add a leg: only players the books price (N2 has no quote); an off-bar book line is its own leg with the line in the label', f1.map((h) => [h.id, h.legs.map((l) => [l.key, l.market])]), [['N1', [['N1|pts', 'PTS 25+'], ['N1|reb', 'REB 10+']]], ['N3', [['N3|pts@9.5', 'PTS o9.5'], ['N3|reb@4.5', 'REB o4.5']]]])
+eq('add a leg: an off-bar leg is a different bet from the board\'s (both can ride one slip) and finds the same hit-rate lane', [withLegs([], [...f1[0].legs, ...f1[1].legs], NOW).length, hitRateOf({ key: 'N3|pts@9.5', sport: 'nba', id: 'N3', line: 'o9.5' }, hitIndex([{ sport: 'nba', id: 'N3', lane: 'pts', line: 9.5, side: 'over', own: { L10: { ok: 6, n: 10, pct: 60 } } }])).own.pct], [4, 60])
+eq('add a leg: a leg is the existing builder\'s (real price, by hand, no game)', [f1[0].legs[0].price, f1[0].legs[0].source, f1[0].legs[0].sport, f1[0].legs[0].game], [-110, 'player', 'nba', null])
+eq('add a leg: it searches across products', findLegs('test', IDX, ODDS).map((h) => h.sport).sort(), ['nba', 'nba', 'nhl'])
+eq('add a leg: a product with no prices loaded is skipped, never guessed', findLegs('test hockey', IDX, { nba: TEST_NBA }), [])
+eq('add a leg: no odds, no legs', playerLegs('nba', IDX.nba[0], null), [])
+eq('add a leg: the leg goes on the shared slip once', withLegs([], [f1[0].legs[0], f1[0].legs[0]], NOW).length, 1)
+// GRADE: CALLED only for a pick the product published; a non-member never sees a pick outside the free four
+const pubT = { cands: [{ key: 'N1|pts', free: false, leg: { key: 'N1|pts' } }, { key: 'N1|reb', free: true, leg: { key: 'N1|reb' } }] }
+eq('grade: a member sees CALLED on a called leg', callStatusOf({ key: 'N1|pts' }, pubT, 'member'), 'called')
+eq('grade: a non-member sees nothing outside the free four', callStatusOf({ key: 'N1|pts' }, pubT, 'free'), null)
+eq('grade: a non-member sees a free-four call', callStatusOf({ key: 'N1|reb' }, pubT, 'free'), 'called')
+eq('grade: no published calls, or a leg not called, is silent (never "not on the board")', [callStatusOf({ key: 'N1|pts' }, null, 'member'), callStatusOf({ key: 'ZZ|pts' }, pubT, 'member')], [null, null])
+
+// HIT RATE STRIP (TEST rows in main's Hit Rater shape): a leg finds its row by sport + id + lane + line, over side only, never a model %
+const c10 = (ok, n) => ({ ok, n, pct: Math.round((100 * ok) / n) })
+const HR_ROWS = [
+  { sport: 'nba', id: 'N1', lane: 'pts', line: 24.5, side: 'over', own: { L10: c10(7, 10) }, dvp: { L10: c10(6, 10) } },
+  { sport: 'nhl', id: 'H1', lane: 'g', line: 0.5, side: 'over', own: { L10: c10(3, 10) }, dvp: null },
+  { sport: 'nfl', id: 'F1', lane: 'REC_YDS', line: 59.5, side: 'over', own: { L10: c10(2, 4) }, dvp: { L10: c10(5, 10) } },
+  { sport: 'nba', id: 'N1', lane: 'pts', line: 24.5, side: 'under', own: { L10: c10(3, 10) }, dvp: null },
+]
+const HX = hitIndex(HR_ROWS)
+const legNba = { key: 'N1|pts', sport: 'nba', id: 'N1', line: 'o24.5' }
+eq('hit rate: BUCKETS leg finds its row; words are percent first, the count after', [hitWords(hitRateOf(legNba, HX).own), hitWords(hitRateOf(legNba, HX).dvp)], ['70% 7/10', '60% 6/10'])
+eq('hit rate: the over row, not the under row', hitRateOf(legNba, HX).own.pct, 70)
+eq('hit rate: LAMP GOAL leg maps to lane g, no defense number is silent', [hitRateOf({ key: 'H1|GOAL', sport: 'nhl', id: 'H1', line: 'o0.5' }, HX).own.pct, hitRateOf({ key: 'H1|GOAL', sport: 'nhl', id: 'H1', line: 'o0.5' }, HX).dvp], [30, null])
+eq('hit rate: TUDDY lane key is the market code; under 5 games is flagged thin', [hitRateOf({ key: 'F1|REC_YDS', sport: 'nfl', id: 'F1', line: 'o59.5' }, HX).own.thin, hitRateOf({ key: 'F1|REC_YDS', sport: 'nfl', id: 'F1', line: 'o59.5' }, HX).dvp.thin], [true, false])
+eq('hit rate: another line, an unknown man, no index, or MOONSHOT (no rows) is no strip', [hitRateOf({ ...legNba, line: 'o29.5' }, HX), hitRateOf({ key: 'ZZ|pts', sport: 'nba', id: 'ZZ', line: 'o24.5' }, HX), hitRateOf(legNba, null), hitRateOf({ key: 'M1|HR', sport: 'mlb', id: 'M1', line: 'o0.5' }, HX)], [null, null, null, null])
+
+// CROSS-SPORT PARLAYS (2026-10-25): legs from different products ride one slip and one combined price
+const mix = withLegs([], [
+  { key: 'N1|pts', sport: 'nba', price: 100, game: { key: 'AAA-BBB', label: 'AAA · BBB' } },
+  { key: 'H1|GOAL', sport: 'nhl', price: 200, game: { key: 'CCC-DDD', label: 'CCC · DDD' } },
+  { key: 'F1|TD', sport: 'nfl', price: 300, game: { key: 'EEE-FFF', label: 'EEE · FFF' } },
+  { key: 'N2|reb', sport: 'nba', price: -200, game: { key: 'AAA-BBB', label: 'AAA · BBB' } },
+], NOW)
+eq('cross-sport: three products on one slip, grouped in sport order', bySport(mix).map(([s, ls]) => [s, ls.length]), [['nfl', 1], ['nhl', 1], ['nba', 2]])
+eq('cross-sport: one combined price across sports (2.0 x 3.0 x 4.0 x 1.5)', combined(mix).decimal, 36)
+eq('cross-sport: taking a whole sport off leaves the others', withoutLeg(withoutLeg(mix, 'N1|pts', 'nba'), 'N2|reb', 'nba').map((l) => l.sport), ['nhl', 'nfl'])
 
 if (fail) { console.error(`\n${fail} FAILED`); process.exit(1) }
 console.log('\nall ok')
