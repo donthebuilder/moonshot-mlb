@@ -79,7 +79,7 @@ export function FaceWall({ game, logs, rows = [], sport, C, NUM_FONT, accent, na
     return (
       <div style={{ display: 'grid', gap: 8, justifyItems: away ? 'start' : 'end', alignContent: 'start', minWidth: 0 }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexDirection: away ? 'row' : 'row-reverse', font: `900 12px/1 ${NUM_FONT}`, letterSpacing: '.06em', color: C.text, ...shade }}>
-          <TeamMark sport={sport} abbr={away ? game.away : game.home} variant="logo" px={22} />{away ? game.away : `@ ${game.home}`}
+          <TeamMark sport={sport} abbr={away ? game.away : game.home} variant="logo" px={22} eager />{away ? game.away : `@ ${game.home}`}
         </span>
         <div style={{ font: `900 32px/1 ${NUM_FONT}`, color: lit ? accent : C.text, ...shade }}>{n ? `${Math.round((100 * k) / n)}%` : '—'}</div>
         <div style={{ font: `600 10px/1.45 ${NUM_FONT}`, color: C.text2, textAlign: away ? 'left' : 'right', ...shade }}>
@@ -217,7 +217,7 @@ export function Surface({ floor, home, sport }) {
       <svg aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}><Lines floor={{ ...floor, kind: k }} /></svg>
       {home ? (
         <span aria-hidden="true" style={{ position: 'absolute', left: '50%', top: (LOGO_Y[k] ?? CY) - (k === 'diamond' ? 13 : LOGO / 2), transform: 'translateX(-50%)', opacity: 0.92, lineHeight: 0 }}>
-          <TeamMark sport={sport} abbr={home} variant="logo" px={k === 'diamond' ? 26 : LOGO} />
+          <TeamMark sport={sport} abbr={home} variant="logo" px={k === 'diamond' ? 26 : LOGO} eager />
         </span>
       ) : null}
     </>

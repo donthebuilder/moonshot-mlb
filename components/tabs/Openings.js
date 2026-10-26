@@ -11,6 +11,7 @@ import { useHashLens } from '../../lib/useHashLens'
 import { teamKey } from '../../lib/mlbTeams'
 import { slateFirstCalls } from '../../lib/mlb/firstModel'
 import { FaceWallByGame } from '../openings/OpeningViz'
+import { useGameNav } from '../../lib/teamNav'
 
 // ⚾ OPENINGS (2026-10-22, Donovan: "for [baseball] it just be whatever that opening is, first inning, first hit"; the core
 // lanes: "a real first everything model"). MOONSHOT's twin of BUCKETS' Openings (components/buckets/tabs/Openings.js): the
@@ -90,7 +91,7 @@ export default function Openings({ players = [], games = [], onPlayerClick }) {
       const lo = (g.players || []).find((p) => code(p.team) === t && Number(p.lineup_spot) === 1)
       const loId = lo ? pid(lo) : T.leadoffId
       const P = loId ? byId.get(String(loId)) : null
-      return { _id: `${g.game_pk}-${t}`, game: i === 0 ? clubs.join(home ? ' @ ' : ' v ') : '', team: t, ...T,
+      return { _id: `${g.game_pk}-${t}`, game: i === 0 ? clubs.join(home ? ' @ ' : ' v ') : '', gamePk: g.game_pk, team: t, ...T,
         hitCall: bh ? `${bh.name} ${rk(calls.get(pid(bh)).hitRank)}` : '—', hitCallId: bh ? pid(bh) : null,
         hrCall: bhr ? `${bhr.name} ${rk(calls.get(pid(bhr)).hrRank)}` : '—', hrCallId: bhr ? pid(bhr) : null,
         lead: lo ? `${lo.name}${lo.lineup_confirmed ? '' : ' (proj.)'}` : T.leadoff || '—', leadId: loId || null,
@@ -111,8 +112,10 @@ export default function Openings({ players = [], games = [], onPlayerClick }) {
   }).filter(Boolean), [games, homeOf])
   const nameOf = useMemo(() => new Map((data?.players || []).map((p) => [String(p.playerId), p.name])), [data])
 
+  const openGame = useGameNav()
   const tonightCols = [
-    { key: 'game', label: 'Game', group: 'Game', w: 84, heat: false, sticky: true, bold: true },
+    // the matchup opens its game (10-26: "MIL @ TB" was the page's one untappable game, check-clickable)
+    { key: 'game', label: 'Game', group: 'Game', w: 84, heat: false, sticky: true, bold: true, link: (r) => (openGame && r.game && r.gamePk ? () => openGame(r.gamePk) : null) },
     { key: 'team', label: 'Tm', group: 'Game', w: 44, heat: false, mono: true, teamMark: 'mlb' },
     ...(calls.size ? [
       { key: 'hitCall', label: '1st hit call', group: 'The call', w: 150, heat: false, numeric: false, link: (r) => openPlayer(r.hitCallId, r.hitCall, r.team), title: 'His club’s best-ranked man for the game’s first hit (#1 = the game’s top call)' },
