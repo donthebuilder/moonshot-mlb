@@ -10,7 +10,7 @@ import { VERSION as FIRST_VERSION } from '../../../../lib/mlb/firstModel'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
-const GAME_COLS = 'game_id, game_date, season, season_type, home, away, first_score_team, first_score_player, first_hit_team, first_hit_player, first_hr_team, first_hr_player, p1_home_pts, p1_away_pts'
+const GAME_COLS = 'game_id, game_date, season, season_type, home, away, first_score_team, first_score_player, first_hit_team, first_hit_player, first_hr_team, first_hr_player, first_score_type, pre_first_att_home, pre_first_att_away, pre_first_hit_home, pre_first_hit_away, pre_first_hr_home, pre_first_hr_away, p1_home_pts, p1_away_pts'
 const PLAYER_COLS = 'game_id, player_id, name, team, pos, starter, bat_order, p1_att, p1_made, p1_hr, p1_tb, p1_runs'
 const PARTS = { all: [2, 3], reg: [2], post: [3] }
 const json = (body, sMaxAge, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': `public, s-maxage=${sMaxAge}, stale-while-revalidate=${sMaxAge}` } })

@@ -8,6 +8,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { openingRowNfl, writeOpeningNfl } from '../lib/nfl/openings.js'
 import { normName } from '../lib/nfl/oddsMatch.js'
+import { unfilledGames, writePreAtt } from '../lib/openings/preAtt.js'
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d }
 const SEASON = Number(arg('--season', '2026')), DRY = process.argv.includes('--dry'), LIMIT = Number(arg('--limit', Infinity))
@@ -18,6 +19,25 @@ const get = async (url) => { for (let i = 1; i <= 3; i++) { try { const r = awai
 
 const probe = await db.from('opening_games').select('pre_first_att_home').limit(1)
 if (probe.error) { console.error(`pre_first_att isn't there yet (${probe.error.message}) -- run supabase/migrations/202610261100_opening_pre_first_att.sql first`); process.exit(1) }
+// --fill-pre-att [--season 2026] [--limit N] [--dry]: games already on file that miss a late column (what the first play and touchdown
+// were) get it: re-read once, only those columns written (lib/openings/preAtt.js).
+if (process.argv.includes('--fill-pre-att')) {
+  const todo = (await unfilledGames(db, 'nfl', process.argv.includes('--season') ? SEASON : null)).slice(0, LIMIT)
+  console.log(`${todo.length} NFL games to fill`)
+  let ok = 0, none = 0, bad = 0
+  for (const r of todo) {
+    try {
+      const row = openingRowNfl(await get(`${BASE}/summary?event=${r.game_id}`))
+      if (DRY) { console.log(`  ${r.game_date} ${r.away}@${r.home}: first play ${row?.first_att_type} · first TD ${row?.first_score_type} · ${row?.pre_first_att_away} / ${row?.pre_first_att_home}`); ok++ } else {
+        const err = await writePreAtt(db, 'nfl', r.game_id, row)
+        if (err === 'no first score') none++; else if (err) throw new Error(err); else ok++
+      }
+    } catch (e) { bad++; console.log(`  ${r.game_id}: ${e?.message} (left for a re-run)`) }
+    await sleep(400)
+  }
+  console.log(`done: ${ok} filled${DRY ? ' (dry, nothing written)' : ''}, ${none} with no first TD, ${bad} failed`)
+  process.exit(0)
+}
 const on = new Set()
 for (let from = 0; ; from += 1000) {
   const { data, error } = await db.from('opening_games').select('game_id').eq('sport', 'nfl').eq('season', SEASON).range(from, from + 999)
