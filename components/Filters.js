@@ -139,11 +139,11 @@ export function Segmented({ value, options, onChange, label, tall = false }) {
             <button key={o.key} className={themed ? 'fp-themed' : 'tap-box'} onClick={() => onChange(o.key)} title={o.title} style={{
               padding: 0, border: 0, background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', ...(tall ? { minHeight: 44 } : null),
             }}>
-              {/* the joined oval (lib/chips.js flatChip, 10-22): round only at the two outer ends */}
+              {/* the joined chip (lib/chips.js flatChip, curved squares 10-26): curved only at the two outer ends */}
               <span style={{
                 ...flatChip(active, s.color, C, NUM_FONT), cursor: 'inherit',
                 borderLeftWidth: i && !active ? 0 : 1,
-                borderRadius: options.length === 1 ? 999 : i === 0 ? '999px 0 0 999px' : last ? '0 999px 999px 0' : 0,
+                borderRadius: options.length === 1 ? 6 : i === 0 ? '6px 0 0 6px' : last ? '0 6px 6px 0' : 0,
               }}>{o.label}</span>
             </button>
           )

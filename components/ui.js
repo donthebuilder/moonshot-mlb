@@ -18,7 +18,7 @@ export function chipStyle(color) {
     border: `1px solid ${color}55`,
     background: `${color}16`,
     color,
-    borderRadius: 999,   // the site's one chip shape: the oval (10-22, matches the X cards)
+    borderRadius: 6,   // the site's one chip shape: the curved square (10-26; was the oval 10-22)
     padding: '3px 7px',
     fontSize: 10,
     fontWeight: 800,

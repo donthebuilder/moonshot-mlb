@@ -5,7 +5,7 @@
 // small bordered or filled box with a short label (not a name link, not a table header or cell -- a tag in a table row follows the
 // DenseTable density -- not a [data-tile] (a game / stat tile, not a choice), not the bottom bar). Each chip gets a
 // family: shape (square = radius <= 4, pill = radius >= half its height, rounded between), height, font size / weight, capitals.
-// THE STANDARD is lib/chips.js flatChip: an oval (pill), 18-26px tall, 10px, capitals (shape picked 10-22 to match the X cards).
+// THE STANDARD is lib/chips.js flatChip: a curved square (6px corners: 'rounded' below), 18-26px tall, 10px, capitals (shape picked 10-26 by Donovan; it was the oval 10-22).
 //
 //   node scripts/check-chips.mjs --base http://localhost:3000            every page, report in chip-report/
 //   node scripts/check-chips.mjs --base ... --pages "/app#sport=nba&tab=board"
@@ -66,7 +66,7 @@ function measure() {
   return out
 }
 
-const standard = (c) => c.shape === 'pill' && c.h >= 18 && c.h <= 26 && c.fs === 10 && c.caps
+const standard = (c) => c.shape === 'rounded' && c.h >= 18 && c.h <= 26 && c.fs === 10 && c.caps
 // a stat tile (a big number in a strip, 15px+ and 30px+ tall) and an icon button (one or two glyphs) are not choice chips: listed, not
 // counted in the ratchet (their own standard is a later batch)
 const isChoice = (c) => !(c.fs >= 15 && c.h >= 30) && [...c.text].length > 2
