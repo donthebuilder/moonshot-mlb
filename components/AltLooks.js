@@ -1,7 +1,7 @@
 'use client'
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { n, nn, clean, nameOf, teamOf, playerId, hrScore } from '../lib/player'
+import { n, nn, clean, nameOf, teamOf, playerId, hrScore, surname } from '../lib/player'
 
 // 🔄 ALT LOOKS — port of the bot's own section, from mlb_dashboard.py.
 //
@@ -267,7 +267,7 @@ export default function AltLooks({ players = [], boardIds = new Set(), onPlayerC
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
                       <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
-                        {teamOf(p)} · vs {String(clean(p?.pitcher_name, 'TBD')).split(' ').slice(-1)[0]} · L5 {n(p?.last5_hr, 0)}HR/{n(p?.last5_xbh, 0)}XBH
+                        {teamOf(p)} · vs {surname(String(clean(p?.pitcher_name, 'TBD')))} · L5 {n(p?.last5_hr, 0)}HR/{n(p?.last5_xbh, 0)}XBH
                       </span>
                       <div style={{ flex: 1, height: 3, background: 'rgba(255,255,255,.05)', borderRadius: 2, minWidth: 24 }}>
                         <div style={{ width: `${(100 * sc) / maxSc}%`, height: '100%', background: g.color, borderRadius: 2, opacity: 0.7 }} />

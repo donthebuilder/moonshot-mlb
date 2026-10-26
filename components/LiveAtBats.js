@@ -5,7 +5,7 @@ import PlayerFace from './PlayerFace'
 import TeamMark from './TeamMark'
 import { Chip } from './writeups/ChipLines'
 import { SPORT_ACCENT } from '../lib/sportAccent'
-import { nameOf, clean, playerId } from '../lib/player'
+import { nameOf, clean, playerId, surname } from '../lib/player'
 import { fetchLiveSlate } from '../lib/liveSlate'
 import { teamAbbrs } from '../lib/gamelogs'
 import { onLiveRefresh } from '../lib/liveRefresh'
@@ -150,7 +150,7 @@ export default function LiveAtBats({
               {/* His line tonight is the context: 0-for-3 and 2-for-2 are different at-bats to watch. A man in his first PA has no line and says so. */}
               <div style={{ font: `700 ${TYPE.micro}px/1.3 ${NUM_FONT}`, color: C.text3, marginTop: 3 }}>
                 {r.line ? `${r.line.h}-${r.line.ab}${r.line.hr ? ` · ${r.line.hr} HR` : ''}` : 'first look'}
-                {r.deckName ? ` · deck ${String(r.deckName).split(' ').slice(-1)[0]}` : ''}
+                {r.deckName ? ` · deck ${surname(r.deckName)}` : ''}
               </div>
             </button>
           )

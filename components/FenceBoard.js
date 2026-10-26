@@ -9,6 +9,7 @@ import { fetchWalls, pullWallFor } from '../lib/walls'
 import { tone, alpha } from '../lib/scales'
 import DenseTable from './DenseTable'
 import { boardRow, boardRowContext, withBoardColumns } from '../lib/boardColumns'
+import { surname } from '../lib/player'
 
 // 🧱🚀 FENCE RIDERS (2026-08-08, Donovan: "I like people who pull in the
 // direction and have hit it out or ON THE FENCE LINE in the last 5–15
@@ -153,7 +154,7 @@ export default function FenceBoard({ onPlayerClick, players = [] }) {
         </span>
         {!open && rows[0] && (
           <span style={{ fontSize: 10, fontFamily: NUM_FONT, color: C.orange, fontWeight: 800 }}>
-            {rows.length} riders · #1 {rows[0].name.split(' ').slice(-1)[0]}{rows[0].shortPorch ? ' → short porch tonight' : ''}
+            {rows.length} riders · #1 {surname(rows[0].name)}{rows[0].shortPorch ? ' → short porch tonight' : ''}
           </span>
         )}
       </div>

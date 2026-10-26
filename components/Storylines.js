@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { nameOf, teamOf, oppOf, n as num } from '../lib/player'
+import { nameOf, teamOf, oppOf, n as num, surname, surnameBare } from '../lib/player'
 import { teamAbbrs } from '../lib/gamelogs'
 import { matchupStories } from '../lib/matchupStory'
 import { funFacts } from '../lib/funFacts'
@@ -441,7 +441,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   players.forEach((p) => {
     const pa = num(p?.bvp_pa, 0), h = num(p?.bvp_hits, 0), hr = num(p?.bvp_hr, 0)
     const ab = num(p?.bvp_ab, pa), avg = num(p?.bvp_avg, 0), ops = num(p?.bvp_ops, 0)
-    const arm = String(p?.pitcher_name || '').split(' ').slice(-1)[0]
+    const arm = surname(p?.pitcher_name)
     if (!arm) return
     if (pa >= 8 && (hr >= 2 || ops >= 1.05)) {
       duels.push({ p, own: true, hr, text: `${h}-for-${ab}${hr ? `, ${hr} HR` : ''} lifetime vs ${arm}` })
@@ -513,7 +513,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   const byTeamSurname = new Map()
   players.forEach((p) => {
     const tm = String(teamOf(p) || '').toUpperCase()
-    const ln = String(nameOf(p)).split(' ').slice(-1)[0].toLowerCase()
+    const ln = surnameBare(nameOf(p)).toLowerCase()
     if (!tm || ln.length <= 3) return
     const k = `${tm}|${ln}`
     if (byTeamSurname.has(k)) byTeamSurname.set(k, null)   // collision: unresolvable

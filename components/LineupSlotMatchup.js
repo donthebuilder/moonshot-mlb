@@ -53,7 +53,7 @@ export default function LineupSlotMatchup({ team, lineup = [], onPlayerClick }) 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 5 }}>
         <TeamMark sport="mlb" abbr={team} variant="logo" px={16} />
         <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-          vs {String(pitcherName).split(' ').slice(-1)[0]} ({throws}HP)
+          vs {surname(pitcherName)} ({throws}HP)
           {weakSide && <> · weak vs <b style={{ color: C.yellow }}>{weakSide}</b></>}
         </span>
       </div>

@@ -1,5 +1,6 @@
 'use client'
 import { playerHref } from '../lib/routes'
+import { surname } from '../lib/player'
 
 // 🏁 A MILESTONE'S HIT RATE (2026-10-20, Donovan: "milestone tap opens the player's hit rate to whatever it's showing,
 // or like last 5"). Opens under a countdown row on the Ledger / Numerology MILESTONES block and on Storylines:
@@ -47,8 +48,8 @@ export default function MilestoneRate({ sport, story: s, theme: C, numFont, acce
         <div style={{ fontSize: 11.5, color: C.text3 }}>{s?.numbers?.key === 'gamesPlayed' || s?.numbers?.key === 'gp' ? 'A games-played mark: it lands the moment he plays.' : 'No game log to rate this one yet.'}</div>
       )}
       {onOpenPlayer
-        ? <button type="button" onClick={() => onOpenPlayer(s.player_id, s)} style={{ font: 'inherit', background: 'none', border: 'none', padding: 0, cursor: 'pointer', ...linkStyle }}>Open {String(s.name || '').split(' ').pop()}’s card ›</button>
-        : <a href={playerHref(sport, s.player_id)} style={linkStyle}>Open {String(s.name || '').split(' ').pop()}’s page ›</a>}
+        ? <button type="button" onClick={() => onOpenPlayer(s.player_id, s)} style={{ font: 'inherit', background: 'none', border: 'none', padding: 0, cursor: 'pointer', ...linkStyle }}>Open {surname(s.name)}’s card ›</button>
+        : <a href={playerHref(sport, s.player_id)} style={linkStyle}>Open {surname(s.name)}’s page ›</a>}
     </div>
   )
 }

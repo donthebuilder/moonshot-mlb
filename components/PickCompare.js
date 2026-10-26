@@ -1,6 +1,6 @@
 'use client'
 import { C, NUM_FONT } from '../lib/theme'
-import { n, nameOf, teamOf, oppOf, txt, hrScore } from '../lib/player'
+import { n, nameOf, teamOf, oppOf, txt, hrScore, surname } from '../lib/player'
 import { verdictInk, alpha } from '../lib/scales'
 import { fmtOdds, quoteFor } from '../lib/odds'
 import CompareTwo from './compare/CompareTwo'
@@ -80,8 +80,8 @@ function footer(a, b) {
   if (!(txt(a.matchup_reason) || txt(b.matchup_reason))) return null
   return (
     <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, lineHeight: 1.5 }}>
-      <div><b style={{ color: C.text2 }}>{nameOf(a).split(' ').slice(-1)[0]}:</b> {txt(a.matchup_reason).split(/\s*·\s*/).join(' · ')}</div>
-      <div><b style={{ color: C.text2 }}>{nameOf(b).split(' ').slice(-1)[0]}:</b> {txt(b.matchup_reason).split(/\s*·\s*/).join(' · ')}</div>
+      <div><b style={{ color: C.text2 }}>{surname(nameOf(a))}:</b> {txt(a.matchup_reason).split(/\s*·\s*/).join(' · ')}</div>
+      <div><b style={{ color: C.text2 }}>{surname(nameOf(b))}:</b> {txt(b.matchup_reason).split(/\s*·\s*/).join(' · ')}</div>
     </div>
   )
 }
