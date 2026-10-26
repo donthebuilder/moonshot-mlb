@@ -32,6 +32,13 @@ const wait = F.fiveTiming({ sports: [...sports.slice(0, 1), { ...sports[1], lock
 ok(!wait.go && /waiting for nhl/.test(wait.reason), `waits for LAMP's lock (${wait.reason})`)
 ok(F.fiveTiming({ sports: [...sports.slice(0, 1), { ...sports[1], lockWait: {} }, sports[2]], clock: { dow: 5, min: 17 * 60 } }).go, 'at 5 PM it goes without the late board')
 ok(!F.fiveTiming({ sports: [{ sport: 'nhl', cands: [cand('nhl', 1, 1, 400)] }], clock: { dow: 5, min: 16 * 60 } }).go, 'fewer than three usable: no post')
+// batch 3 (2026-10-26): a sport whose feed FAILED carries `hold` and no candidates; the Five used to post 'One from every board' without it. It waits like a lock does, then goes without it at 5 PM
+const held = [...sports.slice(0, 1), { sport: 'nhl', hasGames: true, hold: 'the LAMP board failed', cands: [] }, sports[2]]
+const hw = F.fiveTiming({ sports: held, clock: { dow: 5, min: 16 * 60 } })
+ok(!hw.go && /waiting for nhl/.test(hw.reason), `a sport whose read failed (hold) is waited for, not silently dropped (${hw.reason})`)
+ok(F.fiveTiming({ sports: held, clock: { dow: 5, min: 17 * 60 } }).go, 'at 5 PM it goes without the failed board')
+const src = (await import('node:fs')).readFileSync(new URL('../lib/posts/slateLoad.js', import.meta.url), 'utf8')
+ok(!/never a reason to hold the others/.test(src) && /BUCKETS board unreadable/.test(src) && /the BUCKETS board failed/.test(src), 'an unreadable BUCKETS scoreboard (public since 10-19) is a HOLD like every other sport, not "no games"')
 
 // 3. the post: head, hook, five rows with the proof, the ask; the bare 280 drops the proofs, never a name; clean
 const t = F.fiveText({ picks: p, day: FRI, limit: 890 })
