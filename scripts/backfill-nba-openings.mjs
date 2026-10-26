@@ -9,6 +9,7 @@ import { createClient } from '@supabase/supabase-js'
 import { scoreboardFor, reduceScoreboard, summaryFor } from '../lib/nba/api.js'
 import { openingRows, writeOpening } from '../lib/nba/openings.js'
 import { nbaTeam } from '../lib/nba/teams.js'
+import { unfilledGames, writePreAtt } from '../lib/openings/preAtt.js'
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d }
 const FROM = arg('--from', '2025-10-21'), TO = arg('--to', '2026-06-30'), DRY = process.argv.includes('--dry')
@@ -18,6 +19,25 @@ const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABA
 const probe = await db.from('opening_games').select('game_id').limit(1)
 if (probe.error) { console.error(`opening_games isn't there yet (${probe.error.message}) -- run supabase/migrations/202610221300_openings.sql first`); process.exit(1) }
 let games = 0, players = 0, failed = 0, skipped = 0
+
+// --fill-pre-att [--limit N] [--dry]: re-read the games already on file that have a first score but no shots-to-first-score
+// count, and write only those two columns (lib/openings/preAtt.js). Run once after supabase/migrations/202610261100.
+if (process.argv.includes('--fill-pre-att')) {
+  const todo = (await unfilledGames(db, 'nba')).slice(0, Number(arg('--limit', Infinity)))
+  console.log(`${todo.length} NBA games to fill`)
+  let ok = 0, none = 0, bad = 0
+  for (const r of todo) {
+    const s = await summaryFor(r.game_id, true).catch(() => null)
+    const row = s && openingRows(s, { gameId: r.game_id, gameDate: r.game_date, season: r.season, seasonType: r.season_type, home: r.home, away: r.away })?.game
+    if (!row) { bad++; console.log(`  ${r.game_id}: summary failed (left for a re-run)`); await sleep(400); continue }
+    if (DRY) { console.log(`  ${r.game_date} ${r.away}@${r.home}: ${row.pre_first_att_away} / ${row.pre_first_att_home}`); ok++; await sleep(400); continue }
+    const err = await writePreAtt(db, 'nba', r.game_id, row)
+    if (err === 'no first score') none++; else if (err) { bad++; console.log(`  ${r.game_id}: ${err}`) } else ok++
+    await sleep(400)
+  }
+  console.log(`done: ${ok} filled${DRY ? ' (dry, nothing written)' : ''}, ${none} with no first score, ${bad} failed`)
+  process.exit(0)
+}
 
 for (let t = Date.parse(`${FROM}T12:00:00Z`); t <= Date.parse(`${TO}T12:00:00Z`); t += 864e5) {
   const date = new Date(t).toISOString().slice(0, 10)

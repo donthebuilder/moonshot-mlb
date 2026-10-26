@@ -3,6 +3,10 @@ import { useMemo, useState } from 'react'
 import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 import { useAvailable } from '../injuries/useAvailable'
 import { FaceWall } from './OpeningViz'
+import { shotTypeWord } from '../../lib/openings/shotType'
+
+// [[word, share %, n]] -> "SG 67% · PF 33%" (top 3); '—' when empty
+const sharesText = (list, sport, wordy) => (list?.length ? list.slice(0, 3).map(([k, p]) => `${wordy ? shotTypeWord(sport, k) || k : k} ${Number.isFinite(p) ? p.toFixed(0) : 0}%`).join(' · ') : '—')
 
 // 🏁 THE FIRST-SCORE MATCHUP, SHARED (2026-10-25, Donovan: "the first basket things need like matchups and filter by games ... each
 // game [its two clubs] against each other, and the [top] first basket target ... this should be shared when built"). One product's
@@ -22,16 +26,38 @@ import { FaceWall } from './OpeningViz'
  * stats:   [{ key, label, fmt, higher: true|false|null, barOf? }]  the matchup rows (null = no side lit; barOf(club row) -> the number
  *          the bar pulls with when the row's own value is text, e.g. the jumper's tip win %)
  * targetCols, targetSort(a, b), minGp, Table, C, NUM_FONT, accent, words: { first, onOpenPlayer }
+ * lineups: { [game key]: { away: [ids], home: [ids], known } } -- who is STARTING tonight (/api/buckets/lineups). A game whose lineup
+ *          is known keeps only those five a side when "Starters only" is on; a game whose lineup is not in yet says EXPECTED and keeps
+ *          the club's regular starters (started half his games or more). null = no lineup read at all.
+ * defense: true when the club rows carry `allows` ({ n, types, pos } shares of the first scores that club's defense gave up): adds
+ *          the "who they allow to score first" table under the matchup of one game.
  */
-export default function FirstBasketMatchup({ sport, floor = null, games = [], teams, players = [], stats = [], targetCols = [], targetSort, minGp = 20, Table, C, NUM_FONT, accent, words, onOpenPlayer = null, onOpenTeam = null, faceOf = null }) {
+export default function FirstBasketMatchup({ sport, floor = null, games = [], teams, players = [], stats = [], targetCols = [], targetSort, minGp = 20, Table, C, NUM_FONT, accent, words, onOpenPlayer = null, onOpenTeam = null, faceOf = null, lineups = null, defense = false }) {
   const [pick, setPick] = useState('all')
+  const [startersOnly, setStartersOnly] = useState(true)
   const [look, setLook] = useState('faces')   // the face wall (./OpeningViz.js) or the plain table (Donovan 10-25: "faces and table")
   const avail = useAvailable()
   const nameOf = useMemo(() => new Map(players.map((p) => [String(p.playerId), p.name])), [players])
   const game = games.find((g) => g.key === pick) || null
   const clubs = useMemo(() => new Set(game ? [game.away, game.home] : games.flatMap((g) => [g.away, g.home])), [game, games])
-  const targets = useMemo(() => avail(players.filter((p) => clubs.has(p.team) && p.gp >= minGp && (p.gs || 0) >= p.gp / 2), (p) => ({ player_id: p.playerId, name: p.name, team: p.team }))
-    .slice().sort(targetSort).map((p, i) => ({ ...p, _id: p.playerId, rank: i + 1 })), [players, clubs, minGp, targetSort, avail])
+  // each club's confirmed five tonight (null until ESPN posts the lineup), and how many of the games shown have one
+  const shown = useMemo(() => (game ? [game] : games), [game, games])
+  const confirmed = useMemo(() => {
+    const m = new Map()
+    for (const g of shown) { const L = lineups?.[g.key]; if (L?.known) { m.set(g.away, new Set(L.away.map(String))); m.set(g.home, new Set(L.home.map(String))) } }
+    return m
+  }, [shown, lineups])
+  const nKnown = shown.filter((g) => lineups?.[g.key]?.known).length
+  const targets = useMemo(() => avail(players.filter((p) => clubs.has(p.team) && p.gp >= minGp
+    && (!startersOnly || (confirmed.has(p.team) ? confirmed.get(p.team).has(String(p.playerId)) : (p.gs || 0) >= p.gp / 2))), (p) => ({ player_id: p.playerId, name: p.name, team: p.team }))
+    .slice().sort(targetSort).map((p, i) => ({ ...p, _id: p.playerId, rank: i + 1 })), [players, clubs, minGp, targetSort, avail, startersOnly, confirmed])
+  const lineupTag = !lineups ? null : game ? (nKnown ? 'Lineup confirmed' : 'Lineup expected') : (nKnown === shown.length ? 'Lineups confirmed' : nKnown ? `${nKnown} of ${shown.length} lineups confirmed` : 'Lineups expected')
+  // WHO THEY ALLOW TO SCORE FIRST (the screenshot's "defense allows" block): each club's defense, by the position of the man who scored
+  // the game's first basket on it and by the shot it was
+  const defRows = useMemo(() => (defense && game ? [game.away, game.home].map((c) => {
+    const A = teams.get(c)?.allows
+    return { _id: c, club: c, n: A?.n || 0, pos: sharesText(A?.pos, sport, false), type: sharesText(A?.types, sport, true) }
+  }) : []), [defense, game, teams, sport])
   const versus = useMemo(() => {
     if (!game) return []
     const A = teams.get(game.away) || {}, H = teams.get(game.home) || {}
@@ -71,11 +97,30 @@ export default function FirstBasketMatchup({ sport, floor = null, games = [], te
         </>
       ) : null}
       <div style={{ color: C.text2, font: `900 12px/1.2 ${NUM_FONT}`, letterSpacing: '.08em', marginTop: 4 }}>{`${words.first.toUpperCase()} TARGETS · ${game ? game.label : 'TONIGHT'}`}</div>
+      {lineups ? (
+        <div role="group" aria-label="Lineup" className="chip-row" style={{ display: 'flex', gap: 6, alignItems: 'center', overflowX: 'auto' }}>
+          <button type="button" className={FLAT_CHIP_CLASS} aria-pressed={startersOnly} onClick={() => setStartersOnly((v) => !v)} style={{ ...flatChip(startersOnly, accent, C, NUM_FONT), flexShrink: 0 }}>Starters only</button>
+          <span style={{ font: `700 11px/1.2 ${NUM_FONT}`, color: nKnown ? accent : C.text3, whiteSpace: 'nowrap' }}>{lineupTag}</span>
+        </div>
+      ) : null}
       {targets.length
         ? <Table nameCell="player" faceOf={faceOf} rows={targets} columns={targetCols} heatMode="primary" maxRows={6} maxHeight={9999}
             onRowClick={onOpenPlayer ? (r) => onOpenPlayer((r?._raw ?? r).playerId) : undefined}
             caption={`Regular starters (${minGp}+ games) on ${game ? 'these two clubs' : 'tonight’s clubs'}, ranked by their ${words.first.toLowerCase()} record. Out tonight = left out. A record, not a chance.`} />
         : <div style={{ fontSize: 12, color: C.text3 }}>No regular starter with {minGp}+ games on file for {game ? 'these clubs' : 'tonight’s clubs'} yet.</div>}
+      {defRows.some((r) => r.n > 0) ? (
+        <>
+          <div style={{ color: C.text2, font: `900 12px/1.2 ${NUM_FONT}`, letterSpacing: '.08em', marginTop: 4 }}>DEFENSE · WHO THEY ALLOW TO SCORE FIRST</div>
+          <Table rows={defRows} heatMode="none" maxRows={2} maxHeight={9999}
+            columns={[
+              { key: 'club', label: 'Defense', group: 'Allows', w: 70, sticky: true, bold: true, numeric: false, heat: false, mono: true, teamMark: sport, link: onOpenTeam ? (r) => () => onOpenTeam(r.club) : undefined },
+              { key: 'n', label: 'GAMES', group: 'Allows', w: 56, heat: false, title: 'Games the other side scored the first basket on them' },
+              { key: 'pos', label: 'BY POSITION', group: 'Allows', w: 190, numeric: false, heat: false, fold: false, title: 'Position of the man who scored the first basket on them' },
+              { key: 'type', label: 'BY SHOT', group: 'Allows', w: 230, numeric: false, heat: false, fold: false, title: 'What the first basket on them was' },
+            ]}
+            caption="Each defense's share of the first baskets it gave up, by the scorer's position and by the shot. A record of what happened, not a chance." />
+        </>
+      ) : null}
     </section>
   )
 }

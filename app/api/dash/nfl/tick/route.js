@@ -104,6 +104,7 @@ import { postMembers, membersWebhook, MEMBERS_KINDS, nflMembersBoard, nflMembers
 import { readNflEvents } from '../../../../../lib/record/nfl'
 import { runNflWriteups } from '../../../../../lib/writeups/post'
 import { pregameQuotes, quoteKinds, receiptLineOf } from '../../../../../lib/dash/quoteFor'
+import { nflOpeningsTick } from '../../../../../lib/nfl/openings'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -849,6 +850,11 @@ async function nflTick(request) {
   // Touchdown alerts run every tick, any day -- independent of Milestone's
   // own Thursday/Sunday gate below (see runTouchdownTick()'s own header).
   const td = await runTouchdownTick(db, day)
+  // THE GAME'S OPENING (lib/nfl/openings.js -> opening_games, sport 'nfl'): who got the ball, the first touchdown, each club's plays to
+  // it. Every 15th minute, final games of the current week not yet on file; a scoreboard read, a small select, a summary only for a
+  // game that needs writing. Never throws.
+  const openings = new Date().getUTCMinutes() % 15 === 7 ? await nflOpeningsTick(db).catch((e) => ({ error: e?.message })) : null
+  if (openings?.written || openings?.error) console.log(`[nfl] openings ${JSON.stringify(openings)}`)
   const milestone = await runMilestoneTick(db, day)
   const weekly = await runWeeklyContentTick(db, day)
   // 🎯 LONGSHOTS (2026-09-27): Sunday from 11:45am ET, once, when at least
@@ -890,7 +896,7 @@ async function nflTick(request) {
   const snapshots = await stampSnapshots(db, { week: await weekFile(), getLogs: () => fetchNfl(nflLogPaths()).catch(() => null) })
 
   const threads = threadsSnapshot()
-  return Response.json({ day, snapshots, td, milestone, weekly, longshots, multiClub, lists, members, numerology, storylines, writeups, ...(threads.length ? { threads } : {}) })
+  return Response.json({ day, snapshots, td, ...(openings ? { openings } : {}), milestone, weekly, longshots, multiClub, lists, members, numerology, storylines, writeups, ...(threads.length ? { threads } : {}) })
 }
 
 // MOMENT POSTS (2026-10-12): the special card of a multi-touchdown game, last, after the tick's own work; off unless MOMENT_POSTS_ON (lib/posts/momentTick.js).

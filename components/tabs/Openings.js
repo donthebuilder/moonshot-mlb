@@ -32,6 +32,7 @@ const LANES = {
 const LANE_OPTIONS = Object.entries(LANES).map(([id, v]) => Object.assign({}, { key: id }, { label: v.word }))
 const VIEWS = ['players', 'teams']
 const pc = (v) => (Number.isFinite(v) ? `${v.toFixed(0)}%` : '—')
+const f1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : '—')
 const f2 = (v) => (Number.isFinite(v) ? v.toFixed(2) : '—')
 const pid = (p) => String(p?.player_id ?? p?.id ?? '')
 const rk = (v) => (Number.isFinite(v) ? `#${v}` : '—')
@@ -140,6 +141,9 @@ export default function Openings({ players = [], games = [], onPlayerClick }) {
     { key: 'firstHitPct', label: '1ST HIT %', group: 'Firsts', w: 64, fmt: pc, primary: lane === 'hit', title: 'How often they got the game’s first hit' },
     { key: 'firstRunPct', label: '1ST RUN %', group: 'Firsts', w: 66, fmt: pc, primary: lane === 'run', title: 'How often they scored the game’s first run' },
     { key: 'firstHrPct', label: '1ST HR %', group: 'Firsts', w: 60, fmt: pc, primary: lane === 'hr', title: 'Of games with a homer, how often they hit the first one' },
+    { key: 'paRun', label: 'RUN', group: 'PAs to the first', w: 48, fmt: f1, invert: true, title: 'Their plate appearances before the game’s first run (that one counts), a game; fewer is quicker' },
+    { key: 'paHit', label: 'HIT', group: 'PAs to the first', w: 48, fmt: f1, invert: true, title: 'Their plate appearances before the game’s first hit (that one counts), a game' },
+    { key: 'paHr', label: 'HR', group: 'PAs to the first', w: 48, fmt: f1, invert: true, title: 'Their plate appearances before the game’s first homer (that one counts), in games with one' },
     { key: 'leadoff', label: 'Leadoff', group: 'Leadoff', w: 140, heat: false, numeric: false, link: (r) => openPlayer(r.leadoffId, r.leadoff, r.team), title: 'The man who has led off for them most' },
     { key: 'leadoffGs', label: 'GS', group: 'Leadoff', w: 40, heat: false, title: 'His starts in the 1 hole' },
   ]
