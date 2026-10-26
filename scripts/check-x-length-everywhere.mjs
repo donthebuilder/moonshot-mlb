@@ -21,5 +21,9 @@ t('the longshots and multi-club fitters count with xLen', () => {
     assert.ok(/xLen\(t\) \+ 4 <= HARD_LIMIT/.test(src), `${f} counts X's weight`)
   }
 })
+t('the 280 retry of a refused long post keeps its sport (the BUCKETS hidden-sport gate and the sport receipt line read it)', () => {
+  const src = fs.readFileSync('lib/dash/xPost.js', 'utf8')
+  assert.ok(/return postToX\(plain, \{ replyTo, mediaId, mediaIds, quoteId, poll, kind, sport, link: linkCtx, _retry: true \}\)/.test(src), 'the retry drops sport')
+})
 console.log(bad ? `\n${bad}/${n} FAILED` : `\ncheck-x-length-everywhere: ${n} checks passed`)
 process.exit(bad ? 1 : 0)
