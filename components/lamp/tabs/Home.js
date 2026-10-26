@@ -18,6 +18,8 @@ import HotNumbers from '../../numerology/HotNumbers'
 import HomeGreeting from '../../home/HomeGreeting'
 import SlateRow from '../../home/SlateRow'
 import HomeLinks from '../../home/HomeLinks'
+import CalledList from '../../CalledList'
+import LampTable from '../LampTable'
 import RaceTracker from '../../RaceTracker'
 import NetworkRow from '../../NetworkRow'
 import { useGameTotals } from '../../GameTotalLine'
@@ -140,6 +142,9 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
       </HomeGreeting>
 
       {!ready ? <div aria-busy="true" style={{ minHeight: '100vh' }}><span style={{ position: 'absolute', left: -9999 }}>Loading…</span></div> : <>
+      {/* THE CALLED LIST (2026-10-25): the locked Card as a table, three rows and a link to the full list; silent until a card is locked */}
+      <CalledList sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} Table={LampTable} preview={3} onOpenList={() => setTab?.('calledlist')} onOpenPlayer={(e) => onOpenPlayer?.(e.playerId)} />
+
       <LampHeadline theme={C} numFont={NUM_FONT} goalBoard={board.data} sogBoard={sogBoard.data} record={regT ? { ...regT, sog: reg.data?.sog } : null} onOpenPlayer={onOpenPlayer} />
       <NhlTonight today={day} board={board.data} date={date} onOpenPlayer={onOpenPlayer} setTab={setTab} />
       <LampYourPlayers games={games} board={board.data} onOpenPlayer={onOpenPlayer} />

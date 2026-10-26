@@ -19,6 +19,8 @@ import NetworkRow from '../../NetworkRow'
 import RaceTracker from '../../RaceTracker'
 import { fmtCountdown } from '../../../lib/headlines'
 import HeadlinePicks from '../../headline/HeadlinePicks'
+import CalledList from '../../CalledList'
+import NflTable from '../NflTable'
 import { kickoffFor } from '../../../lib/nfl/kickoff'
 import PageHeader from '../../PageHeader'
 import { NFL_NAV } from '../../../lib/routes'
@@ -247,6 +249,10 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
         <NflHeadlineStrip players={players} games={games} markets={data?.markets} matchup={matchup} logs={logs} week={data}
           onPlayerClick={onPlayerClick} setTab={setTab} stories extras={false} />
       </section>
+
+      {/* THE CALLED LIST (2026-10-25): the locked Card as a table, three rows and a link to the full list; silent until a card is locked */}
+      <CalledList sport="nfl" theme={C} numFont={NUM_FONT} accent={C.green} Table={NflTable} preview={3} onOpenList={() => setTab('calledlist')}
+        onOpenPlayer={(e) => { const p = players.find((x) => String(x.player_id) === String(e.playerId)); if (p) onPlayerClick?.(p, 'TD') }} />
 
       <TheSix picks={picks} playersById={playersById} games={data?.games || []} players={players} markets={data?.markets || []} onPlayerClick={onPlayerClick} onPicks={() => setTab('picks')} totals={seasonTotals(keys.map((k) => archive[k]))} logs={logs} />
 

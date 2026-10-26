@@ -25,6 +25,7 @@ import { readHashParam } from './ui'
 import Home from './tabs/Home'
 import { useLampSaves } from '../../lib/nhl/useLampSaves'
 import LampTable from './LampTable'
+import CalledList from '../CalledList'
 import CardSection from '../card/CardSection'
 import LampSlate from './LampSlate'
 import dynamic from 'next/dynamic'
@@ -191,6 +192,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'binder' && <Binder />}
             {tab === 'storylines' && <StorylinesPage sport="nhl" previewGames={4} eyebrow="LAMP · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.ice} onOpenPlayer={peekPlayer} onOpenGame={openGame} date={date} />}
             {/* MOONSHOT's Odds page, sport="nhl" (2026-10-02, components/lamp/LampOdds.js) */}
+            {tab === 'calledlist' && <CalledList sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} Table={LampTable} onOpenGame={openGame} onOpenPlayer={(e) => peekPlayer(e.playerId)} />}
             {tab === 'trending' && <Trending onOpenPlayer={peekPlayer} />}
             {tab === 'odds' && <OddsWithLongshots odds={<LampOdds onOpenPlayer={peekPlayer} />} longshots={<Longshots sport="nhl" eyebrow="LAMP · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.ice} Table={LampTable} onOpenPlayer={peekPlayer} />} />}
             {tab === 'shotmap' && <ShotMap onOpenPlayer={peekPlayer} />}
@@ -210,7 +212,7 @@ export default function LampDashboard({ palettePass = 0 }) {
               market={tab === 'shots' ? 'SOG' : null}
               onMarket={tab === 'shots' ? () => setTab('fullboard') : null} />}
             {/* TOP TOTALS now ride each game (components/GameTotalLine.js); the record stays in the Ledger. The Card is one line, under the slate. */}
-            {tab === 'games' && <LampSlate onOpenPlayer={peekPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate} />}
+            {tab === 'games' && <LampSlate onOpenPlayer={peekPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate} onOpenCalledList={() => setTab('calledlist')} />}
             {tab === 'games' && <CardSection sport="nhl" Table={LampTable} compact />}
                       </>)}
           </ErrorBoundary>

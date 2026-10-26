@@ -40,6 +40,7 @@ import { NFL_OWN_HEADER } from './tabExplainerTexts'
 
 import Home from './tabs/Home'
 import NflTable from './NflTable'
+import CalledList from '../CalledList'
 import { liveOdds } from '../../lib/oddsFreshness'
 import { StaleNote } from '../StaleBanner'
 import dynamic from 'next/dynamic'
@@ -536,7 +537,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'watchlist' && <Watchlist data={slate} matchup={matchup} logs={logs} picks={picks} onPlayerClick={openPlayer} />}
             {/* TOP TOTALS now ride each game (components/GameTotalLine.js: on the game's header and its slate card); the record stays in the Ledger.
                 The Card is one line, under the slate (it was a block above the first game). */}
-            {!oddsHold && tab === 'games' && <Games data={slate} picks={picks} matchup={matchup} logs={logs} results={nflResults} odds={odds} onPlayerClick={openPlayer} onOpenTeam={openTeamPage} />}
+            {!oddsHold && tab === 'games' && <Games data={slate} picks={picks} matchup={matchup} logs={logs} results={nflResults} odds={odds} onPlayerClick={openPlayer} onOpenTeam={openTeamPage} onOpenCalledList={() => setTab('calledlist')} />}
             {!oddsHold && tab === 'games' && <CardSection sport="nfl" Table={NflTable} compact />}
             {/* One Board page (2026-09-26, option (b)): touchdowns / boards /
                 picks are the same hub; boards opens BOARD, picks opens CALLED. */}
@@ -568,6 +569,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'explosive' && <Explosive matchup={matchup} data={data} onPlayerClick={openPlayer} />}
             {tab === 'redzone' && <RedZone data={data} matchup={matchup} onPlayerClick={openPlayer} />}
             {/* MOONSHOT's Odds page, sport="nfl" (2026-10-02): this week's players, their prices, moves and books */}
+            {tab === 'calledlist' && <CalledList sport="nfl" theme={C} numFont={NUM_FONT} accent={C.green} Table={NflTable} onOpenGame={openGameNav} onOpenPlayer={(e) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(e.playerId)); if (p) openPlayer(p) }} />}
             {tab === 'trending' && <Trending data={data} logs={logs} odds={odds} onPlayerClick={openPlayer} />}
             {tab === 'odds' && <OddsWithLongshots odds={<OddsBoard sport="nfl" players={data?.players || []} theme={C} numFont={NUM_FONT} Table={NflTable} onPlayerClick={(p) => p && openPlayer(p, 'TD')} startedOf={(p) => { const t = kickoffFor(data?.games, p); return Number.isFinite(t) && t <= Date.now() }} />}
               longshots={<Longshots sport="nfl" eyebrow="TUDDY · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.green} Table={NflTable} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p, 'TD') }} />} />}

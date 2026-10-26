@@ -7,6 +7,7 @@ import { useHashFilter } from '../../lib/filterHash'
 import { useIsPhone } from '../MobileFold'
 import PageHeader from '../PageHeader'
 import CalledExport from '../CalledExport'
+import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 import Tap from '../Tap'
 import GameHeadRow from '../slate/GameHeadRow'
 import { Dial } from '../VerdictHero'
@@ -79,7 +80,7 @@ function CardTitle({ g, st }) {
   )
 }
 
-export default function LampSlate({ date = null, setDate = () => {}, onOpenPlayer, onOpenTeam, onOpenGame }) {
+export default function LampSlate({ date = null, setDate = () => {}, onOpenPlayer, onOpenTeam, onOpenGame, onOpenCalledList = null }) {
   const { data, error, loading } = useLampBoard(date, 'GOAL')
   const isPhone = useIsPhone()
   const outCounts = useOutCounts('nhl')   // lib/injuries: "3 out" on the game row and the Out pill
@@ -186,7 +187,12 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
   return (
     <div className="slate-tight phone-slate">
       <PageHeader eyebrow="LAMP · SLATE" title="Slate" theme={C} numFont={NUM_FONT} accent={C.ice}
-        note="Tonight’s games, puck drop first." right={<CalledExport sport="nhl" date={shown || null} C={C} NUM_FONT={NUM_FONT} accent={C.ice} />} />
+        note="Tonight’s games, puck drop first." right={(
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {onOpenCalledList ? <button type="button" className={FLAT_CHIP_CLASS} onClick={onOpenCalledList} style={flatChip(false, C.ice, C, NUM_FONT)}>📋 Called list</button> : null}
+            <CalledExport sport="nhl" date={shown || null} C={C} NUM_FONT={NUM_FONT} accent={C.ice} />
+          </div>
+        )} />
       {/* desktop: day nav + search + team + game + Table|Games on ONE row (app/globals.css .slate-tight); phone: a plain block, unchanged */}
       <div className="slate-bar">
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
