@@ -13,7 +13,8 @@ import { FaceWallByGame } from '../openings/OpeningViz'
 const WORD = {
   mlb: { event: 'homer', first: 'first homer', title: 'FIRST HOMER OF EACH GAME', note: 'The first home run, not the first run.' },
   nfl: { event: 'TD', first: 'first touchdown', title: 'FIRST TOUCHDOWN OF EACH GAME', note: null, wall: 'First TD · by game', scored: 'Scored the first TD', other: 'They scored it' },
-  nhl: { event: 'goal', first: 'first goal', title: 'FIRST GOAL OF EACH GAME', note: null, wall: 'First goal · by game', scored: 'Scored the first goal', other: 'They scored it' },
+  nhl: { event: 'goal', first: 'first goal', title: 'FIRST GOAL OF EACH GAME', note: null, wall: 'First goal · by game', scored: 'Scored the first goal', other: 'They scored it',
+    ring: 'faceoff', both: 'First goal + opening faceoff', wasted: 'Won the faceoff, not the goal', none: 'Neither' },
   nba: { event: 'basket', first: 'first basket', title: 'FIRST BASKET OF EACH GAME', note: 'The first made field goal — the shot the first-basket board is graded on.' },
 }
 // lib/callStatus.js, the one set of words (R2)
@@ -76,7 +77,7 @@ export default function FirstScorers({ sport, C, numFont, accent, day = null, em
     />
     {walls && wallGames.length ? (
       <FaceWallByGame title={w.wall} games={wallGames} logOf={(t) => walls.teams?.[t]} sport={sport} C={C} NUM_FONT={numFont} accent={accent}
-        nameOf={names} urlOf={(id) => walls.faces?.[id] || null} floor={floor} words={{ ring: null, first: w.scored, other: w.other }} />
+        nameOf={names} urlOf={(id) => walls.faces?.[id] || null} floor={floor} words={{ ring: w.ring || null, first: w.scored, other: w.other, both: w.both, wasted: w.wasted, none: w.none }} />
     ) : null}
     </>
   )

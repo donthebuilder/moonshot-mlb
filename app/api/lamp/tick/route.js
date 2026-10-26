@@ -29,6 +29,7 @@ import { LOCK_WINDOW_MS, readBoard } from '../../../../lib/nhl/boardRead'
 import { startersFromPlayByPlay, goaliesFromBoxscore } from '../../../../lib/nhl/goalies'
 import { shotsFromPlayByPlay, writeShots } from '../../../../lib/nhl/shots'
 import { boxRowsNhl, writeBox } from '../../../../lib/nhl/box'
+import { writeOpeningNhl } from '../../../../lib/nhl/openings'
 import { teamGameRows, writeTeamGames } from '../../../../lib/nhl/teamXg'
 import { postLongshotsOnce } from '../../../../lib/dash/longshotsPost'
 import { postMultiClubOnce } from '../../../../lib/dash/multiClubPost'
@@ -247,6 +248,14 @@ export async function GET(request) {
           const tg = await writeTeamGames(db, teamGameRows(shots))
           if (tg.missing) console.error('[lamp tick] team xg: lamp_team_game_xg is not there yet (run 202610081200_lamp_team_game_xg.sql)')
         } catch (e) { console.error(`[lamp tick] shots ${p.game_id}: ${e?.message}`) }
+      }
+      // THE OPENING (2026-10-26, lib/nhl/openings.js): opening faceoff, first shot, first goal, from the play-by-play already
+      // read -- the first-goal face wall's rows (opening_games, sport 'nhl'). Its own failure, logged, never the grade.
+      if (pbp) {
+        try {
+          const oe = await writeOpeningNhl(db, pbp)
+          if (oe) console.error(`[lamp tick] opening ${p.game_id}: ${oe}`)
+        } catch (e) { console.error(`[lamp tick] opening ${p.game_id}: ${e?.message}`) }
       }
       // THE BOX ARCHIVE (2026-10-25, lib/nhl/box.js): every dressed player's line from this same boxscore, for LAMP Trending and
       // WITHOUT. Its own failure, logged; a table that is not there yet (202610252200_lamp_box.sql not run) is skipped, never the grade.
