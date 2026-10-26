@@ -58,6 +58,9 @@ const rows2 = [row('nhl', L.nhl), straight('nhl')]
 const wait = T.tuesdayTiming({ day: TUE, rows: rows2, windows: { nba: [win('nba', 9, NOW + 4 * H)] }, now: NOW })
 ok(!wait.go && /waiting for nba/.test(wait.reason), `an NBA full slate not locked yet: wait (${wait.reason})`)
 ok(T.tuesdayTiming({ day: TUE, rows: rows2, windows: { nba: [win('nba', 3, NOW + 4 * H)] }, now: NOW }).go, 'a 3-game NBA night has no long shot: no wait')
+// batch 3 (2026-10-26): a sport whose lock moment has PASSED with no bot row (BUCKETS: no stored over price clears the +120 floor, no anytime market) can no longer produce a long shot; the post must not wait for it until 20 minutes before the first leg
+ok(T.tuesdayTiming({ day: TUE, rows: rows2, windows: { nba: [win('nba', 9, NOW + 30 * 60e3)] }, now: NOW }).go, 'a full NBA slate whose lock has passed with no card row is not waited for')
+
 const late = T.tuesdayTiming({ day: TUE, rows: rows2, windows: { nba: [win('nba', 9, NOW + 4 * H)] }, now: NOW + 3 * H - 19 * 60e3 })
 ok(late.go && late.legs.length === 1, `20 minutes before the first leg it goes without the late board (${late.reason})`)
 const all = T.tuesdayTiming({ day: TUE, rows: [...rows2, row('nba', L.nba), straight('nba')], windows: { nba: [win('nba', 9, NOW + 4 * H)] }, now: NOW })
