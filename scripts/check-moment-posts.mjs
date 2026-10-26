@@ -282,6 +282,14 @@ process.env.MOMENT_POSTS_ON = 'on'
   _resetTakenForTests()
   const again2 = await MP.postMomentCorrections(f.db, { now: CNOW + 900e3, deps: s.d })
   check(again.length === 0 && again2.length === 0 && s.sent.x.length === 2, 'G: the update goes once (a cold instance too)')
+  // batch 3 (2026-10-26): a correction claimed with NOTHING sent (X paused, no channel copy to follow up) said 'updated'
+  reset(); const f3 = fakeDb(); const s3 = senders({ discordResult: () => ({ ok: false, status: 400, failed: [{}] }) })
+  await MP.postMomentEvents(f3.db, [hat], { now: NOW, deps: s3.d })
+  f3.tables.lamp_goal_feed.push(...hatRows().map((r, i) => ({ ...r, overturned_at: i === 1 ? '2026-01-02T02:00:00Z' : null })))
+  process.env.X_POSTS_PAUSE = 'on'
+  const nothing = await MP.postMomentCorrections(f3.db, { now: CNOW + 600e3, deps: s3.d })
+  delete process.env.X_POSTS_PAUSE
+  check(nothing.length === 1 && /NOT sent/.test(nothing[0]) && !/updated/.test(nothing[0]), `G: a correction that reached no room is reported as NOT sent, not 'updated' (${nothing[0]})`)
   process.env.CORRECTIONS_OFF = 'on'
   reset(); const f2 = fakeDb(); const s2 = senders()
   await MP.postMomentEvents(f2.db, [hat], { now: NOW, deps: s2.d })
