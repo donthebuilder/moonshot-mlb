@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../lib/theme'
-import { clean } from '../lib/player'
+import { clean, surname } from '../lib/player'
 import TeamMark from './TeamMark'
 import PlayerFace from './PlayerFace'
 import { Chip } from './writeups/ChipLines'
@@ -49,7 +49,7 @@ const HEAT = { hr: 2, hit: 1, base: 1, out: 0 }
 // Last name only: keeps a loaded-bases line short next to the score and count.
 const lastOf = (full) => {
   const t = String(full || '').trim()
-  return t.split(/\s+/).pop() || t
+  return surname(t) || t
 }
 
 // The bases as a diamond (second on top, like the field), a chip per runner on.
@@ -183,7 +183,7 @@ export default function GameCockpit({ game, onPlayerClick }) {
               style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', minHeight: click ? 44 : 32, padding: '2px 8px', borderRadius: 8, minWidth: 0, cursor: click ? 'pointer' : 'default',
                 background: st.kind === 'hr' ? `${theme.accent}1a` : 'transparent', borderLeft: `3px solid ${HEAT[st.kind] ? theme.accent : 'transparent'}` }}>
               <span style={{ width: 30, flexShrink: 0, font: `700 ${TYPE.body}px/1 ${NUM_FONT}`, color: C.text3 }}>{pl?.about?.halfInning === 'top' ? 'T' : 'B'}{pl?.about?.inning}</span>
-              <span style={{ font: `800 ${TYPE.name}px/1.2 ${NUM_FONT}`, color: HEAT[st.kind] ? C.text : C.text2, minWidth: 0, overflowWrap: 'anywhere' }}>{clean(pl?.matchup?.batter?.fullName, '?').split(' ').slice(-1)[0]}</span>
+              <span style={{ font: `800 ${TYPE.name}px/1.2 ${NUM_FONT}`, color: HEAT[st.kind] ? C.text : C.text2, minWidth: 0, overflowWrap: 'anywhere' }}>{surname(clean(pl?.matchup?.batter?.fullName, '?'))}</span>
               {roleChip(bid)}
               <Chip theme={theme} label={st.word} heat={HEAT[st.kind]} />
               {/* ball off the bat: exit velo when tracked; carry only when it means something (200+ ft) */}

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import PriceBubble from './PriceBubble'
 import { hrPerGame } from '../lib/odds'
-import { nameOf, teamOf, clean, playerId as pidOf } from '../lib/player'
+import { nameOf, teamOf, clean, playerId as pidOf, surname } from '../lib/player'
 import { fetchLiveSlate, pickCleared } from '../lib/liveSlate'
 import { teamAbbrs } from '../lib/gamelogs'
 import { livewire as words } from '../lib/copy/notifications'
@@ -193,7 +193,7 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
     (g.starters || []).forEach((st) => {
       if (!st?.pitches || st.pitches < 85) return
       const tier = penTier(pen?.[st.teamId])
-      const nm = String(st.name || '').split(' ').slice(-1)[0]
+      const nm = surname(st.name)
       if (tier?.key === 'gassed') {
         const t2 = pen[st.teamId]
         alerts.push({ pri: 1, icon: '🚪', text: words.gassedPen({ name: nm, pitches: st.pitches, penPitches: t2.pitches, arms: t2.used }) })
