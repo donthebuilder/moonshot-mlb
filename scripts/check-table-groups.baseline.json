@@ -18,7 +18,7 @@
   "components/StorylinesPage.js": 4,
   "components/bands/BandTable.js": 3,
   "components/buckets/BucketsProjected.js": 2,
-  "components/buckets/PlayerSplits.js": 3,
+  "components/buckets/PlayerSplits.js": 4,
   "components/buckets/tabs/Board.js": 5,
   "components/lamp/GoalieWeakSpots.js": 10,
   "components/lamp/LampProjected.js": 1,
