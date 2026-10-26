@@ -61,6 +61,24 @@ const TINT_OF = {
   mlb: (team) => (isKnownTeam(team) ? teamColor(team) : null),
 }
 
+// THE CROP, per product (2026-10-25, Donovan: "the faces ... need to be centered more ... this can be pushed throughout the whole
+// site"). ESPN's NBA headshot is a wide cut-out (600 x 436), so a round frame showed a small head with dead space around it.
+// Zoomed 1.5x about a point 18% down, the whole head sits centred in the circle; picked from four crops tried side by side on
+// live faces (components/openings/OpeningViz.js draws the same crop as a background). A product without a crop is unchanged.
+const CROP_OF = {
+  nba: { scale: 1.5, y: 18 },
+}
+/** The crop as img styles (transform about the pinned point), or {} for a product without one. */
+export function faceCropStyle(sport) {
+  const c = CROP_OF[sport]
+  return c ? { transform: `scale(${c.scale})`, transformOrigin: `50% ${c.y}%` } : {}
+}
+/** The crop as a CSS background (size / position) for a box drawn with the face as its background. */
+export function faceCropBackground(sport) {
+  const c = CROP_OF[sport]
+  return c ? `50% ${c.y}% / auto ${c.scale * 100}%` : 'center / cover'
+}
+
 export function faceUrl({ sport, id, espnId, photo, size = 40 }) {
   return photo || URL_OF[sport]?.({ id, espnId, size }) || null
 }
@@ -82,7 +100,7 @@ export default function PlayerFace({ sport, id = null, espnId = null, photo = nu
       }}>
         {String(team || initials(name)).slice(0, 3).toUpperCase()}
         {src && <img src={src} alt={name || ''} width={size} height={size} loading="lazy" decoding="async"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', ...faceCropStyle(sport) }} />}
       </span>
     )
   }
@@ -93,6 +111,17 @@ export default function PlayerFace({ sport, id = null, espnId = null, photo = nu
     // it with nothing behind it, so a head and shoulders floated on the row.
     // LAMP's PlayerMark puts the page's dark circle (bg3) behind the same
     // image; every table face does now -- MOONSHOT, LAMP's board, TUDDY's.
+    const crop = faceCropStyle(sport)
+    // a cropped face needs a round box to zoom inside of (the img alone would grow past its circle)
+    if (crop.transform) {
+      return (
+        <span aria-hidden="true" className={className || undefined} style={{ width: size, height: size, borderRadius: '50%', overflow: 'hidden', display: 'inline-block', flex: 'none', verticalAlign: 'middle', background: theme?.bg3 || CHASSIS.bg3, ...style }}>
+          <img src={src} alt="" width={size} height={size} loading="lazy" decoding="async"
+            onError={(e) => { e.currentTarget.parentElement.style.display = 'none' }}
+            style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', ...crop }} />
+        </span>
+      )
+    }
     return (
       // A table face that 404s disappears -- no monogram, no broken-image box.
       <img src={src} alt="" width={size} height={size} loading="lazy" decoding="async" className={className || undefined}
@@ -106,7 +135,7 @@ export default function PlayerFace({ sport, id = null, espnId = null, photo = nu
   // (alt=""): his name is text beside it. Fixed width/height, lazy, 2x for retina.
   if (variant === 'row') {
     const px = size * (RETINA_OF[sport] || 1)
-    return <RowFace url={faceUrl({ sport, id, espnId, photo, size: px })} name={name} size={size} ring={ring} theme={theme} className={className} style={style} />
+    return <RowFace url={faceUrl({ sport, id, espnId, photo, size: px })} crop={faceCropStyle(sport)} name={name} size={size} ring={ring} theme={theme} className={className} style={style} />
   }
   const bg = theme?.bg3 || 'rgba(255,255,255,.06)'
   const ink = theme?.text2 || 'rgba(255,255,255,.7)'
@@ -119,7 +148,7 @@ export default function PlayerFace({ sport, id = null, espnId = null, photo = nu
       {initials(name)}
       {src && (
         <img src={src} alt={name || ''} width={size} height={size} loading="lazy" decoding="async"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', ...faceCropStyle(sport) }} />
       )}
     </span>
   )
@@ -127,7 +156,7 @@ export default function PlayerFace({ sport, id = null, espnId = null, photo = nu
 
 // The 'row' face (see the variant's note in PlayerFace). The monogram shows until the picture has loaded, and again if it never does
 // (a cut-out is transparent: the initials must not show through a loaded face).
-function RowFace({ url, name, size, ring, theme, className, style }) {
+function RowFace({ url, crop = null, name, size, ring, theme, className, style }) {
   const [state, setState] = useState('wait')   // wait | ok | bad
   const ref = useRef(null)
   useEffect(() => { const el = ref.current; if (el?.complete && el.naturalWidth > 0) setState('ok') }, [url])
@@ -140,7 +169,7 @@ function RowFace({ url, name, size, ring, theme, className, style }) {
       {state === 'ok' ? null : initials(name)}
       {url && state !== 'bad' && <img ref={ref} src={url} alt="" width={size} height={size} loading="lazy" decoding="async"
         onLoad={() => setState('ok')} onError={() => setState('bad')}
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', ...crop }} />}
     </span>
   )
 }
