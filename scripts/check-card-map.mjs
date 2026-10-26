@@ -447,7 +447,7 @@ const FREE = { DISCORD_HOMER_WEBHOOK: U('1001'), DISCORD_NHL_WEBHOOKS: U('1004')
 const ENV_KEYS = [...Object.keys(FREE), 'DISCORD_MEMBERS_WEBHOOK', 'X_API_KEY', 'X_API_SECRET', 'X_ACCESS_TOKEN', 'X_ACCESS_SECRET', 'POST_KINDS_ON', 'CARD_POSTS_PAUSE']
 const setEnv = (extra = {}) => { for (const k of ENV_KEYS) delete process.env[k]; Object.assign(process.env, FREE, extra) }
 const calls = []
-globalThis.fetch = async (url, init) => { calls.push({ url: String(url), body: String(init?.body || '') }); return { ok: true, status: 204, statusText: 'No Content', headers: { get: () => null }, json: async () => ({}) } }
+globalThis.fetch = async (url, init) => { calls.push({ url: String(url).replace(/\?wait=true$/, ''), body: String(init?.body || '') })   /* a #members post asks for its message id (?wait=true) */; return { ok: true, status: 204, statusText: 'No Content', headers: { get: () => null }, json: async () => ({}) } }
 function postStore() {
   const rows = []
   const T = {
