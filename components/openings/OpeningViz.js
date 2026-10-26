@@ -1,6 +1,8 @@
 'use client'
 import { useState } from 'react'
 import TeamMark from '../TeamMark'
+import PlayerFace from '../PlayerFace'
+import { surname } from '../../lib/player'
 
 // 🌀 THE OPENING, DRAWN (mock, 10-25, Donovan: "this is wack, how can we make it avant garde or more abstract" -> "1 2 and 4 and
 // maybe a combo"). Three abstract reads of one game's two clubs, every mark a real count from the opening records:
@@ -124,6 +126,53 @@ export function DotWall({ game, logs, rows, sport, C, NUM_FONT, accent, bare = f
   const body = <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>{wall(logs.away, 'away')}{wall(logs.home, 'home')}</div>
   if (bare) return body
   return <div style={frame(C)}><Clubs game={game} sport={sport} C={C} NUM_FONT={NUM_FONT} />{body}<div style={{ fontSize: 11, color: C.text3 }}>Scored the first basket. One dot a game on file, newest first.</div></div>
+}
+
+/** 4b · THE FACE WALL (10-25, Donovan: "yes" to faces, "ok" to the tip ring). One mark a game, newest first:
+ *    his face        his club scored first, and this is the man who did it
+ *    ring (accent)   his club won the tip -- a ring round an EMPTY dot is a tip won and the first basket lost
+ *  Under each wall, the faces that turn up most, with their counts. */
+export function FaceWall({ game, logs, rows, sport, C, NUM_FONT, accent, nameOf, bare = false }) {
+  const first = rows.find((r) => r._id === 'firstPct')
+  const D = 18, COLS = 7   // 7 x 18px + gaps fits half of a 360 phone
+  const wall = (log, s) => {
+    const g = (log || []).filter((x) => x[0] != null)
+    const n = g.length, k = g.filter((x) => x[0] === 1).length
+    const tips = g.filter((x) => x[1] === 1).length
+    const lost = g.filter((x) => x[1] === 1 && x[0] === 0).length
+    const by = new Map(); for (const x of g) if (x[3]) by.set(x[3], (by.get(x[3]) || 0) + 1)
+    const top = [...by.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3)
+    const end = s === 'away' ? 'start' : 'end'
+    return (
+      <div style={{ display: 'grid', gap: 6, justifyItems: end, alignContent: 'start' }}>
+        <div style={{ font: `900 28px/1 ${NUM_FONT}`, color: first?.better === s ? accent : C.text2 }}>{n ? `${Math.round((100 * k) / n)}%` : '—'}</div>
+        <div style={{ font: `600 10px/1.4 ${NUM_FONT}`, color: C.text3, textAlign: end === 'start' ? 'left' : 'right' }}>{`${k}/${n} first`}<br />{`${lost} tips won, basket lost`}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${COLS}, ${D}px)`, gap: 3, direction: s === 'home' ? 'rtl' : 'ltr' }}>
+          {g.map((x, i) => (
+            <span key={i} title={x[3] ? (nameOf?.get(x[3]) || '') : (x[1] === 1 ? 'Won the tip, lost the first basket' : '')}
+              style={{ width: D, height: D, borderRadius: '50%', display: 'grid', placeItems: 'center', boxSizing: 'border-box',
+                border: x[1] === 1 ? `1.5px solid ${accent}` : `1.5px solid transparent` }}>
+              {x[3]
+                ? <PlayerFace sport={sport} id={x[3]} name={nameOf?.get(x[3]) || ''} size={D - 4} />
+                : <span style={{ width: 6, height: 6, borderRadius: 3, border: `1px solid ${C.text3}`, opacity: 0.6 }} />}
+            </span>
+          ))}
+        </div>
+        <div style={{ display: 'grid', gap: 4, justifyItems: end, marginTop: 2 }}>
+          {top.map(([id, c]) => (
+            <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexDirection: s === 'home' ? 'row-reverse' : 'row', font: `600 12px/1 ${NUM_FONT}`, color: C.text2 }}>
+              <PlayerFace sport={sport} id={id} name={nameOf?.get(id) || ''} size={20} />
+              {surname(nameOf?.get(id) || '')}<b style={{ color: C.text }}>{c}</b>
+            </span>
+          ))}
+        </div>
+        <div style={{ font: `600 10px/1 ${NUM_FONT}`, color: C.text3 }}>{n ? `TIP ${Math.round((100 * tips) / n)}%` : ''}</div>
+      </div>
+    )
+  }
+  const body = <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>{wall(logs.away, 'away')}{wall(logs.home, 'home')}</div>
+  if (bare) return body
+  return <div style={frame(C)}><Clubs game={game} sport={sport} C={C} NUM_FONT={NUM_FONT} />{body}<div style={{ fontSize: 11, color: C.text3 }}>Face = they scored first, and who. Ring = they won the tip. Empty ring = tip won, basket lost. Games on file, newest first.</div></div>
 }
 
 /** THE COMBO: the circle, then the rain, then the wall, in one frame. */

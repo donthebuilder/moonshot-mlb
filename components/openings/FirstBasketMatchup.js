@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react'
 import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 import { useAvailable } from '../injuries/useAvailable'
-import { JumpCircle, FirstRain, DotWall, OpeningCombo } from './OpeningViz'
+import { JumpCircle, FirstRain, DotWall, FaceWall, OpeningCombo } from './OpeningViz'
 
 // 🏁 THE FIRST-SCORE MATCHUP, SHARED (2026-10-25, Donovan: "the first basket things need like matchups and filter by games ... each
 // game [its two clubs] against each other, and the [top] first basket target ... this should be shared when built"). One product's
@@ -25,8 +25,9 @@ import { JumpCircle, FirstRain, DotWall, OpeningCombo } from './OpeningViz'
  */
 export default function FirstBasketMatchup({ sport, games = [], teams, players = [], stats = [], targetCols = [], targetSort, minGp = 20, Table, C, NUM_FONT, accent, words, onOpenPlayer = null, onOpenTeam = null, faceOf = null }) {
   const [pick, setPick] = useState('all')
-  const [look, setLook] = useState('combo')   // MOCK (10-25): the abstract views (./OpeningViz.js) vs the plain table, to compare
+  const [look, setLook] = useState('faces')   // MOCK (10-25): the abstract views (./OpeningViz.js) vs the plain table, to compare
   const avail = useAvailable()
+  const nameOf = useMemo(() => new Map(players.map((p) => [String(p.playerId), p.name])), [players])
   const game = games.find((g) => g.key === pick) || null
   const clubs = useMemo(() => new Set(game ? [game.away, game.home] : games.flatMap((g) => [g.away, g.home])), [game, games])
   const targets = useMemo(() => avail(players.filter((p) => clubs.has(p.team) && p.gp >= minGp && (p.gs || 0) >= p.gp / 2), (p) => ({ player_id: p.playerId, name: p.name, team: p.team }))
@@ -63,16 +64,16 @@ export default function FirstBasketMatchup({ sport, games = [], teams, players =
       {game ? (
         <>
           <div role="group" aria-label="Look" className="chip-row" style={{ display: 'flex', gap: 6, overflowX: 'auto' }}>
-            {[['combo', 'Combo'], ['circle', 'Circle'], ['rain', 'Rain'], ['wall', 'Wall'], ['table', 'Table']].map(([k, l]) => (
+            {[['faces', 'Faces'], ['wall', 'Wall'], ['circle', 'Circle'], ['rain', 'Rain'], ['combo', 'Combo'], ['table', 'Table']].map(([k, l]) => (
               <button key={k} type="button" className={FLAT_CHIP_CLASS} aria-pressed={look === k} onClick={() => setLook(k)} style={{ ...flatChip(look === k, accent, C, NUM_FONT), flexShrink: 0 }}>{l}</button>
             ))}
           </div>
           {look === 'table'
             ? <Table rows={versus} columns={versusCols} heatMode="none" maxRows={versus.length} maxHeight={9999} caption={`${game.away} against ${game.home}: each club's record in the games on file. The better side is lit.`} />
             : (() => {
-              const V = { combo: OpeningCombo, circle: JumpCircle, rain: FirstRain, wall: DotWall }[look]
+              const V = { faces: FaceWall, combo: OpeningCombo, circle: JumpCircle, rain: FirstRain, wall: DotWall }[look]
               const logs = { away: teams.get(game.away)?.log || [], home: teams.get(game.home)?.log || [] }
-              return <V key={game.key} game={game} rows={versus} logs={logs} sport={sport} C={C} NUM_FONT={NUM_FONT} accent={accent} />
+              return <V key={game.key} game={game} rows={versus} logs={logs} nameOf={nameOf} sport={sport} C={C} NUM_FONT={NUM_FONT} accent={accent} />
             })()}
         </>
       ) : null}
