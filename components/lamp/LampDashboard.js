@@ -44,6 +44,7 @@ Player.peekToolbar = true
 // the card is MOONSHOT's v3 layout (2026-10-23): PlayerPeek opens it at MOONSHOT's full width
 Player.peekWide = true
 const Pairs = dynamic(() => import('./tabs/Pairs'), { loading: TabLoading })
+const Openings = dynamic(() => import('./tabs/Openings'), { loading: TabLoading })   // 2026-10-26: the faceoff, the first goal, the first period
 const SpecialTeams = dynamic(() => import('./tabs/SpecialTeams'), { loading: TabLoading })
 const Ledger = dynamic(() => import('./tabs/Ledger'), { loading: TabLoading })
 const Matchups = dynamic(() => import('./tabs/Matchups'), { loading: TabLoading })
@@ -176,6 +177,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'player' && <Player id={playerId} onStep={stepPlayer} onOpenTeam={openTeam} onOpenGame={openGame} backLabel={backLabel('players')} onBack={() => goBack('players')} />}
             {tab === 'leaders' && <Leaders onOpenPlayer={peekPlayer} onOpenTeam={openTeam} />}
             {tab === 'pairs' && <Pairs onOpenPlayer={peekPlayer} />}
+            {tab === 'openings' && <Openings onOpenTeam={openTeam} onOpenPlayer={peekPlayer} />}
             {tab === 'specialteams' && <SpecialTeams onOpenTeam={openTeam} onOpenPlayer={peekPlayer} />}
             {tab === 'matchups' && <Matchups date={date} onOpenPlayer={peekPlayer} onOpenTeam={openTeam} />}
             {/* THE LEDGER (2026-10-07): one tab, four sub-tabs (components/pages/LedgerShell). Tonight's Ledger, the Lamp

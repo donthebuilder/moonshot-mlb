@@ -4,6 +4,7 @@ import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 import { useAvailable } from '../injuries/useAvailable'
 import { FaceWall } from './OpeningViz'
 import { shotTypeWord } from '../../lib/openings/shotType'
+import { useHidden, HiddenChips } from './hideClubs'
 
 // [[word, share %, n]] -> "SG 67% · PF 33%" (top 3); '—' when empty
 const sharesText = (list, sport, wordy) => (list?.length ? list.slice(0, 3).map(([k, p]) => `${wordy ? shotTypeWord(sport, k) || k : k} ${Number.isFinite(p) ? p.toFixed(0) : 0}%`).join(' · ') : '—')
@@ -30,14 +31,19 @@ const sharesText = (list, sport, wordy) => (list?.length ? list.slice(0, 3).map(
  *          is known keeps only those five a side when "Starters only" is on; a game whose lineup is not in yet says EXPECTED and keeps
  *          the club's regular starters (started half his games or more). null = no lineup read at all.
  * defense: true when the club rows carry `allows` ({ n, types, pos } shares of the first scores that club's defense gave up): adds
- *          the "who they allow to score first" table under the matchup of one game.
+ *          the "who they allow to score first" table under the matchup of one game. The position column only draws when some club has one.
+ * typeLabel: the defense table's type column ('BY SHOT' for basketball and hockey, 'BY TD TYPE' for football).
+ * showTargets: false for a product with no player rows (LAMP, TUDDY): the matchup and the defense table, no targets list.
+ * nameOfExtra: Map(player id -> name) for the face wall when `players` is empty; urlOf(id) the photo; wallWords the wall's marks' words.
+ * Players hidden from the targets (the ✕ in each row) stay hidden on this device (./hideClubs.js) and come back from the chips above.
  */
-export default function FirstBasketMatchup({ sport, floor = null, games = [], teams, players = [], stats = [], targetCols = [], targetSort, minGp = 20, Table, C, NUM_FONT, accent, words, onOpenPlayer = null, onOpenTeam = null, faceOf = null, lineups = null, defense = false }) {
+export default function FirstBasketMatchup({ sport, floor = null, games = [], teams, players = [], stats = [], targetCols = [], targetSort, minGp = 20, Table, C, NUM_FONT, accent, words, onOpenPlayer = null, onOpenTeam = null, faceOf = null, lineups = null, defense = false, showTargets = true, typeLabel = 'BY SHOT', nameOfExtra = null, urlOf = null, wallWords = undefined }) {
   const [pick, setPick] = useState('all')
   const [startersOnly, setStartersOnly] = useState(true)
   const [look, setLook] = useState('faces')   // the face wall (./OpeningViz.js) or the plain table (Donovan 10-25: "faces and table")
   const avail = useAvailable()
-  const nameOf = useMemo(() => new Map(players.map((p) => [String(p.playerId), p.name])), [players])
+  const hp = useHidden(`${sport}:players`)
+  const nameOf = useMemo(() => new Map([...(nameOfExtra || []), ...players.map((p) => [String(p.playerId), p.name])]), [players, nameOfExtra])
   const game = games.find((g) => g.key === pick) || null
   const clubs = useMemo(() => new Set(game ? [game.away, game.home] : games.flatMap((g) => [g.away, g.home])), [game, games])
   // each club's confirmed five tonight (null until ESPN posts the lineup), and how many of the games shown have one
@@ -48,9 +54,9 @@ export default function FirstBasketMatchup({ sport, floor = null, games = [], te
     return m
   }, [shown, lineups])
   const nKnown = shown.filter((g) => lineups?.[g.key]?.known).length
-  const targets = useMemo(() => avail(players.filter((p) => clubs.has(p.team) && p.gp >= minGp
+  const targets = useMemo(() => avail(players.filter((p) => clubs.has(p.team) && p.gp >= minGp && !hp.hidden.has(String(p.playerId))
     && (!startersOnly || (confirmed.has(p.team) ? confirmed.get(p.team).has(String(p.playerId)) : (p.gs || 0) >= p.gp / 2))), (p) => ({ player_id: p.playerId, name: p.name, team: p.team }))
-    .slice().sort(targetSort).map((p, i) => ({ ...p, _id: p.playerId, rank: i + 1 })), [players, clubs, minGp, targetSort, avail, startersOnly, confirmed])
+    .slice().sort(targetSort).map((p, i) => ({ ...p, _id: p.playerId, rank: i + 1 })), [players, clubs, minGp, targetSort, avail, startersOnly, confirmed, hp.hidden])
   const lineupTag = !lineups ? null : game ? (nKnown ? 'Lineup confirmed' : 'Lineup expected') : (nKnown === shown.length ? 'Lineups confirmed' : nKnown ? `${nKnown} of ${shown.length} lineups confirmed` : 'Lineups expected')
   // WHO THEY ALLOW TO SCORE FIRST (the screenshot's "defense allows" block): each club's defense, by the position of the man who scored
   // the game's first basket on it and by the shot it was
@@ -74,6 +80,9 @@ export default function FirstBasketMatchup({ sport, floor = null, games = [], te
     { key: 'clubA', label: game.away, group: 'Matchup', w: 110, numeric: false, heat: false, fold: false, fmt: lit('away') },
     { key: 'clubB', label: `@ ${game.home}`, group: 'Matchup', w: 110, numeric: false, heat: false, fold: false, fmt: lit('home') },
   ] : []
+  // the ✕ in each target row (44 px wide, the row's full height): hide this man on this device
+  const hideCol = { key: 'playerId', label: '', group: 'Hide', w: 44, heat: false, numeric: false, fold: false, title: 'Hide this player',
+    fmt: (v, r) => <button type="button" aria-label={`Hide ${r.name}`} onClick={(e) => { e.stopPropagation(); hp.toggle(r.playerId) }} style={{ minWidth: 44, minHeight: 44, background: 'transparent', border: 'none', color: C.text3, font: `700 14px/1 ${NUM_FONT}`, cursor: 'pointer' }}>✕</button> }
   if (!games.length) return null
   return (
     <section aria-label={`${words.first} matchups`} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 }}>
@@ -93,9 +102,11 @@ export default function FirstBasketMatchup({ sport, floor = null, games = [], te
           {look === 'table'
             ? <Table rows={versus} columns={versusCols} heatMode="none" maxRows={versus.length} maxHeight={9999} caption={`${game.away} against ${game.home}: each club's record in the games on file. The better side is lit.`} />
             : <FaceWall key={game.key} game={game} rows={versus} logs={{ away: teams.get(game.away)?.log || [], home: teams.get(game.home)?.log || [] }}
-                nameOf={nameOf} sport={sport} C={C} NUM_FONT={NUM_FONT} accent={accent} floor={floor} />}
+                nameOf={nameOf} sport={sport} C={C} NUM_FONT={NUM_FONT} accent={accent} floor={floor} urlOf={urlOf} words={wallWords} />}
         </>
       ) : null}
+      {showTargets ? (
+        <>
       <div style={{ color: C.text2, font: `900 12px/1.2 ${NUM_FONT}`, letterSpacing: '.08em', marginTop: 4 }}>{`${words.first.toUpperCase()} TARGETS · ${game ? game.label : 'TONIGHT'}`}</div>
       {lineups ? (
         <div role="group" aria-label="Lineup" className="chip-row" style={{ display: 'flex', gap: 6, alignItems: 'center', overflowX: 'auto' }}>
@@ -103,22 +114,25 @@ export default function FirstBasketMatchup({ sport, floor = null, games = [], te
           <span style={{ font: `700 11px/1.2 ${NUM_FONT}`, color: nKnown ? accent : C.text3, whiteSpace: 'nowrap' }}>{lineupTag}</span>
         </div>
       ) : null}
+      <HiddenChips h={hp} ids={new Set(players.map((p) => String(p.playerId)))} label={(id) => nameOf.get(id) || id} C={C} NUM_FONT={NUM_FONT} accent={accent} />
       {targets.length
-        ? <Table nameCell="player" faceOf={faceOf} rows={targets} columns={targetCols} heatMode="primary" maxRows={6} maxHeight={9999}
+        ? <Table nameCell="player" faceOf={faceOf} rows={targets} columns={[...targetCols, hideCol]} heatMode="primary" maxRows={6} maxHeight={9999}
             onRowClick={onOpenPlayer ? (r) => onOpenPlayer((r?._raw ?? r).playerId) : undefined}
             caption={`Regular starters (${minGp}+ games) on ${game ? 'these two clubs' : 'tonight’s clubs'}, ranked by their ${words.first.toLowerCase()} record. Out tonight = left out. A record, not a chance.`} />
         : <div style={{ fontSize: 12, color: C.text3 }}>No regular starter with {minGp}+ games on file for {game ? 'these clubs' : 'tonight’s clubs'} yet.</div>}
+        </>
+      ) : null}
       {defRows.some((r) => r.n > 0) ? (
         <>
-          <div style={{ color: C.text2, font: `900 12px/1.2 ${NUM_FONT}`, letterSpacing: '.08em', marginTop: 4 }}>DEFENSE · WHO THEY ALLOW TO SCORE FIRST</div>
+          <div style={{ color: C.text2, font: `900 12px/1.2 ${NUM_FONT}`, letterSpacing: '.08em', marginTop: 4 }}>DEFENSE · WHAT THEY ALLOW ON THE FIRST SCORE</div>
           <Table rows={defRows} heatMode="none" maxRows={2} maxHeight={9999}
             columns={[
               { key: 'club', label: 'Defense', group: 'Allows', w: 70, sticky: true, bold: true, numeric: false, heat: false, mono: true, teamMark: sport, link: onOpenTeam ? (r) => () => onOpenTeam(r.club) : undefined },
-              { key: 'n', label: 'GAMES', group: 'Allows', w: 56, heat: false, title: 'Games the other side scored the first basket on them' },
-              { key: 'pos', label: 'BY POSITION', group: 'Allows', w: 190, numeric: false, heat: false, fold: false, title: 'Position of the man who scored the first basket on them' },
-              { key: 'type', label: 'BY SHOT', group: 'Allows', w: 230, numeric: false, heat: false, fold: false, title: 'What the first basket on them was' },
+              { key: 'n', label: 'GAMES', group: 'Allows', w: 56, heat: false, title: 'Games the other side scored first on them' },
+              ...(defRows.some((r) => r.pos !== '—') ? [{ key: 'pos', label: 'BY POSITION', group: 'Allows', w: 190, numeric: false, heat: false, fold: false, title: 'Position of the man who scored the first basket on them' }] : []),
+              { key: 'type', label: typeLabel, group: 'Allows', w: 230, numeric: false, heat: false, fold: false, title: 'What the first score on them was' },
             ]}
-            caption="Each defense's share of the first baskets it gave up, by the scorer's position and by the shot. A record of what happened, not a chance." />
+            caption="Each defense's share of the first scores it gave up, by the scorer's position and by type. A record of what happened, not a chance." />
         </>
       ) : null}
     </section>
