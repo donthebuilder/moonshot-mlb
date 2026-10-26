@@ -57,7 +57,7 @@ const graded = [g1, g2, g3, { ...g2, day: '2026-10-14' }]
 const t = N.tally(graded)
 ok(t.n === 4 && t.network === 3 && t.board === 0, `the tally (${JSON.stringify({ n: t.n, net: t.network, board: t.board })})`)
 const text = N.nvbText({ week: N.nvbWeek('2026-10-18'), t, limit: 890 })
-ok(text.startsWith('\u{1F5F3}\u{FE0F} THE NETWORK vs THE BOARD · WEEK OF OCT 11') && text.includes('THE NETWORK  3 of 4') && text.includes('THE BOARD  0 of 4'), `head and scoreboard:\n${text}`)
+ok(text.startsWith('\u{1F5F3}\u{FE0F} THE NETWORK vs THE BOARD · LAST WEEK · OCT 11–17') && text.includes('THE NETWORK  3 of 4') && text.includes('THE BOARD  0 of 4'), `head and scoreboard:\n${text}`)
 ok(text.includes('🏒 One or Two, first to score: you said One ❌, we said One ❌'), 'a poll line')
 ok(/Can the board catch you next week\?$/.test(text), 'the network leads: its ask')
 const t280 = N.nvbText({ week: N.nvbWeek('2026-10-18'), t, limit: 280 })
@@ -103,6 +103,14 @@ ok(/^posted/.test(r1) && row?.payload?.n === 3, `posts with three graded polls (
 ok(row?.payload?.network === 0 && row.payload.board === 0, 'the 12th: Two scored (both picked One); the 13th and 14th: nobody scored, Neither was right, both picked One')
 ok(drawn && drawn.t.n === 3 && row.payload.picture === true, 'the card got the tally')
 ok(await N.postNvbOnce(db, { day: '2026-10-18', clock: { dow: 0, min: 17 * 60 }, read, draw: async () => null }) === 'already-posted', 'once')
+
+// 8c. the week and the game day say what they are
+ok(N.weekWords('2026-10-18', '2026-10-24') === 'LAST WEEK · OCT 18–24' && N.weekWords('2026-10-25', '2026-10-31') === 'LAST WEEK · OCT 25–31' && N.weekWords('2026-10-25', '2026-11-01') === 'LAST WEEK · OCT 25–NOV 1', 'weekWords: last week with its range, across a month turn too')
+ok(N.dayWord('2026-10-19') === 'MON' && N.dayWord('2026-10-18') === 'SUN' && N.dayWord('') === '', 'dayWord: the weekday of the game day')
+{ const g = N.gradePoll({ sport: 'nfl', day: '2026-10-19', format: 'pick', payload: { players: [{ id: 'a', name: 'Test A' }, { id: 'b', name: 'Test B' }] } }, { options: [{ label: 'Test A', votes: 5 }, { label: 'Test B', votes: 1 }] }, [{ id: 'a', game: 'g', order: 1, seen: 1e12 }])
+  ok(g.gameDay === '2026-10-19', 'a graded poll carries its game day') }
+
+ok(/all\.length > MAX_ROWS \? MAX_ROWS - 1 : MAX_ROWS/.test(fs.readFileSync(new URL('../lib/cards/networkCard.js', import.meta.url), 'utf8')), 'the card shows five rows when a "+N more" line follows (six + more cut the footer off)')
 
 // 9. the SQL and the wiring
 const fs = await import('node:fs')
