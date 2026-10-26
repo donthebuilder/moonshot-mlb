@@ -16,7 +16,7 @@ import { surname } from '../../lib/player'
 // Shared (10-26, Donovan: "the same face wall" for MOONSHOT's first run, LAMP's first goal, TUDDY's first TD): a product hands
 // the two clubs' logs ([first 1|0, ring 1|0|null, scorer id] newest first), a name lookup, its theme and accent, its `words`
 // (what the ring means -- BUCKETS' tip, MOONSHOT's first hit -- or no ring at all), `urlOf(id, size)` (the scorer's photo when
-// the product's ids aren't faceUrl's: LAMP's mug and TUDDY's ESPN id come back from /api/ledger/first), and optionally its `floor` ({ a, b, line }: BUCKETS' hardwood and line paint) and the matchup `rows`.
+// the product's ids aren't faceUrl's: LAMP's mug and TUDDY's ESPN id come back from /api/ledger/first), and optionally its `floor` (Surface below: the home club's court / rink / field / park, its own paint) and the matchup `rows`.
 // FaceWallByGame adds the game chips for a page that has no matchup of its own. The counts are records, never a chance.
 
 // 4 x 33px + gaps fits half of a 360 phone (Donovan 10-25: "the image needs to be bigger ... so you can really see them");
@@ -61,7 +61,6 @@ export function FaceWall({ game, logs, rows = [], sport, C, NUM_FONT, accent, na
   const pa = ra == null ? null : Math.round(100 * ra), ph = rh == null ? null : Math.round(100 * rh)
   const first = rows.find((r) => r._id === 'firstPct') || { better: pa == null || ph == null || pa === ph ? null : pa > ph ? 'away' : 'home' }
   const [all, setAll] = useState(false)
-  const line = floor?.line || C.text3
   let most = 0
   const shade = { textShadow: '0 1px 3px rgba(0,0,0,.8)' }
   const tops = {}
@@ -105,14 +104,8 @@ export function FaceWall({ game, logs, rows = [], sport, C, NUM_FONT, accent, na
   const sample = tops.home?.[0]?.[0] || tops.away?.[0]?.[0] || null
   const legend = hasRing ? [['first', W.first], ['both', W.both], ['wasted', W.wasted], ['none', W.none]] : [['first', W.first], ['none', W.other]]
   return (
-    <div style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', border: `1px solid ${C.border}`,
-      background: floor ? `repeating-linear-gradient(90deg, ${floor.a} 0 18px, ${floor.b} 18px 36px)` : C.bg2 }}>
-      {/* the floor: a dark wash so the faces read, then the half-court line and the centre circle */}
-      <div aria-hidden="true" style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,.45), rgba(0,0,0,.62))' }} />
-      <svg aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
-        <line x1="50%" y1="0" x2="50%" y2="100%" stroke={line} strokeOpacity={0.35} strokeWidth={2} />
-        <circle cx="50%" cy="58" r="44" fill="none" stroke={line} strokeOpacity={0.35} strokeWidth={2} />
-      </svg>
+    <div style={{ position: 'relative', borderRadius: floor?.kind === 'rink' ? 22 : 14, overflow: 'hidden', border: `1px solid ${C.border}`, background: C.bg2 }}>
+      {floor ? <Surface floor={floor} home={game.home} sport={sport} /> : null}
       <div style={{ position: 'relative', padding: '12px 12px 12px', display: 'grid', gap: 12 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>{walls}</div>
         {most > PREVIEW ? (
@@ -149,5 +142,84 @@ export function FaceWallByGame({ games = [], logOf, title, ...wall }) {
       </div>
       <FaceWall key={game.key} game={game} logs={{ away: logOf(game.away) || [], home: logOf(game.home) || [] }} {...wall} />
     </section>
+  )
+}
+
+// THE HOME CLUB'S FLOOR (2026-10-26, Donovan: "the background doesn't feel legit like the rink or courts ... each team has their
+// logo in the middle ... make it whatever home court that is"). Drawn under the wall, the walls' clubs on either side of the
+// halfway line and tonight's home club's logo where a real one sits: centre court, centre ice, the 50, the mound. The paint is
+// the product's own (BUCKETS' hardwood, LAMP's RINK, TUDDY's turf, MOONSHOT's DIAMOND); a dark wash keeps the faces and the
+// numbers readable on it. `floor.kind`: court | rink | field | diamond.
+const CY = 64          // the centre mark sits in the gap between the two clubs' big numbers
+const LOGO = 58
+const BASE = {
+  court: (f) => `repeating-linear-gradient(0deg, rgba(255,255,255,.03) 0 1px, transparent 1px 9px), repeating-linear-gradient(90deg, ${f.a} 0 9px, ${f.b} 9px 21px, ${f.a} 21px 29px, ${f.b} 29px 44px)`,
+  rink: (f) => `radial-gradient(ellipse at 50% 20%, ${f.ice}, ${f.iceShade} 70%)`,
+  field: (f) => `linear-gradient(90deg, ${f.endzone} 0 8.33%, transparent 8.33% 91.67%, ${f.endzone} 91.67%), repeating-linear-gradient(90deg, ${f.turf1} 0 4.1667%, ${f.turf2} 4.1667% 8.333%)`,
+  diamond: (f) => `repeating-linear-gradient(45deg, rgba(255,255,255,.035) 0 20px, transparent 20px 40px), repeating-linear-gradient(-45deg, ${f.grass} 0 20px, ${f.grass2} 20px 40px)`,
+}
+// the wash over the paint: lighter on the dark turf and grass, heavier on the bright ice
+const WASH = {
+  court: 'linear-gradient(180deg, rgba(0,0,0,.32), rgba(0,0,0,.55))',
+  rink: 'linear-gradient(180deg, rgba(6,14,26,.52), rgba(6,14,26,.7))',
+  field: 'linear-gradient(180deg, rgba(0,0,0,.12), rgba(0,0,0,.4))',
+  diamond: 'linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.45))',
+}
+function Lines({ floor: f }) {
+  const k = f.kind
+  if (k === 'court') return (
+    <g stroke={f.line} strokeOpacity={0.55} strokeWidth={2} fill="none">
+      <rect x="6" y="6" style={{ width: 'calc(100% - 12px)', height: 'calc(100% - 12px)' }} rx="3" />
+      <line x1="50%" y1="6" x2="50%" y2="100%" />
+      <circle cx="50%" cy={CY} r={46} />
+    </g>
+  )
+  if (k === 'rink') return (
+    <g fill="none">
+      <rect x="3" y="3" style={{ width: 'calc(100% - 6px)', height: 'calc(100% - 6px)' }} rx="19" stroke={f.kick} strokeOpacity={0.7} strokeWidth={2} />
+      <line x1="7%" y1="0" x2="7%" y2="100%" stroke={f.red} strokeOpacity={0.7} strokeWidth={2} />
+      <line x1="93%" y1="0" x2="93%" y2="100%" stroke={f.red} strokeOpacity={0.7} strokeWidth={2} />
+      <line x1="36%" y1="0" x2="36%" y2="100%" stroke={f.blue} strokeOpacity={0.6} strokeWidth={5} />
+      <line x1="64%" y1="0" x2="64%" y2="100%" stroke={f.blue} strokeOpacity={0.6} strokeWidth={5} />
+      <line x1="50%" y1="0" x2="50%" y2="100%" stroke={f.red} strokeOpacity={0.9} strokeWidth={5} />
+      <circle cx="50%" cy={CY} r={44} stroke={f.blue} strokeOpacity={0.9} strokeWidth={2.5} />
+    </g>
+  )
+  if (k === 'field') {
+    const x = (yd) => `${(100 * (10 + yd)) / 120}%`
+    return (
+      <g stroke={f.chalk} fill="none">
+        {[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((yd) => <line key={yd} x1={x(yd)} y1="0" x2={x(yd)} y2="100%" strokeOpacity={yd % 100 === 0 ? 0.75 : 0.4} strokeWidth={yd % 100 === 0 ? 3 : 1.5} />)}
+        {Array.from({ length: 19 }, (_, i) => 5 + i * 5).filter((yd) => yd % 10).map((yd) => <line key={`h${yd}`} x1={x(yd)} y1="12" x2={x(yd)} y2="20" strokeOpacity={0.4} strokeWidth={1.5} />)}
+      </g>
+    )
+  }
+  if (k === 'diamond') return (
+    // home plate under the clubs' numbers, second base up top, the mound (the logo) between -- seen from behind home
+    <svg x="50%" y="0" overflow="visible">
+      <polygon points={`0,${CY - 44} 54,${CY + 10} 0,${CY + 64} -54,${CY + 10}`} fill={f.dirt} fillOpacity={0.75} />
+      <polygon points={`0,${CY - 22} 32,${CY + 10} 0,${CY + 42} -32,${CY + 10}`} fill={f.grass} fillOpacity={0.9} />
+      <g stroke={f.chalk} strokeOpacity={0.5} strokeWidth={1.5}><line x1="0" y1={CY + 64} x2="-400" y2={CY - 336} /><line x1="0" y1={CY + 64} x2="400" y2={CY - 336} /></g>
+      {[[0, CY - 40], [50, CY + 10], [-50, CY + 10]].map(([bx, by]) => <rect key={bx} x={bx - 4} y={by - 4} width="8" height="8" fill={f.chalk} transform={`rotate(45 ${bx} ${by})`} />)}
+      <circle cx="0" cy={CY + 10} r="19" fill={f.dirt} stroke={f.chalk} strokeOpacity={0.8} strokeWidth={1.5} />
+    </svg>
+  )
+  return null
+}
+// where the logo sits: centre court / centre ice / the 50 at the clubs' numbers; the park's on the mound
+const LOGO_Y = { court: CY, rink: CY, field: CY, diamond: CY + 10 }
+export function Surface({ floor, home, sport }) {
+  const k = floor.kind || 'court'
+  return (
+    <>
+      <div aria-hidden="true" style={{ position: 'absolute', inset: 0, background: BASE[k]?.(floor) }} />
+      <div aria-hidden="true" style={{ position: 'absolute', inset: 0, background: WASH[k] }} />
+      <svg aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}><Lines floor={{ ...floor, kind: k }} /></svg>
+      {home ? (
+        <span aria-hidden="true" style={{ position: 'absolute', left: '50%', top: (LOGO_Y[k] ?? CY) - (k === 'diamond' ? 13 : LOGO / 2), transform: 'translateX(-50%)', opacity: 0.92, lineHeight: 0 }}>
+          <TeamMark sport={sport} abbr={home} variant="logo" px={k === 'diamond' ? 26 : LOGO} />
+        </span>
+      ) : null}
+    </>
   )
 }
