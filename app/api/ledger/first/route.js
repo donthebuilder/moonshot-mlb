@@ -31,7 +31,7 @@ export async function GET(request) {
   if (!db) return Response.json({ error: 'no database' }, { status: 503 })
   try {
     const player = /^[\w-]{1,20}$/.test(q.get('player') || '') ? q.get('player') : null   // ?player= : his first-scorer games only (the player cards)
-    const body = await readFirstScorers(db, sport, { day, since: shift(day, -WINDOW_DAYS[sport]), seasonSince: seasonSince(day, SEASON_START[sport]), player })
+    const body = await readFirstScorers(db, sport, { day, since: shift(day, -WINDOW_DAYS[sport]), seasonSince: seasonSince(day, SEASON_START[sport]), player, walls: q.get('walls') === '1' })
     return Response.json(body, { headers: { 'Cache-Control': nba && !bucketsPublic() ? 'private, max-age=60' : 'public, s-maxage=60, stale-while-revalidate=120' } })
   } catch (e) {
     console.error(`[ledger first] ${sport} ${day}: ${e?.message}`)

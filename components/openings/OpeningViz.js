@@ -13,9 +13,11 @@ import { surname } from '../../lib/player'
 //   empty accent ring       won the tip, lost the first basket
 //   faint dot               lost both
 // The legend draws those four marks, not a sentence. Under each wall: the three faces that turn up most, with counts.
-// Shared: a product hands the matchup rows, the two clubs' logs ([first 1|0, tip 1|0, scorer id] newest first), a
-// name lookup, its theme and accent, and optionally its `floor` ({ a, b, line }: BUCKETS' hardwood and line paint).
-// The tables and the counts are records, never a chance.
+// Shared (10-26, Donovan: "the same face wall" for MOONSHOT's first run, LAMP's first goal, TUDDY's first TD): a product hands
+// the two clubs' logs ([first 1|0, ring 1|0|null, scorer id] newest first), a name lookup, its theme and accent, its `words`
+// (what the ring means -- BUCKETS' tip, MOONSHOT's first hit -- or no ring at all), `urlOf(id, size)` (the scorer's photo when
+// the product's ids aren't faceUrl's: LAMP's mug and TUDDY's ESPN id come back from /api/ledger/first), and optionally its `floor` ({ a, b, line }: BUCKETS' hardwood and line paint) and the matchup `rows`.
+// FaceWallByGame adds the game chips for a page that has no matchup of its own. The counts are records, never a chance.
 
 // 4 x 33px + gaps fits half of a 360 phone (Donovan 10-25: "the image needs to be bigger ... so you can really see them");
 // the wall previews each club's last 20 games, "All games" opens the rest
@@ -26,8 +28,8 @@ const D = 33, GAP = 3, COLS = 4, PREVIEW = 20
 // (components/PlayerFace.js CROP_OF: 150%, pinned 18% down), the whole head sits centred over a light studio grey; his
 // initials sit under it for a man with no picture.
 const initials = (name) => String(name || '').split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
-function Face({ id, name, sport, C, size, ring = null, glow = null }) {
-  const url = id ? faceUrl({ sport, id, size }) : null
+function Face({ id, name, sport, C, size, ring = null, glow = null, urlOf = null }) {
+  const url = !id ? null : urlOf ? urlOf(id, size) : faceUrl({ sport, id, size })
   return (
     <span title={name || undefined} style={{ width: size, height: size, borderRadius: '50%', display: 'grid', placeItems: 'center', boxSizing: 'border-box', flex: '0 0 auto',
       background: `${url ? `url(${url}) ${faceCropBackground(sport)} no-repeat, ` : ''}radial-gradient(circle at 50% 30%, ${C.text3}, ${C.bg3})`,
@@ -38,16 +40,26 @@ function Face({ id, name, sport, C, size, ring = null, glow = null }) {
   )
 }
 
-function Mark({ kind, id, name, sport, C, accent, D = 33 }) {
+function Mark({ kind, id, name, sport, C, accent, D = 33, urlOf }) {
   const box = { width: D, height: D, borderRadius: '50%', display: 'grid', placeItems: 'center', boxSizing: 'border-box', flex: '0 0 auto' }
   if (kind === 'none') return <span style={box}><span style={{ width: 5, height: 5, borderRadius: 3, background: C.text3, opacity: 0.45 }} /></span>
   if (kind === 'wasted') return <span style={{ ...box, border: `1.5px solid ${accent}`, opacity: 0.85 }} />
-  return <Face id={id} name={name} sport={sport} C={C} size={D} ring={kind === 'both' ? accent : null} glow={kind === 'both' ? accent : null} />
+  return <Face id={id} name={name} sport={sport} C={C} size={D} urlOf={urlOf} ring={kind === 'both' ? accent : null} glow={kind === 'both' ? accent : null} />
 }
 const kindOf = (x) => (x[0] === 1 ? (x[1] === 1 ? 'both' : 'first') : (x[1] === 1 ? 'wasted' : 'none'))
 
-export function FaceWall({ game, logs, rows, sport, C, NUM_FONT, accent, nameOf, floor = null }) {
-  const first = rows.find((r) => r._id === 'firstPct')
+// BUCKETS' words; a product with no ring passes `ring: null` and the wall draws two marks, not four
+const TIP_WORDS = { ring: 'tip', first: 'Scored first', both: 'Scored first + won tip', wasted: 'Won tip, lost it', none: 'Lost both', other: 'They scored first' }
+
+export function FaceWall({ game, logs, rows = [], sport, C, NUM_FONT, accent, nameOf, floor = null, words = TIP_WORDS, urlOf = null }) {
+  const W = { ...TIP_WORDS, ...words }
+  const hasRing = W.ring != null && [...(logs.away || []), ...(logs.home || [])].some((x) => x[1] != null)
+  const rate = (log) => { const g = (log || []).filter((x) => x[0] != null); return g.length ? g.filter((x) => x[0] === 1).length / g.length : null }
+  // the lit side: the matchup row when the product has one, else the better of the two walls -- by the percent as shown
+  // (10-26: 55% against 55% lit one side over a fraction)
+  const ra = rate(logs.away), rh = rate(logs.home)
+  const pa = ra == null ? null : Math.round(100 * ra), ph = rh == null ? null : Math.round(100 * rh)
+  const first = rows.find((r) => r._id === 'firstPct') || { better: pa == null || ph == null || pa === ph ? null : pa > ph ? 'away' : 'home' }
   const [all, setAll] = useState(false)
   const line = floor?.line || C.text3
   let most = 0
@@ -72,16 +84,16 @@ export function FaceWall({ game, logs, rows, sport, C, NUM_FONT, accent, nameOf,
         </span>
         <div style={{ font: `900 32px/1 ${NUM_FONT}`, color: lit ? accent : C.text, ...shade }}>{n ? `${Math.round((100 * k) / n)}%` : '—'}</div>
         <div style={{ font: `600 10px/1.45 ${NUM_FONT}`, color: C.text2, textAlign: away ? 'left' : 'right', ...shade }}>
-          {`${k}/${n} scored first`}<br />{`tip ${n ? Math.round((100 * tips) / n) : 0}% · ${wasted} wasted`}
+          {`${k}/${n} scored first`}{hasRing ? <><br />{`${W.ring} ${n ? Math.round((100 * tips) / n) : 0}% · ${wasted} wasted`}</> : null}
         </div>
-        <div style={{ font: `900 10px/1 ${NUM_FONT}`, letterSpacing: '.08em', color: C.text3, ...shade }}>{all ? `ALL ${n} GAMES` : `LAST ${shown.length} GAMES`}</div>
+        <div style={{ font: `900 10px/1 ${NUM_FONT}`, letterSpacing: '.08em', color: C.text2, ...shade }}>{all ? `ALL ${n} GAMES` : `LAST ${shown.length} GAMES`}</div>
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${COLS}, ${D}px)`, gap: GAP, direction: away ? 'ltr' : 'rtl' }}>
-          {shown.map((x, i) => <Mark key={i} D={D} kind={kindOf(x)} id={x[2]} name={x[2] ? nameOf?.get(x[2]) : ''} sport={sport} C={C} accent={accent} />)}
+          {shown.map((x, i) => <Mark key={i} D={D} urlOf={urlOf} kind={kindOf(x)} id={x[2]} name={x[2] ? nameOf?.get(x[2]) : ''} sport={sport} C={C} accent={accent} />)}
         </div>
         <div style={{ display: 'grid', gap: 5, justifyItems: away ? 'start' : 'end', marginTop: 2 }}>
           {top.map(([id, c]) => (
             <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexDirection: away ? 'row' : 'row-reverse', font: `600 12px/1 ${NUM_FONT}`, color: C.text2, ...shade }}>
-              <Face id={id} name={nameOf?.get(id) || ''} sport={sport} C={C} size={28} />
+              <Face id={id} name={nameOf?.get(id) || ''} sport={sport} C={C} size={28} urlOf={urlOf} />
               {surname(nameOf?.get(id) || '')}<b style={{ color: C.text }}>{c}</b>
             </span>
           ))}
@@ -91,7 +103,7 @@ export function FaceWall({ game, logs, rows, sport, C, NUM_FONT, accent, nameOf,
   }
   const walls = [wall(logs.away, 'away'), wall(logs.home, 'home')]
   const sample = tops.home?.[0]?.[0] || tops.away?.[0]?.[0] || null
-  const legend = [['first', 'Scored first'], ['both', 'Scored first + won tip'], ['wasted', 'Won tip, lost it'], ['none', 'Lost both']]
+  const legend = hasRing ? [['first', W.first], ['both', W.both], ['wasted', W.wasted], ['none', W.none]] : [['first', W.first], ['none', W.other]]
   return (
     <div style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', border: `1px solid ${C.border}`,
       background: floor ? `repeating-linear-gradient(90deg, ${floor.a} 0 18px, ${floor.b} 18px 36px)` : C.bg2 }}>
@@ -109,12 +121,33 @@ export function FaceWall({ game, logs, rows, sport, C, NUM_FONT, accent, nameOf,
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 12px', paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
           {legend.map(([k, l]) => (
             <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: C.text2, ...shade }}>
-              <Mark D={26} kind={k} id={sample} name={sample ? nameOf?.get(sample) : ''} sport={sport} C={C} accent={accent} />{l}
+              <Mark D={26} urlOf={urlOf} kind={k} id={sample} name={sample ? nameOf?.get(sample) : ''} sport={sport} C={C} accent={accent} />{l}
             </span>
           ))}
         </div>
-        <div style={{ fontSize: 11, color: C.text3, ...shade }}>Each mark is one game, newest first. The % counts every game on file. A record, not a chance.</div>
+        <div style={{ fontSize: 11, color: C.text2, ...shade }}>Each mark is one game, newest first. The % counts every game on file. A record, not a chance.</div>
       </div>
     </div>
+  )
+}
+
+/** The wall with its own game chips: for a page without a matchup (LAMP's and TUDDY's Ledger, MOONSHOT's Openings).
+ *  games: [{ key, away, home, label }]; logOf(team) -> that club's log. Draws nothing until a game has a club with games on file. */
+export function FaceWallByGame({ games = [], logOf, title, ...wall }) {
+  const shown = games.filter((g) => (logOf(g.away)?.length || 0) + (logOf(g.home)?.length || 0) > 0)
+  const [pick, setPick] = useState(null)
+  const game = shown.find((g) => g.key === pick) || shown[0] || null
+  if (!game) return null
+  const { C, NUM_FONT, accent } = wall
+  return (
+    <section aria-label={title} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 }}>
+      <div style={{ color: C.text2, font: `900 12px/1.2 ${NUM_FONT}`, letterSpacing: '.08em' }}>{title.toUpperCase()}</div>
+      <div role="group" aria-label="Game" className="chip-row" style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: 2, margin: '0 -2px', WebkitOverflowScrolling: 'touch' }}>
+        {shown.map((g) => (
+          <button key={g.key} type="button" className={FLAT_CHIP_CLASS} aria-pressed={game.key === g.key} onClick={() => setPick(g.key)} style={{ ...flatChip(game.key === g.key, accent, C, NUM_FONT), flexShrink: 0 }}>{g.label}</button>
+        ))}
+      </div>
+      <FaceWall key={game.key} game={game} logs={{ away: logOf(game.away) || [], home: logOf(game.home) || [] }} {...wall} />
+    </section>
   )
 }
