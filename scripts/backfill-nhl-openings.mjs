@@ -13,10 +13,12 @@ import './_esm-resolve.mjs'
 const req = createRequire(`${process.cwd()}/package.json`)
 req('@next/env').loadEnvConfig(process.cwd(), false, { info() {}, error() {} })
 const { createClient } = req('@supabase/supabase-js')
-const { writeOpeningNhl } = await import('../lib/nhl/openings.js')
+const { writeOpeningNhl, openingRowNhl } = await import('../lib/nhl/openings.js')
 const { NHL_TEAMS } = await import('../lib/nhl/teams.js')
+const { unfilledGames, writePreAtt } = await import('../lib/openings/preAtt.js')
 
-const SEASON = Number(process.argv[2] || 20252026)
+const ARGS = process.argv.slice(2).filter((a) => !a.startsWith('--') && !/^\d{1,5}$/.test(a))
+const SEASON = Number(ARGS[0] || 20252026)
 const GAP_MS = 400
 const API = 'https://api-web.nhle.com/v1'
 const UA = { 'User-Agent': 'DASHNetwork/1.0 (+https://dashnetwork.vercel.app)', Accept: 'application/json' }
@@ -32,6 +34,27 @@ async function get(path) {
     } catch (e) { if (attempt === 4) throw e }
     await sleep(2000 * attempt)
   }
+}
+
+// --fill-pre-att [season] [--limit N] [--dry]: games already on file with a first goal but no shots-to-first-goal count get
+// that count (re-read once, only those two columns written; lib/openings/preAtt.js). Run once after supabase/migrations/202610261100.
+if (process.argv.includes('--fill-pre-att')) {
+  const li = process.argv.indexOf('--limit'), DRY = process.argv.includes('--dry')
+  const todo = (await unfilledGames(db, 'nhl', ARGS[0] ? SEASON : null)).slice(0, li > 0 ? Number(process.argv[li + 1]) : Infinity)
+  console.log(`${todo.length} NHL games to fill`)
+  let ok = 0, none = 0, bad = 0
+  for (const r of todo) {
+    try {
+      const row = openingRowNhl(await get(`/gamecenter/${r.game_id}/play-by-play`))
+      if (DRY) { console.log(`  ${r.game_date} ${r.away}@${r.home}: ${row?.pre_first_att_away} / ${row?.pre_first_att_home}`); ok++ } else {
+        const err = await writePreAtt(db, 'nhl', r.game_id, row)
+        if (err === 'no first score') none++; else if (err) throw new Error(err); else ok++
+      }
+    } catch (e) { bad++; console.log(`  ${r.game_id}: ${e?.message} (left for a re-run)`) }
+    await sleep(GAP_MS)
+  }
+  console.log(`done: ${ok} filled${DRY ? ' (dry, nothing written)' : ''}, ${none} with no goal before the shootout, ${bad} failed`)
+  process.exit(0)
 }
 
 // every final regular-season and playoff game, from the 32 club schedules
