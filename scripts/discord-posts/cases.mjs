@@ -493,19 +493,27 @@ const donPlaysCases = [
 
 // ── LAMP extras: the hardest shot, the long shots (lib/nhl/hardestShot.js, lib/dash/longshotsPost.js) ───────────────────────
 const hard = await import('../../lib/nhl/hardestShot.js')
+const speed = await import('../../lib/nhl/shotSpeed.js')
 const ls = await import('../../lib/dash/longshotsPost.js')
 const odds = await import('../../lib/odds/longshots.js')
 const lampExtraCases = [
   {
     kinds: ['nhlhardest'],
     load: async (ctx) => {
+      // the stored measured speed (mph, 10-26: this said `speed` and a bare table row, and the post needs { row, mph, name, avg, opp }), joined back
+      // to its shot, with the name and average from the league the way the real post gets them (lib/nhl/hardestShot.js scanNight)
       for (const day of ctx.days.slice(1)) {
-        const { data } = await ctx.db.from('lamp_shot_speed').select('*').eq('game_date', day).order('speed', { ascending: false }).limit(1)
-        const m = (data || [])[0]
-        if (!m) continue
+        const { data } = await ctx.db.from('lamp_shot_speed').select('game_id, event_id, player_id, season, mph').eq('game_date', day).order('mph', { ascending: false }).limit(1)
+        const s = (data || [])[0]
+        if (!s) continue
+        const { data: row } = await ctx.db.from('lamp_shots').select('game_id, event_id, player_id, team, period, period_type, time_s, shot_type, result, season, game_type').eq('game_id', s.game_id).eq('event_id', s.event_id).maybeSingle()
+        if (!row) continue
+        const { data: other } = await ctx.db.from('lamp_shots').select('team').eq('game_id', s.game_id).neq('team', row.team).limit(1)
+        const sp = await speed.readShotSpeed({ player: s.player_id, season: s.season, gameType: row.game_type || 2, fresh: true }).catch(() => null)
+        const m = { row, mph: Number(s.mph), name: sp?.name || null, avg: sp?.avg || null, leagueAvg: sp?.leagueAvg || null, opp: other?.[0]?.team || null }
         return [{ kind: 'nhlhardest', sport: 'nhl', day, text: hard.hardestText(m), hooks: feedHooks('nhl') }]
       }
-      return []
+      return [{ kind: 'nhlhardest', skip: 'no measured shot stored yet for the last days (the table fills as the nightly scan finds one)' }]
     },
   },
   {
