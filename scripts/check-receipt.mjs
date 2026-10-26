@@ -434,7 +434,7 @@ await ok('policy: the receipt is a write-up-tier post (stops at 18 of 20), exemp
 await ok('policy: with 18 counted posts today the receipt waits; with 17 it goes (the gate\'s own count, fake rows)', async () => {
   reset()
   const now = Date.now()
-  const day = SCH.phxDayWindow(now).day
+  const day = (await import('../lib/data.js')).easternDate(now)   // the cap counts the ET day a post is MADE (batch 3), so the fixture day is today's ET date
   // the cap counts the ET day (xBudget.etDayWindow), which ends 3 hours before the Phoenix day does: stamp the rows one minute into that window, whatever the hour the check runs
   const seen = new Date(Date.parse(BUD.etDayWindow(day)[0]) + 60e3).toISOString()
   const counted = (k) => Array.from({ length: k }, (_, i) => ({ day: DAY, kind: 'list_mlb', x_post_id: String(100 + i), seen_at: seen, payload: {} }))
@@ -446,7 +446,8 @@ await ok('policy: with 18 counted posts today the receipt waits; with 17 it goes
 })
 await ok('post: X\'s daily cap skips X, never Discord (2026-10-25: a capped receipt was held every tick and reached no channel 10-22..10-24)', async () => {
   reset(); delete process.env.MISS_REPLIES_OFF      // the misses recap is on here: a capped night must not send it to X either
-  const seen = new Date(Date.parse(BUD.etDayWindow(DAY)[0]) + 60e3).toISOString()
+  // the morning-after receipt is MADE on the ET day of T0 (10-10), and that is the day the cap counts (batch 3): stamp the 18 rows into it
+  const seen = new Date(Date.parse(BUD.etDayWindow('2026-10-10')[0]) + 60e3).toISOString()
   const full = Array.from({ length: 18 }, (_, i) => ({ day: DAY, kind: 'list_mlb', x_post_id: String(100 + i), seen_at: seen, payload: {} }))
   const db = fakeDb({ homer_feed_posts: [...posts(), ...full], fact_posts: [] })
   await RC.postReceiptOnce(db, { day: DAY, load: load(mixed()), hooks: 'https://discord.test/a', now: T0 })

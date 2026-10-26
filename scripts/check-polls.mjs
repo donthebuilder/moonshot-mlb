@@ -373,10 +373,10 @@ await ok('cap: polls are the poll tier (stop at 14 of 20); the reveal is a write
   const rows = []
   const db = fakeDb({ homer_feed_posts: rows, fact_posts: [], nfl_td_feed: [] })
   for (let i = 0; i < 13; i++) rows.push(countedRow(i))
-  assert.equal((await G.admit(db, { day: today, kind: 'poll_pick', repeat: false })).state, 'go')
+  assert.equal((await G.admit(db, { day: today, now: Date.parse(`${today}T20:00:00Z`), kind: 'poll_pick', repeat: false })).state, 'go')
   rows.push(countedRow(13))
-  assert.equal((await G.admit(db, { day: today, kind: 'poll_pick', repeat: false })).state, 'capped')
-  assert.equal((await G.admit(db, { day: today, kind: 'poll_result', repeat: false })).state, 'go')
+  assert.equal((await G.admit(db, { day: today, now: Date.parse(`${today}T20:00:00Z`), kind: 'poll_pick', repeat: false })).state, 'capped')
+  assert.equal((await G.admit(db, { day: today, now: Date.parse(`${today}T20:00:00Z`), kind: 'poll_result', repeat: false })).state, 'go')
   // the poll is on the lower tier than facts, above numerology: at 13 numerology is already out, the poll is not
   assert.equal(P.allowedBelow('numerology') < P.allowedBelow('poll_pick'), true)
   assert.equal(P.allowedBelow('poll_pick') < P.allowedBelow('longshots'), true)
