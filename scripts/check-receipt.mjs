@@ -445,7 +445,7 @@ await ok('policy: with 18 counted posts today the receipt waits; with 17 it goes
   }
 })
 await ok('post: X\'s daily cap skips X, never Discord (2026-10-25: a capped receipt was held every tick and reached no channel 10-22..10-24)', async () => {
-  reset()
+  reset(); delete process.env.MISS_REPLIES_OFF      // the misses recap is on here: a capped night must not send it to X either
   const seen = new Date(Date.parse(BUD.etDayWindow(DAY)[0]) + 60e3).toISOString()
   const full = Array.from({ length: 18 }, (_, i) => ({ day: DAY, kind: 'list_mlb', x_post_id: String(100 + i), seen_at: seen, payload: {} }))
   const db = fakeDb({ homer_feed_posts: [...posts(), ...full], fact_posts: [] })
@@ -456,6 +456,8 @@ await ok('post: X\'s daily cap skips X, never Discord (2026-10-25: a capped rece
   assert.equal(row.x_post_id, 'skipped'); assert.equal(row.discord_sent, true)
   assert.equal(await RC.postReceiptOnce(db, { day: DAY, load: load(mixed()), hooks: 'https://discord.test/a', now: T0 + 1e7 }), 'already-posted')
   assert.equal(discords.length, 1, 'never twice')
+  assert.equal(tweets.length, 0, 'no misses recap on X when X skipped the receipt')
+  process.env.MISS_REPLIES_OFF = 'on'
 })
 
 // ═══ 9. RETIRED KINDS ARE UNREACHABLE ═══════════════════════════════════════

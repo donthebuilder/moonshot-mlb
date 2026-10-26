@@ -164,7 +164,7 @@ await ok("list: the fact is the Card's stat words from stored data -- shots / go
   assert.equal(LS.shortFact(g.rows[0], 1, 300), '3.4 shots a game')
   assert.equal(LS.longFact(g.rows[0], 1, 300), '3.4 shots a game')
   assert.equal(LS.shortFact({ legs: { shotsPg: 3.1, goalsPg: 0.55 }, pct: { shotsPg: 50, goalsPg: 91, toi: 70 } }), '0.55 goals a game')      // the stronger of the two leads
-  assert.equal(LS.longFact({ legs: { shotsPg: 3.1, goalsPg: 0.55, toi: 20.5 } }), '3.1 shots and 0.55 goals a game · 20:30 ice time')
+  assert.equal(LS.longFact({ legs: { shotsPg: 3.1, goalsPg: 0.55, toi: 1230 } })   /* toi is seconds per game */, '3.1 shots and 0.55 goals a game · 20:30 ice time')
   assert.equal(LS.shortFact({ pct: { shotsPg: 12, goalsPg: 40, toi: 99.6 } }, 4, 300), '#4 of 300 on the LAMP board')      // percentiles alone are never printed
   assert.equal(LS.shortFact({ legs: { shotsPg: 3.4 } }, 4, 300), '3.4 shots a game')               // no percentile stored: the stored rate, else his night rank. Never invented
   assert.equal(LS.shortFact({}, 4, 300), '#4 of 300 on the LAMP board')
