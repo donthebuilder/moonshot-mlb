@@ -23,6 +23,8 @@ import { feedHooksFor } from '../../../../lib/dash/discordChannels'
 import { kindOn } from '../../../../lib/dash/longshotsPost'
 import { isMaintenanceMode } from '../../../../lib/edgeConfig'
 import { pregameQuotes, quoteKinds, receiptLineOf } from '../../../../lib/dash/quoteFor'
+import { momentCandidates, keyOf } from '../../../../lib/nba/momentsSweep'
+import { settleAlert } from '../../../../lib/dash/xFail'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -43,7 +45,7 @@ export async function GET(request) {
   const ids = on.map((g) => String(g.id))
   // a final game is read only until its moments are on file (then it is done)
   const [seen, locks, lockedRows] = await Promise.all([
-    db.from('buckets_feed').select('game_id, player_id, kind').in('game_id', ids).in('kind', [KIND, DD_KIND, TD_KIND]),
+    db.from('buckets_feed').select('game_id, player_id, kind, x_post_id, seen_at, discord_sent').in('game_id', ids).in('kind', [KIND, DD_KIND, TD_KIND]),
     // the night's scored points rows: status for the tag, score for the night rank
     db.from('buckets_log').select('game_id, game_date, player_id, status, score').in('game_date', dates).eq('market', 'pts').eq('model_version', NBA_MARKETS.pts.version).not('score', 'is', null),
     db.from('buckets_games').select('game_id, graded_at').in('game_id', ids),
@@ -63,24 +65,39 @@ export async function GET(request) {
     night.forEach((r, i) => lockMap.set(`${r.game_id}|${r.player_id}`, { status: r.status, nightRank: i + 1 }))
   }
   const lockedGames = new Set((lockedRows.data || []).map((r) => String(r.game_id)))
-  const have = new Set((seen.data || []).map((r) => `${r.game_id}|${r.player_id}|${r.kind}`))
-  const fresh = [...momentRows(read, boxes, lockMap, lockedGames), ...ddtdRows(read, boxes, ddtdLocks, lockedGames)].filter((r) => !have.has(`${r.game_id}|${r.player_id}|${r.kind}`))
+  // what is already stored (with its post state): a PENDING row (x_post_id null) is posted again, a stale one expires (lib/nba/momentsSweep.js, batch 3)
+  const stored = new Map((seen.data || []).map((r) => [`${r.game_id}|${r.player_id}|${r.kind}`, r]))
+  const derived = [...momentRows(read, boxes, lockMap, lockedGames), ...ddtdRows(read, boxes, ddtdLocks, lockedGames)]
+  const fresh = derived.filter((r) => !stored.has(keyOf(r)))
   const out = { dates, live: on.filter((g) => g.state === 'live').length, read: read.length, new: [], posted: [] }
-  if (fresh.length) {
-    const ins = await db.from('buckets_feed').upsert(fresh.map(({ _rank, _line, ...r }) => r), { onConflict: 'game_id,player_id,kind', ignoreDuplicates: true }).select('game_id, player_id, kind')
-    if (ins.error) return Response.json({ ...out, error: `buckets_feed: ${ins.error.message}` }, { status: 500 })
-    const written = new Set((ins.data || []).map((r) => `${r.game_id}|${r.player_id}|${r.kind}`))
-    const isNew = (x) => written.has(`${x.game_id}|${x.player_id}|${x.kind}`)
+  const pendingHere = derived.some((r) => stored.get(keyOf(r))?.x_post_id == null && stored.has(keyOf(r)))
+  if (fresh.length || pendingHere) {
+    let written = new Set()
+    if (fresh.length) {
+      const ins = await db.from('buckets_feed').upsert(fresh.map(({ _rank, _line, ...r }) => r), { onConflict: 'game_id,player_id,kind', ignoreDuplicates: true }).select('game_id, player_id, kind')
+      if (ins.error) return Response.json({ ...out, error: `buckets_feed: ${ins.error.message}` }, { status: 500 })
+      written = new Set((ins.data || []).map((r) => `${r.game_id}|${r.player_id}|${r.kind}`))
+    }
+    const isNew = (x) => written.has(keyOf(x))
+    const sweep = momentCandidates({ derived, stored, written, games: on })
+    // an expired row is CLOSED, never posted late (and said so in the log)
+    for (const { row: r, why } of sweep.expired) {
+      console.error(`[buckets moments] ${r.name} ${r.kind} expired unposted: ${why}`)
+      await db.from('buckets_feed').update({ x_post_id: 'skipped' }).match(KEY(r)).is('x_post_id', null)
+    }
     out.new = fresh.filter(isNew).map((r) => `${r.name} ${r.kind === KIND ? r.points : r.kind} (${r.status || 'not locked'})`)
     // POST: regular season / playoffs only, the kind switched on, not in maintenance
     const canPost = kindOn('nba30') && !(await isMaintenanceMode())
     // THE RECEIPT (2026-10-20, lib/dash/quoteFor.js pregameQuotes): a CALLED 30-point night quotes the post that named him before tip
     // (his game's write-up, THE CARD, then THE SLATE). Read once, only when a CALLED one is about to post.
-    const anyCalled = canPost && hasX() && fresh.some((x) => isNew(x) && x.status === 'called' && x.season_type !== 1)
+    const anyCalled = canPost && hasX() && sweep.post.some((x) => x.status === 'called' && x.season_type !== 1)
     const { data: quotePosts } = anyCalled ? await db.from('homer_feed_posts').select('day,kind,x_post_id,payload,seen_at').in('day', dates).or(`kind.like.writeup_nba_%,kind.in.(${quoteKinds('nba').join(',')})`) : { data: [] }
     const quoteOf = pregameQuotes('nba', quotePosts || [])
-    for (const r of fresh.filter(isNew)) {
+    let xStop = false   // X refused for an account-level reason / a rate limit this tick: the called rows stay pending (they expire by age), nothing is claimed for X
+    const wantsX = (r) => r.status === 'called' && r.kind !== DD_KIND && hasX()
+    for (const r of sweep.post) {
       if (!canPost || r.season_type === 1) continue
+      if (xStop && wantsX(r)) continue
       const claim = await db.from('buckets_feed').update({ x_post_id: 'posting' }).match(KEY(r)).is('x_post_id', null).select('game_id')
       if (claim.error || !claim.data?.length) continue
       const text = r.kind === KIND ? momentText(r, { site: SITE }) : ddtdText(r)
@@ -90,15 +107,20 @@ export async function GET(request) {
       if (hooks) discord = await postToDiscord(text, { sport: 'nba', kind: 'nba30', link: r.player_id ? playerHref('nba', r.player_id) : null }, hooks).then((r) => Boolean(r?.ok)).catch((e) => { console.error(`[buckets moments] discord: ${e?.message || e}`); return false })
       let id = 'skipped'
       // X carries the 30 PIECE and the triple-double; a double-double stays in #buckets-nba (Donovan, 2026-10-23 volume review)
-      if (r.status === 'called' && r.kind !== DD_KIND && hasX()) {
+      if (wantsX(r)) {
         const q = quoteOf({ day: r.game_date || r.day, playerId: r.player_id, gameId: r.game_id })
         const x = await postToX(q ? `${text}\n\n${receiptLineOf(q, { sport: 'nba', key: `${r.game_id}:${r.player_id}:${r.kind}` })}` : text, { kind: 'nba30', ...(q ? { quoteId: q.id } : {}) }).catch((e) => ({ ok: false, error: e?.message }))
-        id = x?.ok && x.id ? String(x.id) : 'skipped'
-        // a refusal was swallowed here with no log (batch 3, 2026-10-26): a 429 / 5xx / the credits breaker closed the moment for good and nobody could say why
-        if (id === 'skipped') console.error(`[buckets moments] X did not post ${r.name} ${r.kind}: ${x?.status ?? 0} ${String(x?.error || '').slice(0, 120)}`)
+        // a refusal used to close the moment for good with nothing in the log (batch 3, 2026-10-26). Now it is logged and settled by the shared rule
+        // (lib/dash/xFail.js settleAlert): a transient 429 / 5xx leaves the row PENDING (null: the next tick tries again until it expires), an account-level or
+        // content refusal closes it 'skipped', and a moment whose Discord copy already went is closed rather than re-sent
+        const posted = Boolean(x?.ok && x.id)
+        const st = posted ? { value: String(x.id), stop: false } : settleAlert(x, { key: `bm|${r.game_id}|${r.player_id}|${r.kind}`, channelSent: discord })
+        if (!posted) console.error(`[buckets moments] X did not post ${r.name} ${r.kind}: ${x?.status ?? 0} ${String(x?.error || '').slice(0, 120)} -> ${st.value === null ? 'retry next tick' : 'closed'}`)
+        id = st.value
+        if (st.stop) xStop = true
       }
-      await db.from('buckets_feed').update({ x_post_id: id, discord_sent: discord }).match(KEY(r))
-      out.posted.push(`${r.name} ${r.points} -> ${id === 'skipped' ? 'discord' : 'x + discord'}`)
+      await db.from('buckets_feed').update({ x_post_id: id, discord_sent: discord || Boolean(r.discord_sent) }).match(KEY(r))
+      out.posted.push(`${r.name} ${r.points} -> ${id === null ? 'retry' : id === 'skipped' ? 'discord' : 'x + discord'}`)
     }
   }
   out.ms = Date.now() - t0
