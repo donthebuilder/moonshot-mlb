@@ -22,15 +22,15 @@ import { surname } from '../../lib/player'
 const D = 33, GAP = 3, COLS = 4, PREVIEW = 20
 
 // THE FACE, CROPPED TO FIT (Donovan 10-25: "the backdrop sucks ... make the picture fit well in the spaces"): ESPN's headshot is
-// a wide cut-out (600 x 436), so a round frame showed a small head in a dark disc. Drawn as a background zoomed to 170% and
-// pinned near the top, the head and shoulders fill the circle over a light studio grey; his initials sit under it for a man
+// a wide cut-out (600 x 436), so a round frame showed a small head in a dark disc. Drawn as a background zoomed to 150% and
+// pinned 18% down (10-25: 170% / 8% cut tall hair and sat faces off-centre), the whole head sits centred over a light studio grey; his initials sit under it for a man
 // with no picture.
 const initials = (name) => String(name || '').split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
 function Face({ id, name, sport, C, size, ring = null, glow = null }) {
   const url = id ? faceUrl({ sport, id, size }) : null
   return (
     <span title={name || undefined} style={{ width: size, height: size, borderRadius: '50%', display: 'grid', placeItems: 'center', boxSizing: 'border-box', flex: '0 0 auto',
-      background: `${url ? `url(${url}) 50% 8% / auto 170% no-repeat, ` : ''}radial-gradient(circle at 50% 30%, ${C.text3}, ${C.bg3})`,
+      background: `${url ? `url(${url}) 50% 18% / auto 150% no-repeat, ` : ''}radial-gradient(circle at 50% 30%, ${C.text3}, ${C.bg3})`,
       border: ring ? `1.5px solid ${ring}` : `1px solid ${C.border}`, boxShadow: glow ? `0 0 8px ${glow}77` : 'none',
       color: C.text2, font: `900 ${Math.max(8, Math.round(size * 0.32))}px/1 monospace` }}>
       {url ? null : initials(name)}
