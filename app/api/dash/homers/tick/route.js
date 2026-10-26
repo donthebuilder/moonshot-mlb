@@ -199,7 +199,7 @@ async function fiveTick(db, { mlb = undefined } = {}) {
   try {
     const clock = phxClock(Date.now())
     if (!fiveDue(clock)) return 'not-due'
-    return await postFiveOnce(db, { day: clock.day, clock, load: slateLoader(mlb ? { day: clock.day, mlb } : { day: clock.day }), hooks: FEED_WEBHOOKS() })
+    return await postFiveOnce(db, { day: clock.day, clock, load: slateLoader(mlb ? { day: clock.day, mlb, nflThroughDays: 3 } : { day: clock.day, nflThroughDays: 3 }), hooks: FEED_WEBHOOKS() })   // THE FIVE reads the NFL weekend, Fri-Mon (batch 3)
   } catch (err) {
     console.error('[homers] the five threw', err)
     return `error: ${String(err?.message || err)}`
