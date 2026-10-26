@@ -106,6 +106,10 @@ ok(await N.postNvbOnce(db, { day: '2026-10-18', clock: { dow: 0, min: 17 * 60 },
 
 // 9. the SQL and the wiring
 const fs = await import('node:fs')
+// 8b. a suffix is never the name (the card said "III or STEVENSON", 10-25)
+ok(N.pollLine({ sport: 'nfl', format: 'pick', names: ['Test Back Smith III', 'Test Runner Jr.'], network: 'Test Runner Jr.', networkRight: false, board: 'Test Back Smith III', boardRight: true }).includes('Smith or Runner, first to score: you said Runner'), 'pollLine drops III / Jr. and shows the surname')
+ok(/lastName\(n\)\.toUpperCase\(\)/.test(fs.readFileSync(new URL('../lib/cards/networkCard.js', import.meta.url), 'utf8')), 'the card uses the same suffix-aware surname')
+
 const sql = fs.readFileSync(new URL('../supabase/migrations/202610210900_network_vs_board_kind.sql', import.meta.url), 'utf8')
 ok(sql.includes("''network_vs_board''") && /\) not valid'/.test(sql), 'the kind migration allows network_vs_board, NOT VALID')
 const route = fs.readFileSync(new URL('../app/api/dash/homers/tick/route.js', import.meta.url), 'utf8')
