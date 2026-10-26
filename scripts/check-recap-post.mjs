@@ -90,6 +90,8 @@ check('N12 plain text has no link and is tweetFormat-clean', !/https?:|\]\(/.tes
 // a game that is not final yet is pending, never a miss
 const nflPend = nflRecap({ day: DAY, called: NFL_CALLED, events: NFL_EVENTS, games: [{ id: 'g1', final: true }, { id: 'g2', final: false }] })
 check('P1 not-final game: its called men are pending, not missed', nflPend.counts.pending === 1 && nflPend.counts.missed === 1 && /Test Later Four[^\n]*not final/.test(allText(nflPend.embed)) && !/Test Later Four[^\n]*called, no touchdown/.test(allText(nflPend.embed)))
+const nflKick = nflRecap({ day: DAY, called: [...NFL_CALLED, { id: 'k1', name: 'Test Kicker', team: 'TST', gameId: 'g1', tdCall: false }, { id: 'k2', name: 'Test Passer', team: 'TST', gameId: 'g1', tdCall: false }], events: [...NFL_EVENTS, { day: DAY, gsis_id: 'k2', scorer_name: 'Test Passer', team: 'TST', game_id: 'g1', td_n: 9, call_status: 'board' }], games: NFL_GAMES_FINAL })
+check('K1 a man called only in another market (a kicker) is never a touchdown miss; if he scores he still clears (0c)', !/Test Kicker/.test(allText(nflKick.embed)) && /Test Passer/.test(allText(nflKick.embed)) && nflKick.counts.missed === nfl.counts.missed)
 const nflUnknown = nflRecap({ day: DAY, called: NFL_CALLED, events: [], games: [] })
 check('P2 a game that cannot be found is pending (never guessed final)', nflUnknown.counts.missed === 0 && nflUnknown.counts.pending === 4)
 check('P3 nothing called = nothing to say', nflRecap({ day: DAY, called: [], events: [], games: [] }).state === 'none')
@@ -139,7 +141,7 @@ const big = nhlRecap({ date: DAY, called: bigLog, goals: bigGoals })
 const bigMissed = bigLog.filter((r) => !r.hit)
 check('B1 70 called: one embed under 6000, 25 fields, 1024 a field', embedSize(big.embed) <= LIMITS.total && big.embed.fields.length <= 25 && big.embed.fields.every((f) => [...f.value].length <= 1024), `${embedSize(big.embed)} chars, ${big.embed.fields.length} fields`)
 check('B2 every miss is still named however long the night', bigMissed.every((r) => allText(big.embed).includes(r.name)), bigMissed.filter((r) => !allText(big.embed).includes(r.name)).map((r) => r.name).join('; '))
-check('B3 any win left out for room is said ("+N more cleared") and counted', (() => { const shown = bigLog.filter((r) => r.hit && allText(big.embed).includes(r.name)).length; const total = bigLog.filter((r) => r.hit).length; return shown === total || new RegExp(`\\+${total - shown} more cleared`).test(allText(big.embed)) })())
+check('B3 any win left out for room is said ("+N more scored") and counted', (() => { const shown = bigLog.filter((r) => r.hit && allText(big.embed).includes(r.name)).length; const total = bigLog.filter((r) => r.hit).length; return shown === total || new RegExp(`\\+${total - shown} more scored`).test(allText(big.embed)) })())
 check('B4 no link was cut in half', (allText(big.embed).match(/\]\(/g) || []).length === (allText(big.embed).match(/\]\(https:[^)\s]+\)/g) || []).length)
 
 // ── the night is over? ──────────────────────────────────────────────────────

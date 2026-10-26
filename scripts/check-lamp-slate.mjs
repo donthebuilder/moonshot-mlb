@@ -136,7 +136,7 @@ await ok('list: the top 5 CALLED by night rank (rank 1..5 of 8), best first, one
   const lines = a.text.split('\n')
   assert.match(lines[0], /^\u{1F3D2} THE LAMP SLATE · SAT OCT 10$/u)
   assert.equal(lines[1], '')                                                   // label, a blank line, the lead, a blank line, the names (Donovan 2026-10-16)
-  assert.equal(lines[2], '8 CALLED tonight, top 5 by LAMP ranking score.')      // no percentile note (2026-10-23)
+  assert.equal(lines[2], '8 CALLED tonight, 5 to watch by LAMP ranking score.')      // no percentile note (2026-10-23)
   assert.equal(lines[3], '')
   assert.equal(lines[4], '1. Test Skater 1 (TOR) vs MTL · 3.4 shots a game')       // his real numbers, never a percentile (2026-10-23)
   assert.equal(lines[5], '2. Test Skater 2 (MTL) vs TOR · 2.9 shots a game')
@@ -145,15 +145,15 @@ await ok('list: the top 5 CALLED by night rank (rank 1..5 of 8), best first, one
   assert.equal(a.payload.n_called, 8); assert.deepEqual(a.payload.named, a.named)
 })
 await ok('list: the lead counts honestly -- "tonight" when every game is locked, "so far tonight" when one is still a preview', () => {
-  assert.match(A(night(4)).text, /8 CALLED tonight, top 5/)
+  assert.match(A(night(4)).text, /8 CALLED tonight, 5 to watch/)
   const part = night(4); part[3] = game(3, { lockedAt: null, setting: false })
   const a = A(part)
-  assert.match(a.text, /6 CALLED so far tonight, top 5/); assert.ok(!a.named.includes('t7') && !a.named.includes('t8'))
+  assert.match(a.text, /6 CALLED so far tonight, 5 to watch/); assert.ok(!a.named.includes('t7') && !a.named.includes('t8'))
 })
 await ok('list: at most 5; exactly 3 posts 3; fewer than 3 CALLED posts nothing', () => {
   assert.equal(A(night(4)).named.length, 5)
   const three = [game(0), game(1, { rows: [game(1).rows[0]] })]
-  const a3 = A(three); assert.equal(a3.state, 'go'); assert.deepEqual(a3.named, ['t1', 't2', 't3']); assert.match(a3.text, /3 CALLED tonight, top 3 by/)
+  const a3 = A(three); assert.equal(a3.state, 'go'); assert.deepEqual(a3.named, ['t1', 't2', 't3']); assert.match(a3.text, /3 CALLED tonight, 3 to watch by/)
   const two = A([game(0)])
   assert.equal(two.state, 'none'); assert.match(two.reason, /only 2 CALLED skaters in the locked games \(fewer than 3\)/)
   assert.equal(A([game(0, { rows: [game(0).rows[2]] })]).state, 'none')      // only an ON THE BOARD man: no call
@@ -164,7 +164,7 @@ await ok("list: the fact is the Card's stat words from stored data -- shots / go
   assert.equal(LS.shortFact(g.rows[0], 1, 300), '3.4 shots a game')
   assert.equal(LS.longFact(g.rows[0], 1, 300), '3.4 shots a game')
   assert.equal(LS.shortFact({ legs: { shotsPg: 3.1, goalsPg: 0.55 }, pct: { shotsPg: 50, goalsPg: 91, toi: 70 } }), '0.55 goals a game')      // the stronger of the two leads
-  assert.equal(LS.longFact({ legs: { shotsPg: 3.1, goalsPg: 0.55, toi: 20.5 } }), '3.1 shots and 0.55 goals a game · 20:30 ice time')
+  assert.equal(LS.longFact({ legs: { shotsPg: 3.1, goalsPg: 0.55, toi: 1230 } })   /* toi is seconds per game */, '3.1 shots and 0.55 goals a game · 20:30 ice time')
   assert.equal(LS.shortFact({ pct: { shotsPg: 12, goalsPg: 40, toi: 99.6 } }, 4, 300), '#4 of 300 on the LAMP board')      // percentiles alone are never printed
   assert.equal(LS.shortFact({ legs: { shotsPg: 3.4 } }, 4, 300), '3.4 shots a game')               // no percentile stored: the stored rate, else his night rank. Never invented
   assert.equal(LS.shortFact({}, 4, 300), '#4 of 300 on the LAMP board')
@@ -183,7 +183,7 @@ await ok("limits: X's length (default 280) -- 5 names when they fit, fewer when 
     assert.equal(a.state, 'go', String(limit))
     assert.ok(SL.xLen(a.text) <= limit, `${limit}: ${SL.xLen(a.text)}`)
     const k = a.named.length
-    assert.ok(k >= 3 && k <= 5); assert.match(a.text, new RegExp(`top ${k} by LAMP`)); assert.equal(a.text.split('\n').filter((l) => /^\d\. /.test(l)).length, k)
+    assert.ok(k >= 3 && k <= 5); assert.match(a.text, new RegExp(`${k} to watch by LAMP`)); assert.equal(a.text.split('\n').filter((l) => /^\d\. /.test(l)).length, k)
   }
   assert.equal(A(long, NOW, { limit: 900 }).named.length, 5); assert.ok(A(night(4), NOW, { limit: 280 }).named.length >= 3)   // at the bare 280 three or four fit (the shorter lead since 10-23); the long-post allowance (X_TEXT_LIMIT) carries five
   assert.equal(A(night(4), NOW, { limit: 280 }).state, 'go')
@@ -220,7 +220,7 @@ await ok('goalie unconfirmed -> HELD (nothing named), then 30 minutes before puc
   assert.deepEqual(h.pending.map((p) => p.id), ['t1'])
   const t = A(games, T('22:31'))                  // 29 minutes before the 23:00 puck
   assert.equal(t.state, 'go'); assert.deepEqual(t.named, ['t2', 't3', 't4', 't5', 't6']); assert.deepEqual(t.trimmed, ['t1'])
-  assert.ok(!/Test Skater 1 /.test(t.text)); assert.match(t.text, /top 5 by/)
+  assert.ok(!/Test Skater 1 /.test(t.text)); assert.match(t.text, /5 to watch by/)
   assert.deepEqual(A(night(4), T('22:00')).named.slice(0, 2), ['t1', 't2'])    // confirmed in time: he is named, in his place
   const far = night(4, { 3: unconfirmed(3) })                                   // a pending man outside the top five does not hold the post
   assert.equal(A(far).state, 'go')
@@ -365,7 +365,7 @@ await ok('discord: one DASH card to the LAMP channel -- title linked to the LAMP
     const e = body.embeds[0]
     assert.equal(e.title, '\u{1F3D2} The LAMP Slate · Sat Oct 10')
     assert.equal(e.url, `https://test.example${APP_NHL_BOARD}`)
-    assert.equal(e.description, '8 CALLED tonight, top 5 by LAMP ranking score.')
+    assert.equal(e.description, '8 CALLED tonight, 5 to watch by LAMP ranking score.')
     assert.equal(e.fields.length, 5)
     assert.equal(e.fields[0].name, '1. Test Skater 1')
     assert.match(e.fields[0].value, /^TOR vs MTL · \*\*CALLED\*\* · puck 7:00 PM ET\n3\.4 shots a game$/)      // real numbers, never a percentile (2026-10-23)

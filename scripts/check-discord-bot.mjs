@@ -99,5 +99,22 @@ await t('the admin bot test: one #members line by webhook, then the bot reply un
   delete process.env.DISCORD_BOT_TOKEN
 })
 
+await t('no stored message (a picks post from before the bot): the bot finds it in #members by day and names, newest first, ours only', async () => {
+  process.env.DISCORD_BOT_TOKEN = TOKEN
+  const msgs = [
+    { id: '901', webhook_id: '111', content: 'TEST other post Kirill Kaprizov' },
+    { id: '902', webhook_id: '999', embeds: [{ title: '➕ More picks · Sun Oct 25', fields: [{ name: 'LAMP', value: '**Kirill Kaprizov** + **Ryan O\'Reilly**' }] }] },
+    { id: '903', webhook_id: '111', embeds: [{ title: '➕ More picks · Sun Oct 25', fields: [{ name: 'LAMP', value: 'Two-Man: **Kirill Kaprizov** + **Ryan O\'Reilly**, both to score' }] }] },
+    { id: '904', webhook_id: '111', embeds: [{ title: "📅 Today's picks · Fri Oct 2", fields: [{ name: 'LAMP', value: 'Kirill Kaprizov + Ryan O\'Reilly' }] }] },
+  ]
+  const seen = []
+  const f = async (url, init) => { seen.push({ url: String(url), method: init?.method }); if (String(url) === MEM) return new Response('{"id":"111","channel_id":"777"}', { status: 200 }); return new Response(JSON.stringify(msgs), { status: 200 }) }
+  assert.deepEqual(await B.findPicksPost({ day: '2026-10-25', names: ['Kirill Kaprizov', "Ryan O'Reilly"], fetchImpl: f }), { id: '903', channel_id: '777' })
+  assert.equal(await B.findPicksPost({ day: '2026-10-02', names: ['Kirill Kaprizov', "Ryan O'Reilly"], fetchImpl: f }).then((m) => m?.id), '904')
+  assert.equal(await B.findPicksPost({ day: '2026-10-25', names: ['TEST Nobody'], fetchImpl: f }), null)
+  assert.ok(seen.every((c) => c.method === 'GET'), 'reads only')
+  delete process.env.DISCORD_BOT_TOKEN
+})
+
 console.log(bad ? `${bad}/${n} FAILED` : `OK: discord bot (${n} checks, TEST data)`)
 process.exit(bad ? 1 : 0)

@@ -9,6 +9,8 @@ import { useLiveFetch } from '../../../lib/useLiveFetch'
 import { useBucketsScores } from '../../../lib/nba/useBuckets'
 import { useHashLens } from '../../../lib/useHashLens'
 import { DelayedBanner, Loading, EmptyState } from '../ui'
+import FirstBasketMatchup from '../../openings/FirstBasketMatchup'
+import { surname } from '../../../lib/player'
 
 // 🏀 OPENINGS (2026-10-22, Donovan: "researching the first basket ... team tip win rate, who gets the first shots, position and
 // players, how many shots they take in the first 3 minutes, usage in that first 3 minutes, points ... first baskets for their
@@ -115,6 +117,37 @@ export default function Openings({ date, onOpenPlayer, onOpenTeam, onOpenGame })
     { key: 'q1Ra', label: 'R+A', group: 'Q1', w: 44, fmt: f1 },
     { key: 'q1Use', label: 'USG %', group: 'Q1', w: 56, fmt: f1 },
   ]
+  // THE FIRST-BASKET MATCHUP (components/openings/FirstBasketMatchup.js, shared): tonight's games, each club against the other,
+  // then the first-basket targets ranked by the record (first baskets made %, then first shot %)
+  const matchGames = useMemo(() => (sb?.games || []).filter((g) => g.away?.abbrev && g.home?.abbrev).map((g) => ({ key: String(g.id), away: g.away.abbrev, home: g.home.abbrev, label: `${g.away.abbrev} @ ${g.home.abbrev}` })), [sb])
+  const matchStats = [
+    { key: 'tipPct', label: 'Wins the tip', fmt: pc, higher: true },
+    { key: 'jumper', label: 'Usual jumper', fmt: (v, T) => (T.jumper ? `${surname(T.jumper)} ${T.jumperW}-${T.jumperJ - T.jumperW}` : '—'), higher: true, barOf: (T) => (T.jumperJ ? (100 * T.jumperW) / T.jumperJ : null) },   // lit / pulled by his tip win %
+    { key: 'firstPct', label: 'Scores first', fmt: pc, higher: true },
+    { key: 'firstWhenTipPct', label: 'First, after the tip', fmt: pc, higher: true },
+    { key: 'w1For', label: 'First 3 min PTS', fmt: f1, higher: true },
+    { key: 'w1Ag', label: 'First 3 min allowed', fmt: f1, higher: false },
+    { key: 'w1FgPct', label: 'First 3 min FG%', fmt: pc, higher: true },
+    { key: 'q1For', label: 'Q1 PTS', fmt: f1, higher: true },
+    { key: 'q1Ag', label: 'Q1 allowed', fmt: f1, higher: false },
+    { key: 'q1FgPct', label: 'Q1 FG%', fmt: pc, higher: true },
+  ]
+  // percent first, the count small under it (Trending's cell; Donovan: "I like the percentages")
+  const rate = (ok, n) => (v) => (!Number.isFinite(v) ? '—' : (
+    <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.15 }}>
+      <span>{v.toFixed(0)}%</span><span style={{ font: `600 10px/1.1 ${NUM_FONT}`, color: C.text3 }}>{`${ok}/${n}`}</span>
+    </span>
+  ))
+  const targetCols = [
+    { key: 'name', label: 'Player', group: 'Player', w: 150, heat: false, sticky: true, bold: true },
+    { key: 'team', label: 'Tm', group: 'Player', w: 52, heat: false, mono: true, teamMark: 'nba', link: (r) => (onOpenTeam ? () => onOpenTeam(r.team) : null) },
+    { key: 'firstFgPct', label: '1ST FG', group: 'First basket', w: 52, primary: true, fmt: (v, r) => rate(r.firstFg, r.gp)(v), title: 'How often he made the game’s first basket (first baskets / games)' },
+    { key: 'firstShotPct', label: 'TAKES', group: 'First basket', w: 52, fmt: (v, r) => rate(r.firstShots, r.gp)(v), title: 'How often he took the game’s first shot' },
+    { key: 'firstShotMadePct', label: 'MAKES', group: 'First basket', w: 52, fmt: (v, r) => rate(r.firstShotMade, r.firstShots)(v), title: 'When he took the game’s first shot, how often it went in' },
+    { key: 'w1FgPct', label: '3M FG%', group: 'First basket', w: 56, fmt: pc, title: 'His field-goal % in the first 3 minutes' },
+  ]
+  const targetSort = (a, b) => (b.firstFgPct ?? -1) - (a.firstFgPct ?? -1) || (b.firstShotPct ?? -1) - (a.firstShotPct ?? -1)
+
   const teamRows = useMemo(() => (data?.teams || []).map((t) => ({ ...t, _id: t.team, jumperRec: t.jumper ? `${t.jumperW}-${t.jumperJ - t.jumperW}` : '—' }))
     .sort((a, b) => (b[L.team] ?? -1) - (a[L.team] ?? -1)), [data, L])
   const playerRows = useMemo(() => players.map((p) => ({ ...p, _id: p.playerId })).sort((a, b) => (b[L.player] ?? -1) - (a[L.player] ?? -1)), [players, L])
@@ -136,6 +169,12 @@ export default function Openings({ date, onOpenPlayer, onOpenTeam, onOpenGame })
           <BucketsTable rows={tonight} columns={tonightCols} heatMode="primary" maxRows={12} maxHeight={9999}
             caption="Each club's record in the games on file. The tip goes to the club that got the ball; the first basket is the first made field goal." />
         </section>
+      )}
+
+      {data?.games > 0 && matchGames.length > 0 && (
+        <FirstBasketMatchup sport="nba" floor={{ a: C.wood1, b: C.wood2, line: C.courtLine }} games={matchGames} teams={teamsBy} players={data?.players || []} stats={matchStats} targetCols={targetCols} targetSort={targetSort}
+          minGp={minGp} Table={BucketsTable} C={C} NUM_FONT={NUM_FONT} accent={C.purple} words={{ first: 'First basket' }}
+          onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })} />
       )}
 
       {data?.games > 0 && (

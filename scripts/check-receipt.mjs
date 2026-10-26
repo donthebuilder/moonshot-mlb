@@ -445,7 +445,7 @@ await ok('policy: with 18 counted posts today the receipt waits; with 17 it goes
   }
 })
 await ok('post: X\'s daily cap skips X, never Discord (2026-10-25: a capped receipt was held every tick and reached no channel 10-22..10-24)', async () => {
-  reset()
+  reset(); delete process.env.MISS_REPLIES_OFF      // the misses recap is on here: a capped night must not send it to X either
   const seen = new Date(Date.parse(BUD.etDayWindow(DAY)[0]) + 60e3).toISOString()
   const full = Array.from({ length: 18 }, (_, i) => ({ day: DAY, kind: 'list_mlb', x_post_id: String(100 + i), seen_at: seen, payload: {} }))
   const db = fakeDb({ homer_feed_posts: [...posts(), ...full], fact_posts: [] })
@@ -456,6 +456,8 @@ await ok('post: X\'s daily cap skips X, never Discord (2026-10-25: a capped rece
   assert.equal(row.x_post_id, 'skipped'); assert.equal(row.discord_sent, true)
   assert.equal(await RC.postReceiptOnce(db, { day: DAY, load: load(mixed()), hooks: 'https://discord.test/a', now: T0 + 1e7 }), 'already-posted')
   assert.equal(discords.length, 1, 'never twice')
+  assert.equal(tweets.length, 0, 'no misses recap on X when X skipped the receipt')
+  process.env.MISS_REPLIES_OFF = 'on'
 })
 
 // ═══ 9. RETIRED KINDS ARE UNREACHABLE ═══════════════════════════════════════
@@ -530,20 +532,20 @@ await ok('THE RECORD (weekly): every call we posted, hits and misses -- the no-c
   assert.equal(lines(t)[0], '\u{1F9FE} THE RECORD · WEEK OF OCT 5')
   assert.equal(lines(t)[1], 'Every call we posted last week, hits and misses \u{1F447}')
   assert.match(t, /\n11 calls · 5 landed · 5 missed · 1 did not play\n/)   // made = landed + missed + did not play, summed from the stored nights
-  assert.match(t, /MLB  2 of 5 · home run/); assert.match(t, /NFL  2 of 3 · anytime touchdown/); assert.match(t, /NHL  1 of 2 · goal scorer/)
+  assert.match(t, /MLB 2 of 5 · home run/); assert.match(t, /NFL 2 of 3 · anytime touchdown/); assert.match(t, /NHL 1 of 2 · goal scorer/)
   assert.match(t, /WE HAD: Test Hitter A, Test Hitter B, Test Back D\n/, 'who landed, each once, tracking-only left out')
   assert.match(t, /Every call, graded → DASH · The Ledger\n\nWhat did we miss, network\?$/)
   assert.ok(!BANNED.test(t), t)
   // at the bare 280: the names go before a sport line does, the record line always stays
   const t280 = RC.renderPeriod({ kind: 'weekly', from: '2026-10-05', to: '2026-10-11', totals })
-  assert.ok(S.xLen(t280) <= 280 && /11 calls · 5 landed/.test(t280) && /NHL  1 of 2/.test(t280), t280)
+  assert.ok(S.xLen(t280) <= 280 && /11 calls · 5 landed/.test(t280) && /NHL 1 of 2/.test(t280), t280)
   const m = RC.renderPeriod({ kind: 'monthly', from: '2026-09-01', to: '2026-09-30', totals, limit: 890 })
   assert.equal(lines(m)[0], '\u{1F9FE} THE RECORD · SEPTEMBER')
   assert.match(m, /Every call we posted in September, hits and misses/); assert.match(m, /What should we call more of, network\?$/)
   // more names than fit the bare 280: the names shrink to "+N more" before a sport line goes
   const many = RC.periodTotals([{ ...rows[0], payload: { ...rows[0].payload, results: Array.from({ length: 14 }, (_, i) => ({ sport: 'mlb', player_id: `x${i}`, name: `Test Long Name Hitter ${i}`, outcome: 'cashed' })) } }])
   const mt = RC.renderPeriod({ kind: 'weekly', from: '2026-10-05', to: '2026-10-11', totals: many, limit: 600 })
-  assert.ok(S.xLen(mt) <= 600 && /\+\d+ more/.test(mt) && /MLB  2 of 3/.test(mt), mt)
+  assert.ok(S.xLen(mt) <= 600 && /\+\d+ more/.test(mt) && /MLB 2 of 3/.test(mt), mt)
 })
 await ok('THE RECORD: a week with calls and nothing landed still posts and says so (misses out loud); a week with no call made does not', () => {
   const none = RC.periodTotals([nightRow('2026-10-05', { cashed: 0, missed: 2, void: 0 }, { mlb: { cashed: 0, missed: 2, void: 0 } })])

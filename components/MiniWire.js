@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { notify, requestPermission, ensureWorker, installHint, canNotify } from '../lib/notify'
 import { alertPrefs, alertWanted, setAlertMaster, ALERTS_EVENT } from '../lib/dash/alerts'
-import { nameOf, playerId as pidOf } from '../lib/player'
+import { nameOf, playerId as pidOf, surname } from '../lib/player'
 import { fetchLiveSlate, pickCleared, fetchHrContext, lineupStatus } from '../lib/liveSlate'
 import LiveWire from './LiveWire'
 import WireToasts from './WireToasts'
@@ -381,7 +381,7 @@ export default function MiniWire({
               firedRef.current.add(key)
               // name the arm and the count-of-outs context so the alert is
               // actionable on a phone lock screen without opening the site
-              const arm = String(p?.pitcher_name || '').split(' ').slice(-1)[0]
+              const arm = surname(p?.pitcher_name)
               out.push({
                 // 🎤 retired 2026-09-03 (Donovan: "I don't like the
                 // microphone"). ⚾ says the same thing without the karaoke.

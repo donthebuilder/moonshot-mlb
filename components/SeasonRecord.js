@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { btnStyle, WhatThis } from './ui'
 import DenseTable from './DenseTable'
+import { surname } from '../lib/player'
 
 // ══ 🧾 THE SEASON RECORD ══════════════════════════════════════════════════════
 //
@@ -198,7 +199,7 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
                     <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, minWidth: 0, flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                       title={`${n.onSheet} of ${n.total} were on the board · ${n.badged} badged (TOP/HR/HIT/HRR/CONTACT)${n.multi ? ` · ${n.multi} multi-homer night${n.multi === 1 ? '' : 's'}` : ''}`}>
                       board {n.capturePct != null ? `${Math.round(n.capturePct)}%` : '—'} · {n.badged} badged
-                      {n.longest ? ` · ${n.longest.ft} ft ${n.longest.name.split(' ').slice(-1)[0]}` : ''}
+                      {n.longest ? ` · ${n.longest.ft} ft ${surname(n.longest.name)}` : ''}
                     </span>
                     <span style={{ fontSize: 10, color: C.text3 }}>{isOpen ? '▲' : '▼'}</span>
                   </button>

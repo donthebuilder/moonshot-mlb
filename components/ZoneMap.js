@@ -8,7 +8,7 @@ import {
   pitchTypes, zoneBox, zoneCell, zoneFrac, inZone as pitchInZone,
 } from '../lib/livePitches'
 import { divTone, seqColor } from '../lib/scales'
-import { clean } from '../lib/player'
+import { clean, surname } from '../lib/player'
 import { inkOn } from '../lib/palette'
 
 // Cheap one-time WebGL probe. The 3D views REPLACE the 2D one when they are
@@ -362,7 +362,7 @@ function LivePitcherRow({ pitchers, pitcherId, onPitcher, scope, onScope, hitter
     background: on ? `${col}1f` : 'transparent',
     color: on ? col : C.text3,
   })
-  const him = String(hitter || 'him').split(' ').slice(-1)[0]
+  const him = surname(hitter || 'him')
   return (
     <div style={{ display: 'flex', gap: dense ? 3 : 4, flexWrap: 'wrap', alignItems: 'center' }}>
       {/* "vs everyone" is one arm's night by definition, so the every-arm
@@ -380,7 +380,7 @@ function LivePitcherRow({ pitchers, pitcherId, onPitcher, scope, onScope, hitter
             title={`${p.name} — ${p.n} tracked pitch${p.n === 1 ? '' : 'es'} tonight${p.live ? '. On the mound right now.' : '. Out of the game — his night is still here.'}`}
             style={{ ...chip(on, C.green), display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             {p.live && <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.green, boxShadow: `0 0 5px ${C.green}`, flexShrink: 0 }} />}
-            {String(p.name || '?').split(' ').slice(-1)[0]}
+            {surname(p.name || '?')}
             {!dense && <span style={{ fontWeight: 700, opacity: 0.75 }}>{p.n}p</span>}
           </button>
         )
@@ -507,7 +507,7 @@ export default function ZoneMap({
   const scopeAll = liveScope === 'all' && !!onLiveScope
   const armName = (livePitchers || []).find((p) => p.id === livePitcherId)?.name || ''
   const sampleLabel = scopeAll
-    ? `${armName ? armName.split(' ').slice(-1)[0] : 'the arm'} vs everyone`
+    ? `${armName ? surname(armName) : 'the arm'} vs everyone`
     : (liveLabel || 'this hitter')
   const pitcherRow = onLivePitcher && livePitchers?.length
     ? { pitchers: livePitchers, pitcherId: livePitcherId, onPitcher: onLivePitcher, scope: liveScope, onScope: onLiveScope, hitter: liveLabel }

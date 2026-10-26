@@ -4,6 +4,7 @@ import { sharedJSON } from '../lib/sharedRead'
 import { C as MLB_C, NUM_FONT as MLB_NUM } from '../lib/theme'
 import StoryRow, { Numbered } from './StoryRow'
 import { digitRoot } from '../lib/numerology/core'
+import { surname } from '../lib/player'
 
 // each sport's words when the caller passes none (2026-10-20: History Watch also rides the Ledger and Numerology)
 const SPORT_WORDS = {
@@ -78,7 +79,7 @@ export default function HistoryWatch({ sport = 'mlb', theme = null, numFont = nu
                     {i.proof.hits > 8 ? <li style={{ listStyle: 'none', color: C.text3 }}>…and {i.proof.hits - 8} more</li> : null}
                   </ul>
                 ) : null}
-                {onPlayerClick && i.kind !== 'DROUGHT' && <button type="button" onClick={() => onPlayerClick({ player_id: i.player_id, name: i.name, team: i.team })} style={{ background: 'none', border: 'none', color: C.text2, padding: 0, cursor: 'pointer', textDecoration: 'underline dotted', fontSize: 10.5 }}>open {i.name.split(' ').pop()}’s card</button>}
+                {onPlayerClick && i.kind !== 'DROUGHT' && <button type="button" onClick={() => onPlayerClick({ player_id: i.player_id, name: i.name, team: i.team })} style={{ background: 'none', border: 'none', color: C.text2, padding: 0, cursor: 'pointer', textDecoration: 'underline dotted', fontSize: 10.5 }}>open {surname(i.name)}’s card</button>}
                 <div style={{ color: C.text3, fontSize: 9.5, marginTop: 4 }}>{data.credit}</div>
               </div>
             )}

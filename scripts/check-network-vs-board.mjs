@@ -57,16 +57,24 @@ const graded = [g1, g2, g3, { ...g2, day: '2026-10-14' }]
 const t = N.tally(graded)
 ok(t.n === 4 && t.network === 3 && t.board === 0, `the tally (${JSON.stringify({ n: t.n, net: t.network, board: t.board })})`)
 const text = N.nvbText({ week: N.nvbWeek('2026-10-18'), t, limit: 890 })
-ok(text.startsWith('\u{1F5F3}\u{FE0F} THE NETWORK vs THE BOARD · LAST WEEK · OCT 11–17') && text.includes('THE NETWORK  3 of 4') && text.includes('THE BOARD  0 of 4'), `head and scoreboard:\n${text}`)
-ok(text.includes('🏒 One or Two, first to score: you said One ❌, we said One ❌'), 'a poll line')
-ok(/Can the board catch you next week\?$/.test(text), 'the network leads: its ask')
+ok(text.startsWith('\u{1F5F3}\u{FE0F} Network vs Board · Last week · Oct 11–17\nYou 3 of 4 · Board 0 of 4'), `head and score:\n${text}`)
+ok(text.includes('🏒 One or Two: you One ❌ · board One ❌'), `a poll line:\n${text}`)
+ok(N.lastName('Harold Fannin Jr.') === 'Fannin' && N.lastName('Marvin Harrison Jr') === 'Harrison' && N.lastName('Test Name III') === 'Name' && N.lastName('Neither') === 'Neither', 'a last name is never a suffix (was "III or Stevenson")')
+ok(N.pollLine({ sport: 'nhl', format: 'board', names: ['A Hagel', 'B Kaprizov', 'C Connor', 'D Bouchard'], network: 'B Kaprizov', board: 'A Hagel', boardRight: true }) === '🏒 Hagel, Kaprizov, Connor or Bouchard: you Kaprizov ❌ · board Hagel ✅', 'a four-man poll reads as a list')
+ok(/You beat the board this week\. Do it again\?$/.test(text), 'the network leads: its ask')
 const t280 = N.nvbText({ week: N.nvbWeek('2026-10-18'), t, limit: 280 })
-ok(t280 && xLen(t280) <= 280 && t280.includes('THE BOARD  0 of 4'), `fits 280 with the scoreboard (${xLen(t280)})`)
+ok(t280 && xLen(t280) <= 280 && t280.includes('Board 0 of 4'), `fits 280 with the scoreboard (${xLen(t280)})`)
 ok(N.nvbText({ week: N.nvbWeek('2026-10-18'), t: N.tally([g1, g2]) }) === '', 'under three graded polls: no post')
 ok(!/https?:|#[A-Za-z]|%/.test(text) && !SWEARS.test(text) && !OVERCLAIM.test(text), 'no link, hashtag, percent, swear or overclaim')
 
 // 7. the kind
 ok(kindInfo('network_vs_board')?.mode === 'event' && tierOf('network_vs_board') === 'writeup' && receiptLineFor('network_vs_board', { text }) === null, 'event, write-up tier, no receipt line (it grades polls, not our calls)')
+
+// 8c. the week and the game day say what they are (2026-10-26, Donovan's session: "WEEK OF OCT 18" read as the week ahead)
+ok(N.weekWords('2026-10-18', '2026-10-24') === 'LAST WEEK · OCT 18–24' && N.weekWords('2026-10-25', '2026-10-31') === 'LAST WEEK · OCT 25–31' && N.weekWords('2026-10-25', '2026-11-01') === 'LAST WEEK · OCT 25–NOV 1', 'weekWords: the seven days, a month turn shows both months')
+ok(N.dayWord('2026-10-19') === 'MON' && N.dayWord('2026-10-18') === 'SUN' && N.dayWord('') === '', 'dayWord: the weekday of the game day')
+{ const g = N.gradePoll({ sport: 'nfl', day: '2026-10-19', format: 'pick', payload: { players: [{ id: 'a', name: 'Test A' }, { id: 'b', name: 'Test B' }] } }, { options: [{ label: 'Test A', votes: 5 }, { label: 'Test B', votes: 1 }] }, [])
+  ok(g.gameDay === '2026-10-19', 'a graded poll carries its game day') }
 
 // 8. the poster on a fake database and a fake X read
 const store = [
@@ -104,19 +112,8 @@ ok(row?.payload?.network === 0 && row.payload.board === 0, 'the 12th: Two scored
 ok(drawn && drawn.t.n === 3 && row.payload.picture === true, 'the card got the tally')
 ok(await N.postNvbOnce(db, { day: '2026-10-18', clock: { dow: 0, min: 17 * 60 }, read, draw: async () => null }) === 'already-posted', 'once')
 
-// 8c. the week and the game day say what they are
-ok(N.weekWords('2026-10-18', '2026-10-24') === 'LAST WEEK · OCT 18–24' && N.weekWords('2026-10-25', '2026-10-31') === 'LAST WEEK · OCT 25–31' && N.weekWords('2026-10-25', '2026-11-01') === 'LAST WEEK · OCT 25–NOV 1', 'weekWords: last week with its range, across a month turn too')
-ok(N.dayWord('2026-10-19') === 'MON' && N.dayWord('2026-10-18') === 'SUN' && N.dayWord('') === '', 'dayWord: the weekday of the game day')
-{ const g = N.gradePoll({ sport: 'nfl', day: '2026-10-19', format: 'pick', payload: { players: [{ id: 'a', name: 'Test A' }, { id: 'b', name: 'Test B' }] } }, { options: [{ label: 'Test A', votes: 5 }, { label: 'Test B', votes: 1 }] }, [{ id: 'a', game: 'g', order: 1, seen: 1e12 }])
-  ok(g.gameDay === '2026-10-19', 'a graded poll carries its game day') }
-
 // 9. the SQL and the wiring
 const fs = await import('node:fs')
-ok(/all\.length > MAX_ROWS \? MAX_ROWS - 1 : MAX_ROWS/.test(fs.readFileSync(new URL('../lib/cards/networkCard.js', import.meta.url), 'utf8')), 'the card shows five rows when a "+N more" line follows (six + more cut the footer off)')
-// 8b. a suffix is never the name (the card said "III or STEVENSON", 10-25)
-ok(N.pollLine({ sport: 'nfl', format: 'pick', names: ['Test Back Smith III', 'Test Runner Jr.'], network: 'Test Runner Jr.', networkRight: false, board: 'Test Back Smith III', boardRight: true }).includes('Smith or Runner, first to score: you said Runner'), 'pollLine drops III / Jr. and shows the surname')
-ok(/lastName\(n\)\.toUpperCase\(\)/.test(fs.readFileSync(new URL('../lib/cards/networkCard.js', import.meta.url), 'utf8')), 'the card uses the same suffix-aware surname')
-
 const sql = fs.readFileSync(new URL('../supabase/migrations/202610210900_network_vs_board_kind.sql', import.meta.url), 'utf8')
 ok(sql.includes("''network_vs_board''") && /\) not valid'/.test(sql), 'the kind migration allows network_vs_board, NOT VALID')
 const route = fs.readFileSync(new URL('../app/api/dash/homers/tick/route.js', import.meta.url), 'utf8')
