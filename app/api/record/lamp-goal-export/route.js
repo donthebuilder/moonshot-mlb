@@ -31,7 +31,7 @@ const build = unstable_cache(async () => {
   for (let i = 0; i < MAX_PAGES; i++) {
     const { data, error } = await db.from('lamp_goal_log').select(COLS)
       .not('hit', 'is', null).eq('game_type', 2)
-      .order('game_date', { ascending: true }).order('game_id', { ascending: true }).order('player_id', { ascending: true })
+      .order('game_date', { ascending: true }).order('game_id', { ascending: true }).order('player_id', { ascending: true }).order('model_version', { ascending: true })
       .range(i * PAGE, i * PAGE + PAGE - 1)
     if (error) throw new Error(error.message || String(error))
     rows.push(...(data || []).map((r) => ({ ...r, context: slimContext(r.context) })))

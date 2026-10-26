@@ -24,7 +24,7 @@ export const GET = bucketsRoute('record', async (q) => {
     let qy = db.from('buckets_log').select('game_date, game_id, player_id, name, team, opp, market, status, role, score, rank_in_game, actual, hit, season_type').in('model_version', LIVE_VERSIONS).gte('game_date', since).not('graded_at', 'is', null)
       .or('status.eq.called,and(market.eq.pts,hit.is.true)')
     if (!pre) qy = qy.neq('season_type', 1)
-    const { data, error } = await qy.order('game_date').order('game_id').order('player_id').order('market').range(from, from + 999)
+    const { data, error } = await qy.order('game_date').order('game_id').order('player_id').order('market').order('model_version').range(from, from + 999)
     if (error) throw new Error(error.message)
     rows.push(...data)
     if (data.length < 1000) break

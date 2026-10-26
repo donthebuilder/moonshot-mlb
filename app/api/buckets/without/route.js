@@ -23,13 +23,13 @@ export const GET = bucketsRoute('without', async (q) => {
   if (!/^\d+$/.test(pid || '')) return bad('pid must be an ESPN player id')
   const db = adminClient()
   if (!db) return bad('no database')
-  const mine = await all(() => db.from('buckets_box').select('season, team').eq('player_id', pid).eq('season_type', 2))
+  const mine = await all(() => db.from('buckets_box').select('season, team').eq('player_id', pid).eq('season_type', 2).order('game_id', { ascending: true }))
   const clubs = [...new Map(mine.map((r) => [`${r.season}|${r.team}`, r])).values()]
-  const rows = (await Promise.all(clubs.map((c) => all(() => db.from('buckets_box').select(COLS).eq('season', c.season).eq('team', c.team).eq('season_type', 2))))).flat()
+  const rows = (await Promise.all(clubs.map((c) => all(() => db.from('buckets_box').select(COLS).eq('season', c.season).eq('team', c.team).eq('season_type', 2).order('game_id', { ascending: true }).order('player_id', { ascending: true }))))).flat()
   const mateIds = [...new Set(rows.map((r) => String(r.player_id)).filter((x) => x !== pid))]
   const seasons = [...new Set(clubs.map((c) => c.season))]
   const otherRows = mateIds.length
-    ? await all(() => db.from('buckets_box').select('player_id, season, team, game_date').in('player_id', mateIds).in('season', seasons).eq('season_type', 2))
+    ? await all(() => db.from('buckets_box').select('player_id, season, team, game_date').in('player_id', mateIds).in('season', seasons).eq('season_type', 2).order('game_id', { ascending: true }).order('player_id', { ascending: true }))
     : []
   return ok({ pid, mates: matesFrom(rows, otherRows, pid) }, 21600)
 })

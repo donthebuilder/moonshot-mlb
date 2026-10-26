@@ -68,7 +68,7 @@ export async function GET(request) {
     const through = games.reduce((m, g) => (String(g.game_date) > m ? String(g.game_date) : m), '')
     // THE CALL'S OWN RECORD (lib/mlb/firstLock.js): the #1 first-hit / first-HR call over the graded games, every game it locked (no table yet: null).
     // Paged (10-26, known-issues #99): the old .limit(5000) was cut to 1,000 rows by the API, so the record would have under-counted after ~1,000 graded games.
-    const flRows = await memoLoad('mlb-openings:firstlog', ROWS_TTL_MS, () => pageAll(() => db.from('mlb_first_log').select('game_pk, hit_rank, hr_rank, first_hit, first_hr, graded_at').eq('model_version', FIRST_VERSION).not('graded_at', 'is', null).order('game_pk'))).catch(() => null)
+    const flRows = await memoLoad('mlb-openings:firstlog', ROWS_TTL_MS, () => pageAll(() => db.from('mlb_first_log').select('game_pk, hit_rank, hr_rank, first_hit, first_hr, graded_at').eq('model_version', FIRST_VERSION).not('graded_at', 'is', null).order('game_pk').order('player_id'))).catch(() => null)
     const firstRecord = flRows ? recordOf(flRows) : null
     return json({ ...aggregateMlbOpenings(games, players, { where, last }), season, through, firstRecord }, 21600)
   } catch (e) {

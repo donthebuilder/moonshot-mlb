@@ -50,7 +50,7 @@ export async function GET(request) {
   let box
   try {
     box = await all(() => db.from('lamp_box').select('player_id, name, pos, game_date, team, opp, home, toi_s, goals, assists, points, sog')
-      .in('player_id', ids).in('season', seasons).eq('game_type', 2).order('game_date', { ascending: false }))
+      .in('player_id', ids).in('season', seasons).eq('game_type', 2).order('game_date', { ascending: false }).order('game_id', { ascending: true }).order('player_id', { ascending: true }))
   } catch (e) {
     return json({ date: board?.date || null, rows: [], why: /lamp_box/.test(String(e?.message)) ? 'LAMP’s box scores are not on file yet' : 'the box scores are delayed' }, 60)
   }

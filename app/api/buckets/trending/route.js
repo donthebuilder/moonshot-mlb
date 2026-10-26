@@ -43,7 +43,7 @@ export const GET = bucketsRoute('trending', async (q, request) => {
   if (!ids.length) return ok({ date: board?.date || null, rows: [], why: odds?.reason || 'no book lines on file yet' }, 30)   // an empty read (lines not posted, or the odds read cold) is retried soon, never held
   const tonight = new Map((board?.rows || []).map((r) => [String(r.playerId), r]))
   const box = await all(() => db.from('buckets_box').select('player_id, name, pos, game_id, game_date, team, opp, home, min, fga, pts, reb, ast, tpm')
-    .in('player_id', ids).in('season', [sn.prev, sn.cur]).eq('season_type', 2).order('game_date', { ascending: false }))
+    .in('player_id', ids).in('season', [sn.prev, sn.cur]).eq('season_type', 2).order('game_date', { ascending: false }).order('game_id', { ascending: true }).order('player_id', { ascending: true }))
   const logs = new Map()
   for (const r of box) { const k = String(r.player_id); if (!logs.has(k)) logs.set(k, []); logs.get(k).push(r) }
   // THE DEFENSE'S HIT RATE (DVP, 2026-10-25): every STARTER at his spot (G / F / C) against tonight's defense, this season and last,
@@ -52,7 +52,7 @@ export const GET = bucketsRoute('trending', async (q, request) => {
   const vsD = new Map()
   if (opps.length) {
     const drows = await all(() => db.from('buckets_box').select('opp, pos, game_date, min, fga, pts, reb, ast, tpm')
-      .in('opp', opps).in('season', [sn.prev, sn.cur]).eq('season_type', 2).eq('starter', true).order('game_date', { ascending: false }))
+      .in('opp', opps).in('season', [sn.prev, sn.cur]).eq('season_type', 2).eq('starter', true).order('game_date', { ascending: false }).order('game_id', { ascending: true }).order('player_id', { ascending: true }))
     for (const r of drows) { if (keep && !keep(r)) continue; const k = `${r.opp}|${r.pos}`; if (!vsD.has(k)) vsD.set(k, []); vsD.get(k).push(r) }
   }
   const rows = []

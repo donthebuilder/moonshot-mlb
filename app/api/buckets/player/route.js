@@ -25,7 +25,7 @@ async function shotsOf(db, id) {
   for (let from = 0; from < 8000; from += 1000) {
     let qy = db.from('buckets_shots').select('x, y, made, three, game_id, game_date, period').eq('player_id', id)
     if (skip.length) qy = qy.not('game_id', 'in', `(${skip.join(',')})`)
-    const r = await qy.order('game_date', { ascending: false }).order('event_id').range(from, from + 999)
+    const r = await qy.order('game_date', { ascending: false }).order('game_id').order('event_id').range(from, from + 999)
     if (r.error) return { data, error: r.error }
     data.push(...r.data)
     if (r.data.length < 1000) break
