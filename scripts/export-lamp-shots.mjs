@@ -29,6 +29,6 @@ async function all(table, cols, order) {
 }
 const shots = await all('lamp_shots', 'game_id,event_id,game_date,season,game_type,period,period_type,time_s,player_id,team,goalie_id,x,y,zone,shot_type,result,strength,situation_code', ['game_id', 'event_id'])
 writeFileSync(join(dir, 'shots.jsonl'), shots.map((r) => JSON.stringify(r)).join('\n'))
-const log = await all('lamp_goal_log', 'game_id,player_id,model_version,game_date,season,game_type,team,opp,home,status,legs,goals', ['game_id', 'player_id'])
+const log = await all('lamp_goal_log', 'game_id,player_id,model_version,game_date,season,game_type,team,opp,home,status,legs,goals', ['game_id', 'player_id', 'model_version'])
 writeFileSync(join(dir, 'goal-log.jsonl'), log.map((r) => JSON.stringify(r)).join('\n'))
 console.log(`lamp_shots ${shots.length} rows, lamp_goal_log ${log.length} rows -> ${dir}`)

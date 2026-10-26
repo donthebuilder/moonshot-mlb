@@ -54,7 +54,7 @@ let pks = [...new Set((sched?.dates || []).flatMap((d) => d.games || []).filter(
 if (db) {
   const on = new Set()
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await db.from('opening_games').select('game_id').eq('sport', 'mlb').eq('season', SEASON).range(from, from + 999)
+    const { data, error } = await db.from('opening_games').select('game_id').eq('sport', 'mlb').eq('season', SEASON).order('game_id').range(from, from + 999)
     if (error) throw new Error(error.message)
     for (const r of data || []) on.add(String(r.game_id))
     if (!data || data.length < 1000) break

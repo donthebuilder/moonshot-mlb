@@ -18,6 +18,15 @@ const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABA
 
 const probe = await db.from('opening_games').select('game_id').limit(1)
 if (probe.error) { console.error(`opening_games isn't there yet (${probe.error.message}) -- run supabase/migrations/202610221300_openings.sql first`); process.exit(1) }
+// ONE READ, NOT ONE CHECK PER GAME (2026-10-26): the games already on file are read once (paged, in a total order), then each
+// game is a lookup in memory. A re-run of a season used to send a HEAD request per game (1,300+) just to say "already there".
+const have = new Set()
+for (let from = 0; ; from += 1000) {
+  const r = await db.from('opening_games').select('game_id').eq('sport', 'nba').order('game_id').range(from, from + 999)
+  if (r.error) { console.error(`could not read opening_games (${r.error.message})`); process.exit(1) }
+  for (const x of r.data) have.add(String(x.game_id))
+  if (r.data.length < 1000) break
+}
 let games = 0, players = 0, failed = 0, skipped = 0
 
 // --fill-pre-att [--limit N] [--dry]: re-read the games already on file that have a first score but no shots-to-first-score
@@ -44,8 +53,7 @@ for (let t = Date.parse(`${FROM}T12:00:00Z`); t <= Date.parse(`${TO}T12:00:00Z`)
   const day = reduceScoreboard(await scoreboardFor(date).catch(() => null)).filter((g) => (g.seasonType === 2 || g.seasonType === 3) && g.state === 'final')
   for (const g of day) {
     if (!nbaTeam(g.home.abbrev) || !nbaTeam(g.away.abbrev)) { skipped++; continue }
-    const have = await db.from('opening_games').select('game_id', { head: true, count: 'exact' }).eq('sport', 'nba').eq('game_id', String(g.id))
-    if ((have.count || 0) > 0) { skipped++; continue }
+    if (have.has(String(g.id))) { skipped++; continue }
     const s = await summaryFor(g.id, true).catch(() => null)
     if (!s) { failed++; console.log(`  ${date} ${g.away.abbrev}@${g.home.abbrev}: summary failed (left for a re-run)`); continue }
     const game = { gameId: g.id, gameDate: date, season: g.seasonYear || null, seasonType: g.seasonType, home: g.home.abbrev, away: g.away.abbrev }

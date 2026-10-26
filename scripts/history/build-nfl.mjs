@@ -47,7 +47,7 @@ const years = only ? [only] : Array.from({ length: LAST - FIRST + 1 }, (_, i) =>
 // Rookie needs every earlier season, so a one-season rebuild reads the history's first appearances from the table.
 if (only) {
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await db.from('hist_nfl').select('player_id, season').lt('season', only).range(from, from + 999)
+    const { data, error } = await db.from('hist_nfl').select('player_id, season').lt('season', only).order('season').order('player_id').order('team').range(from, from + 999)
     if (error) throw new Error(error.message)
     for (const r of data) if (!seen.has(r.player_id) || seen.get(r.player_id) > r.season) seen.set(r.player_id, r.season)
     if (data.length < 1000) break

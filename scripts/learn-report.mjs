@@ -76,7 +76,7 @@ if (sport === 'nhl') {
   const { ALL_VERSIONS, MODEL_VERSION } = await import('../lib/nhl/goalModel.js')
   const sb = db()
   const goalSel = 'game_id,player_id,model_version,game_date,game_type,start_utc,team,opp,home,name,pos,legs,pct,context,score,rank_in_game,status,locked_at,dressed,goals,hit,graded_at'
-  const goal = await paged(() => sb.from('lamp_goal_log').select(goalSel).in('model_version', ALL_VERSIONS).not('graded_at', 'is', null).eq('game_type', 2).order('game_date').order('game_id').order('player_id'))
+  const goal = await paged(() => sb.from('lamp_goal_log').select(goalSel).in('model_version', ALL_VERSIONS).not('graded_at', 'is', null).eq('game_type', 2).order('game_date').order('game_id').order('player_id').order('model_version'))
   byMarket.GOAL = upTo(nhlRows(goal, 'GOAL'))
   // cross-check against the ladder every surface prints (same rows, same rule): the counts must match
   const { toRecord } = await import('../lib/record/nhl.js')
@@ -92,7 +92,7 @@ if (sport === 'nhl') {
   if (bandsOut) bandsOut.print = { scope: bandsScope(bandsOut), note: bandsNote(bandsOut) }
   S.liveVersion = MODEL_VERSION
   for (const m of markets.filter((x) => x.key !== 'GOAL')) {
-    const rows = await paged(() => sb.from('lamp_prop_log').select(goalSel.replace('goals,', 'value,')).eq('market', m.key).not('graded_at', 'is', null).eq('game_type', 2).order('game_date').order('game_id').order('player_id'))
+    const rows = await paged(() => sb.from('lamp_prop_log').select(goalSel.replace('goals,', 'value,')).eq('market', m.key).not('graded_at', 'is', null).eq('game_type', 2).order('game_date').order('game_id').order('player_id').order('model_version'))
     byMarket[m.key] = upTo(nhlRows(rows, m.key))
   }
 }

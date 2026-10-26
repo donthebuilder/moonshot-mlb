@@ -5,6 +5,7 @@
 import { notFound } from 'next/navigation'
 import { bucketsAdminAccess } from '../../../lib/nba/gate'
 import { adminClient } from '../../../lib/supabase/admin'
+import { readPaged } from '../../../lib/record/paged'
 import { buildNbaNight } from '../../../lib/nba/board'
 import { NBA_MARKETS, LIVE_VERSIONS, whyNba } from '../../../lib/nba/model'
 import { easternToday, shiftDay } from '../../../lib/data'
@@ -42,7 +43,11 @@ export default async function BucketsPage({ searchParams }) {
 
   // what's locked and graded so far (empty until QUEUE SQL part 3 runs)
   const db = adminClient()
-  const log = db ? await db.from('buckets_log').select('game_date, market, status, hit, void_reason, season_type').in('model_version', LIVE_VERSIONS).not('graded_at', 'is', null).limit(20000) : { data: null, error: { message: 'no database' } }
+  // Only what the record panel counts -- a CALLED row with a result -- and paged: `.limit(20000)` is cut by the API at 1,000 rows, so
+  // the panel used to count the first thousand rows of every status and call that the record (known-issues #99).
+  const log = db ? await readPaged(() => db.from('buckets_log').select('game_date, market, status, hit, void_reason, season_type').in('model_version', LIVE_VERSIONS)
+    .eq('status', 'called').not('hit', 'is', null).not('graded_at', 'is', null)
+    .order('game_id').order('player_id').order('market').order('model_version')) : { data: null, error: { message: 'no database' } }
   return (
     <BucketsAdmin date={date} prev={shiftDay(date, -1)} next={shiftDay(date, 1)} games={night.games || []} markets={markets}
       defs={Object.fromEntries(Object.entries(NBA_MARKETS).map(([k, M]) => [k, { label: M.label, legs: M.legs, highVariance: Boolean(M.highVariance), startersOnly: Boolean(M.startersOnly) }]))}

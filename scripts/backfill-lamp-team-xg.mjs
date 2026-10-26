@@ -21,7 +21,7 @@ if (probe.error) { console.error(`lamp_team_game_xg is not there: ${probe.error.
 // game ids first (a narrow read), then each 40 games' shots, so memory stays small
 const ids = new Set()
 for (let from = 0; ; from += 1000) {
-  let q = db.from('lamp_shots').select('game_id').order('game_id').range(from, from + 999)
+  let q = db.from('lamp_shots').select('game_id').order('game_id').order('event_id').range(from, from + 999)
   if (only) q = q.eq('season', only)
   const { data, error } = await q
   if (error) throw new Error(error.message)

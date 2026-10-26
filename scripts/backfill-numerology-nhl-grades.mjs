@@ -35,7 +35,7 @@ console.log(`${WRITE ? 'WRITE' : 'DRY RUN'} · NHL numerology grade backfill${on
 const rows = []
 for (let from = 0; ; from += 1000) {
   let q = db.from('numerology_log').select('day, player_id, team').eq('sport', 'nhl').eq('lane', ELIGIBLE).is('graded_at', null)
-    .order('day', { ascending: true }).order('player_id', { ascending: true }).range(from, from + 999)
+    .order('day', { ascending: true }).order('player_id', { ascending: true }).order('matched_to', { ascending: true }).range(from, from + 999)
   if (only) q = q.eq('day', only)
   const { data, error } = await q
   if (error) { console.error(`read numerology_log: ${error.message}`); process.exit(1) }

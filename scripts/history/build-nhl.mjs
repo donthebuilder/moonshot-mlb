@@ -49,7 +49,7 @@ const only = process.argv[2] ? [Number(process.argv[2])] : null
 const have = new Set()
 if (!only) {
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await db.from('hist_nhl').select('season').range(from, from + 999)
+    const { data, error } = await db.from('hist_nhl').select('season').order('season').order('player_id').order('team').range(from, from + 999)
     if (error) throw new Error(error.message)
     for (const r of data) have.add(r.season)
     if (data.length < 1000) break

@@ -25,9 +25,10 @@ for (const sport of ODDS_SPORTS) {
   const [from, to] = body.window
   const ids = Object.keys(body.by_player_id)
   const snap = await readPaged(() => db.from('odds_snap').select('our_player_id, taken_at, book, odds, available, game_date, event_id').eq('sport', sport).gte('game_date', from).lte('game_date', to).not('our_player_id', 'is', null)
-    // a unique order, so paged reads neither skip nor repeat a row
-    .order('taken_at', { ascending: true }).order('event_id', { ascending: true }).order('our_player_id', { ascending: true }).order('book', { ascending: true }))
-  const lines = await readPaged(() => db.from('odds_lines').select('our_player_id, market').eq('sport', sport).gte('game_date', from).lte('game_date', to).not('our_player_id', 'is', null))
+    // a unique order, so paged reads neither skip nor repeat a row (the key is event_id, odd_id, book, snap)
+    .order('taken_at', { ascending: true }).order('event_id', { ascending: true }).order('odd_id', { ascending: true }).order('book', { ascending: true }).order('snap', { ascending: true }))
+  const lines = await readPaged(() => db.from('odds_lines').select('our_player_id, market').eq('sport', sport).gte('game_date', from).lte('game_date', to).not('our_player_id', 'is', null)
+    .order('event_id', { ascending: true }).order('odd_id', { ascending: true }).order('snap', { ascending: true }))
   // the builder's rule (lib/odds/priceAtLock pricesFromRows): a player's NEWEST snapshot, priced
   // by at least one book still offering it, in one game that day (two games = ambiguous, skipped)
   const live = (r) => Number.isInteger(r.odds) && r.available

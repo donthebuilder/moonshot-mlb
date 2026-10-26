@@ -16,8 +16,8 @@ const probe = await db.from('buckets_quarters').select('game_id').limit(1)
 if (probe.error) { console.error(`buckets_quarters isn't there yet (${probe.error.message}) -- run supabase/migrations/202610230100_buckets_quarters.sql first`); process.exit(1) }
 
 const paged = async (q) => { const out = []; for (let from = 0; ; from += 1000) { const r = await q().range(from, from + 999); if (r.error) throw new Error(r.error.message); out.push(...r.data); if (r.data.length < 1000) return out } }
-let list = await paged(() => { let q = db.from('opening_games').select('game_id, game_date, season, season_type').eq('sport', 'nba').in('season_type', [2, 3]).order('game_date'); if (SEASON) q = q.eq('season', Number(SEASON)); return q })
-const have = new Set((await paged(() => db.from('buckets_quarters').select('game_id').eq('period', 1))).map((r) => r.game_id))
+let list = await paged(() => { let q = db.from('opening_games').select('game_id, game_date, season, season_type').eq('sport', 'nba').in('season_type', [2, 3]).order('game_date').order('game_id'); if (SEASON) q = q.eq('season', Number(SEASON)); return q })
+const have = new Set((await paged(() => db.from('buckets_quarters').select('game_id').eq('period', 1).order('game_id').order('player_id'))).map((r) => r.game_id))
 list = list.filter((g) => !have.has(String(g.game_id)))
 console.log(`${list.length} games to fill${SEASON ? ` (season ${SEASON})` : ''}; ${have.size} already on file`)
 

@@ -64,7 +64,7 @@ const have = new Set()
 for (let from = 0; ; from += 1000) {
   let q = db.from('lamp_shots').select('game_id')
   q = GRADED ? q.in('game_id', [...ids]) : q.eq('season', SEASON)
-  const { data, error } = await q.range(from, from + 999)
+  const { data, error } = await q.order('game_id').order('event_id').range(from, from + 999)
   if (error) throw new Error(error.message)
   for (const r of data) have.add(Number(r.game_id))
   if (data.length < 1000) break

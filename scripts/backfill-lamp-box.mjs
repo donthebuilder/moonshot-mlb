@@ -47,7 +47,7 @@ for (const [abbrev] of NHL_TEAMS) {
 }
 const have = new Set()
 for (let from = 0; ; from += 1000) {
-  const { data, error } = await db.from('lamp_box').select('game_id').eq('season', SEASON).range(from, from + 999)
+  const { data, error } = await db.from('lamp_box').select('game_id').eq('season', SEASON).order('game_id').order('player_id').range(from, from + 999)
   if (error) throw new Error(error.message)
   for (const r of data) have.add(Number(r.game_id))
   if (data.length < 1000) break

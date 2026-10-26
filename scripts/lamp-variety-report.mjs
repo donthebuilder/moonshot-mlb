@@ -70,7 +70,7 @@ async function main() {
   const dates = [...new Set((await typeOk(db.from('lamp_goal_log').select('game_date').eq('status', 'called').order('game_date', { ascending: false }).limit(1500)).then((r) => { if (r.error) throw new Error(r.error.message); return r.data })).map((r) => r.game_date))].slice(0, nights)
   if (!dates.length) { console.log('lamp-variety-report: no called rows in lamp_goal_log yet. Exit 0.'); return }
   const since = dates[dates.length - 1]
-  const live = await paged(() => typeOk(db.from('lamp_goal_log').select('game_date, game_id, team, player_id, name, hit').eq('status', 'called').gte('game_date', since).order('game_id', { ascending: true }).order('player_id', { ascending: true })))
+  const live = await paged(() => typeOk(db.from('lamp_goal_log').select('game_date, game_id, team, player_id, name, hit').eq('status', 'called').gte('game_date', since).order('game_id', { ascending: true }).order('player_id', { ascending: true }).order('model_version', { ascending: true })))   // total order: the key ends in model_version
   const L = liveVariety(live)
   const rep = { dates: dates.length, since, live: { calls: L.calls, repeatRate: L.repeatRate, top10: L.top10, mostRepeatedClubs: L.clubs.slice(0, 8) } }
 
