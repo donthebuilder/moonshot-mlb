@@ -48,7 +48,15 @@ const LOGO_OF = {
   nba: (code) => nbaLogo(code, true),
 }
 
-export default function TeamMark({ sport = 'mlb', abbr, size = 'sm', dim = false, style, variant = 'chip', px = 18 }) {
+// A HALO FOR THE DIM MARKS (2026-10-26, Donovan: "NFL logos that vanish on dark panels"): ESPN's dark-mode NFL logos are mostly
+// fine, but the navy and deep-blue ones (IND, CAR, SEA, BAL, LAC) sink into the near-black page. A thin light edge lifts every
+// one of them without boxing it; per product, a lookup.
+const HALO_OF = {
+  nfl: 'drop-shadow(0 0 1px rgba(255,255,255,.55)) drop-shadow(0 0 3px rgba(255,255,255,.18))',
+}
+
+// `eager`: a logo that is the point of the view (a face wall's clubs, its centre mark) loads with the page, not after it scrolls in
+export default function TeamMark({ sport = 'mlb', abbr, size = 'sm', dim = false, style, variant = 'chip', px = 18, eager = false }) {
   const key = sportKey(sport)
   const code = String(abbr || '').trim().toUpperCase()
   const [broken, setBroken] = useState(false)
@@ -56,9 +64,9 @@ export default function TeamMark({ sport = 'mlb', abbr, size = 'sm', dim = false
   const src = variant === 'logo' && !broken ? LOGO_OF[key]?.(code, px) : null
   if (src) {
     return (
-      <img src={src} alt={code} title={code} width={px} height={px} loading="lazy" decoding="async"
+      <img src={src} alt={code} title={code} width={px} height={px} loading={eager ? 'eager' : 'lazy'} decoding="async"
         onError={() => setBroken(true)}
-        style={{ width: px, height: px, objectFit: 'contain', verticalAlign: 'middle', flexShrink: 0, opacity: dim ? 0.55 : 1, ...style }} />
+        style={{ width: px, height: px, objectFit: 'contain', verticalAlign: 'middle', flexShrink: 0, opacity: dim ? 0.55 : 1, filter: HALO_OF[key], ...style }} />
     )
   }
   // a broken NHL logo: the code in a quiet box, never lamp/ui's logo-plus-code (a second broken image)
