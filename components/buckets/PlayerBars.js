@@ -8,7 +8,11 @@ import { C, NUM_FONT } from '../../lib/nba/theme'
 import { propLanesOf } from '../../lib/propLanes'
 import { SEGMENTS, segmentLine } from '../../lib/nba/quarters'
 import { FLAT_CHIP_CLASS, flatChip } from '../../lib/chips'
-import { useBucketsDefPos } from '../../lib/nba/useBuckets'
+import { useBucketsDefPos, useBucketsWithout } from '../../lib/nba/useBuckets'
+import { rankMates } from '../../lib/nba/without'
+import { useInjuryLayer } from '../injuries/InjuryLayer'
+import { findEntry } from '../../lib/injuries/lookup'
+import { BLOCKS } from '../../lib/injuries/statuses'
 import { posView, posKeyFor } from '../../lib/nba/defPos'
 import Tap from '../Tap'
 import { Kicker, Pills, fmtTip, gameDay } from './ui'
@@ -41,8 +45,11 @@ const segMarkets = (seg) => {
 const SOFT = 10
 const md = (iso) => { try { return new Date(`${gameDay(iso)}T12:00:00Z`).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', timeZone: 'UTC' }) } catch { return '' } }
 const pct = (ok, n) => (n ? Math.round((100 * ok) / n) : null)
+// WITHOUT on the bars (2026-10-24, Donovan: "cleared 15.5 in X of 39 without Curry"): one chip group, the teammates who
+// missed some of these games -- whoever is out tonight first, then most points a game -- at most this many
+const WO_CHIPS = 4
 
-export default function PlayerBars({ log = [], logSeason = '', pos = '', pos5 = null, blow = null, blowLog = [], seasonYears = null, nextGame = null, quarters = null, onOpenTeam = null }) {
+export default function PlayerBars({ log = [], logSeason = '', pos = '', pos5 = null, blow = null, blowLog = [], seasonYears = null, nextGame = null, quarters = null, onOpenTeam = null, playerId = null }) {
   const [k, setK] = useState('pts')
   const [lines, setLines] = useState({})
   const [win, setWin] = useState('L10')
@@ -50,6 +57,8 @@ export default function PlayerBars({ log = [], logSeason = '', pos = '', pos5 = 
   const [pin, setPin] = useState(null)   // a tapped bar: its game's line under the chart
   const [seg, setSeg] = useState('full')   // the whole game, or one quarter / half (QUARTER SPLITS)
   const { data: dp } = useBucketsDefPos(null)
+  const { data: wo } = useBucketsWithout(playerId)
+  const layer = useInjuryLayer()
   const all = useMemo(() => log.filter((g) => g.seasonType === 2 || g.seasonType === 3).slice().reverse(), [log])  // oldest -> newest
   // his period rows by game ({ gameId: { period: row } }); the chips draw only when some of his games have them
   const qByGame = useMemo(() => Object.fromEntries(Object.entries(quarters || {}).map(([id, rs]) => [id, Object.fromEntries(rs.map(([pr, pts, reb, ast, tpm, tpa]) => [pr, { pts, reb, ast, tpm, tpa }]))])), [quarters])
@@ -70,7 +79,12 @@ export default function PlayerBars({ log = [], logSeason = '', pos = '', pos5 = 
   // THE FILTERS first (lib/barFilters: home/away, won/lost, B2B/rested, close/blowout, minutes, soft/tough D, playoffs),
   // then the window takes the newest N of what is left -- "L10" with Away picked = his last 10 road games
   const ranked = games.some((g) => rankOf(m, g.opp) != null)
-  const chips = barChips({ soft: SOFT, hasRank: ranked, hasPlayoff: games.some((g) => g.seasonType === 3) })
+  const mates = useMemo(() => rankMates(wo?.mates, new Set(games.map((g) => String(g.id))), (x) => {
+    const e = layer?.index ? findEntry(layer.index, { player_id: x.id }) : null   // by id: a name match can hit a teammate's entry
+    return e && BLOCKS.has(e.status)
+  }).slice(0, WO_CHIPS), [wo, games, layer])
+  const woChips = mates.map((x) => { const out = new Set(x.out); return { group: 'wo', key: x.id, text: `W/O ${x.label}${x.tonight ? ' · OUT' : ''}`, title: `Only games ${x.name} missed`, test: (t) => out.has(String(t.g.id)) } })
+  const chips = barChips({ soft: SOFT, hasRank: ranked, hasPlayoff: games.some((g) => g.seasonType === 3), extra: woChips })
   const kept = (mk) => applyChips(tagGames(games, { day: (g) => gameDay(g.date), home: (g) => (g.atVs === '@' ? false : g.atVs ? true : null),
     win: (g) => (g.result === 'W' ? true : g.result === 'L' ? false : null), min: (g) => g.min, margin: (g) => marginOf(g.score),
     rank: (g) => rankOf(mk, g.opp), playoff: (g) => g.seasonType === 3 }), chips, picked).map((t) => t.g)
@@ -143,7 +157,7 @@ export default function PlayerBars({ log = [], logSeason = '', pos = '', pos5 = 
       </div>
       <p style={{ margin: '8px 0 0', fontSize: 11, color: C.text3, lineHeight: 1.4 }}>
         Lit = cleared {line}+{segOn ? ` in ${SEGMENTS.find((x) => x.k === seg).label}` : ''} · under each bar: his minutes{segOn ? ' (whole game)' : ''}{m.chance ? ' · hollow = 3PA' : ''}{ranked ? ` · R = how much that club gives up to ${view.words[p]?.toLowerCase()}, of 30` : ''}
-        <br />{chipKey({ soft: SOFT, hasRank: ranked })}
+        <br />{chipKey({ soft: SOFT, hasRank: ranked })}{woChips.length ? ' · W/O = only games that teammate missed' : ''}
       </p>
       {nextGame ? (
         <p style={{ margin: '6px 0 0', fontSize: 12, color: C.text2 }}>NEXT: {nextGame.home ? 'vs' : '@'} <Tap onClick={onOpenTeam ? () => onOpenTeam(nextGame.opp) : null}><b style={{ color: C.text }}>{nextGame.opp}</b></Tap>, {fmtTip(nextGame.start)}</p>
