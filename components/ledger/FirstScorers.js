@@ -4,6 +4,7 @@ import LedgerSection from './LedgerSection'
 import Tap from '../Tap'
 import { MatchLogos } from '../TeamMark'
 import CallStatusBadge from '../CallStatusBadge'
+import { FaceWallByGame } from '../openings/OpeningViz'
 
 // 🥇 FIRST SCORERS (ledger plan step 2): who scored first in each recent game,
 // when, and whether the board had him -- plus the season line. Tracking only:
@@ -11,13 +12,16 @@ import CallStatusBadge from '../CallStatusBadge'
 // archive, which this is the start of). /api/ledger/first.
 const WORD = {
   mlb: { event: 'homer', first: 'first homer', title: 'FIRST HOMER OF EACH GAME', note: 'The first home run, not the first run.' },
-  nfl: { event: 'TD', first: 'first touchdown', title: 'FIRST TOUCHDOWN OF EACH GAME', note: null },
-  nhl: { event: 'goal', first: 'first goal', title: 'FIRST GOAL OF EACH GAME', note: null },
+  nfl: { event: 'TD', first: 'first touchdown', title: 'FIRST TOUCHDOWN OF EACH GAME', note: null, wall: 'First TD · by game', scored: 'Scored the first TD', other: 'They scored it' },
+  nhl: { event: 'goal', first: 'first goal', title: 'FIRST GOAL OF EACH GAME', note: null, wall: 'First goal · by game', scored: 'Scored the first goal', other: 'They scored it' },
   nba: { event: 'basket', first: 'first basket', title: 'FIRST BASKET OF EACH GAME', note: 'The first made field goal — the shot the first-basket board is graded on.' },
 }
 // lib/callStatus.js, the one set of words (R2)
 
-export default function FirstScorers({ sport, C, numFont, accent, day = null, emptyWhy, onOpenPlayer, onOpenGame = null }) {
+// `games` (LAMP / TUDDY, 10-26): tonight's / this week's games [{ away, home }] -- the section then also draws the face wall,
+// each club's first scorers this season (components/openings/OpeningViz.js; BUCKETS' and MOONSHOT's sit on their Openings).
+// `floor`: the product's own surface under the wall (LAMP's ice).
+export default function FirstScorers({ sport, C, numFont, accent, day = null, emptyWhy, onOpenPlayer, onOpenGame = null, games = null, floor = null }) {
   const [data, setData] = useState(null)
   const [err, setErr] = useState(false)
   // FRESH WHEN YOU COME BACK (10-18: the list still showed Thursday's game hours into Sunday, though nfl_td_feed had the
@@ -31,13 +35,17 @@ export default function FirstScorers({ sport, C, numFont, accent, day = null, em
   }, [])
   useEffect(() => {
     let alive = true
-    fetch(`/api/ledger/first?sport=${sport}${day ? `&day=${day}` : ''}`).then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+    fetch(`/api/ledger/first?sport=${sport}${day ? `&day=${day}` : ''}${games ? '&walls=1' : ''}`).then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((j) => { if (alive) { setData(j); setErr(false) } }).catch(() => { if (alive && !data) setErr(true) })
     return () => { alive = false }
   }, [sport, day, tick]) // eslint-disable-line react-hooks/exhaustive-deps
   const w = WORD[sport]
   const s = data?.season
+  const walls = data?.walls
+  const wallGames = (games || []).filter((g) => g?.away && g?.home).map((g) => ({ key: `${g.away}-${g.home}`, away: g.away, home: g.home, label: `${g.away} @ ${g.home}` }))
+  const names = walls ? new Map(Object.entries(walls.names || {})) : null
   return (
+    <>
     <LedgerSection C={C} numFont={numFont} accent={accent} title={`🥇 ${w.title}`}
       blurb={`who scored first, when, and whether the board had him${w.note ? ` · ${w.note}` : ''}`}
       rows={(data?.games || []).map((g, i) => ({ ...g, key: `${g.day}|${g.gameId}|${i}` }))}
@@ -66,5 +74,10 @@ export default function FirstScorers({ sport, C, numFont, accent, day = null, em
         </div>
       ) : null}
     />
+    {walls && wallGames.length ? (
+      <FaceWallByGame title={w.wall} games={wallGames} logOf={(t) => walls.teams?.[t]} sport={sport} C={C} NUM_FONT={numFont} accent={accent}
+        nameOf={names} urlOf={(id) => walls.faces?.[id] || null} floor={floor} words={{ ring: null, first: w.scored, other: w.other }} />
+    ) : null}
+    </>
   )
 }

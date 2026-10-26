@@ -10,6 +10,7 @@ import { useLiveFetch } from '../../lib/useLiveFetch'
 import { useHashLens } from '../../lib/useHashLens'
 import { teamKey } from '../../lib/mlbTeams'
 import { slateFirstCalls } from '../../lib/mlb/firstModel'
+import { FaceWallByGame } from '../openings/OpeningViz'
 
 // ⚾ OPENINGS (2026-10-22, Donovan: "for [baseball] it just be whatever that opening is, first inning, first hit"; the core
 // lanes: "a real first everything model"). MOONSHOT's twin of BUCKETS' Openings (components/buckets/tabs/Openings.js): the
@@ -97,6 +98,19 @@ export default function Openings({ players = [], games = [], onPlayerClick }) {
     })
   }), [games, teamsBy, byId, homeOf, calls])
 
+  // THE FACE WALL (10-26, Donovan: the BUCKETS first-basket wall for MOONSHOT's first inning): each of tonight's games, its two
+  // clubs' games this season -- his face = the club scored the game's first run, and he scored it; ring = the club got the
+  // game's first hit (BUCKETS' tip). components/openings/OpeningViz.js
+  const wallGames = useMemo(() => games.map((g) => {
+    const clubs0 = [...new Set((g.players || []).map((p) => code(p.team)).filter(Boolean))]
+    const home = homeOf?.get(String(g.game_pk))
+    if (clubs0.length !== 2) return null
+    const away = home && clubs0.includes(home) ? clubs0.find((t) => t !== home) : clubs0[0]
+    const hm = home && clubs0.includes(home) ? home : clubs0[1]
+    return { key: String(g.game_pk), away, home: hm, label: `${away} ${home ? '@' : 'v'} ${hm}` }
+  }).filter(Boolean), [games, homeOf])
+  const nameOf = useMemo(() => new Map((data?.players || []).map((p) => [String(p.playerId), p.name])), [data])
+
   const tonightCols = [
     { key: 'game', label: 'Game', group: 'Game', w: 84, heat: false, sticky: true, bold: true },
     { key: 'team', label: 'Tm', group: 'Game', w: 44, heat: false, mono: true, teamMark: 'mlb' },
@@ -177,6 +191,11 @@ export default function Openings({ players = [], games = [], onPlayerClick }) {
           <DenseTable rows={tonight} columns={tonightCols} heatMode="primary" maxRows={12} maxHeight={9999} initialSort={null}
             caption={`${calls.size ? `The call ranks each game's 18 starters from season rates and the batting order${projected ? ' (projected lineups until they post)' : ''}. ${rec?.hit?.of ? `Locked before first pitch and graded: #1 first hit ${rec.hit.won} of ${rec.hit.of}, #1 first HR ${rec.hr.won} of ${rec.hr.of}. ` : ''}Replayed on 2,171 games this season, the #1 first-HR call hit it 9.3% of the time (a random starter 4.9%); the #1 first-hit call got it 20.1%, about the same as always taking the road leadoff man. ` : ''}Club rates are this season's; the first homer counts only games that had one.`} />
         </section>
+      )}
+
+      {data?.games > 0 && wallGames.length > 0 && (
+        <FaceWallByGame title="First run · by game" games={wallGames} logOf={(t) => teamsBy.get(t)?.log} sport="mlb" C={C} NUM_FONT={NUM_FONT} accent={C.orange} nameOf={nameOf}
+          words={{ ring: 'first hit', first: 'Scored the first run', both: 'First run + first hit', wasted: 'First hit, not the run', none: 'Neither' }} />
       )}
 
       {data?.games > 0 && (
