@@ -122,7 +122,7 @@ export default function Openings({ date, onOpenPlayer, onOpenTeam, onOpenGame })
   const matchGames = useMemo(() => (sb?.games || []).filter((g) => g.away?.abbrev && g.home?.abbrev).map((g) => ({ key: String(g.id), away: g.away.abbrev, home: g.home.abbrev, label: `${g.away.abbrev} @ ${g.home.abbrev}` })), [sb])
   const matchStats = [
     { key: 'tipPct', label: 'Wins the tip', fmt: pc, higher: true },
-    { key: 'jumper', label: 'Usual jumper', fmt: (v, T) => (T.jumper ? `${surname(T.jumper)} ${T.jumperW}-${T.jumperJ - T.jumperW}` : '—'), higher: null },
+    { key: 'jumper', label: 'Usual jumper', fmt: (v, T) => (T.jumper ? `${surname(T.jumper)} ${T.jumperW}-${T.jumperJ - T.jumperW}` : '—'), higher: true, barOf: (T) => (T.jumperJ ? (100 * T.jumperW) / T.jumperJ : null) },   // lit / pulled by his tip win %
     { key: 'firstPct', label: 'Scores first', fmt: pc, higher: true },
     { key: 'firstWhenTipPct', label: 'First, after the tip', fmt: pc, higher: true },
     { key: 'w1For', label: 'First 3 min PTS', fmt: f1, higher: true },
@@ -172,7 +172,7 @@ export default function Openings({ date, onOpenPlayer, onOpenTeam, onOpenGame })
       )}
 
       {data?.games > 0 && matchGames.length > 0 && (
-        <FirstBasketMatchup games={matchGames} teams={teamsBy} players={data?.players || []} stats={matchStats} targetCols={targetCols} targetSort={targetSort}
+        <FirstBasketMatchup sport="nba" games={matchGames} teams={teamsBy} players={data?.players || []} stats={matchStats} targetCols={targetCols} targetSort={targetSort}
           minGp={minGp} Table={BucketsTable} C={C} NUM_FONT={NUM_FONT} accent={C.purple} words={{ first: 'First basket' }}
           onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })} />
       )}
