@@ -110,10 +110,9 @@ ok(N.dayWord('2026-10-19') === 'MON' && N.dayWord('2026-10-18') === 'SUN' && N.d
 { const g = N.gradePoll({ sport: 'nfl', day: '2026-10-19', format: 'pick', payload: { players: [{ id: 'a', name: 'Test A' }, { id: 'b', name: 'Test B' }] } }, { options: [{ label: 'Test A', votes: 5 }, { label: 'Test B', votes: 1 }] }, [{ id: 'a', game: 'g', order: 1, seen: 1e12 }])
   ok(g.gameDay === '2026-10-19', 'a graded poll carries its game day') }
 
-ok(/all\.length > MAX_ROWS \? MAX_ROWS - 1 : MAX_ROWS/.test(fs.readFileSync(new URL('../lib/cards/networkCard.js', import.meta.url), 'utf8')), 'the card shows five rows when a "+N more" line follows (six + more cut the footer off)')
-
 // 9. the SQL and the wiring
 const fs = await import('node:fs')
+ok(/all\.length > MAX_ROWS \? MAX_ROWS - 1 : MAX_ROWS/.test(fs.readFileSync(new URL('../lib/cards/networkCard.js', import.meta.url), 'utf8')), 'the card shows five rows when a "+N more" line follows (six + more cut the footer off)')
 // 8b. a suffix is never the name (the card said "III or STEVENSON", 10-25)
 ok(N.pollLine({ sport: 'nfl', format: 'pick', names: ['Test Back Smith III', 'Test Runner Jr.'], network: 'Test Runner Jr.', networkRight: false, board: 'Test Back Smith III', boardRight: true }).includes('Smith or Runner, first to score: you said Runner'), 'pollLine drops III / Jr. and shows the surname')
 ok(/lastName\(n\)\.toUpperCase\(\)/.test(fs.readFileSync(new URL('../lib/cards/networkCard.js', import.meta.url), 'utf8')), 'the card uses the same suffix-aware surname')
