@@ -158,13 +158,15 @@ eq('your own price sets the leg and marks it yours', withPrice(x, 'K1', 'nba', '
 eq('a bad price (blank, junk, under 100) changes nothing', [withPrice(x, 'K1', 'nba', ''), withPrice(x, 'K1', 'nba', 'abc'), withPrice(x, 'K1', 'nba', '50')].every((r) => r === x), true)
 
 // ADD A LEG (2026-10-25, TEST data): a typed name -> only players with a real price on the bet's own bar
-const IDX = { nba: [{ id: 'N1', name: 'TEST Nine One', team: 'AAA' }, { id: 'N2', name: 'TEST Nine Two', team: 'BBB' }], nhl: [{ id: 'H1', name: 'TEST Hockey One', team: 'CCC' }] }
-const ODDS = { nba: TEST_NBA, nhl: { by_player_id: { H1: { player_anytime_goal: { line: 0.5, over: 400 } } } } }
+const IDX = { nba: [{ id: 'N1', name: 'TEST Nine One', team: 'AAA' }, { id: 'N2', name: 'TEST Nine Two', team: 'BBB' }, { id: 'N3', name: 'TEST Nine Three', team: 'AAA' }], nhl: [{ id: 'H1', name: 'TEST Hockey One', team: 'CCC' }] }
+const TEST_NBA2 = { by_player_id: { ...TEST_NBA.by_player_id, N3: { player_points: { line: 9.5, over: -130 }, player_rebounds: { line: 4.5, over: 110 } } } }
+const ODDS = { nba: TEST_NBA2, nhl: { by_player_id: { H1: { player_anytime_goal: { line: 0.5, over: 400 } } } } }
 eq('add a leg: under 2 letters finds nothing', findLegs('t', IDX, ODDS), [])
 const f1 = findLegs('test nine', IDX, ODDS)
-eq('add a leg: only the player the books price (N2 has no quote)', f1.map((h) => [h.sport, h.id, h.legs.map((l) => l.key)]), [['nba', 'N1', ['N1|pts', 'N1|reb']]])
+eq('add a leg: only players the books price (N2 has no quote); an off-bar book line is its own leg with the line in the label', f1.map((h) => [h.id, h.legs.map((l) => [l.key, l.market])]), [['N1', [['N1|pts', 'PTS 25+'], ['N1|reb', 'REB 10+']]], ['N3', [['N3|pts@9.5', 'PTS o9.5'], ['N3|reb@4.5', 'REB o4.5']]]])
+eq('add a leg: an off-bar leg is a different bet from the board\'s (both can ride one slip) and finds the same hit-rate lane', [withLegs([], [...f1[0].legs, ...f1[1].legs], NOW).length, hitRateOf({ key: 'N3|pts@9.5', sport: 'nba', id: 'N3', line: 'o9.5' }, hitIndex([{ sport: 'nba', id: 'N3', lane: 'pts', line: 9.5, side: 'over', own: { L10: { ok: 6, n: 10, pct: 60 } } }])).own.pct], [4, 60])
 eq('add a leg: a leg is the existing builder\'s (real price, by hand, no game)', [f1[0].legs[0].price, f1[0].legs[0].source, f1[0].legs[0].sport, f1[0].legs[0].game], [-110, 'player', 'nba', null])
-eq('add a leg: it searches across products', findLegs('test', IDX, ODDS).map((h) => h.sport).sort(), ['nba', 'nhl'])
+eq('add a leg: it searches across products', findLegs('test', IDX, ODDS).map((h) => h.sport).sort(), ['nba', 'nba', 'nhl'])
 eq('add a leg: a product with no prices loaded is skipped, never guessed', findLegs('test hockey', IDX, { nba: TEST_NBA }), [])
 eq('add a leg: no odds, no legs', playerLegs('nba', IDX.nba[0], null), [])
 eq('add a leg: the leg goes on the shared slip once', withLegs([], [f1[0].legs[0], f1[0].legs[0]], NOW).length, 1)

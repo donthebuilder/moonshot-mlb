@@ -148,6 +148,8 @@ export default function Slip({ sport = 'mlb', C, NUM_FONT, accent, onOpenProps =
         .slipChip[data-pos=right-up],.slipChip[data-pos=left-up]{margin-bottom:52px}
         .slipChip[data-pos=tab]{right:0;border-radius:22px 0 0 22px!important;transform:translateX(calc(100% - 24px))}
         .slipChip[data-hide]{visibility:hidden;pointer-events:none}
+        /* the sheet's inputs (stake, Add a leg, a leg's own price) stay 16px: components/MobileCSS.js makes every phone input 12px !important, and iOS zooms the page on a focused input under 16px */
+        .slipSheet input{font-size:16px!important}
         .slipChip{transition:translate .22s ease,opacity .22s ease}
         body:has(.mobileTabBar.tucked:not(:focus-within)) .slipChip{translate:0 calc(100% + 140px);opacity:0;pointer-events:none}
         @media(prefers-reduced-motion:reduce){.slipChip{transition:none}}
