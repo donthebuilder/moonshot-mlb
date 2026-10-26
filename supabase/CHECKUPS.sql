@@ -78,9 +78,16 @@ select relname as table_name,
 -- GOOD: after the NFL fix, these numbers stop growing between looks.
 -- BAD: a number that keeps climbing on a small table.
 -- 10-26: nfl_players 2.29M updates on 760 rows, nfl_player_week_stats 2.28M on
---        4,530 (the two that still need the fix). dash_lineup_state 1.5M on
---        198 and dash_user_state 139K on 39 are OLD totals: the 2026-10-03
---        change already stops them, and the tables are tiny (80 kB / 1.3 MB).
+--        4,530. dash_lineup_state 1.5M on 198 and dash_user_state 139K on 39
+--        are OLD totals: the 2026-10-03 change already stops them, and the
+--        tables are tiny (80 kB / 1.3 MB).
+-- 10-26 10:17 AM Phoenix, the NFL fix (202610261030) went in. These totals are
+--        lifetime and never go down, so the sign it works is that they STOP
+--        CLIMBING (a game day still adds real changes, but not a rewrite of
+--        every row every run). Starting point for the next look:
+--          nfl_players            2,294,249     nfl_player_week_stats   2,278,114
+--          nfl_week_games            63,681
+--        (about 150 of each are my own test runs, which were undone.)
 -- ----------------------------------------------------------------------------
 select relname as table_name,
        n_live_tup as rows_stored,
@@ -255,17 +262,23 @@ order by 1,2;
 
 
 -- ----------------------------------------------------------------------------
--- H3  The two fixes I have NOT written yet. They are not copy-paste ready
---     because I have to read the live function code first.
+-- H3  DONE 2026-10-26 (supabase/migrations/202610261030_nfl_sync_only_if_changed_and_waiver_unique.sql)
 -- ----------------------------------------------------------------------------
--- (a) NFL sync stops rewriting rows that did not change. Fixes C4's two
---     biggest numbers (nfl_players, nfl_player_week_stats). Touches the
---     functions sync_nfl_player_catalog and sync_nfl_week_feed.
--- (b) FRANCHISE waiver claims: one bad claim currently rolls back the waiver
---     pass for EVERY league. Needs a different "only one pending claim per
---     player per team" rule plus a safety net around each league. Nothing is
---     stuck today (2 leagues, 2 rejected claims).
--- Ask Claude to "write H3" and it becomes a migration with its own probe and undo.
+-- (a) NFL sync no longer rewrites rows that did not change. Tested by feeding
+--     the functions rows identical to what is stored: before, 50 of 50
+--     catalog rows, 20 of 20 games and 50 of 50 stat lines were rewritten;
+--     after, 0 of each. One real change rewrites exactly 1 row.
+-- (b) Waivers: "one pending claim per team per player" replaces "one claim per
+--     team, player and status", and each league is processed on its own, so a
+--     failure in one is a WARNING in the Postgres logs and the others go on.
+-- To look at it again any time (every column should read as shown):
+--   select (select indexdef from pg_indexes where indexname = 'fantasy_waiver_claims_one_pending') as new_rule,
+--          (select count(*) from pg_constraint where conname = 'fantasy_waiver_claims_team_id_player_id_status_key') as old_rule_gone_if_0,
+--          pg_get_functiondef('public.sync_nfl_player_catalog(jsonb)'::regprocedure) like '%is distinct from%' as catalog_guard,
+--          pg_get_functiondef('public.sync_nfl_week_feed(jsonb,jsonb)'::regprocedure) like '%is distinct from%' as feed_guard;
+--   -- new_rule shows a partial index "WHERE status = 'pending'", old_rule_gone_if_0 = 0, both guards true.
+-- To see a skipped league after the fact: Supabase dashboard -> Logs -> Postgres,
+--   search "process_all_fantasy_waivers: league".
 
 
 -- ----------------------------------------------------------------------------
