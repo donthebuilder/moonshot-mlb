@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react'
 import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 import { useAvailable } from '../injuries/useAvailable'
-import TeamMark from '../TeamMark'
+import { JumpCircle, FirstRain, DotWall, OpeningCombo } from './OpeningViz'
 
 // 🏁 THE FIRST-SCORE MATCHUP, SHARED (2026-10-25, Donovan: "the first basket things need like matchups and filter by games ... each
 // game [its two clubs] against each other, and the [top] first basket target ... this should be shared when built"). One product's
@@ -25,7 +25,7 @@ import TeamMark from '../TeamMark'
  */
 export default function FirstBasketMatchup({ sport, games = [], teams, players = [], stats = [], targetCols = [], targetSort, minGp = 20, Table, C, NUM_FONT, accent, words, onOpenPlayer = null, onOpenTeam = null, faceOf = null }) {
   const [pick, setPick] = useState('all')
-  const [look, setLook] = useState('bars')   // MOCK (10-25): the tug-of-war bars vs the plain table, to compare
+  const [look, setLook] = useState('combo')   // MOCK (10-25): the abstract views (./OpeningViz.js) vs the plain table, to compare
   const avail = useAvailable()
   const game = games.find((g) => g.key === pick) || null
   const clubs = useMemo(() => new Set(game ? [game.away, game.home] : games.flatMap((g) => [g.away, g.home])), [game, games])
@@ -62,14 +62,18 @@ export default function FirstBasketMatchup({ sport, games = [], teams, players =
       </div>
       {game ? (
         <>
-          <div role="group" aria-label="Look" style={{ display: 'flex', gap: 6 }}>
-            {[['bars', 'Bars'], ['table', 'Table']].map(([k, l]) => (
-              <button key={k} type="button" className={FLAT_CHIP_CLASS} aria-pressed={look === k} onClick={() => setLook(k)} style={flatChip(look === k, accent, C, NUM_FONT)}>{l}</button>
+          <div role="group" aria-label="Look" className="chip-row" style={{ display: 'flex', gap: 6, overflowX: 'auto' }}>
+            {[['combo', 'Combo'], ['circle', 'Circle'], ['rain', 'Rain'], ['wall', 'Wall'], ['table', 'Table']].map(([k, l]) => (
+              <button key={k} type="button" className={FLAT_CHIP_CLASS} aria-pressed={look === k} onClick={() => setLook(k)} style={{ ...flatChip(look === k, accent, C, NUM_FONT), flexShrink: 0 }}>{l}</button>
             ))}
           </div>
-          {look === 'bars'
-            ? <TugOfWar game={game} rows={versus} C={C} NUM_FONT={NUM_FONT} accent={accent} sport={sport} />
-            : <Table rows={versus} columns={versusCols} heatMode="none" maxRows={versus.length} maxHeight={9999} caption={`${game.away} against ${game.home}: each club's record in the games on file. The better side is lit.`} />}
+          {look === 'table'
+            ? <Table rows={versus} columns={versusCols} heatMode="none" maxRows={versus.length} maxHeight={9999} caption={`${game.away} against ${game.home}: each club's record in the games on file. The better side is lit.`} />
+            : (() => {
+              const V = { combo: OpeningCombo, circle: JumpCircle, rain: FirstRain, wall: DotWall }[look]
+              const logs = { away: teams.get(game.away)?.log || [], home: teams.get(game.home)?.log || [] }
+              return <V key={game.key} game={game} rows={versus} logs={logs} sport={sport} C={C} NUM_FONT={NUM_FONT} accent={accent} />
+            })()}
         </>
       ) : null}
       <div style={{ color: C.text2, font: `900 12px/1.2 ${NUM_FONT}`, letterSpacing: '.08em', marginTop: 4 }}>{`${words.first.toUpperCase()} TARGETS · ${game ? game.label : 'TONIGHT'}`}</div>
@@ -82,34 +86,3 @@ export default function FirstBasketMatchup({ sport, games = [], teams, players =
   )
 }
 
-// 🪢 THE TUG OF WAR (mock, 10-25): one bar per opening stat, the away club pulling from the left and the home club from the right,
-// each side's length its share of the two numbers. The better side pulls in the product's accent, the other recedes (no red /
-// green, the table rule). A centre tick marks even. Read-only: nothing here is tappable but the logos' own links elsewhere.
-function TugOfWar({ game, rows, C, NUM_FONT, accent, sport }) {
-  const side = (r, s) => (r.better === s ? { color: accent, fontWeight: 900 } : { color: C.text2, fontWeight: 600 })
-  return (
-    <div style={{ border: `1px solid ${C.border}`, borderRadius: 14, padding: '10px 12px 12px', display: 'grid', gap: 10 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', font: `900 12px/1 ${NUM_FONT}`, letterSpacing: '.06em', color: C.text }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><TeamMark sport={sport} abbr={game.away} variant="logo" px={20} />{game.away}</span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{`@ ${game.home}`}<TeamMark sport={sport} abbr={game.home} variant="logo" px={20} /></span>
-      </div>
-      {rows.map((r) => (
-        <div key={r._id} style={{ display: 'grid', gap: 4 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'baseline', gap: 8 }}>
-            <span style={{ font: `13px/1.2 ${NUM_FONT}`, ...side(r, 'away') }}>{r.clubA}</span>
-            <span style={{ fontSize: 12, color: C.text2, textAlign: 'center' }}>{r.stat}</span>
-            <span style={{ font: `13px/1.2 ${NUM_FONT}`, textAlign: 'right', ...side(r, 'home') }}>{r.clubB}</span>
-          </div>
-          {r.pullA == null ? null : (
-            <div aria-hidden="true" style={{ position: 'relative', display: 'flex', height: 8, borderRadius: 4, overflow: 'hidden', background: C.border }}>
-              <i style={{ width: `${r.pullA * 100}%`, background: r.better === 'away' ? accent : C.text3, opacity: r.better === 'away' ? 1 : 0.45 }} />
-              <i style={{ flex: 1, marginLeft: 2, background: r.better === 'home' ? accent : C.text3, opacity: r.better === 'home' ? 1 : 0.45 }} />
-              <b style={{ position: 'absolute', left: '50%', top: -2, bottom: -2, width: 2, marginLeft: -1, background: C.text }} />
-            </div>
-          )}
-        </div>
-      ))}
-      <div style={{ fontSize: 11, color: C.text3 }}>Longer bar = the better record. Counts from games on file, not a chance.</div>
-    </div>
-  )
-}
