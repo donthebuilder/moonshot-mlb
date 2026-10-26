@@ -57,7 +57,7 @@ const graded = [g1, g2, g3, { ...g2, day: '2026-10-14' }]
 const t = N.tally(graded)
 ok(t.n === 4 && t.network === 3 && t.board === 0, `the tally (${JSON.stringify({ n: t.n, net: t.network, board: t.board })})`)
 const text = N.nvbText({ week: N.nvbWeek('2026-10-18'), t, limit: 890 })
-ok(text.startsWith('\u{1F5F3}\u{FE0F} Network vs Board · Week of Oct 11\nYou 3 of 4 · Board 0 of 4'), `head and score:\n${text}`)
+ok(text.startsWith('\u{1F5F3}\u{FE0F} Network vs Board · Last week · Oct 11–17\nYou 3 of 4 · Board 0 of 4'), `head and score:\n${text}`)
 ok(text.includes('🏒 One or Two: you One ❌ · board One ❌'), `a poll line:\n${text}`)
 ok(N.lastName('Harold Fannin Jr.') === 'Fannin' && N.lastName('Marvin Harrison Jr') === 'Harrison' && N.lastName('Test Name III') === 'Name' && N.lastName('Neither') === 'Neither', 'a last name is never a suffix (was "III or Stevenson")')
 ok(N.pollLine({ sport: 'nhl', format: 'board', names: ['A Hagel', 'B Kaprizov', 'C Connor', 'D Bouchard'], network: 'B Kaprizov', board: 'A Hagel', boardRight: true }) === '🏒 Hagel, Kaprizov, Connor or Bouchard: you Kaprizov ❌ · board Hagel ✅', 'a four-man poll reads as a list')
@@ -69,6 +69,12 @@ ok(!/https?:|#[A-Za-z]|%/.test(text) && !SWEARS.test(text) && !OVERCLAIM.test(te
 
 // 7. the kind
 ok(kindInfo('network_vs_board')?.mode === 'event' && tierOf('network_vs_board') === 'writeup' && receiptLineFor('network_vs_board', { text }) === null, 'event, write-up tier, no receipt line (it grades polls, not our calls)')
+
+// 8c. the week and the game day say what they are (2026-10-26, Donovan's session: "WEEK OF OCT 18" read as the week ahead)
+ok(N.weekWords('2026-10-18', '2026-10-24') === 'LAST WEEK · OCT 18–24' && N.weekWords('2026-10-25', '2026-10-31') === 'LAST WEEK · OCT 25–31' && N.weekWords('2026-10-25', '2026-11-01') === 'LAST WEEK · OCT 25–NOV 1', 'weekWords: the seven days, a month turn shows both months')
+ok(N.dayWord('2026-10-19') === 'MON' && N.dayWord('2026-10-18') === 'SUN' && N.dayWord('') === '', 'dayWord: the weekday of the game day')
+{ const g = N.gradePoll({ sport: 'nfl', day: '2026-10-19', format: 'pick', payload: { players: [{ id: 'a', name: 'Test A' }, { id: 'b', name: 'Test B' }] } }, { options: [{ label: 'Test A', votes: 5 }, { label: 'Test B', votes: 1 }] }, [])
+  ok(g.gameDay === '2026-10-19', 'a graded poll carries its game day') }
 
 // 8. the poster on a fake database and a fake X read
 const store = [
