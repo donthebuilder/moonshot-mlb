@@ -1,5 +1,5 @@
 'use client'
-import { flatChip } from '../lib/chips'
+import { flatChip, CHIP_MARK } from '../lib/chips'
 import { useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { STATE, alpha } from '../lib/scales'
@@ -32,7 +32,8 @@ export const drawerLabel = () => ({ fontSize: 10, color: C.text2, textTransform:
 export const drawerChip = (on) => {
   const s = on ? STATE.on() : STATE.off()
   return {
-    padding: '4px 11px', fontSize: 11, fontWeight: s.fontWeight, borderRadius: 999,
+    ...CHIP_MARK,   // the 44px thumb target (globals.css) now that the chip is not a 999px pill
+    padding: '4px 11px', fontSize: 11, fontWeight: s.fontWeight, borderRadius: 6,
     cursor: 'pointer', fontFamily: NUM_FONT,
     border: `1px solid ${s.borderColor}`,
     background: on ? alpha(s.color, 0.14) : 'transparent',
