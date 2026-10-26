@@ -180,8 +180,8 @@ select c.relname as table_name, c.relrowsecurity as rls_on
 --      visitor see rows)
 -- Read the "visible_when" column. "true" means every row is public.
 -- 10-26: 14 rules on 13 tables. The "true" ones are public receipts as far as
---        I can tell. One question for you, in ON HOLD H4: lamp_goal_log and
---        lamp_prop_log show picks to the public before they are graded.
+--        I can tell. lamp_goal_log and lamp_prop_log show picks before they
+--        are graded ON PURPOSE (decided 10-26, ON HOLD H4: keep public).
 -- ----------------------------------------------------------------------------
 select tablename as table_name, policyname as rule, cmd,
        left(coalesce(qual, 'true'), 70) as visible_when
@@ -282,12 +282,13 @@ order by 1,2;
 
 
 -- ----------------------------------------------------------------------------
--- H4  A QUESTION, not SQL:  should picks be public BEFORE they are graded?
+-- H4  DECIDED 10-26: picks stay public before they are graded.
 -- ----------------------------------------------------------------------------
--- Today the public key can read every row of lamp_goal_log and lamp_prop_log
--- the moment it is locked, graded or not. If that is what you want ("here is
--- what we locked before puck drop"), leave it. If you only want them public
--- after grading, tell me and I'll write the rule. No change until you say.
+-- The public key can read every row of lamp_goal_log and lamp_prop_log the
+-- moment it is locked, graded or not. KEEP IT. It is the public record ("here
+-- is what we locked before puck drop"), the same rows are already on the
+-- public API and on the published data branch, so hiding the table would hide
+-- nothing and would break the receipts. Nothing to run.
 
 
 -- ----------------------------------------------------------------------------

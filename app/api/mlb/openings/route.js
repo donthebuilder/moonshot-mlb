@@ -3,13 +3,19 @@
 // (sport 'mlb'; written once a game by the homers tick, lib/mlb/openings.js; the season backfilled). The newest season on file,
 // regular season and October (spring training is stored but never mixed in). Counts only (lib/mlb/openingsAgg.js), never a
 // chance. Public and read-only; cached 6 hours: the tables change once a game.
+// COST (Supabase usage check, 2026-10-26, item A): the edge cache above is per query string (part x where x last), so every filter
+// combination used to reload the whole season. The loaded rows now stay in this server instance for 30 minutes (lib/memoLoad.js) and each
+// answer is built from them: one read per season per half hour per instance, whatever the filters. Same numbers, same page.
 import { adminClient } from '../../../../lib/supabase/admin'
 import { aggregateMlbOpenings } from '../../../../lib/mlb/openingsAgg'
 import { recordOf } from '../../../../lib/mlb/firstLock'
 import { VERSION as FIRST_VERSION } from '../../../../lib/mlb/firstModel'
+import { memoLoad } from '../../../../lib/memoLoad'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
+const ROWS_TTL_MS = 30 * 60 * 1000   // the tables change once a game; the 6-hour edge cache above was already staler than this
+const SEASON_TTL_MS = 10 * 60 * 1000
 const GAME_COLS = 'game_id, game_date, season, season_type, home, away, first_score_team, first_score_player, first_hit_team, first_hit_player, first_hr_team, first_hr_player, first_score_type, pre_first_att_home, pre_first_att_away, pre_first_hit_home, pre_first_hit_away, pre_first_hr_home, pre_first_hr_away, p1_home_pts, p1_away_pts'
 const PLAYER_COLS = 'game_id, player_id, name, team, pos, starter, bat_order, p1_att, p1_made, p1_hr, p1_tb, p1_runs'
 const PARTS = { all: [2, 3], reg: [2], post: [3] }
@@ -51,15 +57,19 @@ export async function GET(request) {
   const db = adminClient()
   if (!db) return json(empty, 60)
   try {
-    const top = await db.from('opening_games').select('season').eq('sport', 'mlb').in('season_type', [2, 3]).order('season', { ascending: false }).limit(1)
-    if (top.error) throw new Error(top.error.message)
-    const season = top.data?.[0]?.season ?? null
+    const season = await memoLoad('mlb-openings:season', SEASON_TTL_MS, async () => {
+      const top = await db.from('opening_games').select('season').eq('sport', 'mlb').in('season_type', [2, 3]).order('season', { ascending: false }).limit(1)
+      if (top.error) throw new Error(top.error.message)
+      return top.data?.[0]?.season ?? null
+    })
     if (season == null) return json(empty, 300)
-    const { games, players } = await readRows(db, season, PARTS[part])
+    const types = PARTS[part]
+    const { games, players } = await memoLoad(`mlb-openings:rows:${season}:${types.join(',')}`, ROWS_TTL_MS, () => readRows(db, season, types))
     const through = games.reduce((m, g) => (String(g.game_date) > m ? String(g.game_date) : m), '')
-    // THE CALL'S OWN RECORD (lib/mlb/firstLock.js): the #1 first-hit / first-HR call over the graded games, every game it locked (no table yet: null)
-    const fl = await db.from('mlb_first_log').select('game_pk, hit_rank, hr_rank, first_hit, first_hr, graded_at').eq('model_version', FIRST_VERSION).not('graded_at', 'is', null).limit(5000)
-    const firstRecord = fl.error ? null : recordOf(fl.data || [])
+    // THE CALL'S OWN RECORD (lib/mlb/firstLock.js): the #1 first-hit / first-HR call over the graded games, every game it locked (no table yet: null).
+    // Paged (10-26, known-issues #99): the old .limit(5000) was cut to 1,000 rows by the API, so the record would have under-counted after ~1,000 graded games.
+    const flRows = await memoLoad('mlb-openings:firstlog', ROWS_TTL_MS, () => pageAll(() => db.from('mlb_first_log').select('game_pk, hit_rank, hr_rank, first_hit, first_hr, graded_at').eq('model_version', FIRST_VERSION).not('graded_at', 'is', null).order('game_pk'))).catch(() => null)
+    const firstRecord = flRows ? recordOf(flRows) : null
     return json({ ...aggregateMlbOpenings(games, players, { where, last }), season, through, firstRecord }, 21600)
   } catch (e) {
     console.error(`[mlb/openings] ${e?.message}`)
