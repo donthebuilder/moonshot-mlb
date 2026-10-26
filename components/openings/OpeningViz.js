@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 import TeamMark from '../TeamMark'
-import PlayerFace from '../PlayerFace'
+import { faceUrl } from '../PlayerFace'
 import { surname } from '../../lib/player'
 
 // 🏀 THE FACE WALL (10-25, Donovan: "the faces one is cool ... faces and table", then "do something with the background of the
@@ -21,16 +21,28 @@ import { surname } from '../../lib/player'
 // the wall previews each club's last 20 games, "All games" opens the rest
 const D = 33, GAP = 3, COLS = 4, PREVIEW = 20
 
+// THE FACE, CROPPED TO FIT (Donovan 10-25: "the backdrop sucks ... make the picture fit well in the spaces"): ESPN's headshot is
+// a wide cut-out (600 x 436), so a round frame showed a small head in a dark disc. Drawn as a background zoomed to 170% and
+// pinned near the top, the head and shoulders fill the circle over a light studio grey; his initials sit under it for a man
+// with no picture.
+const initials = (name) => String(name || '').split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
+function Face({ id, name, sport, C, size, ring = null, glow = null }) {
+  const url = id ? faceUrl({ sport, id, size }) : null
+  return (
+    <span title={name || undefined} style={{ width: size, height: size, borderRadius: '50%', display: 'grid', placeItems: 'center', boxSizing: 'border-box', flex: '0 0 auto',
+      background: `${url ? `url(${url}) 50% 8% / auto 170% no-repeat, ` : ''}radial-gradient(circle at 50% 30%, ${C.text3}, ${C.bg3})`,
+      border: ring ? `1.5px solid ${ring}` : `1px solid ${C.border}`, boxShadow: glow ? `0 0 8px ${glow}77` : 'none',
+      color: C.text2, font: `900 ${Math.max(8, Math.round(size * 0.32))}px/1 monospace` }}>
+      {url ? null : initials(name)}
+    </span>
+  )
+}
+
 function Mark({ kind, id, name, sport, C, accent, D = 33 }) {
   const box = { width: D, height: D, borderRadius: '50%', display: 'grid', placeItems: 'center', boxSizing: 'border-box', flex: '0 0 auto' }
   if (kind === 'none') return <span style={box}><span style={{ width: 5, height: 5, borderRadius: 3, background: C.text3, opacity: 0.45 }} /></span>
   if (kind === 'wasted') return <span style={{ ...box, border: `1.5px solid ${accent}`, opacity: 0.85 }} />
-  return (
-    <span title={name || undefined} style={{ ...box, overflow: 'hidden', background: `radial-gradient(circle at 50% 35%, ${C.bg3}, ${C.bg})`,
-      border: kind === 'both' ? `1.5px solid ${accent}` : `1px solid ${C.border}`, boxShadow: kind === 'both' ? `0 0 8px ${accent}77` : 'none' }}>
-      <PlayerFace sport={sport} id={id} name={name || ''} size={D - 2} />
-    </span>
-  )
+  return <Face id={id} name={name} sport={sport} C={C} size={D} ring={kind === 'both' ? accent : null} glow={kind === 'both' ? accent : null} />
 }
 const kindOf = (x) => (x[0] === 1 ? (x[1] === 1 ? 'both' : 'first') : (x[1] === 1 ? 'wasted' : 'none'))
 
@@ -69,9 +81,7 @@ export function FaceWall({ game, logs, rows, sport, C, NUM_FONT, accent, nameOf,
         <div style={{ display: 'grid', gap: 5, justifyItems: away ? 'start' : 'end', marginTop: 2 }}>
           {top.map(([id, c]) => (
             <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexDirection: away ? 'row' : 'row-reverse', font: `600 12px/1 ${NUM_FONT}`, color: C.text2, ...shade }}>
-              <span style={{ width: 26, height: 26, borderRadius: '50%', overflow: 'hidden', display: 'grid', placeItems: 'center', background: `radial-gradient(circle at 50% 35%, ${C.bg3}, ${C.bg})`, border: `1px solid ${C.border}` }}>
-                <PlayerFace sport={sport} id={id} name={nameOf?.get(id) || ''} size={24} />
-              </span>
+              <Face id={id} name={nameOf?.get(id) || ''} sport={sport} C={C} size={28} />
               {surname(nameOf?.get(id) || '')}<b style={{ color: C.text }}>{c}</b>
             </span>
           ))}
