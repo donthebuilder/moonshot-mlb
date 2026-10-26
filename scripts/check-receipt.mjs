@@ -599,6 +599,25 @@ await ok('adapters: MOONSHOT / TUDDY / LAMP grade with the helpers that already 
   const rows = new Map([['h', { graded_at: 'x', dressed: true, hit: true }], ['m', { graded_at: 'x', dressed: true, hit: false }], ['v', { graded_at: 'x', dressed: false, hit: null }], ['p', { graded_at: null, dressed: true, hit: null }]])
   for (const [id, want] of [['h', 'cashed'], ['m', 'missed'], ['v', 'void'], ['p', 'pending'], ['nobody', 'pending']]) assert.equal(NHL.nhlOutcome({ id }, { rows }), want, id)
 })
+await ok('NFL game guard (Kittle, 10-25): a TD cashes only in the named game, on the receipt\'s day, by club for a name-only match; otherwise pending, never a miss', async () => {
+  const NFL = await import('../lib/posts/nfl.js')
+  const row = (o) => ({ gsis_id: '', scorer_name: '', game_id: 'g1', team: 'SF', ...o })
+  const res = (rows, gameIds = new Set(['g1', 'g2'])) => ({ scorers: { rows, gameIds, ids: new Set(), names: new Set() }, players: new Map() })
+  const K = { id: 'k1', name: 'Test Tight End', team: 'SF' }
+  assert.equal(NFL.nflOutcome(K, res([row({ gsis_id: 'k1' })])), 'cashed')
+  assert.equal(NFL.nflOutcome({ ...K, game: 'g1' }, res([row({ gsis_id: 'k1' })])), 'cashed')
+  assert.equal(NFL.nflOutcome({ ...K, game: 'g2' }, res([row({ gsis_id: 'k1', game_id: 'g1' })])), 'pending')       // a TD in another game than the one he was named for
+  assert.equal(NFL.nflOutcome(K, res([row({ gsis_id: 'k1', game_id: 'old-week' })])), 'pending')                    // a game that is not on the receipt's day
+  assert.equal(NFL.nflOutcome(K, res([row({ scorer_name: 'Test Tight End' })])), 'cashed')                           // name-only, same club
+  assert.equal(NFL.nflOutcome(K, res([row({ scorer_name: 'Test Tight End', team: 'DAL' })])), 'pending')            // name-only, another club
+  assert.equal(NFL.nflOutcome({ id: 'k1', name: 'Test Tight End' }, res([row({ scorer_name: 'Test Tight End' })])), 'pending')   // name-only, no club to check
+  assert.equal(NFL.nflOutcome(K, res([row({ gsis_id: 'other' })])), 'missed')                                         // nobody of his scored: a real miss
+  assert.equal(NFL.nflOutcome(K, res([row({ gsis_id: 'k1' }), row({ gsis_id: 'k1', game_id: 'old-week' })])), 'cashed')   // one good TD is enough
+  // through the receipt: a pending man is waiting, then left out, never printed as cashed or missed
+  const m = mixed(); m.results.nfl = res([row({ gsis_id: 'n1', game_id: 'wrong' })]); m.results.nfl.players = new Map()
+  const w = RC.assembleReceipt({ day: DAY, rows: posts(), ...m, now: T0 })
+  assert.equal(w.state, 'waiting'); assert.match(w.reason, /not graded yet/)
+})
 await ok('loader: a failed read is "not ready", never a miss (schedule down -> null games)', async () => {
   const LD = await import('../lib/posts/receiptLoad.js')
   assert.equal(await LD.mlbGamesOn(DAY, { fetchImpl: async () => ({ ok: false }) }), null)
