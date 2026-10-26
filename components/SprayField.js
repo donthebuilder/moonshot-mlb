@@ -1141,7 +1141,7 @@ export default function SprayField({
               title={c.key === 'all' ? 'Every ball in play from this game.' : c.key === 'out' ? 'Everything that didn’t land for a hit — outs, errors, fielder’s choices.' : undefined}
               disabled={c.n === 0 && c.key !== 'all'}
               style={{
-                ...chipBtn(liveRes === c.key, c.col),
+                ...chipBtn(liveRes === c.key, c.col), padding: '2px 8px', fontSize: 9.5,
                 opacity: c.n === 0 && c.key !== 'all' ? 0.3 : 1,
                 cursor: c.n === 0 && c.key !== 'all' ? 'default' : 'pointer',
               }}>
@@ -1151,7 +1151,7 @@ export default function SprayField({
           <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginLeft: 'auto' }}>
             showing {liveFiltered.length} of {liveN}
           </span>
-          <button onClick={reset} style={{ ...chipBtn(false, C.text3) }}>
+          <button onClick={reset} style={{ ...chipBtn(false, C.text3), padding: '2px 8px', fontSize: 9.5 }}>
             Reset
           </button>
         </div>
@@ -1171,7 +1171,7 @@ export default function SprayField({
                 })}
                 disabled={c.n === 0}
                 style={{
-                  ...chipBtn(on, c.col),
+                  ...chipBtn(on, c.col), padding: '2px 8px', fontSize: 9.5,
                   opacity: c.n === 0 ? 0.3 : 1,
                   cursor: c.n === 0 ? 'default' : 'pointer',
                 }}>
@@ -1195,7 +1195,7 @@ export default function SprayField({
             <button key={code}
               onClick={() => setLivePitch((v) => (v === code ? null : code))}
               title={`${PITCH_NAMES[code] || code} — ${ct} ball${ct === 1 ? '' : 's'} in play off it tonight. The pitch and the batted ball come off the same play event, so this is the pitch that was actually hit.`}
-              style={{ ...chipBtn(livePitch === code, pitchColor(code)) }}>
+              style={{ ...chipBtn(livePitch === code, pitchColor(code)), padding: '2px 8px', fontSize: 9.5 }}>
               {PITCH_NAMES[code] || code} <b style={{ fontFamily: NUM_FONT }}>{ct}</b>
             </button>
           ))}
@@ -1227,6 +1227,7 @@ export default function SprayField({
               title={r.games ? `His last ${r.games} games with a tracked batted ball` : r.bbe ? `His last ${r.bbe} tracked batted balls, whatever games they came in` : `All ${gameDates.length} games on file`}
               style={{
                 ...chipBtn(range === r.key, C.orange),
+                padding: '2px 8px', fontSize: 9.5,
                 opacity: redundant && range !== r.key ? 0.35 : 1,
               }}
             >{r.label}</button>
@@ -1266,7 +1267,7 @@ export default function SprayField({
                 onClick={() => setBatPick(k)}
                 aria-pressed={batPick === k}
                 title={k === 'ALL' ? 'Both sides of the plate' : `Only balls he hit batting ${k === 'L' ? 'left' : 'right'}-handed (${standCounts[k]} on file)${k === standVsTonight ? ' -- the side he bats tonight' : ''}`}
-                style={{ ...chipBtn(batPick === k, C.orange) }}
+                style={{ ...chipBtn(batPick === k, C.orange), padding: '2px 8px', fontSize: 9.5 }}
               >{label}</button>
             ))}
           </span>
@@ -1275,10 +1276,10 @@ export default function SprayField({
           <button
             onClick={() => setLiveOn((v) => !v)}
             title="Tonight's tracked balls in play from the live feed, on this same field. Ringed in white so they can't be mistaken for the season sample."
-            style={{ ...chipBtn(liveOn, C.green) }}
+            style={{ ...chipBtn(liveOn, C.green), padding: '2px 8px', fontSize: 9.5 }}
           >● Tonight {liveN}</button>
         )}
-        <button onClick={reset} style={{ ...chipBtn(false, C.text3), marginLeft: 'auto' }}>
+        <button onClick={reset} style={{ ...chipBtn(false, C.text3), padding: '2px 8px', fontSize: 9.5, marginLeft: 'auto' }}>
           Reset
         </button>
       </div>
@@ -1530,7 +1531,7 @@ export default function SprayField({
                   return next.size ? next : null
                 })}
                 title={`${PITCH_NAMES[p.k] || p.k} · ${p.n} batted balls · ${p.hr} HR${p.tonight ? ` · ${p.tonight.toFixed(0)}% of tonight's mix` : " · not in tonight's mix"}`}
-                style={{ ...chipBtn(on, C.orange) }}
+                style={{ ...chipBtn(on, C.orange), padding: '2px 8px', fontSize: 9.5 }}
               >
                 {p.tonight > 0 && <span style={{ color: C.orange, marginRight: 3 }}>•</span>}
                 <span style={{ opacity: 0.8 }}>{SHAPE_GLYPH[shapeFor(p.k)]}</span>{' '}
@@ -1557,7 +1558,7 @@ export default function SprayField({
       {!liveOnly && showMore && (
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 7, alignItems: 'center' }}>
         <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Contact</span>
-        <button onClick={() => setBbPick(null)} style={{ ...chipBtn(!bbPick, C.orange) }}>All</button>
+        <button onClick={() => setBbPick(null)} style={{ ...chipBtn(!bbPick, C.orange), padding: '2px 8px', fontSize: 9.5 }}>All</button>
         {bbShares.map((b) => {
           const on = !!bbPick && bbPick.has(b.key)
           return (
@@ -1569,7 +1570,7 @@ export default function SprayField({
                 if (next.has(b.key)) next.delete(b.key); else next.add(b.key)
                 return next.size ? next : null
               })}
-              style={{ ...chipBtn(on, C.orange), opacity: b.n ? 1 : 0.35 }}
+              style={{ ...chipBtn(on, C.orange), padding: '2px 8px', fontSize: 9.5, opacity: b.n ? 1 : 0.35 }}
             >
               {b.label} <span style={{ opacity: 0.65 }}>{b.pct.toFixed(0)}%</span>
             </button>
@@ -1578,7 +1579,7 @@ export default function SprayField({
         <button
           onClick={() => setBbPick(new Set(['line_drive', 'fly_ball']))}
           title="Line drives and fly balls only — the contact that can leave the yard"
-          style={{ ...chipBtn(!!bbPick && bbPick.size === 2 && bbPick.has('fly_ball') && bbPick.has('line_drive'), C.orange) }}
+          style={{ ...chipBtn(!!bbPick && bbPick.size === 2 && bbPick.has('fly_ball') && bbPick.has('line_drive'), C.orange), padding: '2px 8px', fontSize: 9.5 }}
         >Air only</button>
       </div>
       )}
