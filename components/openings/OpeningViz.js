@@ -1,4 +1,6 @@
 'use client'
+import { useState } from 'react'
+import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
 import TeamMark from '../TeamMark'
 import PlayerFace from '../PlayerFace'
 import { surname } from '../../lib/player'
@@ -15,15 +17,17 @@ import { surname } from '../../lib/player'
 // name lookup, its theme and accent, and optionally its `floor` ({ a, b, line }: BUCKETS' hardwood and line paint).
 // The tables and the counts are records, never a chance.
 
-const D = 22, GAP = 2, COLS = 6   // 6 x 22px + gaps fits half of a 360 phone
+// 4 x 33px + gaps fits half of a 360 phone (Donovan 10-25: "the image needs to be bigger ... so you can really see them");
+// the wall previews each club's last 20 games, "All games" opens the rest
+const D = 33, GAP = 3, COLS = 4, PREVIEW = 20
 
-function Mark({ kind, id, name, sport, C, accent }) {
+function Mark({ kind, id, name, sport, C, accent, D = 33 }) {
   const box = { width: D, height: D, borderRadius: '50%', display: 'grid', placeItems: 'center', boxSizing: 'border-box', flex: '0 0 auto' }
   if (kind === 'none') return <span style={box}><span style={{ width: 5, height: 5, borderRadius: 3, background: C.text3, opacity: 0.45 }} /></span>
   if (kind === 'wasted') return <span style={{ ...box, border: `1.5px solid ${accent}`, opacity: 0.85 }} />
   return (
     <span title={name || undefined} style={{ ...box, overflow: 'hidden', background: `radial-gradient(circle at 50% 35%, ${C.bg3}, ${C.bg})`,
-      border: kind === 'both' ? `1.5px solid ${accent}` : `1px solid ${C.border}`, boxShadow: kind === 'both' ? `0 0 6px ${accent}66` : 'none' }}>
+      border: kind === 'both' ? `1.5px solid ${accent}` : `1px solid ${C.border}`, boxShadow: kind === 'both' ? `0 0 8px ${accent}77` : 'none' }}>
       <PlayerFace sport={sport} id={id} name={name || ''} size={D - 2} />
     </span>
   )
@@ -32,7 +36,9 @@ const kindOf = (x) => (x[0] === 1 ? (x[1] === 1 ? 'both' : 'first') : (x[1] === 
 
 export function FaceWall({ game, logs, rows, sport, C, NUM_FONT, accent, nameOf, floor = null }) {
   const first = rows.find((r) => r._id === 'firstPct')
+  const [all, setAll] = useState(false)
   const line = floor?.line || C.text3
+  let most = 0
   const shade = { textShadow: '0 1px 3px rgba(0,0,0,.8)' }
   const tops = {}
   const wall = (log, s) => {
@@ -45,6 +51,8 @@ export function FaceWall({ game, logs, rows, sport, C, NUM_FONT, accent, nameOf,
     tops[s] = top
     const away = s === 'away'
     const lit = first?.better === s
+    most = Math.max(most, n)
+    const shown = all ? g : g.slice(0, PREVIEW)
     return (
       <div style={{ display: 'grid', gap: 8, justifyItems: away ? 'start' : 'end', alignContent: 'start', minWidth: 0 }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexDirection: away ? 'row' : 'row-reverse', font: `900 12px/1 ${NUM_FONT}`, letterSpacing: '.06em', color: C.text, ...shade }}>
@@ -54,8 +62,9 @@ export function FaceWall({ game, logs, rows, sport, C, NUM_FONT, accent, nameOf,
         <div style={{ font: `600 10px/1.45 ${NUM_FONT}`, color: C.text2, textAlign: away ? 'left' : 'right', ...shade }}>
           {`${k}/${n} scored first`}<br />{`tip ${n ? Math.round((100 * tips) / n) : 0}% · ${wasted} wasted`}
         </div>
+        <div style={{ font: `900 10px/1 ${NUM_FONT}`, letterSpacing: '.08em', color: C.text3, ...shade }}>{all ? `ALL ${n} GAMES` : `LAST ${shown.length} GAMES`}</div>
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${COLS}, ${D}px)`, gap: GAP, direction: away ? 'ltr' : 'rtl' }}>
-          {g.map((x, i) => <Mark key={i} kind={kindOf(x)} id={x[2]} name={x[2] ? nameOf?.get(x[2]) : ''} sport={sport} C={C} accent={accent} />)}
+          {shown.map((x, i) => <Mark key={i} D={D} kind={kindOf(x)} id={x[2]} name={x[2] ? nameOf?.get(x[2]) : ''} sport={sport} C={C} accent={accent} />)}
         </div>
         <div style={{ display: 'grid', gap: 5, justifyItems: away ? 'start' : 'end', marginTop: 2 }}>
           {top.map(([id, c]) => (
@@ -84,14 +93,17 @@ export function FaceWall({ game, logs, rows, sport, C, NUM_FONT, accent, nameOf,
       </svg>
       <div style={{ position: 'relative', padding: '12px 12px 12px', display: 'grid', gap: 12 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>{walls}</div>
+        {most > PREVIEW ? (
+          <button type="button" className={FLAT_CHIP_CLASS} aria-pressed={all} onClick={() => setAll(!all)} style={{ ...flatChip(all, accent, C, NUM_FONT), justifySelf: 'center' }}>{all ? `Last ${PREVIEW}` : 'All games'}</button>
+        ) : null}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 12px', paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
           {legend.map(([k, l]) => (
             <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: C.text2, ...shade }}>
-              <Mark kind={k} id={sample} name={sample ? nameOf?.get(sample) : ''} sport={sport} C={C} accent={accent} />{l}
+              <Mark D={26} kind={k} id={sample} name={sample ? nameOf?.get(sample) : ''} sport={sport} C={C} accent={accent} />{l}
             </span>
           ))}
         </div>
-        <div style={{ fontSize: 11, color: C.text3, ...shade }}>Each mark is one game on file, newest first. A record, not a chance.</div>
+        <div style={{ fontSize: 11, color: C.text3, ...shade }}>Each mark is one game, newest first. The % counts every game on file. A record, not a chance.</div>
       </div>
     </div>
   )
