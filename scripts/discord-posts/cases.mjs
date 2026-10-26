@@ -563,6 +563,22 @@ winsCases.push({
   },
 })
 
+// ── #MEMBERS LIST (lib/card/membersList.js): the day's plays as ONE post per sport, edited in place as games go. Real card rows from the recent card days.
+const membersList = await import('../../lib/card/membersList.js')
+const listRowsLib = await import('../../lib/card/listRows.js')
+winsCases.push({
+  kinds: ['card_members_list_'],
+  load: async (ctx) => {
+    for (const { day, rows } of await cardDays(ctx)) {
+      for (const sport of [...new Set(rows.map((r) => r.sport))].filter((s) => s !== 'all')) {
+        const text = membersList.listText({ sport, day, entries: listRowsLib.listEntries(rows.filter((r) => r.sport === sport)), now: Date.now() })
+        if (text) return [{ kind: membersList.listKind(sport), sport, day, label: `the ${sport} list (${text.split('\n')[0]})`, text, hooks: members(), members: true }]
+      }
+    }
+    return [{ kind: 'card_members_list_', skip: 'no locked card on the recent card days' }]
+  },
+})
+
 // ── LIVE-ROOM ALERTS (lib/dash/discordAlerts.js, from lib/dash/pushRules.js). Built from a live game state with no stored input, so these render
 // the copy's own TEST samples (lib/copy/notifications.js CATALOG): the WORDS are checked, the data is labelled TEST.
 const copy = await import('../../lib/copy/notifications.js')
