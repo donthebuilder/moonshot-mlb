@@ -1,5 +1,6 @@
 'use client'
 import { C as MLB_C, NUM_FONT as MLB_NUM } from '../../lib/theme'
+import { flatChip, CHIP_MARK } from '../../lib/chips'
 
 // THE SHARED CHART CORE (2026-09-30, BATCH-NFL-FIELD). Lifted out of
 // components/SprayField.js style for style, so every drawn chart on the
@@ -15,14 +16,11 @@ import { C as MLB_C, NUM_FONT as MLB_NUM } from '../../lib/theme'
 //   StatStrip    the numbers above the chart, KEY value sub (was ShotPanel's)
 //   ViewToggle   the small view buttons over the chart (was Rink's)
 
+// THE SITE'S ONE CHIP (2026-10-25, chips batch: Donovan "the chips need to fit the DASH motif and harness"): this was its own 6px-radius, 10px
+// non-caps look; every chart filter (MOONSHOT spray, LAMP shot map, TUDDY Field) is now lib/chips.js flatChip, the small even oval, so
+// scripts/check-chips.mjs counts it as the standard. CHIP_MARK gives it the 44px thumb target on a phone.
 export function chipBtn(on, col, theme = MLB_C, numFont = MLB_NUM) {
-  return {
-    padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 6,
-    cursor: 'pointer', fontFamily: numFont,
-    border: `1px solid ${on ? col : theme.border}`,
-    background: on ? `${col}22` : 'transparent',
-    color: on ? col : theme.text3,
-  }
+  return { ...flatChip(on, col, theme, numFont), ...CHIP_MARK }
 }
 
 /** options: [{ k, label, n, title }] -- n is the count in the window ('ALL' shows none). */
