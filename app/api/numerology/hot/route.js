@@ -6,6 +6,7 @@
 // for football -- a few game days), summed. A value needs 2+ events to be
 // called hot. Pattern watching; never a score. Empty lists until nights exist.
 import { adminClient } from '../../../../lib/supabase/admin'
+import { readPaged } from '../../../../lib/record/paged'
 import { SPORT_KEYS } from '../../../../lib/routes'
 import { hottest, numbersNight, KIND_LABEL } from '../../../../lib/numerology/hotNumbers'
 import { ELIGIBLE } from '../../../../lib/numerology/record'
@@ -30,8 +31,10 @@ export async function GET(request) {
   const since = new Date(Date.parse(`${today}T12:00:00Z`) - (WINDOW_DAYS[sport] || 7) * 864e5).toISOString().slice(0, 10)
   // '*' so the `rebuilt` flag (HOT-NUMBERS-FIX item 3) is read when the
   // column exists and nothing breaks before its migration has run.
-  const { data, error } = await db.from('numerology_numbers').select('*').eq('sport', sport).gte('day', since).lte('day', today)
-    .order('day', { ascending: false }).limit(5000)
+  // PAGED (2026-10-26, known-issues #116): NHL's 8-day window is ~1,000 rows (127 a night) and the API stops a request at 1,000 without a word, so the
+  // old .limit(5000) quietly dropped the oldest night(s) from TRENDING. numerology_numbers is keyed (sport, day, kind, value).
+  const { data, error } = await readPaged(() => db.from('numerology_numbers').select('*').eq('sport', sport).gte('day', since).lte('day', today)
+    .order('day', { ascending: false }).order('kind', { ascending: true }).order('value', { ascending: true }))
   if (error) return Response.json({ sport, error: error.message }, { status: 502 })
   const rows = data || []
   const latest = rows[0]?.day || null
