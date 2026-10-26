@@ -388,7 +388,8 @@ async function claimAndPostStat(db, day, kind, hourGate, text, cardSpec, payload
     if (r.ok && r.id) { patch.x_post_id = r.id; logPosted({ day, kind, ids: named, tweetId: r.id, text }) }
     else console.error(`[homers] ${kind} refused: ${r.status} ${r.error}`)
   }
-  await db.from('homer_feed_posts').update(patch).match({ day, kind })
+  const saved = await db.from('homer_feed_posts').update(patch).match({ day, kind })
+  if (saved?.error) console.error(`[homers] ${kind} posted but the row did not record it: ${saved.error.message}`)   // an unrecorded post is uncounted and invisible to the repeat guard (batch 3)
   return true
 }
 
