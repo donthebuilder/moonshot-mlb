@@ -9,6 +9,9 @@ import { explain } from '../lib/explain'
 import FindBar from './FindBar'
 import DenseTable from './DenseTable'
 import { LegCell } from './PairBlock'
+import { useLiveFetch } from '../lib/useLiveFetch'
+import { together, pairReturn } from '../lib/pairValue'
+import { HideClubs, HiddenChips, useHidden } from './openings/hideClubs'
 
 // PAIR HISTORY, FOUR SEASONS, ACTIVE PLAYERS ONLY (2026-10-07, Donovan: "pull all of the pair history data from
 // this season and the last three seasons ... only for active players ... good pairs ... for goals and
@@ -34,6 +37,9 @@ const WORDS = {
     active: 'Only active players are counted: a game inside the last 3 weeks of graded games on file.',
     missing: 'Pair history is unavailable right now. It is counted from our own graded games and loads from BUCKETS.' },
 }
+// PAIR VALUE (2026-10-26): which sports have an anytime-scorer price in odds_snap to lay a pair's record against (NBA has none)
+const PRICED = new Set(['mlb', 'nhl', 'nfl'])
+const american = (v) => (Number.isFinite(v) ? (v > 0 ? `+${v}` : `${v}`) : '—')
 const ACTIVE = 'Only active players are counted: on a current roster, and a regular this season, or in at least 3 of the last 4 seasons.'
 
 export default function PairHistV2Table({ sport = 'mlb', onOpenPlayer = null, accent = null, id = 'pairhist-v2' }) {
@@ -49,6 +55,13 @@ export default function PairHistV2Table({ sport = 'mlb', onOpenPlayer = null, ac
   const [season, setSeason] = useState('')
   const [liftOn, setLiftOn] = useState(false)
   const [recentOn, setRecentOn] = useState(false)
+  const [pricedOn, setPricedOn] = useState(false)
+  // HIDE a team or a player (2026-10-26, Donovan: "filter players out too ... certain teams"): stays hidden on this device (hideClubs.js)
+  const hTeams = useHidden(`${sport}:pair-teams`), hPlayers = useHidden(`${sport}:pair-players`)
+  // THE PRICES (pair value): each priced man's best price for the next slate; a pair with both legs priced gets its columns
+  const priced = PRICED.has(sport)
+  const { data: pp } = useLiveFetch(priced ? `/api/odds/pairprices?sport=${sport}` : null, { enabled: priced })
+  const prices = pp?.prices || null
 
   useEffect(() => {
     let alive = true
@@ -58,14 +71,25 @@ export default function PairHistV2Table({ sport = 'mlb', onOpenPlayer = null, ac
     return () => { alive = false }
   }, [sport])
 
-  const all = useMemo(() => pairHistRows(file, { query, sameGameOnly: sameGame }).filter((r) => (
-    (!team || r._a?.team === team || r._b?.team === team)
+  const all = useMemo(() => pairHistRows(file, { query, sameGameOnly: sameGame }).map((r) => {
+    // the pair against tonight's prices: both legs priced, or none of this
+    const A = prices?.[String(r._a?.player_id)], B = prices?.[String(r._b?.player_id)]
+    if (!A || !B) return r
+    const t = together(A.best, B.best)
+    return { ...r, pa: A.best, pb: B.best, tog: t?.american ?? null, ret: pairReturn(r.rate == null ? null : r.rate / 100, A.best, B.best), sameEvent: Boolean(A.event && A.event === B.event) }
+  }).filter((r) => (
+    !hTeams.hidden.has(r._a?.team) && !hTeams.hidden.has(r._b?.team) && !hPlayers.hidden.has(String(r._a?.player_id)) && !hPlayers.hidden.has(String(r._b?.player_id))
+    && (!pricedOn || r.ret != null)
+    && (!team || r._a?.team === team || r._b?.team === team)
     && (!season || Number(r[`s${season}`]) > 0)
     && (!liftOn || (r.lift != null && r.lift >= LIFT_BAR))
     && (!recentOn || (r.ago != null && r.ago <= RECENT_DAYS))
-  )), [file, query, sameGame, team, season, liftOn, recentOn])
+  )), [file, query, sameGame, team, season, liftOn, recentOn, prices, pricedOn, hTeams.hidden, hPlayers.hidden])
   const teams = useMemo(() => [...new Set((file?.pairs || []).flatMap((p) => (p?.players || []).map((x) => x?.team)).filter(Boolean))].sort(), [file])
   const rows = useMemo(() => all.slice(0, limit), [all, limit])
+  // the men in the pairs now shown (a search narrows it), for the hide picker; names for the "Hidden" chips
+  const playerList = useMemo(() => { const m = new Map(); for (const r of all) for (const p of [r._a, r._b]) if (p?.player_id != null && !m.has(String(p.player_id))) m.set(String(p.player_id), p); return [...m.values()].slice(0, 30) }, [all])
+  const nameById = useMemo(() => new Map((file?.pairs || []).flatMap((p) => (p?.players || []).map((x) => [String(x.player_id), x.name]))), [file])
   const seasons = file?.seasons_covered || []
 
   const whatIsThis = () => explain('Pair history', file?.definition
@@ -122,6 +146,13 @@ export default function PairHistV2Table({ sport = 'mlb', onOpenPlayer = null, ac
     { key: 'exp', label: 'Expected', group: 'Rate', w: 62, dp: 1, title: 'What the two players’ own rates would give if they were unrelated' },
     { key: 'lift', label: 'Lift', group: 'Rate', w: 48, dp: 2, title: 'Actual over expected. Near 1.00 is coincidence.' },
     ...seasons.map((y) => ({ key: `s${y}`, label: seasonLabel(sport, y), group: 'By season', w: 46, dp: 0, title: `${W.both} in ${seasonLabel(sport, y)}` })),
+    ...(prices ? [
+      { key: 'pa', label: 'LEG 1', group: 'Price tonight', w: 52, fmt: (v) => american(v), title: 'Best price any book lists for the first man' },
+      { key: 'pb', label: 'LEG 2', group: 'Price tonight', w: 52, fmt: (v) => american(v), title: 'Best price any book lists for the second man' },
+      { key: 'tog', label: 'TOGETHER', group: 'Price tonight', w: 74, fmt: (v) => american(v), title: 'Both legs as one parlay: the two prices multiplied. A book shortens a same-game pair, so there it is a ceiling.' },
+      { key: 'ret', label: 'RETURN', group: 'Price tonight', w: 66, primary: true, fmt: (v, r) => (v == null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(0)}%${r.sameEvent ? ' SG' : ''}`),
+        title: 'What a unit bet on this pair at tonight’s prices would have returned over its history. SG = both in one game.' },
+    ] : []),
     { key: 'last', label: 'Last time', group: 'Recent', heat: false, w: 84, mono: true, dim: true },
     { key: 'ago', label: 'Days before', group: 'Recent', w: 58, dp: 0, invert: true, title: 'Days between their last time and the day this file was built' },
   ]
@@ -139,9 +170,15 @@ export default function PairHistV2Table({ sport = 'mlb', onOpenPlayer = null, ac
           toggles={[
             { key: 'same', label: 'Same game only', on: sameGame, onChange: reset(setSameGame), title: `Both had a ${W.unit} in the same game` },
             { key: 'lift', label: `Lift ${LIFT_BAR}+`, on: liftOn, onChange: reset(setLiftOn), title: `Did it at least ${LIFT_BAR}x as often as coincidence would give` },
+            ...(prices ? [{ key: 'priced', label: 'Priced tonight', on: pricedOn, onChange: reset(setPricedOn), title: 'Only pairs where both men have a price for the next slate' }] : []),
             { key: 'recent', label: `Last ${RECENT_DAYS} days`, on: recentOn, onChange: reset(setRecentOn), title: `Last did it within ${RECENT_DAYS} days of the file` },
           ]} />
       ) })()}
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 6, margin: '0 0 10px' }}>
+        <HideClubs clubs={teams} h={hTeams} C={C} NUM_FONT={NUM_FONT} accent={hue} />
+        <HideClubs clubs={playerList.map((p) => String(p.player_id))} h={hPlayers} word="players" label={(id) => nameById.get(id) || id} C={C} NUM_FONT={NUM_FONT} accent={hue} />
+        <HiddenChips h={hPlayers} label={(id) => nameById.get(id) || id} C={C} NUM_FONT={NUM_FONT} accent={hue} />
+      </div>
       {all.length === 0 ? (
         <div style={{ color: C.text3, fontSize: 12, padding: '10px 0' }}>
           {!file.pairs.length && file.thresholds
