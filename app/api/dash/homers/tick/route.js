@@ -2537,9 +2537,11 @@ async function mlbTick(request) {
             // A rate limit or a server-side failure releases the claim so a
             // later tick can try; a refusal (403 and the like) is recorded and
             // never retried -- no loop against a wall.
-            const transient = r.status === 429 || !r.status || r.status >= 500
-            await db.from('homer_feed').update({ mlbhr_reply_id: transient ? null : `refused:${r.status}` }).match(where)
-            if (r.status === 429) break
+            // settled by the shared rule (lib/dash/xFail.js settleAlert, batch 3): a credits-breaker block (402 / 401, no request made) waits for the block to lapse instead of
+            // closing every pending reply as 'refused:402'; an account-level or content refusal closes; a transient one retries a few times
+            const st = settleAlert(r, { key: `mlbhr|${row.day}|${row.player_id}|${row.hr_n ?? ''}` })
+            await db.from('homer_feed').update({ mlbhr_reply_id: st.value === null ? null : st.value === 'skipped' ? `refused:${r.status}` : st.value }).match(where)
+            if (st.stop) break
           }
         }
       }
