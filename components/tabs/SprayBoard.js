@@ -7,7 +7,8 @@ import Tap from '../Tap'
 import { GameTap } from '../EntityTap'
 import SprayField from '../SprayField'
 import HRPitchProfile from '../HRPitchProfile'
-import { rampColor, inkFor } from '../Heatmap'
+import { chipColor } from '../Heatmap'
+import { flatChip, FLAT_CHIP_CLASS, CHIP_MARK } from '../../lib/chips'
 import { dataUrl } from '../../lib/dataSource'
 
 // 🧱 FENCE LINE, PER PLAYER (2026-08-08, on request): the fence-rider counts
@@ -112,20 +113,15 @@ export default function SprayBoard({ players = [], slateMode, onPlayerClick }) {
         {matches.slice(0, 18).map((p) => {
           const id = p.player_id ?? nameOf(p)
           const on = selected && (selected.player_id ?? nameOf(selected)) === id
-          const bg = rampColor(hrScore(p), lo, hi)
+          // THE SITE'S ONE CHIP (lib/chips.js flatChip, the oval; chips batch 2026-10-25). The heat ramp that used to fill the chip rides as a dot, same ramp and
+          // same HR score, so the name stays in the normal text colour (readable at the cold end) and check-chips counts it as the standard.
+          const heat = chipColor(hrScore(p), lo, hi) || C.text3
           return (
-            <button
-              key={id}
-              onClick={() => setPick(id)}
-              title={`HR ${hrScore(p).toFixed(1)}`}
-              style={{
-                padding: '3px 9px', borderRadius: 6, cursor: 'pointer',
-                fontSize: TYPE.label, fontWeight: 700,
-                border: `1px solid ${on ? C.orange : 'transparent'}`,
-                background: bg, color: inkFor(bg),
-                boxShadow: on ? `0 0 0 1px ${C.orange}` : 'none',
-              }}
-            >{nameOf(p).split(' ').slice(-1)[0]}</button>
+            <button key={id} onClick={() => setPick(id)} title={`HR ${hrScore(p).toFixed(1)}`} aria-pressed={on} className={FLAT_CHIP_CLASS}
+              style={{ ...flatChip(on, C.orange, C, NUM_FONT), ...CHIP_MARK }}>
+              <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', background: heat, display: 'inline-block' }} />
+              {nameOf(p).split(' ').slice(-1)[0]}
+            </button>
           )
         })}
       </div>

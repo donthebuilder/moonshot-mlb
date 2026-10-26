@@ -5,6 +5,7 @@ import { Segmented } from '../Filters'
 import SeasonToggle from '../SeasonToggle'
 import useDvpSeason from '../../lib/nfl/useDvpSeason'
 import { chipColor } from '../Heatmap'
+import { flatChip, FLAT_CHIP_CLASS, CHIP_MARK } from '../../lib/chips'
 import { RedZoneStrip } from './RedZoneField'
 import { ChartCard, ChartLegend } from '../charts'
 import { useIsPhone } from '../MobileFold'
@@ -112,10 +113,11 @@ export default function RedZoneDots({ data, matchup, team = 'all', onPlayerClick
 
       {/* the name chips, MOONSHOT's spray-page row: heat by red-zone touches */}
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
-        <button type="button" onClick={() => { setWho(null); setPick(null) }} style={chip(!who, null)}>Everyone · {rows.reduce((a, r) => a + r.n, 0)}</button>
+        <button type="button" onClick={() => { setWho(null); setPick(null) }} className={FLAT_CHIP_CLASS} aria-pressed={!who} style={chip(!who)}>Everyone · {rows.reduce((a, r) => a + r.n, 0)}</button>
         {top.map((r) => (
           <button key={r.pid} type="button" onClick={() => { setWho(who === r.pid ? null : r.pid); setPick(null) }}
-            title={`${r.name}: ${r.n} red-zone touches, ${r.tds} TD`} style={chip(who === r.pid, chipColor(r.n, 0, maxN))}>
+            title={`${r.name}: ${r.n} red-zone touches, ${r.tds} TD`} className={FLAT_CHIP_CLASS} aria-pressed={who === r.pid} style={chip(who === r.pid)}>
+            <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', background: chipColor(r.n, 0, maxN) || C.text3, display: 'inline-block' }} />
             {surname(r.name)}
           </button>
         ))}
@@ -196,12 +198,7 @@ export default function RedZoneDots({ data, matchup, team = 'all', onPlayerClick
   )
 }
 
-function chip(on, heat) {
-  return {
-    padding: '3px 10px', borderRadius: 3, cursor: 'pointer', fontSize: TYPE.label, fontWeight: 800,
-    fontFamily: NUM_FONT, whiteSpace: 'nowrap', minHeight: 0,
-    border: `1px solid ${on ? C.text : C.border}`,
-    background: heat || 'transparent', color: heat ? C.bg : C.text2,
-    boxShadow: on ? `0 0 0 1px ${C.text}` : 'none',
-  }
+// THE SITE'S ONE CHIP (lib/chips.js flatChip, the oval; chips batch 2026-10-25): the red-zone heat that filled the chip rides as a dot, as on the spray picker
+function chip(on) {
+  return { ...flatChip(on, C.green, C, NUM_FONT), ...CHIP_MARK }
 }
