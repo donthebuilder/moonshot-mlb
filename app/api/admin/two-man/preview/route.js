@@ -8,7 +8,7 @@ import { hasSupabaseConfig } from '../../../../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../../../../lib/supabase/server'
 import { adminClient } from '../../../../../lib/supabase/admin'
 import { isAdminUser, adminDenyReason, sameOriginJson } from '../../../../../lib/admin'
-import { CARD_SPORTS, CARD_VERSION, lockAtOf, donovanRow } from '../../../../../lib/card/core'
+import { CARD_SPORTS, CARD_VERSION, lockAtFor, donovanRow } from '../../../../../lib/card/core'
 import { loadWindows, loadCandidates } from '../../../../../lib/card/sources'
 
 export const runtime = 'nodejs'
@@ -49,7 +49,7 @@ export async function POST(request) {
   if (!win) return json({ error: `No ${sport} games on ${date}.` }, 404)
   const c = await loadCandidates(sport, win, now, { all: true })
   if (!c.ok) return json({ error: `The board could not be read: ${c.why}` }, 502)
-  const made = donovanRow({ sport, slate_key: win.slate_key, card_date: date, field: c.cands, playerIds: ids, note: PREVIEW_NOTE, cardName: body.card_name, now, lockAtMs: lockAtOf(win.first_start_ms), version: CARD_VERSION, allowLate: true, product: nman ? 'n_man' : straight ? 'straight' : 'two_man', units: nman ? body.units : null })
+  const made = donovanRow({ sport, slate_key: win.slate_key, card_date: date, field: c.cands, playerIds: ids, note: PREVIEW_NOTE, cardName: body.card_name, now, lockAtMs: lockAtFor(sport, win.first_start_ms), version: CARD_VERSION, allowLate: true, product: nman ? 'n_man' : straight ? 'straight' : 'two_man', units: nman ? body.units : null })
   if (!made.ok) return json({ error: made.error }, 400)
   try {
     if (straight) {
