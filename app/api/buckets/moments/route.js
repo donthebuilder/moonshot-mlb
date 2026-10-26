@@ -94,6 +94,8 @@ export async function GET(request) {
         const q = quoteOf({ day: r.game_date || r.day, playerId: r.player_id, gameId: r.game_id })
         const x = await postToX(q ? `${text}\n\n${receiptLineOf(q, { sport: 'nba', key: `${r.game_id}:${r.player_id}:${r.kind}` })}` : text, { kind: 'nba30', ...(q ? { quoteId: q.id } : {}) }).catch((e) => ({ ok: false, error: e?.message }))
         id = x?.ok && x.id ? String(x.id) : 'skipped'
+        // a refusal was swallowed here with no log (batch 3, 2026-10-26): a 429 / 5xx / the credits breaker closed the moment for good and nobody could say why
+        if (id === 'skipped') console.error(`[buckets moments] X did not post ${r.name} ${r.kind}: ${x?.status ?? 0} ${String(x?.error || '').slice(0, 120)}`)
       }
       await db.from('buckets_feed').update({ x_post_id: id, discord_sent: discord }).match(KEY(r))
       out.posted.push(`${r.name} ${r.points} -> ${id === 'skipped' ? 'discord' : 'x + discord'}`)
