@@ -620,6 +620,16 @@ await ok('NFL game guard (Kittle, 10-25): a TD cashes only in the named game, on
   const w = RC.assembleReceipt({ day: DAY, rows: posts(), ...m, now: T0 })
   assert.equal(w.state, 'waiting'); assert.match(w.reason, /not graded yet/)
 })
+await ok('an NBA write-up names players for the receipt (writeup_nba_<game> was missing from WRITEUP_SPORT, so BUCKETS men were never graded, batch 3)', async () => {
+  const prev = process.env.BUCKETS_PUBLIC; process.env.BUCKETS_PUBLIC = 'on'
+  try {
+    const S2 = await import('../lib/posts/slate.js')
+    if (!S2.isPublicSport('nba')) return   // the switch is read at import in some builds: then the sport is hidden here and there is nothing to assert
+    const row = { kind: 'writeup_nba_0022500001', x_post_id: '5501', payload: { game_id: '0022500001', named: ['b1'], writeup: { players: [{ player_id: 'b1', name: 'Test Guard One', team: 'TST' }] } } }
+    const { players } = RC.namedPlayers([row])
+    assert.deepEqual(players.map((p) => `${p.sport}:${p.id}`), ['nba:b1'])
+  } finally { if (prev === undefined) delete process.env.BUCKETS_PUBLIC; else process.env.BUCKETS_PUBLIC = prev }
+})
 await ok('loader: a failed read is "not ready", never a miss (schedule down -> null games)', async () => {
   const LD = await import('../lib/posts/receiptLoad.js')
   assert.equal(await LD.mlbGamesOn(DAY, { fetchImpl: async () => ({ ok: false }) }), null)
