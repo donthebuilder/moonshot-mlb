@@ -10,6 +10,7 @@ import { useBucketsScores } from '../../../lib/nba/useBuckets'
 import { useHashLens } from '../../../lib/useHashLens'
 import { DelayedBanner, Loading, EmptyState } from '../ui'
 import FirstBasketMatchup from '../../openings/FirstBasketMatchup'
+import { HideClubs, useHidden } from '../../openings/hideClubs'
 import { surname } from '../../../lib/player'
 
 // 🏀 OPENINGS (2026-10-22, Donovan: "researching the first basket ... team tip win rate, who gets the first shots, position and
@@ -44,11 +45,12 @@ export default function Openings({ date, onOpenPlayer, onOpenTeam, onOpenGame })
   const { data: sb } = useBucketsScores(date)
   const { data: lineupData } = useLiveFetch(`/api/buckets/lineups?date=${date}`)   // who is starting tonight (ESPN posts it close to tip)
   const L = LANES[lane] || LANES.first
+  const hc = useHidden('nba:clubs')   // clubs hidden on this device (components/openings/hideClubs.js)
   // a rate on a handful of games is noise: 20+ games across seasons, anyone this early in this season alone
   const minGp = season === 'this' ? 1 : 20
 
   const teamsBy = useMemo(() => new Map((data?.teams || []).map((t) => [t.team, t])), [data])
-  const players = useMemo(() => (data?.players || []).filter((p) => p.gp >= minGp), [data, minGp])
+  const players = useMemo(() => (data?.players || []).filter((p) => p.gp >= minGp && !hc.hidden.has(p.team)), [data, minGp, hc.hidden])
   // each club's man who takes its first shot most (the same games floor as the table)
   const firstShooter = useMemo(() => {
     const m = new Map()
@@ -57,13 +59,13 @@ export default function Openings({ date, onOpenPlayer, onOpenTeam, onOpenGame })
   }, [players, minGp])
 
   // TONIGHT: two rows a game (away first), the clubs' own records
-  const tonight = useMemo(() => (sb?.games || []).flatMap((g) => ['away', 'home'].map((s) => {
+  const tonight = useMemo(() => (sb?.games || []).filter((g) => !hc.hidden.has(g.away?.abbrev) && !hc.hidden.has(g.home?.abbrev)).flatMap((g) => ['away', 'home'].map((s) => {
     const t = g[s]?.abbrev
     const T = teamsBy.get(t) || {}
     const fs = firstShooter.get(t)
     return { _id: `${g.id}-${s}`, gameId: g.id, game: s === 'away' ? `${g.away?.abbrev} @ ${g.home?.abbrev}` : '', team: t, ...T,
       jumperTxt: T.jumper ? `${T.jumper} ${T.jumperW}-${T.jumperJ - T.jumperW}` : '—', shooter: fs?.name || '—', shooterId: fs?.playerId || null, shooterPct: fs?.firstShotPct ?? null }
-  })), [sb, teamsBy, firstShooter])
+  })), [sb, teamsBy, firstShooter, hc.hidden])
 
   const tonightCols = [
     { key: 'game', label: 'Game', group: 'Game', w: 92, heat: false, sticky: true, bold: true, link: (r) => (onOpenGame && r.game ? () => onOpenGame(r.gameId) : null) },
@@ -124,7 +126,7 @@ export default function Openings({ date, onOpenPlayer, onOpenTeam, onOpenGame })
   ]
   // THE FIRST-BASKET MATCHUP (components/openings/FirstBasketMatchup.js, shared): tonight's games, each club against the other,
   // then the first-basket targets ranked by the record (first baskets made %, then first shot %)
-  const matchGames = useMemo(() => (sb?.games || []).filter((g) => g.away?.abbrev && g.home?.abbrev).map((g) => ({ key: String(g.id), away: g.away.abbrev, home: g.home.abbrev, label: `${g.away.abbrev} @ ${g.home.abbrev}` })), [sb])
+  const matchGames = useMemo(() => (sb?.games || []).filter((g) => g.away?.abbrev && g.home?.abbrev && !hc.hidden.has(g.away.abbrev) && !hc.hidden.has(g.home.abbrev)).map((g) => ({ key: String(g.id), away: g.away.abbrev, home: g.home.abbrev, label: `${g.away.abbrev} @ ${g.home.abbrev}` })), [sb, hc.hidden])
   const matchStats = [
     { key: 'tipPct', label: 'Wins the tip', fmt: pc, higher: true },
     { key: 'jumper', label: 'Usual jumper', fmt: (v, T) => (T.jumper ? `${surname(T.jumper)} ${T.jumperW}-${T.jumperJ - T.jumperW}` : '—'), higher: true, barOf: (T) => (T.jumperJ ? (100 * T.jumperW) / T.jumperJ : null) },   // lit / pulled by his tip win %
@@ -165,8 +167,8 @@ export default function Openings({ date, onOpenPlayer, onOpenTeam, onOpenGame })
   }
   const targetSort = (a, b) => (b.firstFgPct ?? -1) - (a.firstFgPct ?? -1) || (b.firstShotPct ?? -1) - (a.firstShotPct ?? -1)
 
-  const teamRows = useMemo(() => (data?.teams || []).map((t) => ({ ...t, _id: t.team, jumperRec: t.jumper ? `${t.jumperW}-${t.jumperJ - t.jumperW}` : '—' }))
-    .sort((a, b) => (b[L.team] ?? -1) - (a[L.team] ?? -1)), [data, L])
+  const teamRows = useMemo(() => (data?.teams || []).filter((t) => !hc.hidden.has(t.team)).map((t) => ({ ...t, _id: t.team, jumperRec: t.jumper ? `${t.jumperW}-${t.jumperJ - t.jumperW}` : '—' }))
+    .sort((a, b) => (b[L.team] ?? -1) - (a[L.team] ?? -1)), [data, L, hc.hidden])
   const playerRows = useMemo(() => players.map((p) => ({ ...p, _id: p.playerId })).sort((a, b) => (b[L.player] ?? -1) - (a[L.player] ?? -1)), [players, L])
   const seasonOpts = (data?.seasons?.length ? [{ value: 'both', label: 'Both seasons' }, { value: 'this', label: 'This season' }, { value: 'last', label: 'Last season' }] : [{ value: 'both', label: 'Both seasons' }])
   const sample = (data?.seasons || []).map((s) => `${s.label} ${s.games} games`).join(' · ')
@@ -179,6 +181,8 @@ export default function Openings({ date, onOpenPlayer, onOpenTeam, onOpenGame })
       <DelayedBanner error={error} what="the openings" />
       {loading && !data ? <Loading what="every game's opening" /> : null}
       {data && !data.games ? <EmptyState title="NO OPENINGS ON FILE YET" note="Each game's opening is written when it's graded. This fills as the season plays." /> : null}
+
+      {data?.games > 0 && <HideClubs clubs={(data?.teams || []).map((t) => t.team).sort()} h={hc} C={C} NUM_FONT={NUM_FONT} accent={C.purple} />}
 
       {data?.games > 0 && tonight.length > 0 && (
         <section aria-label="Tonight's openings">

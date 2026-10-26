@@ -68,6 +68,7 @@ import PageViews from '../PageViews'
 const Scores = dynamic(() => import('./tabs/Scores'), { loading: TabLoading })
 const Standings = dynamic(() => import('./tabs/Standings'), { loading: TabLoading })
 const Pairs = dynamic(() => import('./tabs/Pairs'), { loading: TabLoading })
+const Openings = dynamic(() => import('./tabs/Openings'), { loading: TabLoading })   // 2026-10-26: who gets the ball, the first touchdown, the first quarter
 const Guide = dynamic(() => import('./tabs/Guide'), { loading: TabLoading })
 const Live = dynamic(() => import('./tabs/Live'), { loading: TabLoading })
 const Streaks = dynamic(() => import('./tabs/Streaks'), { loading: TabLoading })
@@ -583,6 +584,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'team' && <NflTeam data={slate} picks={picks} matchup={matchup} logs={logs} results={nflResults} onOpenPlayer={openPlayer} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
             {tab === 'standings' && <Standings onOpenTeam={openTeamPage} />}
             {tab === 'pairs' && <Pairs data={data} results={nflResults} onPlayerClick={openPlayer} setTab={setTab} />}
+            {tab === 'openings' && <Openings onOpenTeam={openTeamPage} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p, 'TD') }} />}
             {tab === 'guide' && <Guide onNavigate={setTab} data={data} />}
             {/* ONE LIVE PAGE (2026-10-17, simplify audit 14): Scores is its second view; #tab=scores / boxscores / boxes are
                 aliases that land here with lens=scores (lib/routes.js ALIAS_PARAMS). Both read the same merged slate. */}
