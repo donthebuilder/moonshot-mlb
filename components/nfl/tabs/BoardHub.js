@@ -11,6 +11,7 @@ import BoardTopBar from '../../BoardTopBar'
 import { nflGameOptions } from '../NflBoardExtras'
 import Touchdowns, { tdPool } from './Touchdowns'
 import TwoTouchdowns from './TwoTouchdowns'
+import FirstTouchdowns from './FirstTouchdowns'
 import { HUB_MARKETS, OWN_MODEL_MARKETS, NO_RANK_CARD } from '../../../lib/nfl/boardMarkets'
 import { twoBoard } from '../../../lib/nfl/twoScore'
 import HowToRead from '../../HowToRead'
@@ -246,6 +247,8 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
       </>)}
       {view === 'called' && !OWN_MODEL_MARKETS.has(market)
         ? <Picks picks={picks} results={results} data={data} matchup={matchup} onPlayerClick={onPlayerClick} odds={odds} oddsStatus={oddsStatus} logs={logs} market={market} hideMarketPicker top={top} />
+        : market === 'FTD'
+          ? <FirstTouchdowns data={slate} onPlayerClick={onPlayerClick} />
         : OWN_MODEL_MARKETS.has(market)
           ? <TwoTouchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} oddsStatus={oddsStatus} top={top} showOpts={!phone || opts} viewCtl={viewCtl} liveSnap={liveSnap} />
           : market === 'TD'
