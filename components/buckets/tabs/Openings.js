@@ -39,7 +39,7 @@ const typeText = (v) => (v?.length ? v.slice(0, 3).map(([w, , n]) => `${w} ${n}`
 export default function Openings({ date, onOpenPlayer, onOpenTeam, onOpenGame }) {
   const [view, setView] = useHashLens(VIEWS, 'players')
   const [lane, setLane] = useState('first')
-  const [season, setSeason] = useState('both')
+  const [season, setSeason] = useState('this')
   const [where, setWhere] = useState('all')
   const [last, setLast] = useState('all')
   const url = `/api/buckets/openings?season=${season}&where=${where}${last === 'all' ? '' : `&last=${last}`}`
@@ -175,7 +175,7 @@ export default function Openings({ date, onOpenPlayer, onOpenTeam, onOpenGame })
   const teamRows = useMemo(() => (data?.teams || []).filter((t) => !hc.hidden.has(t.team)).map((t) => ({ ...t, _id: t.team, jumperRec: t.jumper ? `${t.jumperW}-${t.jumperJ - t.jumperW}` : '—' }))
     .sort((a, b) => (b[L.team] ?? -1) - (a[L.team] ?? -1)), [data, L, hc.hidden])
   const playerRows = useMemo(() => players.map((p) => ({ ...p, _id: p.playerId })).sort((a, b) => (b[L.player] ?? -1) - (a[L.player] ?? -1)), [players, L])
-  const seasonOpts = (data?.seasons?.length ? [{ value: 'both', label: 'Both seasons' }, { value: 'this', label: 'This season' }, { value: 'last', label: 'Last season' }] : [{ value: 'both', label: 'Both seasons' }])
+  const seasonOpts = null   // THIS SEASON ONLY (2026-10-27, Donovan)
   const sample = (data?.seasons || []).map((s) => `${s.label} ${s.games} games`).join(' · ')
 
   return (
@@ -210,9 +210,8 @@ export default function Openings({ date, onOpenPlayer, onOpenTeam, onOpenGame })
           <PillRow tall label="View" value={view} onChange={setView} options={[{ key: 'players', label: 'Players' }, { key: 'teams', label: 'Teams' }]} />
           <PillRow label="Sort by" value={lane} onChange={setLane} options={[{ key: 'first', label: LANES.first.word }, { key: 'w1', label: LANES.w1.word }, { key: 'w2', label: LANES.w2.word }, { key: 'q1', label: LANES.q1.word }]} />
           <FiltersSheet
-            onReset={() => { setSeason('both'); setWhere('all'); setLast('all') }}
+            onReset={() => { setSeason('this'); setWhere('all'); setLast('all') }}
             groups={[
-              { key: 'season', label: 'Season', value: season, defaultValue: 'both', onChange: setSeason, options: seasonOpts },
               { key: 'where', label: 'Home / away', value: where, defaultValue: 'all', onChange: setWhere, options: [{ value: 'all', label: 'All' }, { value: 'home', label: 'Home' }, { value: 'away', label: 'Away' }] },
               { key: 'last', label: 'Window', value: last, defaultValue: 'all', onChange: setLast, options: [{ value: 'all', label: 'Every game' }, { value: '10', label: 'Last 10' }, { value: '20', label: 'Last 20' }] },
             ]} />

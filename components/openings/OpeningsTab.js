@@ -25,7 +25,7 @@ export default function OpeningsTab({ sport, url, Table, C, NUM_FONT, accent, ui
   const cfg = OPENING_WORDS[sport]
   const { DelayedBanner, Loading, EmptyState } = ui
   const [lane, setLane] = useState('first')
-  const [season, setSeason] = useState('both')
+  const [season, setSeason] = useState('this')
   const [where, setWhere] = useState('all')
   const [last, setLast] = useState('all')
   const hc = useHidden(`${sport}:clubs`)
@@ -74,7 +74,7 @@ export default function OpeningsTab({ sport, url, Table, C, NUM_FONT, accent, ui
     { key: 'shotsToFirst', label: cfg.shotsStat, fmt: f1, higher: false },
     ...windows.flatMap(([k, label]) => [{ key: `${k}For`, label: `${label} scored`, fmt: f1, higher: true }, { key: `${k}Ag`, label: `${label} allowed`, fmt: f1, higher: false }]),
   ]
-  const seasonOpts = data?.seasons?.length > 1 ? [{ value: 'both', label: 'Both seasons' }, { value: 'this', label: 'This season' }, { value: 'last', label: 'Last season' }] : null
+  const seasonOpts = null   // THIS SEASON ONLY (2026-10-27, Donovan: "I don't wanna see last year's first goals no more")
   const lastOpts = [{ value: 'all', label: 'Every game' }, ...cfg.lastOptions.map((n) => ({ value: n, label: `Last ${n}` }))]
   const sample = (data?.seasons || []).map((s) => `${s.label} ${s.games} games`).join(' · ')
   const L = data?.league
@@ -97,7 +97,7 @@ export default function OpeningsTab({ sport, url, Table, C, NUM_FONT, accent, ui
           )}
           <PillRow label="Sort by" value={lane} onChange={setLane} options={[{ key: 'first', label: cfg.firstWord }, ...windows.map(([k, label]) => ({ key: k, label }))]} />
           <FiltersSheet
-            onReset={() => { setSeason('both'); setWhere('all'); setLast('all') }}
+            onReset={() => { setSeason('this'); setWhere('all'); setLast('all') }}
             groups={[
               ...(seasonOpts ? [{ key: 'season', label: 'Season', value: season, defaultValue: 'both', onChange: setSeason, options: seasonOpts }] : []),
               { key: 'where', label: 'Home / away', value: where, defaultValue: 'all', onChange: setWhere, options: [{ value: 'all', label: 'All' }, { value: 'home', label: 'Home' }, { value: 'away', label: 'Away' }] },
