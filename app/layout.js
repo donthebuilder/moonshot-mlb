@@ -17,7 +17,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://dashnetwork.vercel
 export const metadata = {
   metadataBase: new URL(SITE_URL),
   title: 'DASH Network · Moonshot, Tuddy, Lamp & Franchise',
-  description: 'DASH Network — Moonshot MLB, Tuddy NFL, Lamp NHL, and Franchise fantasy football.',
+  description: 'DASH Network — Moonshot MLB, Tuddy NFL, Lamp NHL, Buckets NBA, and Franchise fantasy football.',
   // #96 set `alternates.canonical: '/'` HERE, on the root layout -- which
   // Next inherits into every route, so /app, /called, /start and /fantasy all
   // told crawlers they were duplicates of the front door (2026-09-24 audit,
@@ -30,7 +30,7 @@ export const metadata = {
   // og-card.png is 1200x630, the size both crawlers actually want.
   openGraph: {
     title: 'DASH Network',
-    description: 'Moonshot MLB, Tuddy NFL, Lamp NHL, and Franchise fantasy football — every call graded in public.',
+    description: 'Moonshot MLB, Tuddy NFL, Lamp NHL, Buckets NBA, and Franchise fantasy football — every call graded in public.',
     url: SITE_URL,
     siteName: 'DASH Network',
     images: [{ url: '/og-card.png', width: 1200, height: 630, alt: 'DASH Network — every call graded in public' }],
@@ -39,7 +39,7 @@ export const metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'DASH Network',
-    description: 'Moonshot MLB, Tuddy NFL, Lamp NHL, and Franchise fantasy football — every call graded in public.',
+    description: 'Moonshot MLB, Tuddy NFL, Lamp NHL, Buckets NBA, and Franchise fantasy football — every call graded in public.',
     images: ['/og-card.png'],
   },
   // INSTALLABLE (2026-08-09). Two reasons, and the second one is the point:
