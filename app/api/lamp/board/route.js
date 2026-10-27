@@ -8,6 +8,8 @@ import { validDate } from '../../../../lib/nhl/api'
 import { readBoard, BOARD_MARKETS } from '../../../../lib/nhl/boardRead'
 import { ok, bad, delayed } from '../../../../lib/nhl/respond'
 import { recordNhlBoard } from '../../../../lib/rankSnapshots/record'
+import { MEMBER_FEED_PARAM } from '../../../../lib/members/boardGate'
+import { boardForViewer } from '../../../../lib/members/boardViewer'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -22,7 +24,11 @@ export async function GET(request) {
   try {
     const board = await readBoard(date, { market, lines: true, proj: market === 'GOAL' })
     await recordNhlBoard(date, market, board)   // the ordering behind the rank arrows (lib/rankSnapshots): a quiet no-op until its table exists
-    return ok({ ...board, fetchedAt: new Date().toISOString() }, 60)
+    // THE PAID PICKS STAY PAID (2026-10-26, lib/members/boardGate.js): the plain address is the gated board for everyone (cached as before);
+    // m=1 from a member's own login is the full board, private
+    const v = await boardForViewer(board, { sport: 'nhl', memberAsked: searchParams.get(MEMBER_FEED_PARAM) === '1' })
+    const body = { ...v.body, fetchedAt: new Date().toISOString() }
+    return v.private ? Response.json(body, { headers: { 'Cache-Control': 'private, no-store' } }) : ok(body, 60)
   } catch (e) {
     return delayed(`board ${date}`, e)
   }

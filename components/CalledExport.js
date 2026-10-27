@@ -4,6 +4,7 @@ import { flatChip, FLAT_CHIP_CLASS } from '../lib/chips'
 import { groupCalled, calledText, CALLED_PER_CARD } from '../lib/calledList'
 import { nbaCalled, nhlCalled, nflCalled } from '../lib/calledGather'
 import { useMemberState } from './MemberGate'
+import { withMemberFeed } from '../lib/members/boardGate'
 import { useGameCalls } from './nfl/GameCalls'
 import ShareCardButton from './card/ShareCardButton'
 
@@ -16,9 +17,10 @@ import ShareCardButton from './card/ShareCardButton'
 // The text opens in a panel with a Copy button: a phone (iOS Safari) refuses a copy that waits on a fetch, so the copy is its own
 // tap; where the browser allows it, the first tap copies too.
 
-const getJSON = (u) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+// a member's export reads the full board feed (m=1, lib/members/boardGate.js); everyone else the gated one
+const getJSONFor = (member) => (u) => fetch(withMemberFeed(u, member)).then((r) => (r.ok ? r.json() : null)).catch(() => null)
 // the sports read here, by key (the registry rule: no sport ternaries)
-const READERS = { nba: (date) => nbaCalled(getJSON, date), nhl: (date) => nhlCalled(getJSON, date) }
+const READERS = { nba: (date, member) => nbaCalled(getJSONFor(member), date), nhl: (date, member) => nhlCalled(getJSONFor(member), date) }
 
 /** TUDDY's: its week file + pick card are already on the page; the game calls are read here (NFL only). */
 export function NflCalledExport({ data, picks, C, NUM_FONT, accent }) {
@@ -37,7 +39,7 @@ export default function CalledExport({ sport, date = null, prepared = null, C, N
   if (!member) return null
 
   const gather = async () => {
-    const r = prepared || (READERS[sport] ? await READERS[sport](date) : null)
+    const r = prepared || (READERS[sport] ? await READERS[sport](date, member) : null)
     const games = groupCalled(r?.entries || [])
     return { r, games, text: calledText({ head: r?.head || '', games, weekday: Boolean(r?.weekday) }) }
   }
