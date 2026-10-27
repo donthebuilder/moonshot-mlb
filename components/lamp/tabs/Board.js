@@ -83,6 +83,7 @@ const BAND_DEFS = {
   PTS: [{ key: 'ptsPg', label: 'Points / GP' }, { key: 'toi', label: 'Ice time' }, { key: 'oppGaPg', label: 'Opp goals allowed' }],
   AST: [{ key: 'astPg', label: 'Assists / GP' }, { key: 'toi', label: 'Ice time' }, { key: 'oppGaPg', label: 'Opp goals allowed' }],
   G2: [{ key: 'shotsPg', label: 'Shots / GP' }, { key: 'shPct', label: 'Shooting %' }, { key: 'toi', label: 'Ice time' }, { key: 'goalsPg', label: 'Goals / GP' }],
+  FIRST: [],   // lamp-first-v1 scores from rates and the club, not per-leg percentiles
 }
 
 export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = null, setDate = () => {}, market: marketTab = null, onMarket = null }) {
@@ -100,12 +101,13 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   const bGoal = useLampBoard(date, 'GOAL'), bSog = useLampBoard(date, 'SOG'), bPts = useLampBoard(date, 'PTS'), bAst = useLampBoard(date, 'AST')
   // 2+ GOALS (goal2_site_v1, a new model): read only once its pill is opened (one more night build is not paid for every visit)
   const bG2 = useLampBoard(date, 'G2', market === 'G2')
-  const boardsBy = { GOAL: bGoal, SOG: bSog, PTS: bPts, AST: bAst, G2: bG2 }
+  const bFirst = useLampBoard(date, 'FIRST', market === 'FIRST')
+  const boardsBy = { GOAL: bGoal, SOG: bSog, PTS: bPts, AST: bAst, G2: bG2, FIRST: bFirst }
   const { data, error, loading } = boardsBy[market] || bGoal
   const marketCounts = useMemo(() => Object.fromEntries(MARKETS.map((m) => {
     const d = boardsBy[m.key]?.data
     return [m.key, d ? (d.games || []).filter((g) => !g.noMarketLock).reduce((n, g) => n + g.rows.filter((r) => r.score != null && Number.isFinite(Number(r.score))).length, 0) : null]
-  })), [bGoal.data, bSog.data, bPts.data, bAst.data, bG2.data]) // eslint-disable-line react-hooks/exhaustive-deps
+  })), [bGoal.data, bSog.data, bPts.data, bAst.data, bG2.data, bFirst.data]) // eslint-disable-line react-hooks/exhaustive-deps
   // TEST is a small tag inside the chip, not a longer label: the record rule (no record until 30 graded nights) stays printed
   const marketOptions = MARKETS.map((m) => ({ key: m.key, count: marketCounts[m.key] ?? undefined, title: m.label.replace(' \u00b7 TEST', '') + (m.test ? ' (a test: no record until 30 graded nights)' : ''),
     label: <>{m.short}{m.test ? <span style={{ marginLeft: 6, padding: '1px 4px', borderRadius: 4, border: `1px solid ${C.border2}`, color: C.text3, font: `800 9px/1.2 ${NUM_FONT}`, letterSpacing: '.06em' }}>TEST</span> : null}</>, }))
@@ -446,6 +448,8 @@ const MARKETS = [
   { key: 'AST', label: 'ASSISTS 1+ · TEST', short: 'ASSISTS 1+', test: true, eyebrow: 'LAMP · RANKINGS · ASSISTS · TEST', note: 'A TEST: three called per game for 1+ assist, graded after; no record until 30 graded nights. Score = assists per game, ice time and goals his opponent allows, each ranked tonight.', result: 'AST', log: 'lamp_prop_log' },
   // 2+ GOALS (TWO-SCORE batch, 2026-10-11, Donovan): a NEW MODEL, tracked, never CALLED (goals are exempt from the Card price floor; no 2+ goals price is stored)
   { key: 'G2', label: '2+ GOALS · NEW MODEL', short: '2+ GOALS', test: true, eyebrow: 'LAMP · RANKINGS · 2+ GOALS · NEW MODEL', note: 'Who could score two. Two-goal ranking: a new model, not part of the goal score. Ranked tonight by shots per game, shooting %, ice time and goals per game over his games this season (last 82 before 2026-10-18); ON THE BOARD is the top third. Recorded before puck drop and graded on the real result, 2 or more goals; no record is printed until 30 graded nights. Information only.', result: 'GOALS', log: 'lamp_prop_log' },
+  // FIRST GOAL (2026-10-27, Donovan: "I want these players ranked for first touchdowns and first anything"): lamp-first-v1, a NEW MODEL, ranked inside each game. #1 is CALLED, #2-3 ON THE BOARD.
+  { key: 'FIRST', label: 'FIRST GOAL \u00b7 NEW MODEL', short: 'FIRST GOAL', test: true, eyebrow: 'LAMP \u00b7 RANKINGS \u00b7 FIRST GOAL \u00b7 NEW MODEL', note: 'Who scores the game\u2019s first goal. Ranked inside each game from goals and shots per game (this season, pulled toward the league) and how often his club scores first. #1 in a game is CALLED, #2 and #3 are ON THE BOARD. A new model, recorded before puck drop and graded on the game\u2019s first goal; no record until 30 graded nights.', result: 'FIRST', log: 'lamp_prop_log' },
 ]
 // The SCORE header's ⓘ, per market (it had none, so no explanation and no
 // picture). The legs are the models' own: lib/nhl/goalModel.js and
@@ -456,6 +460,7 @@ const SCORE_TITLE = (date) => ({
   SOG: 'Tonight\u2019s shots score: shots and ice time per game, and how many shots his opponent allows, each ranked against tonight\u2019s skaters. Higher ranks better.',
   PTS: 'Tonight\u2019s points score (a TEST): points and ice time per game, and how many goals his opponent allows, each ranked against tonight\u2019s skaters. Higher ranks better.',
   AST: 'Tonight\u2019s assists score (a TEST): assists and ice time per game, and how many goals his opponent allows, each ranked against tonight\u2019s skaters. Higher ranks better.',
+  FIRST: 'Tonight\u2019s first-goal ranking (a new model): goals and shots per game this season, pulled toward the league, times how often his club scores first. Ranked inside each game. A ranking, not a probability. Higher ranks better.',
   G2: 'Tonight\u2019s two-goal ranking (a new model, not part of the goal score): shots, shooting %, ice time and goals per game ' + poolOver(date) + ', each ranked against tonight\u2019s skaters, then weighted. A ranking, not a probability. Higher ranks better.',
 })
 const SCORE_ART = { GOAL: 'nhl-goal' }   // components/ScoreArt.js
@@ -467,6 +472,7 @@ const RATE_COLS = {
   PTS: [{ key: 'ptspg', label: 'P/GP', leg: 'ptsPg', dp: 2, w: 44 }, { key: 'oga', label: 'OPP GA/GP', leg: 'oppGaPg', dp: 2, w: 66 }],
   AST: [{ key: 'apg', label: 'A/GP', leg: 'astPg', dp: 2, w: 44 }, { key: 'oga', label: 'OPP GA/GP', leg: 'oppGaPg', dp: 2, w: 66 }],
   G2: [{ key: 'spg', label: 'S/GP', leg: 'shotsPg', dp: 2, w: 44 }, { key: 'shp', label: 'SH%', leg: 'shPct', dp: 3, w: 48 }],
+  FIRST: [{ key: 'gpg', label: 'G/GP', leg: 'goalsPg', dp: 2, w: 44 }, { key: 'spg', label: 'S/GP', leg: 'shotsPg', dp: 2, w: 44 }, { key: 'clx', label: 'CLUB \u00d7', leg: 'clubX', dp: 2, w: 56 }],
 }
 const rateCols = (market) => (RATE_COLS[market] || RATE_COLS.GOAL).map(({ key, label, dp, w }) => ({ key, label, primary: true, dp, w }))
 const rateVals = (r, market) => Object.fromEntries((RATE_COLS[market] || RATE_COLS.GOAL).map((c) => [c.key, r.legs ? r.legs[c.leg] ?? null : null]))
