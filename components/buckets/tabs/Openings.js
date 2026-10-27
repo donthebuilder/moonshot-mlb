@@ -10,6 +10,8 @@ import { useBucketsScores } from '../../../lib/nba/useBuckets'
 import { useHashLens } from '../../../lib/useHashLens'
 import { DelayedBanner, Loading, EmptyState } from '../ui'
 import FirstBasketMatchup from '../../openings/FirstBasketMatchup'
+import RateStack from '../../openings/RateStack'
+import LeagueLine from '../../openings/LeagueLine'
 import { HideClubs, useHidden } from '../../openings/hideClubs'
 import { surname } from '../../../lib/player'
 
@@ -73,6 +75,7 @@ export default function Openings({ date, onOpenPlayer, onOpenTeam, onOpenGame })
     { key: 'tipPct', label: 'TIP %', group: 'The tip', w: 56, fmt: pc, primary: true, title: 'How often his club got the opening tip' },
     { key: 'jumperTxt', label: 'Jumper', group: 'The tip', w: 150, heat: false, numeric: false, link: (r) => (onOpenPlayer && r.jumperId ? () => onOpenPlayer(r.jumperId) : null), title: 'The man who jumps for them most, and his tip record (won-lost)' },
     { key: 'firstPct', label: '1ST SCORE %', group: 'First basket', w: 78, fmt: pc, title: 'How often his club made the first basket' },
+    { key: 'firstWhenTipPct', label: 'AFTER TIP %', group: 'First basket', w: 78, fmt: (v, r) => <RateStack v={v} pair={r.afterTip} C={C} NUM_FONT={NUM_FONT} />, title: 'How often they scored the first basket in games they won the tip' },
     { key: 'shooter', label: 'Takes 1st shot', group: 'First basket', w: 150, heat: false, numeric: false, link: (r) => (onOpenPlayer && r.shooterId ? () => onOpenPlayer(r.shooterId) : null), title: 'The player who takes his club’s first shot most often' },
     { key: 'shooterPct', label: '%', group: 'First basket', w: 44, fmt: pc, title: 'How often he took the game’s first shot' },
     { key: 'w1For', label: '3 MIN', group: 'Scoring', w: 52, fmt: f1, title: 'Points a game in the first 3 minutes' },
@@ -86,7 +89,8 @@ export default function Openings({ date, onOpenPlayer, onOpenTeam, onOpenGame })
     { key: 'jumper', label: 'Jumper', group: 'The tip', w: 140, heat: false, numeric: false, link: (r) => (onOpenPlayer && r.jumperId ? () => onOpenPlayer(r.jumperId) : null) },
     { key: 'jumperRec', label: 'W-L', group: 'The tip', w: 56, heat: false, numeric: false },
     { key: 'firstPct', label: '1ST SCORE %', group: 'First basket', w: 78, fmt: pc, primary: lane === 'first' },
-    { key: 'firstWhenTipPct', label: 'AFTER TIP %', group: 'First basket', w: 78, fmt: pc, title: 'How often they scored first in games they won the tip' },
+    { key: 'firstWhenTipPct', label: 'AFTER TIP %', group: 'First basket', w: 78, fmt: (v, r) => <RateStack v={v} pair={r.afterTip} C={C} NUM_FONT={NUM_FONT} />, title: 'How often they scored the first basket in games they won the tip' },
+    { key: 'firstWhenLostPct', label: 'IF LOST TIP %', group: 'First basket', w: 84, fmt: (v, r) => <RateStack v={v} pair={r.afterLost} C={C} NUM_FONT={NUM_FONT} />, title: 'How often they scored the first basket in games they lost the tip' },
     { key: 'shotsToFirst', label: 'SHOTS TO 1ST', group: 'First basket', w: 84, fmt: f1, invert: true, title: 'Their field-goal attempts before the game’s first made basket (that make counts), a game; fewer is quicker' },
     { key: 'w1For', label: 'FOR', group: 'First 3 min', w: 48, fmt: f1, primary: lane === 'w1' },
     { key: 'w1Ag', label: 'AG', group: 'First 3 min', w: 44, fmt: f1, invert: true },
@@ -132,6 +136,7 @@ export default function Openings({ date, onOpenPlayer, onOpenTeam, onOpenGame })
     { key: 'jumper', label: 'Usual jumper', fmt: (v, T) => (T.jumper ? `${surname(T.jumper)} ${T.jumperW}-${T.jumperJ - T.jumperW}` : '—'), higher: true, barOf: (T) => (T.jumperJ ? (100 * T.jumperW) / T.jumperJ : null) },   // lit / pulled by his tip win %
     { key: 'firstPct', label: 'Scores first', fmt: pc, higher: true },
     { key: 'firstWhenTipPct', label: 'First, after the tip', fmt: pc, higher: true },
+    { key: 'firstWhenLostPct', label: 'First, after losing it', fmt: pc, higher: true },
     { key: 'shotsToFirst', label: 'Shots to 1st FG', fmt: f1, higher: false },   // fewer attempts before the game's first make is quicker
     { key: 'w1For', label: 'First 3 min PTS', fmt: f1, higher: true },
     { key: 'w1Ag', label: 'First 3 min allowed', fmt: f1, higher: false },
@@ -178,6 +183,7 @@ export default function Openings({ date, onOpenPlayer, onOpenTeam, onOpenGame })
       <PageHeader eyebrow="BUCKETS · OPENINGS" title="The tip, the first basket, the first quarter"
         note={sample ? `What happened in the opening of every game: ${sample}. Counts, not a chance.` : 'What happened in the opening of every game. Counts, not a chance.'}
         theme={C} numFont={NUM_FONT} accent={C.purple} />
+      <LeagueLine label="Tip winner scores first" league={data?.league} C={C} NUM_FONT={NUM_FONT} accent={C.purple} />
       <DelayedBanner error={error} what="the openings" />
       {loading && !data ? <Loading what="every game's opening" /> : null}
       {data && !data.games ? <EmptyState title="NO OPENINGS ON FILE YET" note="Each game's opening is written when it's graded. This fills as the season plays." /> : null}
