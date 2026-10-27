@@ -29,7 +29,7 @@ import { LOCK_WINDOW_MS, readBoard } from '../../../../lib/nhl/boardRead'
 import { startersFromPlayByPlay, goaliesFromBoxscore } from '../../../../lib/nhl/goalies'
 import { shotsFromPlayByPlay, writeShots } from '../../../../lib/nhl/shots'
 import { boxRowsNhl, writeBox } from '../../../../lib/nhl/box'
-import { writeOpeningNhl } from '../../../../lib/nhl/openings'
+import { writeOpeningNhl, openingRowNhl } from '../../../../lib/nhl/openings'
 import { teamGameRows, writeTeamGames } from '../../../../lib/nhl/teamXg'
 import { postLongshotsOnce } from '../../../../lib/dash/longshotsPost'
 import { postMultiClubOnce } from '../../../../lib/dash/multiClubPost'
@@ -43,6 +43,8 @@ import { toCompositeRow, gradeCompositeRows } from '../../../../lib/nhl/goalComp
 import { attachComposite } from '../../../../lib/nhl/goalCompositeBoard'
 import { toComposite2Row, gradeComposite2Rows } from '../../../../lib/nhl/goalComposite2Model'
 import { attachComposite2 } from '../../../../lib/nhl/goalComposite2Board'
+import { MARKET as FIRSTM, toFirstRow, gradeFirstRows } from '../../../../lib/nhl/firstModel'
+import { attachFirst } from '../../../../lib/nhl/firstBoard'
 import { readNumerology } from '../../../../lib/nhl/numerology'
 import { writeNight as writeNumerology, gradeNight as gradeNumerology, boxResults, refreshLaneNights, writeNumbersNight } from '../../../../lib/numerology/record'
 import { fromNhl } from '../../../../lib/numerology/adapters'
@@ -97,6 +99,9 @@ const SHADOW = [
   { market: 'GOAL', key: 'comp', byGame: 'compByGame', toRow: toCompositeRow, grade: gradeCompositeRows },
   // lamp-goal-comp-v2 (2026-10-18, lib/nhl/goalComposite2Model.js): v1 + xG shot quality, PP ice time / share, the opponent's rest. A NEW version beside v1; same market, no SQL.
   { market: 'GOAL', key: 'comp2', byGame: 'comp2ByGame', toRow: toComposite2Row, grade: gradeComposite2Rows },
+  // lamp-first-v1 (2026-10-27, lib/nhl/firstModel.js): who scores the game's FIRST goal, ranked in the game. Market 'FIRST' (202610271700_first_scorer.sql, applied).
+  // Graded off the play-by-play's first goal (the third argument); with no first goal to name, its rows stay ungraded.
+  { market: FIRSTM, key: 'first', byGame: 'firstByGame', toRow: toFirstRow, grade: gradeFirstRows },
 ]
 
 export async function GET(request) {
@@ -127,6 +132,8 @@ export async function GET(request) {
     if (young()) try { out.composite = (await capped(attachComposite(night, date))).feeds } catch (e) { console.error(`[lamp tick] composite: ${e?.message}`); night.compByGame = null }
     // lamp-goal-comp-v2: its OWN try/catch (a v2 failure never touches v1, the lock or the goals tick); all its extra reads are cached or Supabase
     if (young()) try { out.composite2 = (await capped(attachComposite2(night, date))).feeds } catch (e) { console.error(`[lamp tick] composite2: ${e?.message}`); night.comp2ByGame = null }
+    // lamp-first-v1: its OWN try/catch; one Supabase read of this season's finished games before the day
+    if (young()) try { out.first = (await capped(attachFirst(night, db, date))).feeds } catch (e) { console.error(`[lamp tick] first: ${e?.message}`); night.firstByGame = null }
   }
   if (night) {
     for (const g of night.games) {
@@ -227,6 +234,7 @@ export async function GET(request) {
       // The net, postgame — archived for the v2 goalie leg; a failed play-by-play read costs only the starters, never the grade.
       const pbp = await nhlGet(`/gamecenter/${p.game_id}/play-by-play`, 0).catch((e) => { console.error(`[lamp tick] pbp ${p.game_id}: ${e?.message}`); return null })
       const startersActual = pbp ? startersFromPlayByPlay(pbp) : null
+      const firstCtx = pbp ? { firstScorer: openingRowNhl(pbp)?.first_score_player ?? null } : null   // lamp-first-v1's grade
       const goalies = goaliesFromBoxscore(box)
       const have = await db.from('lamp_goal_log').select('*').eq('game_id', p.game_id).eq('model_version', Vp.goal)
       if (have.error) throw new Error(have.error.message)
@@ -284,7 +292,8 @@ export async function GET(request) {
           const sh = await db.from('lamp_prop_log').select('*').eq('game_id', p.game_id).eq('market', m.market).eq('model_version', Vp[m.key]).is('graded_at', null)
           if (sh.error) throw new Error(sh.error.message)
           if (!sh.data?.length) continue
-          const gs = m.grade(sh.data, box.playerByGameStats)
+          if (m.key === 'first' && !firstCtx?.firstScorer) continue   // no first goal named (a pbp that failed, a game with no goal): stays ungraded
+          const gs = m.grade(sh.data, box.playerByGameStats, firstCtx)
           const su = await db.from('lamp_prop_log').upsert(gs.map((r) => ({ ...r, graded_at: gradedAt })), { onConflict: 'game_id,player_id,market,model_version' })
           if (su.error) throw new Error(su.error.message)
           shadowGraded[m.market] = { rows: gs.length, hits: gs.filter((r) => r.hit).length, calledHits: gs.filter((r) => r.hit && r.status === 'called').length }
