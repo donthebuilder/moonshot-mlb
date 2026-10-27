@@ -1,6 +1,8 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import PageHeader from '../PageHeader'
+import RateStack from '../openings/RateStack'
+import LeagueLine from '../openings/LeagueLine'
 import DenseTable from '../DenseTable'
 import FiltersSheet from '../player/FiltersSheet'
 import { PillRow } from '../Filters'
@@ -126,6 +128,8 @@ export default function Openings({ players = [], games = [], onPlayerClick }) {
     { key: 'r1For', label: 'R/G', group: '1st inning', w: 44, fmt: f2, title: 'Runs a game in the 1st inning' },
     { key: 'firstHitPct', label: '1ST HIT %', group: 'Firsts', w: 64, fmt: pc, title: 'How often they got the game’s first hit' },
     { key: 'firstRunPct', label: '1ST RUN %', group: 'Firsts', w: 66, fmt: pc, title: 'How often they scored the game’s first run' },
+    { key: 'firstRunBatFirstPct', label: 'BATS 1ST %', group: 'Firsts', w: 74, fmt: (v, r) => <RateStack v={v} pair={r.batFirst} C={C} NUM_FONT={NUM_FONT} />, title: 'How often they scored the game’s first run when they batted first (the visitors bat first)' },
+    { key: 'firstRunBatSecondPct', label: 'BATS 2ND %', group: 'Firsts', w: 74, fmt: (v, r) => <RateStack v={v} pair={r.batSecond} C={C} NUM_FONT={NUM_FONT} />, title: 'How often they scored the game’s first run when they batted second (at home)' },
     { key: 'firstHrPct', label: '1ST HR %', group: 'Firsts', w: 60, fmt: pc, title: 'Of games with a homer, how often they hit the first one' },
     { key: 'lead', label: 'Leads off', group: 'Leadoff', w: 140, heat: false, numeric: false, link: (r) => openPlayer(r.leadId, r.lead, r.team), title: 'Tonight’s leadoff man (proj. = the projected lineup until the real one posts); with no lineup at all, the man who has led off for them most' },
     { key: 'leadHit1', label: 'HIT 1ST %', group: 'Leadoff', w: 62, fmt: pc, title: 'How often he got a hit in the 1st inning, per start' },
@@ -140,6 +144,8 @@ export default function Openings({ players = [], games = [], onPlayerClick }) {
     { key: 'r1Ag', label: 'RA/G', group: '1st inning', w: 48, fmt: f2, invert: true },
     { key: 'firstHitPct', label: '1ST HIT %', group: 'Firsts', w: 64, fmt: pc, primary: lane === 'hit', title: 'How often they got the game’s first hit' },
     { key: 'firstRunPct', label: '1ST RUN %', group: 'Firsts', w: 66, fmt: pc, primary: lane === 'run', title: 'How often they scored the game’s first run' },
+    { key: 'firstRunBatFirstPct', label: 'BATS 1ST %', group: 'Firsts', w: 74, fmt: (v, r) => <RateStack v={v} pair={r.batFirst} C={C} NUM_FONT={NUM_FONT} />, title: 'How often they scored the game’s first run when they batted first (the visitors bat first)' },
+    { key: 'firstRunBatSecondPct', label: 'BATS 2ND %', group: 'Firsts', w: 74, fmt: (v, r) => <RateStack v={v} pair={r.batSecond} C={C} NUM_FONT={NUM_FONT} />, title: 'How often they scored the game’s first run when they batted second (at home)' },
     { key: 'firstHrPct', label: '1ST HR %', group: 'Firsts', w: 60, fmt: pc, primary: lane === 'hr', title: 'Of games with a homer, how often they hit the first one' },
     { key: 'paRun', label: 'RUN', group: 'PAs to the first', w: 48, fmt: f1, invert: true, title: 'Their plate appearances before the game’s first run (that one counts), a game; fewer is quicker' },
     { key: 'paHit', label: 'HIT', group: 'PAs to the first', w: 48, fmt: f1, invert: true, title: 'Their plate appearances before the game’s first hit (that one counts), a game' },
@@ -183,6 +189,7 @@ export default function Openings({ players = [], games = [], onPlayerClick }) {
       <PageHeader eyebrow="MOONSHOT · OPENINGS" title="The 1st inning, the first hit, the first homer"
         note={sample ? `What happened at the start of every game: ${sample}. Counts per start, not a chance.` : 'What happened at the start of every game. Counts per start, not a chance.'}
         theme={C} numFont={NUM_FONT} accent={C.orange} />
+      <LeagueLine label="Visitors (they bat first) score the first run" league={data?.league} C={C} NUM_FONT={NUM_FONT} accent={C.orange} />
       <DelayedBanner error={error} what="the openings" />
       {loading && !data ? <div style={{ color: C.text3, fontSize: 12, padding: '8px 0' }}>Counting every game’s 1st inning…</div> : null}
       {data && !data.games ? (

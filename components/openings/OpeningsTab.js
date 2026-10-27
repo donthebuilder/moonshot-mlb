@@ -5,6 +5,8 @@ import FiltersSheet from '../player/FiltersSheet'
 import { PillRow } from '../Filters'
 import { useLiveFetch } from '../../lib/useLiveFetch'
 import FirstBasketMatchup from './FirstBasketMatchup'
+import RateStack from './RateStack'
+import LeagueLine from './LeagueLine'
 import { HideClubs, useHidden } from './hideClubs'
 import { shotTypeWord } from '../../lib/openings/shotType'
 import { OPENING_WORDS } from '../../lib/openings/sportWords'
@@ -48,7 +50,8 @@ export default function OpeningsTab({ sport, url, Table, C, NUM_FONT, accent, ui
     { key: 'gp', label: 'GP', group: 'Team', w: 40, heat: false },
     { key: 'jumpPct', label: cfg.jumpLabel, group: 'The jump', w: 78, fmt: pc, title: cfg.jumpTitle },
     { key: 'firstPct', label: cfg.firstLabel, group: cfg.firstWord, w: 78, fmt: pc, primary: lane === 'first', title: cfg.firstTitle },
-    { key: 'firstWhenJumpPct', label: cfg.afterLabel, group: cfg.firstWord, w: 96, fmt: pc, title: cfg.afterTitle },
+    { key: 'firstWhenJumpPct', label: cfg.afterLabel, group: cfg.firstWord, w: 96, fmt: (v, r) => <RateStack v={v} pair={r.afterJump} C={C} NUM_FONT={NUM_FONT} />, title: cfg.afterTitle },
+    { key: 'firstWhenLostPct', label: cfg.afterLostLabel, group: cfg.firstWord, w: 84, fmt: (v, r) => <RateStack v={v} pair={r.afterLost} C={C} NUM_FONT={NUM_FONT} />, title: cfg.afterLostTitle },
     { key: 'shotsToFirst', label: cfg.shotsLabel, group: cfg.firstWord, w: 84, fmt: f1, invert: true, title: cfg.shotsTitle },
     ...windows.flatMap(([k, , short]) => [
       { key: `${k}For`, label: 'FOR', group: short, w: 48, fmt: f1, primary: lane === k, title: `Points a game scored, ${short}` },
@@ -67,16 +70,19 @@ export default function OpeningsTab({ sport, url, Table, C, NUM_FONT, accent, ui
     { key: 'jumpPct', label: cfg.jumpStat, fmt: pc, higher: true },
     { key: 'firstPct', label: cfg.firstStat, fmt: pc, higher: true },
     { key: 'firstWhenJumpPct', label: cfg.afterStat, fmt: pc, higher: true },
+    { key: 'firstWhenLostPct', label: cfg.afterLostStat, fmt: pc, higher: true },
     { key: 'shotsToFirst', label: cfg.shotsStat, fmt: f1, higher: false },
     ...windows.flatMap(([k, label]) => [{ key: `${k}For`, label: `${label} scored`, fmt: f1, higher: true }, { key: `${k}Ag`, label: `${label} allowed`, fmt: f1, higher: false }]),
   ]
   const seasonOpts = data?.seasons?.length > 1 ? [{ value: 'both', label: 'Both seasons' }, { value: 'this', label: 'This season' }, { value: 'last', label: 'Last season' }] : null
   const lastOpts = [{ value: 'all', label: 'Every game' }, ...cfg.lastOptions.map((n) => ({ value: n, label: `Last ${n}` }))]
   const sample = (data?.seasons || []).map((s) => `${s.label} ${s.games} games`).join(' · ')
+  const L = data?.league
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <PageHeader eyebrow={cfg.eyebrow} title={cfg.title} note={sample ? `${cfg.note} ${sample}.` : cfg.note} theme={C} numFont={NUM_FONT} accent={accent} />
+      <LeagueLine label={cfg.leagueStat} league={L} C={C} NUM_FONT={NUM_FONT} accent={accent} />
       <DelayedBanner error={error} what="the openings" />
       {loading && !data ? <Loading what="every game's opening" /> : null}
       {data && !data.games ? <EmptyState title="NO OPENINGS ON FILE YET" note="Each game's opening is written when it's graded. This fills as the season plays." /> : null}
