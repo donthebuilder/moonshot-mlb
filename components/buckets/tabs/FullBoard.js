@@ -59,6 +59,7 @@ export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onO
         row[`s_${k}`] = r.score
         for (const [lk, lv] of Object.entries(r.legs || {})) if (lv != null && row[lk] == null) row[lk] = lv
         row[`st_${k}`] = r.status
+        if (r.status === 'called' || r.status === 'board') row.boards = (row.boards || 0) + 1
         if (r.line && !row.line) row.line = r.line
         if (r.reason && !row.reason) row.reason = r.reason
         by.set(id, row)
@@ -79,9 +80,10 @@ export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onO
     { key: 'pos', label: 'Pos', group: 'Player', w: 36, heat: false, mono: true, dim: true },
     { key: 'team', label: 'Tm', group: 'Player', w: 52, heat: false, mono: true, teamMark: 'nba', link: (r) => (onOpenTeam ? () => onOpenTeam(r.team) : null) },
     { key: 'oppTxt', label: 'Opp', group: 'Player', w: 52, heat: false, mono: true, dim: true, subOnly: true, link: (r) => (onOpenTeam ? () => onOpenTeam(r.opp) : null) },
+    { key: 'boards', label: 'Boards', cset: 'lean', group: 'Markets (score · status)', w: 54, dp: 0, mono: true, scale: 'seq', domain: [0, KEYS.length], title: 'How many of the eight markets have him CALLED or ON THE BOARD tonight (a count of the status words, not a score)' },
     ...KEYS.map((k, i) => ({ key: `s_${k}`, label: NBA_MARKETS[k].label.replace(' BASKET', ''), cset: i < 3 ? 'lean' : 'read', group: 'Markets (score · status)', w: 74, dp: 0, primary: i === 0, scale: 'seq', domain: [0, 100],
       title: `${NBA_MARKETS[k].label}: the 0-100 score and its status word`,
-      fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span style={{ display: 'inline-grid', lineHeight: 1.15 }}><b>{v}</b>{r[`st_${k}`] && r[`st_${k}`] !== 'off' ? <CallStatusBadge status={r[`st_${k}`]} accent={C.purple} short size={8} /> : null}</span>) })),
+      fmt: (v, r) => (v == null ? (r[`st_${k}`] === 'board' ? <CallStatusBadge status="board" accent={C.purple} short size={8} /> : <span style={{ color: C.text3 }}>—</span>) : <span style={{ display: 'inline-grid', lineHeight: 1.15 }}><b>{v}</b>{r[`st_${k}`] && r[`st_${k}`] !== 'off' ? <CallStatusBadge status={r[`st_${k}`]} accent={C.purple} short size={8} /> : null}</span>) })),
     { key: 'xpts', label: 'xPTS', cset: 'read', group: 'Projected', w: 58, dp: 1, mono: true, title: XPTS_TITLE, fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span title={r.xptsLine || XPTS_TITLE}>{Number(v).toFixed(1)}</span>) },
     ...LEG_KEYS.filter((k) => rows.some((r) => r[k] != null)).map((k) => ({ key: k, label: LEG_LABEL[k] || (k === 'multTd' || k === 'multDd' ? 'OPP ×' : k), group: 'Legs', w: 62, heat: false, mono: true,
       title: k === 'multTd' || k === 'multDd' ? 'What his opponent allows of the stats he reaches, against the league mean, shrunk for a small sample and clamped to 0.8-1.25. It scales his own rate for the ranking; 1.00 = no change.' : `${LEG_LABEL[k] || k}: his own measured rate, one of the legs the ${KEYS.filter((m) => NBA_MARKETS[m].legs.some((l) => (RAW_OF[l] || l) === k)).map((m) => NBA_MARKETS[m].label.toLowerCase()).join(' / ')} score is built from.`,
@@ -102,7 +104,7 @@ export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onO
       {rows.length === 0 && !loading && games.length > 0 && empty}
       {rows.length > 0 && (
         <BucketsTable sets rows={rows} columns={columns} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} nameCell="player" faceOf={faceOf}
-          initialSort={{ key: 's_pts', dir: 'desc' }} heatMode="sorted" maxHeight={620} maxRows={Math.max(rows.length, 1)}
+          initialSort={{ key: 'boards', dir: 'desc' }} heatMode="sorted" maxHeight={620} maxRows={Math.max(rows.length, 1)}
           caption="Every rated player, every market. Column headers sort; each row opens that player; the team and opponent open the club." />
       )}
       <NotScoredTable rows={unscored} Table={BucketsTable} theme={C} teamMark="nba" onOpenTeam={onOpenTeam}

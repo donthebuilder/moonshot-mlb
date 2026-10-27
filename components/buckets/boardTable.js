@@ -5,6 +5,7 @@
 // Legs · Game. Status words come from lib/callStatus via CallStatusBadge.
 import { blowoutFor } from '../../lib/blowout'
 import LiveStatusCell from '../table/LiveStatusCell'
+import CallStatusBadge from '../CallStatusBadge'
 import { C, NUM_FONT } from '../../lib/nba/theme'
 import { NBA_MARKETS, LEG_LABEL, fmtLeg, ACTUAL_WORD, RAW_OF } from '../../lib/nba/legs'
 import { fmtTip, RimDot } from './ui'
@@ -38,7 +39,8 @@ export function boardColumns(market, { onOpenTeam, onOpenGame, withGame = true, 
     { key: 'pos', label: 'Pos', group: 'Player', w: 36, heat: false, mono: true, dim: true },
     { key: 'team', label: 'Tm', group: 'Player', w: 52, heat: false, mono: true, teamMark: 'nba', link: (r) => (onOpenTeam ? () => onOpenTeam(r.team) : null) },
     { key: 'oppTxt', label: 'Opp', group: 'Player', w: 52, heat: false, mono: true, dim: true, subOnly: true, link: (r) => (onOpenTeam ? () => onOpenTeam(r.opp) : null) },
-    { key: 'score', label: 'Score', cset: 'lean', group: 'Call', w: 54, dp: 0, primary: true, scale: 'seq', domain: [0, 100], title: 'The market’s 0-100 score: a rank among tonight’s players, not a probability' },
+    { key: 'score', label: 'Score', cset: 'lean', group: 'Call', w: 54, dp: 0, primary: true, scale: 'seq', domain: [0, 100], title: 'The market’s 0-100 score: a rank among tonight’s players, not a probability. A hidden pick shows ON THE BOARD with no number until tip.',
+      fmt: (v, r) => (v == null ? (r.status === 'board' ? <CallStatusBadge status="board" accent={C.purple} short size={8} /> : <span style={{ color: C.text3 }}>—</span>) : v) },
     ...(withXpts && XPTS_MARKETS.includes(market) ? [{ key: 'xpts', label: 'xPTS', cset: 'lean', group: 'Call', w: 58, dp: 1, mono: true, title: XPTS_TITLE, fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span title={r.xptsLine || XPTS_TITLE}>{Number(v).toFixed(1)}</span>) }] : []),
     ...(whyCol ? [{ ...whyCol, cset: 'lean', group: 'Call' }] : []),
     { key: 'status', label: 'Status', group: 'Call', w: liveOf ? 220 : 156, heat: false, statusCol: true, fmt: (v, r) => (
