@@ -3,6 +3,7 @@
 // (lib/calledGather.js). MEMBERS ONLY: before the lock a CALLED pick is members' (components/MemberGate), so a viewer who is not
 // a signed-in member gets 403 and nothing is drawn (lib/members/viewer.js fails closed). Per viewer: never cached by the CDN.
 import { viewerIsMember } from '../../../../lib/members/viewer'
+import { withMemberFeed } from '../../../../lib/members/boardGate'
 import { nbaCalled, nhlCalled, nflCalled } from '../../../../lib/calledGather'
 import { groupCalled } from '../../../../lib/calledList'
 import { calledModels, renderCalled } from '../../../../lib/cards/calledCard'
@@ -43,7 +44,9 @@ export async function GET(request) {
   const w = Number(q.get('w'))
   const width = WIDTHS.includes(w) ? w : 1080
 
-  const getJSON = (u) => fetch(u, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+  // the boards' full feed needs THIS member's login (lib/members/boardGate.js): the cookie rides along and the address asks for m=1
+  const cookie = request.headers.get('cookie') || ''
+  const getJSON = (u) => fetch(withMemberFeed(u, true), { cache: 'no-store', headers: cookie ? { cookie } : {} }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
   const r = await GATHER[sport](getJSON, date, url.origin)
   const g = groupCalled(r?.entries || []).find((x) => String(x.key) === game)
   if (!g || !g.men.length) return json({ error: 'NOT FOUND', detail: 'nobody is CALLED in that game' }, 404)
