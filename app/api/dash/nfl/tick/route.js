@@ -535,7 +535,7 @@ async function runTouchdownTick(db, day) {
 function authorized(request) {
   const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || ''
   if (!supplied) return false
-  return [process.env.CRON_SECRET, process.env.FRANCHISE_CRON_SECRET, process.env.CALLEDIT_SECRET].filter(Boolean).some((expected) => {
+  return [process.env.CRON_SECRET, process.env.FRANCHISE_CRON_SECRET].filter(Boolean).some((expected) => {   // CALLEDIT_SECRET opens the homer tick only (2026-10-26)
     const a = Buffer.from(expected)
     const b = Buffer.from(supplied)
     return a.length === b.length && timingSafeEqual(a, b)
