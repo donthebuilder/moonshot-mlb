@@ -52,6 +52,8 @@ export default function PairHistV2Table({ sport = 'mlb', onOpenPlayer = null, ac
   const [limit, setLimit] = useState(SHOW)
   // THE SITE'S FILTER ROW (2026-10-21, Donovan: "the pairs page beautiful ... we can add filters"): components/FindBar.js
   const [team, setTeam] = useState('')
+  // SAME TEAM / DIFFERENT TEAMS (2026-10-27, Donovan: filter out same-team pairs, and one that shows only same-team pairs): '' all, 'cross', 'same'
+  const [mates, setMates] = useState('')
   const [season, setSeason] = useState('')
   const [liftOn, setLiftOn] = useState(false)
   const [recentOn, setRecentOn] = useState(false)
@@ -81,10 +83,11 @@ export default function PairHistV2Table({ sport = 'mlb', onOpenPlayer = null, ac
     !hTeams.hidden.has(r._a?.team) && !hTeams.hidden.has(r._b?.team) && !hPlayers.hidden.has(String(r._a?.player_id)) && !hPlayers.hidden.has(String(r._b?.player_id))
     && (!pricedOn || r.ret != null)
     && (!team || r._a?.team === team || r._b?.team === team)
+    && (!mates || r.mates === mates)
     && (!season || Number(r[`s${season}`]) > 0)
     && (!liftOn || (r.lift != null && r.lift >= LIFT_BAR))
     && (!recentOn || (r.ago != null && r.ago <= RECENT_DAYS))
-  )), [file, query, sameGame, team, season, liftOn, recentOn, prices, pricedOn, hTeams.hidden, hPlayers.hidden])
+  )), [file, query, sameGame, team, mates, season, liftOn, recentOn, prices, pricedOn, hTeams.hidden, hPlayers.hidden])
   const teams = useMemo(() => [...new Set((file?.pairs || []).flatMap((p) => (p?.players || []).map((x) => x?.team)).filter(Boolean))].sort(), [file])
   const rows = useMemo(() => all.slice(0, limit), [all, limit])
   // the men in the pairs now shown (a search narrows it), for the hide picker; names for the "Hidden" chips
@@ -93,7 +96,7 @@ export default function PairHistV2Table({ sport = 'mlb', onOpenPlayer = null, ac
   const seasons = file?.seasons_covered || []
 
   const whatIsThis = () => explain('Pair history', file?.definition
-    ? `${file.definition} ${W.active || ACTIVE} Rate is both-${W.unit}s games over joint games. Expected is what the two players' own rates would give if they were unrelated; Lift is the pair's actual count over that, so near 1.0 means no more than coincidence.`
+    ? `${file.definition} ${W.active || ACTIVE} Rate is both-${W.unit}s games over joint games. Expected is what the two players' own rates would give if they were unrelated; Lift is the pair's actual count over that, so near 1.0 means no more than coincidence. Every is joint games per joint event; Line is the half-game around it; Games since counts joint games since they last both did it. It tracks the gap, it does not predict the next game.`
     : `Two ${W.lead} who each had a ${W.unit} on the same day. Only active players, four seasons.`)
 
   const head = (
@@ -145,6 +148,12 @@ export default function PairHistV2Table({ sport = 'mlb', onOpenPlayer = null, ac
     { key: 'rate', label: 'Rate (n)', group: 'Rate', w: 92, dp: 1, fmt: (v, r) => (v == null ? '—' : `${v.toFixed(1)}% (n=${Number.isFinite(r?.jd) ? r.jd : '—'})`), title: `${W.both} games, as a share of joint games. n is the joint games behind the rate.` },
     { key: 'exp', label: 'Expected', group: 'Rate', w: 62, dp: 1, title: 'What the two players’ own rates would give if they were unrelated' },
     { key: 'lift', label: 'Lift', group: 'Rate', w: 48, dp: 2, title: 'Actual over expected. Near 1.00 is coincidence.' },
+    // THE GAP (2026-10-27): how long since they last did it together, in joint games. A tracking line, not a prediction.
+    { key: 'gap', label: 'Every', group: 'Gap', heat: false, w: 52, dp: 1, title: 'Joint games per joint event: how many days both play, on average, for each day both do it' },
+    { key: 'line', label: 'Line', group: 'Gap', heat: false, w: 50, dp: 1, title: 'Over / under on that gap: the half-game just around Every. Needs 5+ joint games and 2+ joint events. A count we track, not a prediction.' },
+    { key: 'since', label: 'Games since', group: 'Gap', heat: false, w: 88, mono: true,
+      fmt: (v, r) => (v == null ? '—' : `${v}${r.side ? ` · ${r.side === 'over' ? 'OVER' : 'UNDER'}` : ''}`),
+      title: 'Joint games (days both played) since the last day both did it. OVER means past the line. A long gap does not raise tonight’s odds. Blank until the file carries it.' },
     ...seasons.map((y) => ({ key: `s${y}`, label: seasonLabel(sport, y), group: 'By season', w: 46, dp: 0, title: `${W.both} in ${seasonLabel(sport, y)}` })),
     ...(prices ? [
       { key: 'pa', label: 'LEG 1', group: 'Price tonight', w: 52, fmt: (v) => american(v), title: 'Best price any book lists for the first man' },
@@ -165,6 +174,7 @@ export default function PairHistV2Table({ sport = 'mlb', onOpenPlayer = null, ac
         <FindBar query={query} setQuery={reset(setQuery)} placeholder={`Search either ${W.lead.slice(0, -1)}…`} searchLabel="Search pairs" accent={hue} style={{ margin: '0 0 10px' }}
           filters={[
             { key: 'team', label: 'Team', aria: 'Pairs with a player on this team', value: team, onChange: reset(setTeam), all: 'All teams', options: teams.map((t) => ({ key: t, label: t })) },
+            { key: 'mates', label: 'Teams', aria: 'Pairs by whether the two share a club', value: mates, onChange: reset(setMates), all: 'All pairs', options: [{ key: 'cross', label: 'Different teams' }, { key: 'same', label: 'Same team' }] },
             { key: 'season', label: 'Season', aria: `Pairs who both had a ${W.unit} in this season`, value: season, onChange: reset(setSeason), all: 'Every season', options: seasons.map((y) => ({ key: String(y), label: seasonLabel(sport, y) })) },
           ]}
           toggles={[

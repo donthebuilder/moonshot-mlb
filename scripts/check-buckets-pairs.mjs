@@ -39,6 +39,8 @@ await ok('a joint 25+ day counts once per pair; same-game is counted apart; thre
   const p = f.pairs[0]
   assert.equal(p.joint_days, 6); assert.equal(p.joint_event_days, 3); assert.equal(p.same_game_event_days, 1)
   assert.equal(p.rate, 0.5); assert.equal(p.last_joint_date, '2026-11-06')
+  // joint games since the last joint event: 11-08, 11-10 and 11-12 were joint days after 11-06
+  assert.equal(p.joint_days_since_last, 3)
   assert.deepEqual(p.seasons['2026'], [6, 3])
   // expected = joint days x his rate x his rate = 6 x .5 x .5
   assert.equal(p.expected_joint, 1.5); assert.equal(p.lift, 2)

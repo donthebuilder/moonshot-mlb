@@ -2,7 +2,7 @@
 // EVERY NUMBER BELOW IS TEST DATA (invented for this check, labelled TEST), never shown on the site.
 //   node --import ./scripts/_esm-resolve.mjs scripts/check-pairhist-v2.mjs
 import assert from 'node:assert/strict'
-import { readPairHistV2, pairHistRows, seasonLabel, coverageLine, daysBetween } from '../lib/pairHistV2.js'
+import { readPairHistV2, pairHistRows, seasonLabel, coverageLine, daysBetween, paceLine, paceSide, pairMates } from '../lib/pairHistV2.js'
 
 const TEST_FILE = {
   model_version: 'pairhist_v2', sport: 'mlb', generated_at: '2026-10-07T12:00:00+00:00',
@@ -10,7 +10,7 @@ const TEST_FILE = {
   pairs: [
     { pair_key: 'TEST1|TEST2', players: [{ player_id: 1, name: 'TEST One', team: 'AAA' }, { player_id: 2, name: 'TEST Two', team: 'BBB' }],
       joint_days: 200, joint_event_days: 12, same_game_event_days: 0, rate: 0.06, expected_joint: 10.5, lift: 1.14,
-      seasons: { 2023: [50, 3], 2024: [50, 4], 2025: [50, 3], 2026: [50, 2] }, last_joint_date: '2026-09-30' },
+      seasons: { 2023: [50, 3], 2024: [50, 4], 2025: [50, 3], 2026: [50, 2] }, last_joint_date: '2026-09-30', joint_days_since_last: 20 },
     { pair_key: 'TEST1|TEST3', players: [{ player_id: 1, name: 'TEST One', team: 'AAA' }, { player_id: 3, name: 'TEST Three', team: 'AAA' }],
       joint_days: 180, joint_event_days: 12, same_game_event_days: 5, rate: 0.0667, expected_joint: 9, lift: 1.33,
       seasons: { 2024: [90, 6], 2025: [90, 6] }, last_joint_date: '2026-07-01' },
@@ -64,6 +64,36 @@ t('season labels: calendar year for MLB and NFL, split year for the NHL', () => 
 })
 t('coverage line says how many seasons and how many active players', () => {
   assert.equal(coverageLine(TEST_FILE, 'mlb'), '4 seasons (2023 to 2026) · 4 active players · 4 pairs')
+})
+t('the gap: joint games per joint event, and the half-game line around it (TEST numbers)', () => {
+  assert.deepEqual(paceLine(200, 12), { gap: 16.7, line: 16.5 })
+  assert.deepEqual(paceLine(18, 3), { gap: 6, line: 6.5 })
+  assert.deepEqual(paceLine(10, 2), { gap: 5, line: 5.5 })
+})
+t('no line under 5 joint games or 2 joint events, and none for a bad count', () => {
+  assert.deepEqual(paceLine(4, 2), { gap: null, line: null })
+  assert.deepEqual(paceLine(50, 1), { gap: null, line: null })
+  assert.deepEqual(paceLine(50, 0), { gap: null, line: null })
+  assert.deepEqual(paceLine(null, 3), { gap: null, line: null })
+})
+t('over / under: past the line is over, short of it is under, no count is nothing', () => {
+  assert.equal(paceSide(20, 16.5), 'over'); assert.equal(paceSide(3, 16.5), 'under')
+  assert.equal(paceSide(null, 16.5), null); assert.equal(paceSide(5, null), null)
+})
+t('the row carries every, line, since and side; a file with no since count leaves it blank, never zero', () => {
+  const rows = pairHistRows(TEST_FILE)
+  const r = rows.find((x) => x._key === 'TEST1|TEST2')
+  assert.equal(r.gap, 16.7); assert.equal(r.line, 16.5); assert.equal(r.since, 20); assert.equal(r.side, 'over')
+  const q = rows.find((x) => x._key === 'TEST3|TEST4')
+  assert.equal(q.since, null); assert.equal(q.side, null); assert.equal(q.line, 7.5)
+})
+t('same team / different teams: from each man\'s club in the file; a missing club is neither', () => {
+  assert.equal(pairMates({ team: 'AAA' }, { team: 'AAA' }), 'same')
+  assert.equal(pairMates({ team: 'AAA' }, { team: 'BBB' }), 'cross')
+  assert.equal(pairMates({ team: 'AAA' }, {}), null)
+  const rows = pairHistRows(TEST_FILE)
+  assert.deepEqual(rows.filter((r) => r.mates === 'same').map((r) => r._key), ['TEST1|TEST3'])
+  assert.deepEqual(rows.filter((r) => r.mates === 'cross').map((r) => r._key).sort(), ['TEST1|TEST2', 'TEST3|TEST4'])
 })
 console.log(fails ? `\n${fails} failed` : '\nall ok')
 process.exit(fails ? 1 : 0)
