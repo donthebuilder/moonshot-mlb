@@ -24,6 +24,7 @@ import { planBestLineup } from '../../../../../lib/fantasy/optimizeLineup'
 import { loadMatchupData, weeklyProjector } from '../../../../../lib/fantasy/matchupProjection'
 import { teamScheduleFor } from '../../../../../lib/fantasy/schedule'
 import { FANTASY_SEASON } from '../../../../../lib/fantasy/week'
+import { safeNext } from '../../../../../lib/safeNext'
 
 const back = (path, type, message) => redirect(`${path}${path.includes('?') ? '&' : '?'}${type}=${encodeURIComponent(message)}`)
 
@@ -43,7 +44,7 @@ export async function setBestLineup(formData) {
   const leagueId = String(formData.get('leagueId') || '')
   const teamId = String(formData.get('teamId') || '')
   const week = Number(formData.get('week'))
-  const returnTo = String(formData.get('returnTo') || `/fantasy/league/${leagueId}/team`)
+  const returnTo = safeNext(String(formData.get('returnTo') || ''), `/fantasy/league/${leagueId}/team`)   // a site path only, never another host (2026-10-26)
   const { user, league, team, isOwner, isCommish } = await whoMayAct(leagueId, teamId)
   if (!league || !team) back(returnTo, 'error', 'Team not found in this league')
   if (!isOwner && !isCommish) back(returnTo, 'error', 'Only the owner or the commissioner can set this lineup')

@@ -3,7 +3,7 @@
 import { hasSupabaseConfig } from '../../../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
 import { adminClient } from '../../../../lib/supabase/admin'
-import { isAdminUser } from '../../../../lib/admin'
+import { isAdminUser, sameOriginJson } from '../../../../lib/admin'
 import { deleteFromX } from '../../../../lib/dash/xPost'
 
 export const dynamic = 'force-dynamic'
@@ -13,6 +13,7 @@ export async function POST(request) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user || !isAdminUser(user)) return Response.json({ error: 'not found' }, { status: 404 })
+  if (!sameOriginJson(request)) return Response.json({ error: 'bad request' }, { status: 403 })      // CSRF: an admin write is a same-origin JSON request (2026-10-26)
   const db = adminClient()
   const body = await request.json().catch(() => ({}))
   // the switches in dash_flags this route may flip (the write-ups' joined 2026-10-04)
