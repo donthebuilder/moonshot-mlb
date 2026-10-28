@@ -10,6 +10,8 @@ import { BucketsCards } from '../BucketsCard'
 import { boardRows, boardColumns, faceOf } from '../boardTable'
 import { PositionRow, PositionNote, PositionEmpty, Segmented, LAYOUT_OPTIONS } from '../../Filters'
 import ShareCardButton from '../../card/ShareCardButton'
+import CopyListButton from '../../watch/CopyListButton'
+import { watchCopyParts } from '../../../lib/watchCopy'
 import { shareUrl, stamp } from '../../../lib/cards/saveCard'
 import { useIsPhone } from '../../MobileFold'
 import usePositionFilter from '../../../lib/usePositionFilter'
@@ -53,6 +55,12 @@ export default function Watchlist({ onOpenPlayer, onOpenTeam, onOpenGame }) {
   const pf = usePositionFilter('nba', all, { posOf: (x) => (x.r?.pos || x.f.position ? canonPos('nba', x.r?.pos || x.f.position) : null) })
   const rows = useMemo(() => all.filter(pf.test), [all, pf.test])
   const called = all.filter((x) => x.r?.status === 'called').length
+  // COPY LIST: the list as shown, as text (lib/watchCopy.js): by game, earliest tip first, a star on a CALLED player
+  const copyParts = useMemo(() => watchCopyParts({ brand: 'BUCKETS', starWord: STATUS_WORD.called, items: rows.map((x) => {
+    const r = x.r
+    return { name: r?.name || x.f.name || String(x.f.id), team: r?.team || x.f.team || null, score: r?.score, star: r?.status === 'called',
+      gameKey: r ? String(r.gameId) : null, gameLabel: r ? (r.home ? `${r.opp} @ ${r.team}` : `${r.team} @ ${r.opp}`) : '', startMs: r?.tip ? Date.parse(r.tip) : NaN }
+  }) }), [rows])
   const playing = all.filter((x) => x.r).length
 
   const remove = (x) => {
@@ -103,7 +111,10 @@ export default function Watchlist({ onOpenPlayer, onOpenTeam, onOpenGame }) {
             // THE VIEW ROW: List | Cards on the left, the share picture (the list, in board order) at the right end
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
               <Segmented tall={phone} value={layout} onChange={setLayout} options={LAYOUT_OPTIONS} />
-              {ids && <ShareCardButton sport="nba" what="this watchlist" url={shareUrl({ kind: 'ranked', sport: 'nba', market: 'pts', ids })} filename={`watchlist_${stamp('')}.png`} />}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                <CopyListButton parts={copyParts} C={C} NUM_FONT={NUM_FONT} accent={C.purple} />
+                {ids && <ShareCardButton sport="nba" what="this watchlist" url={shareUrl({ kind: 'ranked', sport: 'nba', market: 'pts', ids })} filename={`watchlist_${stamp('')}.png`} />}
+              </span>
             </div>
           )}
           {rows.length === 0 ? <PositionEmpty control={pf.control} onClearAll={pf.clear} /> : layout === 'cards' ? (
