@@ -13,6 +13,9 @@ import { LAMP_SUBS } from '../tabExplainerTexts'
 import { PositionRow, PositionNote, PositionEmpty, Segmented, LAYOUT_OPTIONS } from '../../Filters'
 import { LampCards } from '../LampCard'
 import ShareCardButton from '../../card/ShareCardButton'
+import CopyListButton from '../../watch/CopyListButton'
+import { watchCopyParts } from '../../../lib/watchCopy'
+import { lockedFor } from '../../../lib/members/gate'
 import { shareUrl, stamp } from '../../../lib/cards/saveCard'
 import { useIsPhone } from '../../MobileFold'
 import usePositionFilter from '../../../lib/usePositionFilter'
@@ -78,6 +81,14 @@ export default function Watchlist({ onOpenPlayer }) {
   const pf = usePositionFilter('nhl', all, { posOf: (x) => (x.r?.pos || x.f.position ? canonPos('nhl', x.r?.pos || x.f.position) : null) })
   const rows = useMemo(() => all.filter(pf.test), [all, pf.test])
   const called = all.filter((x) => x.r?.status === 'called').length
+  // COPY LIST: the list as shown, as text. A CALLED skater a free viewer may not read yet is not starred (the same lock as the table's status cell).
+  const copyParts = useMemo(() => watchCopyParts({ brand: 'LAMP', starWord: STATUS_WORD.called, items: rows.map((x) => {
+    const gate = gateOf && x.r ? gateOf(x) : null
+    const locked = Boolean(gate) && lockedFor({ status: 'called', started: gate.started, graded: gate.graded, key: gate.key, free: gate.free, memberState: 'free' })
+    const game = x.g?.game
+    return { name: x.r?.name || x.f.name || String(x.f.id), team: x.r?.team || x.f.team || null, score: x.r?.score, star: x.r?.status === 'called' && !locked,
+      gameKey: game ? String(game.id) : null, gameLabel: game ? `${game.away?.abbrev} @ ${game.home?.abbrev}` : '', startMs: game?.startUtc ? Date.parse(game.startUtc) : NaN }
+  }) }), [rows, gateOf])
   const playing = all.filter((x) => x.g).length
 
   const remove = (x) => {
@@ -143,7 +154,10 @@ export default function Watchlist({ onOpenPlayer }) {
             // THE VIEW ROW: List | Cards on the left, Save (the list as a baseball card, in board order) at the right end
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
               <Segmented tall={phone} value={layout} onChange={setLayout} options={LAYOUT_OPTIONS} />
-              {rows.some((x) => x.r) && <ShareCardButton sport="nhl" what="this watchlist" url={shareUrl({ kind: 'ranked', sport: 'nhl', market: 'GOAL', ids: rows.map((x) => x.f.id).slice(0, 40).join(',') })} filename={`watchlist_${stamp('')}.png`} />}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                <CopyListButton parts={copyParts} C={C} NUM_FONT={NUM_FONT} accent={C.ice} />
+                {rows.some((x) => x.r) && <ShareCardButton sport="nhl" what="this watchlist" url={shareUrl({ kind: 'ranked', sport: 'nhl', market: 'GOAL', ids: rows.map((x) => x.f.id).slice(0, 40).join(',') })} filename={`watchlist_${stamp('')}.png`} />}
+              </span>
             </div>
           )}
           {rows.length === 0 ? <PositionEmpty control={pf.control} onClearAll={pf.clear} /> : layout === 'cards' ? (
