@@ -5,6 +5,8 @@ import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import NflNote from '../NflNote'
 import { AXIS_META, alignedWith, slateAlignments, dateDigitRoot, shiftDateKey } from '../../../lib/nfl/alignments'
 import AlignmentsView from '../../numerology/AlignmentsView'
+import NumerologyRanking from '../../numerology/NumerologyRanking'
+import NflTable from '../NflTable'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import PageHeader from '../../PageHeader'
 import { etToday } from '../../../lib/freshness'
@@ -135,6 +137,7 @@ export default function Numerology({ data, onPlayerClick }) {
       // Six on a phone: the full 24 added ~1,000px above the clubs.
       chipLimit={phone ? 6 : 24} compact={phone}
       words={WORDS} onName={open} theme={C} numFont={NUM_FONT} accent={C.green} sport="nfl"
+      rank={<NumerologyRanking sport="nfl" Table={NflTable} C={C} NUM_FONT={NUM_FONT} accent={C.green} onOpenPlayer={onPlayerClick ? (id) => { const pl = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (pl) onPlayerClick(pl) } : null} />}
       head={(
         <>
       <PageHeader

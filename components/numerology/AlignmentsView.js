@@ -83,7 +83,7 @@ const NAME_WRAP = { whiteSpace: 'normal', maxWidth: '100%', flexWrap: 'wrap', te
 
 export default function AlignmentsView({
   model: modelIn, tonight: tonightIn, todayKey, todayRoot, AXIS_META, scoreOf = () => null,
-  head = null, days = null, watchedRows = [], hasWatch = false,
+  head = null, rank = null, days = null, watchedRows = [], hasWatch = false,
   words = MLB_WORDS, builder = false, chipLimit = 24, compact = false, onBuildAround, onName, children = null,
   theme = MLB_C, numFont = MLB_NUM, accent = null, sport = 'mlb',
 }) {
@@ -128,11 +128,12 @@ export default function AlignmentsView({
 
   const milestones = <MilestonesBlock sport={sport} theme={C} numFont={NUM_FONT} accent={accent} dateRoot={todayRoot} date={/^\d{4}-\d{2}-\d{2}$/.test(String(todayKey || '')) ? todayKey : null} />
   if (!modelIn.rows.length) return <div><div style={{ fontSize: 11.5, color: C.text3 }}>{W.empty}</div>{milestones}</div>
-  if (!rows.length) return <div>{head}{filters}{milestones}</div>
+  if (!rows.length) return <div>{head}{rank}{filters}{milestones}</div>
 
   return (
     <div>
       {head}
+      {rank}
       {filters}
 
       {/* ── TONIGHT'S NUMBER (2026-08-31) ─────────────────────────────────

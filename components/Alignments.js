@@ -6,6 +6,8 @@ import { nameOf, teamOf, mlbId, playerId } from '../lib/player'
 import { easternToday } from '../lib/data'
 import TonightsNumbers from './numerology/TonightsNumbers'
 import AlignmentsView from './numerology/AlignmentsView'
+import NumerologyRanking from './numerology/NumerologyRanking'
+import DenseTable from './DenseTable'
 import LaneTable from './numerology/LaneTable'
 import DayNumbers from './numerology/DayNumbers'
 import PageHeader from './PageHeader'
@@ -144,6 +146,7 @@ export default function Alignments({ players = [], watchIds = null, slateDate = 
       days={{ yesterdayArchive, todayArchive, tomorrowKey, tomorrowRoot }}
       watchedRows={watchedRows} hasWatch={Boolean(watchIds && watchIds.size > 0)}
       builder onBuildAround={onBuildAround}
+      rank={<NumerologyRanking sport="mlb" Table={DenseTable} C={C} NUM_FONT={NUM_FONT} accent={C.orange} onOpenPlayer={onPlayerClick ? (id) => { const p = players.find((x) => String(playerId(x)) === String(id)); if (p) onPlayerClick(p) } : null} />}
       children={<div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'minmax(0, 1fr)' }}><DayNumbers sport="mlb" date={todayKey} theme={C} numFont={NUM_FONT} accent={C.orange} eventWord="HRs" /><LaneTable sport="mlb" theme={C} numFont={NUM_FONT} accent={C.orange} tonight={laneTonight} /></div>}
       head={(
         <>

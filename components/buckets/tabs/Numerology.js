@@ -6,6 +6,8 @@ import { useBucketsNumerology, useBucketsBoard } from '../../../lib/nba/useBucke
 import { DelayedBanner, Loading, EmptyState, Why, fmtDay } from '../ui'
 import TonightsNumbers from '../../numerology/TonightsNumbers'
 import AlignmentsView from '../../numerology/AlignmentsView'
+import NumerologyRanking from '../../numerology/NumerologyRanking'
+import BucketsTable from '../BucketsTable'
 import LaneTable from '../../numerology/LaneTable'
 import { fromNba } from '../../../lib/numerology/adapters'
 import { useIsPhone } from '../../MobileFold'
@@ -89,6 +91,7 @@ export default function Numerology({ date = null, onOpenPlayer }) {
       onName={(a) => onOpenPlayer?.(a.pid)} theme={C} numFont={NUM_FONT} accent={C.purple} sport="nba"
       chipLimit={phone ? 6 : 24} compact={phone}
       head={head}
+      rank={<NumerologyRanking sport="nba" Table={BucketsTable} C={C} NUM_FONT={NUM_FONT} accent={C.purple} onOpenPlayer={(id) => onOpenPlayer?.(id)} />}
     >
       {foot}
     </AlignmentsView>

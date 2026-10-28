@@ -9,6 +9,8 @@ import LaneTable from '../../numerology/LaneTable'
 import HotNumbers from '../../numerology/HotNumbers'
 import DayNumbers from '../../numerology/DayNumbers'
 import AlignmentsView from '../../numerology/AlignmentsView'
+import NumerologyRanking from '../../numerology/NumerologyRanking'
+import LampTable from '../LampTable'
 import { useIsPhone } from '../../MobileFold'
 import { lampAlignModel, lampTonight, lampScoreOf } from '../../../lib/nhl/alignRows'
 import { fromNhl } from '../../../lib/numerology/adapters'
@@ -107,6 +109,7 @@ export default function Numerology({ date = null, onOpenPlayer }) {
       onName={(a) => onOpenPlayer?.(a.pid)} theme={C} numFont={NUM_FONT} accent={C.ice} sport="nhl"
       chipLimit={phone ? 6 : 24} compact={phone}
       head={head}
+      rank={<NumerologyRanking sport="nhl" Table={LampTable} C={C} NUM_FONT={NUM_FONT} accent={C.ice} onOpenPlayer={(id) => onOpenPlayer?.(id)} />}
     >
       {foot}
     </AlignmentsView>
