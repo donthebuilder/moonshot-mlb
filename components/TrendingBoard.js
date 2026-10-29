@@ -24,7 +24,8 @@ import { SPORTS, WINDOWS, BARS, MIN_GAMES, defaults, filterRows, sortRows, propO
 const PREFIX = 'tr_'
 const readP = (k) => readParam(`${PREFIX}${k}`)
 // one price band per chip (American odds, read in the order a bettor means: -200 is shorter than +100)
-const PRICES = [['Any price', null], ['Favorites −200 to even', [-200, 100]], ['Plus money +100 to +300', [100, 300]], ['Long shots +300 up', [300, 10000]]]
+// [chip label, band, the short word the removable chip wears]
+const PRICES = [['Any price', null, 'Any'], ['Favorites −200 to even', [-200, 100], '−200 to even'], ['Plus money +100 to +300', [100, 300], '+100 to +300'], ['Long shots +300 up', [300, 10000], '+300 up']]
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 
 export default function TrendingBoard({ sport, C, NUM_FONT, accent, Table, onOpenPlayer = null, product = null, eyebrow, emptyNote }) {
@@ -92,8 +93,9 @@ export default function TrendingBoard({ sport, C, NUM_FONT, accent, Table, onOpe
   const columns = [
     { key: 'name', label: 'Player', group: 'Player', w: 140, sticky: true, bold: true, numeric: false, heat: false, link: (r) => () => open(r),
       // more than one sport on: the product rides under the name in its own accent
-      fmt: many ? (v, r) => <span style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 1.2 }}><span>{v}</span><span style={{ font: `800 9px/1.2 ${NUM_FONT}`, letterSpacing: '.08em', color: accentOf(r.sport) }}>{names[r.sport]}</span></span> : undefined },
-    { key: 'prop', label: 'Prop', group: 'Tonight', w: 104, numeric: false, heat: false, mono: true },
+      fmt: many ? (v, r) => <span style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 1.2 }}><span>{v}</span><span style={{ font: `800 9px/1.2 ${NUM_FONT}`, letterSpacing: '.08em', color: accentOf(r.sport) }}>{names[r.sport]}{r.team ? <span style={{ color: C.text3 }}>{` · ${r.team}`}</span> : null}</span></span> : undefined },
+    { key: 'prop', label: 'Prop', group: 'Tonight', w: 92, numeric: false, heat: false, mono: true },
+    { key: 'price', label: 'PRICE', group: 'Tonight', w: 58, heat: false, mono: true, title: 'The best book’s over, American odds', fmt: (v) => (v == null ? '—' : fmtOdds(v)) },
     { key: 'l10', label: 'L10', group: 'Over the line', w: 52, fmt: cell('L10'), primary: f.win === 'L10' },
     { key: 'l5', label: 'L5', group: 'Over the line', w: 52, fmt: cell('L5'), primary: f.win === 'L5' },
     { key: 'l20', label: 'L20', group: 'Over the line', w: 52, fmt: cell('L20'), primary: f.win === 'L20' },
@@ -103,7 +105,6 @@ export default function TrendingBoard({ sport, C, NUM_FONT, accent, Table, onOpe
     { key: 'dL10', label: 'D L10', group: 'Tonight’s defense', w: 56, fmt: dcell('L10'), title: 'Players at his spot against tonight’s defense: how many went over his line (last 10 games)' },
     { key: 'dSeason', label: 'D LONG', group: 'Tonight’s defense', w: 62, fmt: dcell('Season'), title: 'The same, over the long run' },
     { key: 'avg', label: 'AVG', group: 'His games', w: 48, fmt: (v) => (v == null ? '—' : v.toFixed(1)) },
-    { key: 'price', label: 'PRICE', group: 'Book', w: 58, heat: false, mono: true, fmt: (v) => (v == null ? '—' : fmtOdds(v)) },
     { key: 'slip', label: '', group: 'Book', w: 48, heat: false, numeric: false, fmt: (v, r) => {
       const x = r._raw
       return <SlipPlus sport={x.sport} C={C} NUM_FONT={NUM_FONT} accent={accentOf(x.sport)}
@@ -115,7 +116,7 @@ export default function TrendingBoard({ sport, C, NUM_FONT, accent, Table, onOpe
   // what narrows the list (the removable chips in the Filters bar) and how many things
   const activeFilters = [
     f.bar ? { key: 'bar', label: `${winLabel} ${f.bar}%+`, onRemove: () => set({ bar: 0 }) } : null,
-    f.price ? { key: 'price', label: PRICES.find(([, v]) => same(v, f.price))?.[0]?.split(' ')[0] || 'Price', onRemove: () => set({ price: null }) } : null,
+    f.price ? { key: 'price', label: PRICES.find(([, v]) => same(v, f.price))?.[2] || 'Price', onRemove: () => set({ price: null }) } : null,
     f.minN !== base.minN ? { key: 'min', label: `${f.minN}+ games`, onRemove: () => set({ minN: base.minN }) } : null,
     f.ha ? { key: 'ha', label: f.ha === 'home' ? 'Home' : 'Away', onRemove: () => set({ ha: null }) } : null,
     f.win !== base.win ? { key: 'win', label: `By ${winLabel}`, onRemove: () => set({ win: base.win }) } : null,
@@ -124,6 +125,8 @@ export default function TrendingBoard({ sport, C, NUM_FONT, accent, Table, onOpe
   const narrowed = activeFilters.length + f.props.length + (f.q ? 1 : 0) + (f.team ? 1 : 0) + (f.game ? 1 : 0)
   const sel = { ...chipSelect(Boolean(f.team), accent, C, NUM_FONT), width: '100%' }
   const noRows = !loading && !rows.length
+  const findOn = findOpen || Boolean(f.q || f.team || f.game)
+  const findBtn = <button type="button" className={FLAT_CHIP_CLASS} aria-pressed={findOn} onClick={() => setFindOpen((v) => !v)} style={chip(findOn)}>🔎 Find</button>
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 10 }}>
@@ -144,23 +147,23 @@ export default function TrendingBoard({ sport, C, NUM_FONT, accent, Table, onOpe
         })}
       </div>
 
-      {props.length > 1 ? (
-        <div role="group" aria-label="Prop" className="chip-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <button type="button" className={FLAT_CHIP_CLASS} aria-pressed={!f.props.length} onClick={() => set({ props: [] })} style={chip(!f.props.length)}>All</button>
-          {props.map(({ word }) => (
-            <button key={word} type="button" className={FLAT_CHIP_CLASS} aria-pressed={f.props.includes(word)} onClick={() => toggleProp(word)} style={chip(f.props.includes(word))}>{word}</button>
-          ))}
-        </div>
-      ) : null}
+      {/* Find leads the prop chips: it used to take a whole row of its own on a phone, and at the end of a scrolling row it would be out of sight */}
+      <div role="group" aria-label="Prop" className="chip-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {findBtn}
+        {props.length > 1 ? (
+          <>
+            <button type="button" className={FLAT_CHIP_CLASS} aria-pressed={!f.props.length} onClick={() => set({ props: [] })} style={chip(!f.props.length)}>All</button>
+            {props.map(({ word }) => (
+              <button key={word} type="button" className={FLAT_CHIP_CLASS} aria-pressed={f.props.includes(word)} onClick={() => toggleProp(word)} style={chip(f.props.includes(word))}>{word}</button>
+            ))}
+          </>
+        ) : null}
+      </div>
 
       <FiltersDrawer compact active={narrowed > 0} activeCount={narrowed} activeFilters={activeFilters} reset={resetAll} shown={rows.length} total={pool.length}
         accent={accent} accentInk={C.bg} poolTitle="Props that clear the filters, out of every prop with enough games in the window you picked."
         emptyNote="Nothing clears every filter at once. Loosen one."
-        beside={(
-          <>
-            <button type="button" className={FLAT_CHIP_CLASS} aria-pressed={findOpen || Boolean(f.q || f.team || f.game)} onClick={() => setFindOpen((v) => !v)} style={chip(findOpen || Boolean(f.q || f.team || f.game))}>🔎 Find</button>
-          </>
-        )}>
+        >
         <DrawerSection label="Hit-rate bar" hint="The window you pick below decides which column the bar reads and the list sorts on.">
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
             {BARS.map((b) => <button key={b} type="button" onClick={() => set({ bar: b })} style={drawerChip(f.bar === b)}>{b ? `${b}%+` : 'Any'}</button>)}
@@ -227,10 +230,15 @@ export default function TrendingBoard({ sport, C, NUM_FONT, accent, Table, onOpe
       ) : null}
       {rows.length ? (
         <>
-          <div style={{ font: `800 11px/1.3 ${NUM_FONT}`, letterSpacing: '.08em', color: accent }}>{rows.length} PROPS · {describe(f, names).toUpperCase()} · {winLabel} FIRST · UNDER {f.minN} GAMES LEFT OUT</div>
-          <Table rows={tableRows} columns={columns} maxHeight={9999} maxRows={rows.length} heatMode="standouts" initialSort={null} />
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', font: `600 12px/1.4 ${NUM_FONT}`, color: C.text3 }}>
+            <b style={{ color: C.text, font: `900 16px/1 ${NUM_FONT}` }}>{rows.length}</b>
+            <span style={{ color: C.text2 }}>props</span>
+            <span>{describe(f, names)}</span>
+          </div>
+          {/* sorted on the window you picked, so that column carries the full ramp (the others glow only at their top fifth) */}
+          <Table key={f.win} rows={tableRows} columns={columns} maxHeight={9999} maxRows={rows.length} heatMode="standouts" initialSort={{ key: f.win === 'Season' ? 'season' : f.win.toLowerCase(), dir: 'desc' }} />
           <ShowMoreButton open={pv.open} restN={pv.restN} toggle={pv.toggle} total={pv.total} itemWord="props" />
-          <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.5 }}>% = games he went over tonight’s line; small = the count. D = players at his spot against tonight’s defense, at his line. Price = the best book over. + goes to that sport’s slip.</div>
+          <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.5 }}>Sorted by {winLabel}; a hit rate over fewer than {f.minN} games is left out. % = games he went over tonight’s line; small = the count. D = players at his spot against tonight’s defense, at his line. Price = the best book over. + goes to that sport’s slip.</div>
         </>
       ) : null}
     </div>
