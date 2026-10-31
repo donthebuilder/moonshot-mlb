@@ -7,6 +7,7 @@ import { alignedSignals } from '../../../lib/nfl/dvpSignal'
 import MatchupBadge from '../MatchupBadge'
 import NflTable from '../NflTable'
 import PageHeader from '../../PageHeader'
+import { flatChip, FLAT_CHIP_CLASS } from '../../../lib/chips'
 import { NflCalledExport } from '../../CalledExport'
 import NflSlate from '../NflSlate'
 import { ViewPills } from '../../slate/SlateParts'
@@ -64,7 +65,7 @@ function kickoffLabel(game) {
 // FILTERS (2026-09-28): the boards' top bar -- search, team, game -- above
 // both views, replacing the old search / state box and game-picker strip.
 
-export default function Games({ data, picks, matchup, logs, results, odds = null, onPlayerClick, onOpenTeam = null }) {
+export default function Games({ data, picks, matchup, logs, results, odds = null, onPlayerClick, onOpenTeam = null, onOpenCalledList = null }) {
   const games = data?.games || []
   const players = data?.players || []
   // A game tapped on another tab (Storylines, the Ledger) opens selected here.
@@ -265,7 +266,12 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
           stylesheet. */}
       <PageHeader
         eyebrow="TUDDY · SLATE"
-        right={<NflCalledExport data={data} picks={picks} C={C} NUM_FONT={NUM_FONT} accent={C.green} />}
+        right={(
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {onOpenCalledList ? <button type="button" className={FLAT_CHIP_CLASS} onClick={onOpenCalledList} style={flatChip(false, C.green, C, NUM_FONT)}>📋 Called list</button> : null}
+            <NflCalledExport data={data} picks={picks} C={C} NUM_FONT={NUM_FONT} accent={C.green} />
+          </div>
+        )}
         title="Slate"
         theme={C}
         numFont={NUM_FONT}

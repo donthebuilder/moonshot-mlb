@@ -41,6 +41,8 @@ import MlbOffseason from './MlbOffseason'
 import HomeGreeting from '../home/HomeGreeting'
 import SlateRow from '../home/SlateRow'
 import HomeLinks from '../home/HomeLinks'
+import CalledList from '../CalledList'
+import DenseTable from '../DenseTable'
 import RaceTracker from '../RaceTracker'
 import NetworkRow from '../NetworkRow'
 import HotNumbers from '../numerology/HotNumbers'
@@ -749,6 +751,9 @@ export default function Home({
       {!empty && <Fold id="tonight-calls" title="🃏 Tonight's calls" meta="swipe the real cards"><TonightsCalls sport="mlb" /></Fold>}
 
       {/* TONIGHT (2026-10-04): who went, who lines up, who's still to go (components/tonight/MlbTonight.js) */}
+      {/* THE CALLED LIST (2026-10-25): the locked Card as a table, three rows and a link to the full list; silent until a card is locked */}
+      <CalledList sport="mlb" theme={C} numFont={NUM_FONT} accent={C.orange} Table={DenseTable} preview={3} onOpenList={() => onNavigate?.('calledlist')} />
+
       <MlbTonight players={players} results={results} slateDate={slateDate} onPlayerClick={onPlayerClick} onNavigate={onNavigate} />
 
       {/* ⭐ YOUR PLAYERS (2026-09-03) — replaces FollowingStrip here.
