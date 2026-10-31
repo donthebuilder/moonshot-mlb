@@ -156,5 +156,25 @@ await t('wiring + the migration', async () => {
   const sql = fs.readFileSync('supabase/migrations/202610260100_members_list_kinds.sql', 'utf8')
   assert.ok(sql.includes("card_members_list_(mlb|nfl|nhl|nba)") && /not valid/.test(sql) && /PROBE/.test(sql))
 })
+await t('the box: one embed, accent bar, a section per play kind, a mark on every line, one site link, no angle lines, no chance printed', async () => {
+  const { listEntries } = await import('../lib/card/listRows.js')
+  const e = L.listEmbed({ sport: 'nfl', day: DAY, entries: listEntries(ROWS, { now: NOW }), now: NOW })
+  assert.ok(e && e.title.includes('plays today') && typeof e.color === 'number')
+  assert.deepEqual(e.fields.map((f) => f.name), ['Straights', 'Two-Man'])
+  assert.ok(e.fields[0].value.includes('TEST A') && /\u23F3/.test(e.fields[0].value) && !e.fields[0].value.includes('why A'))
+  assert.ok(e.fields[1].value.includes('with TEST D') || e.fields[1].value.includes('with TEST C'))
+  assert.ok(!/%|chance|probab/i.test(JSON.stringify(e)))
+  assert.equal(L.listEmbed({ sport: 'nfl', day: DAY, entries: [], now: NOW }), null)
+})
+await t('MEMBERS_BOX_ON cuts exactly the repeat kinds (leg checks, graded recap) and nothing that grades or pings; off by default', async () => {
+  const R = await import('../lib/dash/routing.js')
+  delete process.env.MEMBERS_BOX_ON
+  assert.equal(R.isCut('card_members_leg_nfl_two_man_1_1'), false)
+  process.env.MEMBERS_BOX_ON = 'on'
+  assert.equal(R.isCut('card_members_leg_nfl_two_man_1_1'), true)
+  assert.equal(R.isCut('card_members_graded'), true)
+  for (const k of ['card_members_win_nfl_straight_1', 'card_members_day', 'card_members_day_2', 'card_result_nfl', 'card_members_list_nfl', 'members_roundup_nhl']) assert.equal(R.isCut(k), false, k)
+  delete process.env.MEMBERS_BOX_ON
+})
 console.log(failed ? `\n${failed} FAILED` : '\nall ok')
 process.exit(failed ? 1 : 0)
