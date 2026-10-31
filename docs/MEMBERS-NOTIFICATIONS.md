@@ -149,7 +149,8 @@ Rooms: `members` = #members (paying), `sport` = the product's own room, `network
 | `recap_nfl` | everyone | After the last game: TUDDY recap, who was called and scored, and the misses | network | same |
 | `recap_nhl` | everyone | After the last game: LAMP recap, who was called and scored, and the misses | network | same |
 | `partner_picks` | everyone | Before the first game: each product's lead pick, as straights and as one parlay, with the site link | partner | same |
-| `partner_top5` | everyone | Before the first game: tonight's top 5 names per product, with the site link | partner | same |
+| `partner_top5` | everyone | Before the first game: tonight's top 5 names per product, with the site link (replaced by partner_box when PARTNER_BOX_ON) | partner | same |
+| `partner_box` | everyone | Before the first game, ONE post (PARTNER_BOX_ON): the lead picks (straights + parlay) and the top 5 per product, with the site link | partner | same |
 | `card_ls_tuesday` | nobody | LONGSHOT TUESDAY lives on X; each channel has its own daily long shot | x | same |
 | `card_ls_tuesday_result` | nobody | LONGSHOT TUESDAY lives on X; each channel has its own daily long shot | x | same |
 | `story_t3` | nobody | A reply under an X post | x | same |
