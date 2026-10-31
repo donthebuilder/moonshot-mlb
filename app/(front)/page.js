@@ -5,9 +5,11 @@
 //
 //   1. header      the mark, Sign in, ONE "Start free" button
 //   2. hero        one line and the one primary button, "Sign up free"
-//   3. free picks  tonight's called players, a MOONSHOT table per sport (4 rows each, the rest counted for members; gated on the server)
-//   4. the record  how the bot is doing, from the one locked record
-//   5. the offer   Founding members, the one paid button (a member sees a line and a link to the app)
+//   3. the offer   Founding members, the one paid button (a member sees a line and a link to the app) -- moved up from
+//                  position 5 (2026-10-30, Donovan: visitors need to see what membership costs before, not after,
+//                  the free picks and the record)
+//   4. free picks  tonight's called players, a MOONSHOT table per sport (4 rows each, the rest counted for members; gated on the server)
+//   5. the record  how the bot is doing, from the one locked record
 //   6. sign up     the free form, open
 //   7. the boards  one row of links into the app, the free Discord, the footer
 //
@@ -135,12 +137,34 @@ export default async function DashHome({ searchParams }) {
         </div>
       </section>
 
-      {/* 3. THE FREE TASTE. Fetched after the page starts to render; the gate is applied on the server inside (components/home/QuickPicks.js). */}
+      {/* 3. THE OFFER. Moved up from position 5 (2026-10-30, Donovan: "move up where it's telling them how much the Discord costs") -- a visitor used to
+          have to scroll past the free picks and the record to find out what membership costs. The one paid button on the page. The site stays free; members pay for delivery (lib/members.js). A member sees a line and a way
+          into the app instead; a signed-out visitor who already pays has a way to sign in. */}
+      <section className={styles.offer} id="offer" aria-label="Founding members">
+        {member ? (
+          <>
+            <p className={styles.kicker}>FOUNDING MEMBER</p>
+            <h2>You&apos;re a member.</h2>
+            <p className={styles.muted}>Every called player is delivered at lock. Each list below shows up to 8; all of them are in the app.</p>
+            <div className={styles.offerActions}><Link className={styles.cta} href={appHref(live)}>Open the app <b>→</b></Link></div>
+          </>
+        ) : (
+          <>
+            <p className={styles.kicker}>FOUNDING MEMBERS</p>
+            <h2>{MEMBERS_PRICE}.</h2>
+            <p className={styles.muted}>{MEMBERS_TRIAL[0].toUpperCase() + MEMBERS_TRIAL.slice(1)}. Delivered to a private Discord: today&apos;s picks with the why, every game&apos;s write-up, and every pick graded. Everything on the site stays free.</p>
+            <div className={styles.offerActions}><a className={styles.cta} href={membersUrl()} target="_blank" rel="noopener noreferrer">Join Founding members <b>→</b></a></div>
+            {me.user ? null : <p className={styles.already}>Already a member? <a href="#sign-in">Sign in</a></p>}
+          </>
+        )}
+      </section>
+
+      {/* 4. THE FREE TASTE. Fetched after the page starts to render; the gate is applied on the server inside (components/home/QuickPicks.js). */}
       <Suspense fallback={null}>
         <QuickPicksLoader styles={styles} mlbDate={mlb?.date || null} mlbOff={mlbOff} nflLive={nflLive} nhlDate={nhl?.date || null} member={member} />
       </Suspense>
 
-      {/* 4. HOW THE BOT IS DOING. One block per sport, the same shape (components/home/RecordBlocks.js, rows from lib/dash/recordBlocks.js): MOONSHOT's rows are the
+      {/* 5. HOW THE BOT IS DOING. One block per sport, the same shape (components/home/RecordBlocks.js, rows from lib/dash/recordBlocks.js): MOONSHOT's rows are the
           ONE locked record (lib/record/lockedRecord.js via lib/dash/pulse.js recordFrom: only calls whose board row was stamped before first pitch), TUDDY's the
           calibration reader's market ladder, LAMP's the status ladder. The label rules stay: every rate names its bar and carries its n and 95% range, MOONSHOT's
           and TUDDY's rows are never ranked against each other, and each block's fold says what is counted and what is set aside. */}
@@ -155,27 +179,6 @@ export default async function DashHome({ searchParams }) {
           <Link className={styles.moreLink} href="/called">Every call, night by night, in the Ledger →</Link>
         </section>
       ) : null}
-
-      {/* 5. THE OFFER. The one paid button on the page. The site stays free; members pay for delivery (lib/members.js). A member sees a line and a way
-          into the app instead; a signed-out visitor who already pays has a way to sign in. */}
-      <section className={styles.offer} id="offer" aria-label="Founding members">
-        {member ? (
-          <>
-            <p className={styles.kicker}>FOUNDING MEMBER</p>
-            <h2>You&apos;re a member.</h2>
-            <p className={styles.muted}>Every called player is delivered at lock. Each list above shows up to 8; all of them are in the app.</p>
-            <div className={styles.offerActions}><Link className={styles.cta} href={appHref(live)}>Open the app <b>→</b></Link></div>
-          </>
-        ) : (
-          <>
-            <p className={styles.kicker}>FOUNDING MEMBERS</p>
-            <h2>{MEMBERS_PRICE}.</h2>
-            <p className={styles.muted}>{MEMBERS_TRIAL[0].toUpperCase() + MEMBERS_TRIAL.slice(1)}. Delivered to a private Discord: today&apos;s picks with the why, every game&apos;s write-up, and every pick graded. Everything on the site stays free.</p>
-            <div className={styles.offerActions}><a className={styles.cta} href={membersUrl()} target="_blank" rel="noopener noreferrer">Join Founding members <b>→</b></a></div>
-            {me.user ? null : <p className={styles.already}>Already a member? <a href="#sign-in">Sign in</a></p>}
-          </>
-        )}
-      </section>
 
       {/* 6. FREE SIGN-UP, OPEN. #sign-in is this section and #create-account the anchor inside the card (login, the header and the actions' redirects
           still land on them). WHAT NOW (2026-08-31, "didn't know what to do after signing up"): the welcome panel names three destinations. */}
