@@ -75,6 +75,10 @@ await ok('id mapping: name + club (accents, Jr., punctuation), roster ids attach
   assert.equal(LK.findEntry(idx, { name: 'D. Winger', team: 'NJD' }).status, 'DAY_TO_DAY')  // initial + surname, unambiguous on that club
   assert.equal(LK.findEntry(idx, { name: 'E. Winger', team: 'NJD' }), null)                  // wrong initial: not him
   assert.equal(LK.findEntry(idx, { name: 'Dee Wingers', team: 'NJD' }), null)
+  // same initial + same club but a DIFFERENT first name is a different man (injured Dee Winger must not block Dan Winger); a short form still matches
+  assert.equal(LK.findEntry(idx, { name: 'Dan Winger', team: 'NJD' }), null)
+  assert.equal(LK.findEntry(idx, { name: 'Deeon Winger', team: 'NJD' })?.status, 'DAY_TO_DAY')
+  assert.ok(LK.sameFirst('Mike Test', 'Michael Test') && LK.sameFirst('Mitch Test', 'Mitchell Test') && LK.sameFirst('D. Test', 'Dee Test') && !LK.sameFirst('Josh Allen', 'Jordan Allen'))
   const nfl = NM.normaliseEspn('nfl', NFL).entries
   const withIds = LK.attachIds('nfl', nfl, [{ player_id: '00-0030001', name: 'Tess Receiver', team: 'WAS' }, { id: '00-0030002', name: 'Quin Catcher', team: 'LA' }])
   assert.equal(withIds.find((e) => e.name.startsWith('Tess')).player_id, '00-0030001'); assert.equal(withIds.find((e) => e.name === 'Quin Catcher').player_id, '00-0030002')
