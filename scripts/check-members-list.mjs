@@ -166,14 +166,15 @@ await t('the box: one embed, accent bar, a section per play kind, a mark on ever
   assert.ok(!/%|chance|probab/i.test(JSON.stringify(e)))
   assert.equal(L.listEmbed({ sport: 'nfl', day: DAY, entries: [], now: NOW }), null)
 })
-await t('MEMBERS_BOX_ON cuts exactly the repeat kinds (leg checks, graded recap, the day post, roundup) and nothing that grades or pings; off by default', async () => {
+await t('MEMBERS_BOX_ON cuts exactly the repeat kinds (leg checks, graded recap, the day post, roundup follow-ups) and nothing that grades or pings; off by default', async () => {
   const R = await import('../lib/dash/routing.js')
   delete process.env.MEMBERS_BOX_ON
   assert.equal(R.isCut('card_members_leg_nfl_two_man_1_1'), false)
   process.env.MEMBERS_BOX_ON = 'on'
   assert.equal(R.isCut('card_members_leg_nfl_two_man_1_1'), true)
   assert.equal(R.isCut('card_members_graded'), true)
-  for (const k of ['card_members_day', 'card_members_day_2', 'card_members_day_4', 'members_roundup_nhl', 'members_roundup_nba_2']) assert.equal(R.isCut(k), true, k)
+  for (const k of ['card_members_day', 'card_members_day_2', 'card_members_day_4', 'members_roundup_nba_2']) assert.equal(R.isCut(k), true, k)
+  assert.equal(R.isCut('members_roundup_nhl'), false, 'the night roundup is the one edited night box, not cut')
   for (const k of ['card_members_win_nfl_straight_1', 'card_result_nfl', 'card_members_list_nfl']) assert.equal(R.isCut(k), false, k)
   delete process.env.MEMBERS_BOX_ON
   for (const k of ['card_members_day', 'members_roundup_nhl']) assert.equal(R.isCut(k), false, `${k} off`)
