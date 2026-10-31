@@ -10,6 +10,7 @@ import { splitPairs } from '../../lib/nfl/gameSplits'
 import { GroupPicker } from '../PlayerSplits'
 import NflTable from './NflTable'
 import ScrollHint from '../player/ScrollHint'
+import NflWithout from './NflWithout'
 
 const STATS = [
   { key: 'tdPerG', group: 'Touchdowns', label: 'TD/G', dp: 2, primaryFor: 'TD' },
@@ -21,11 +22,21 @@ const STATS = [
   { key: 'payd', group: 'Per game', label: 'PA YD', w: 56, dp: 0, primaryFor: 'PASS_YDS' },
 ]
 
-export default function NflSplitsGroups({ log, market = 'TD', dvp = null, role = null }) {
+export default function NflSplitsGroups({ log, market = 'TD', dvp = null, role = null, logs = null, names = null, playerId = null }) {
   const pairs = useMemo(() => splitPairs(log, { dvp, role }), [log, dvp, role])
   const [active, setActive] = useState('where')
   if (!pairs.length) return null
   const group = pairs.find((p) => p.key === active) || pairs[0]
+  const withoutOn = Boolean(logs && playerId && (log || []).length)
+  const picker = withoutOn ? [...pairs.slice(0, 1), { key: 'without', label: 'Without' }, ...pairs.slice(1)] : pairs
+  if (withoutOn && active === 'without') {
+    return (
+      <section aria-label="Splits" style={{ margin: '4px 0 12px' }}>
+        <GroupPicker groups={picker} active="without" onPick={setActive} />
+        <NflWithout log={log} logs={logs} names={names} playerId={playerId} />
+      </section>
+    )
+  }
   const rows = group.sides.map((s) => ({ ...s, _key: s.label, split: s.label, _dim: s.g > 0 && s.g < 3 }))   // aggregateNflGames carries its own split: 'Combo'; the side's name wins
   const all = pairs.flatMap((p) => p.sides)
   const columns = [
@@ -37,7 +48,7 @@ export default function NflSplitsGroups({ log, market = 'TD', dvp = null, role =
   ]
   return (
     <section aria-label="Splits" style={{ margin: '4px 0 12px' }}>
-      <GroupPicker groups={pairs} active={group.key} onPick={setActive} />
+      <GroupPicker groups={picker} active={group.key} onPick={setActive} />
       <ScrollHint>
         <NflTable rows={rows} columns={columns} heatMode="sorted" maxRows={rows.length} maxHeight={9999} dimRow={(r) => r._dim}
           caption={`${group.label}: his logged games, each side. A side under three games is dimmed.`} />
