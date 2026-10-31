@@ -29,6 +29,7 @@ import { activeLeagues, nbaOddsCapture, MARKETS, snapRows, startsAt, gameDate, l
 import { bucketsPublic } from '../../../../lib/nba/gate'
 import { linesRows } from '../../../../lib/odds/lines'
 import { twoPlusRows } from '../../../../lib/odds/twoPlus'
+import { barRungRows } from '../../../../lib/odds/barRungs'
 import { gameTotalRow } from '../../../../lib/odds/gameTotal'
 import { gameLineRow } from '../../../../lib/odds/gameLine'
 import { freezeDashLines } from '../../../../lib/dashLock'
@@ -139,6 +140,7 @@ export async function GET(request) {
       const rows = []
       const lineRows = []
       const twoRows = []
+      const rungRows = []
       let players = 0; let matched = 0; let totals = 0
       for (const ev of events) {
         if (!(Date.now() < Date.parse(startsAt(ev))) || ev.status?.started) continue // already under way: no pregame row
@@ -149,6 +151,8 @@ export async function GET(request) {
         lineRows.push(...linesRows(ev, 'list', takenAt, match).rows)
         // 2+ PRICES (lib/odds/twoPlus.js): the over-1.5 rung of the anytime stat, only where a book lists it; same event, no extra object
         twoRows.push(...twoPlusRows(ev, 'list', takenAt, match).rows)
+        // BUCKETS' CALL RUNG (lib/odds/barRungs.js): 4+ threes / 8+ assists / 10+ rebounds at their own price, from this same event
+        rungRows.push(...barRungRows(ev, 'list', takenAt, match).rows)
         if (!dry) totals += await saveGameTotal(db, ev, 'list', takenAt)
         if (!dry) await saveGameLine(db, ev, 'list', takenAt)
       }
@@ -172,6 +176,10 @@ export async function GET(request) {
         if (twoRows.length) {
           const w = await db.from('odds_lines').upsert(twoRows, { onConflict: 'event_id,odd_id,snap', ignoreDuplicates: true })
           if (w.error) console.error(`[odds tick] list 2+ ${league}: ${w.error.message}`)
+        }
+        if (rungRows.length) {
+          const w = await db.from('odds_lines').upsert(rungRows, { onConflict: 'event_id,odd_id,snap', ignoreDuplicates: true })
+          if (w.error) console.error(`[odds tick] list rungs ${league}: ${w.error.message}`)
         }
       }
       out.listed.push({ league, games: events.length, rows: rows.length, lines: lineRows.length, twoPlus: twoRows.length, totals, players, matched })
@@ -248,6 +256,14 @@ export async function GET(request) {
           if (!dry && T.rows.length) {
             const w = await db.from('odds_lines').upsert(T.rows, { onConflict: 'event_id,odd_id,snap', ignoreDuplicates: true })
             if (w.error) { console.error(`[odds tick] 2+ ${ev.eventID}: ${w.error.message}`); twoPlus = `error: ${w.error.message}` }
+          }
+        }
+        // THE CALL RUNG AT LOCK (BUCKETS, lib/odds/barRungs.js): its own write and its own failure
+        if (snap === 'lock' && ev.leagueID === 'NBA') {
+          const B = barRungRows(ev, snap, takenAt, match)
+          if (!dry && B.rows.length) {
+            const w = await db.from('odds_lines').upsert(B.rows, { onConflict: 'event_id,odd_id,snap', ignoreDuplicates: true })
+            if (w.error) console.error(`[odds tick] rungs ${ev.eventID}: ${w.error.message}`)
           }
         }
         out.snaps.push({ event: ev.eventID, league: ev.leagueID, snap, rows: r.rows.length, lines, twoPlus, dash, board, players: r.players, matched: r.matched, minutesToStart: Math.round((Date.parse(startsAt(ev)) - Date.parse(takenAt)) / MIN) })
