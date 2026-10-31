@@ -25,7 +25,7 @@ import { whichSeason } from '../../../../lib/nhl/whichSeason'
 import { cronAuthorized, adminClient } from '../../../../lib/supabase/admin'
 import { hasKey, monthUsage, eventsBetween, eventsById } from '../../../../lib/odds/sgo'
 import { playerJoin } from '../../../../lib/odds/playerJoin'
-import { activeLeagues, nbaOddsCapture, MARKETS, snapRows, startsAt, gameDate, listWaits } from '../../../../lib/odds/snap'
+import { activeLeagues, nbaOddsCapture, MARKETS, snapRows, startsAt, gameDate, listWaits, listDays } from '../../../../lib/odds/snap'
 import { bucketsPublic } from '../../../../lib/nba/gate'
 import { linesRows } from '../../../../lib/odds/lines'
 import { twoPlusRows } from '../../../../lib/odds/twoPlus'
@@ -120,60 +120,64 @@ export async function GET(request) {
   for (const league of activeLeagues(bucketsPublic(), nbaOddsCapture())) {
     const sport = MARKETS[league].sport
     if (league === 'NHL' && !nhlLive) continue
-    // today's NBA list waits for noon ET, when its props are posted (lib/odds/snap listWaits): no object spent before then
-    if (date === easternToday() && listWaits(league, Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' }).format(new Date())))) continue
-    if (!dry) {
-      const have = await db.from('odds_events').select('event_id').eq('sport', sport).eq('game_date', date).limit(1)
-      if (have.error) { out.skipped.push({ league, why: `event map: ${have.error.message}` }); continue }
-      if (have.data?.length) continue
-    }
-    let events
-    try { events = await eventsBetween(league, new Date(etMidnight(date)).toISOString(), new Date(etMidnight(nextDay(date))).toISOString(), HARD_CAP - used) } catch (e) {
-      out.skipped.push({ league, why: `list: ${e?.message}` }); continue
-    }
-    used += events.length
-    const match = await joinFor(league)
-    const takenAt = new Date().toISOString()
-    const rows = []
-    const lineRows = []
-    const twoRows = []
-    let players = 0; let matched = 0; let totals = 0
-    for (const ev of events) {
-      if (!(Date.now() < Date.parse(startsAt(ev))) || ev.status?.started) continue // already under way: no pregame row
-      const r = snapRows(ev, 'list', takenAt, match)
-      rows.push(...r.rows); players += r.players; matched += r.matched
-      // The morning read of every market we score (lib/odds/lines.js), so the
-      // site has hits / total bases / yards prices before each game's lock.
-      lineRows.push(...linesRows(ev, 'list', takenAt, match).rows)
-      // 2+ PRICES (lib/odds/twoPlus.js): the over-1.5 rung of the anytime stat, only where a book lists it; same event, no extra object
-      twoRows.push(...twoPlusRows(ev, 'list', takenAt, match).rows)
-      if (!dry) totals += await saveGameTotal(db, ev, 'list', takenAt)
-      if (!dry) await saveGameLine(db, ev, 'list', takenAt)
-    }
-    if (!dry) {
-      const map = events.filter((ev) => startsAt(ev)).map((ev) => ({ event_id: ev.eventID, sport, game_date: gameDate(ev), starts_at: startsAt(ev), away: ev.teams?.away?.names?.short || null, home: ev.teams?.home?.names?.short || null, listed_at: takenAt }))
-      // THE DAY'S "LISTED" MARKER (measured 09-26): a list that returns NO
-      // games still costs one object, and without a row for the day the next
-      // tick asked again -- every ten minutes, ~3,000 objects a month on NFL's
-      // empty days alone. One marker row per league per day; its starts_at is
-      // the day's own midnight, already past, so it is never a due game.
-      map.push({ event_id: `listed:${sport}:${date}`, sport, game_date: date, starts_at: new Date(etMidnight(date)).toISOString(), away: null, home: null, listed_at: takenAt })
-      const m = map.length ? await db.from('odds_events').upsert(map, { onConflict: 'event_id', ignoreDuplicates: true }) : { error: null }
-      if (m.error) { out.skipped.push({ league, why: `event map write: ${m.error.message}` }); continue }
-      try { await insertRows(db, rows) } catch (e) { out.skipped.push({ league, why: `list rows: ${e?.message}` }); continue }
-      // LAMP's anytime-goal devig (lib/odds/devig.js): from these same rows, no extra object; its own failure, logged
-      if (league === 'NHL') out.devigList = await saveAtgDevig(db, rows, date)
-      if (lineRows.length) {
-        const w = await db.from('odds_lines').upsert(lineRows, { onConflict: 'event_id,odd_id,snap', ignoreDuplicates: true })
-        if (w.error) console.error(`[odds tick] list lines ${league}: ${w.error.message}`)
+    // THE DAY-BEFORE LIST (lib/odds/snap.js listDays): NFL also lists tomorrow's games from noon ET
+    for (const listDay of listDays(league, date, easternToday(), Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' }).format(new Date())), nextDay)) {
+      // today's NBA list waits for noon ET, when its props are posted (lib/odds/snap listWaits): no object spent before then
+      if (listDay === easternToday() && listWaits(league, Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' }).format(new Date())))) continue
+      if (!dry) {
+        const have = await db.from('odds_events').select('event_id').eq('sport', sport).eq('game_date', listDay).limit(1)
+        if (have.error) { out.skipped.push({ league, why: `event map: ${have.error.message}` }); continue }
+        if (have.data?.length) continue
       }
-      if (twoRows.length) {
-        const w = await db.from('odds_lines').upsert(twoRows, { onConflict: 'event_id,odd_id,snap', ignoreDuplicates: true })
-        if (w.error) console.error(`[odds tick] list 2+ ${league}: ${w.error.message}`)
+      let events
+      try { events = await eventsBetween(league, new Date(etMidnight(listDay)).toISOString(), new Date(etMidnight(nextDay(listDay))).toISOString(), HARD_CAP - used) } catch (e) {
+        out.skipped.push({ league, why: `list: ${e?.message}` }); continue
       }
+      used += events.length
+      const match = await joinFor(league)
+      const takenAt = new Date().toISOString()
+      const rows = []
+      const lineRows = []
+      const twoRows = []
+      let players = 0; let matched = 0; let totals = 0
+      for (const ev of events) {
+        if (!(Date.now() < Date.parse(startsAt(ev))) || ev.status?.started) continue // already under way: no pregame row
+        const r = snapRows(ev, 'list', takenAt, match)
+        rows.push(...r.rows); players += r.players; matched += r.matched
+        // The morning read of every market we score (lib/odds/lines.js), so the
+        // site has hits / total bases / yards prices before each game's lock.
+        lineRows.push(...linesRows(ev, 'list', takenAt, match).rows)
+        // 2+ PRICES (lib/odds/twoPlus.js): the over-1.5 rung of the anytime stat, only where a book lists it; same event, no extra object
+        twoRows.push(...twoPlusRows(ev, 'list', takenAt, match).rows)
+        if (!dry) totals += await saveGameTotal(db, ev, 'list', takenAt)
+        if (!dry) await saveGameLine(db, ev, 'list', takenAt)
+      }
+      if (!dry) {
+        const map = events.filter((ev) => startsAt(ev)).map((ev) => ({ event_id: ev.eventID, sport, game_date: gameDate(ev), starts_at: startsAt(ev), away: ev.teams?.away?.names?.short || null, home: ev.teams?.home?.names?.short || null, listed_at: takenAt }))
+        // THE DAY'S "LISTED" MARKER (measured 09-26): a list that returns NO
+        // games still costs one object, and without a row for the day the next
+        // tick asked again -- every ten minutes, ~3,000 objects a month on NFL's
+        // empty days alone. One marker row per league per day; its starts_at is
+        // the day's own midnight, already past, so it is never a due game.
+        map.push({ event_id: `listed:${sport}:${listDay}`, sport, game_date: listDay, starts_at: new Date(etMidnight(listDay)).toISOString(), away: null, home: null, listed_at: takenAt })
+        const m = map.length ? await db.from('odds_events').upsert(map, { onConflict: 'event_id', ignoreDuplicates: true }) : { error: null }
+        if (m.error) { out.skipped.push({ league, why: `event map write: ${m.error.message}` }); continue }
+        try { await insertRows(db, rows) } catch (e) { out.skipped.push({ league, why: `list rows: ${e?.message}` }); continue }
+        // LAMP's anytime-goal devig (lib/odds/devig.js): from these same rows, no extra object; its own failure, logged
+        if (league === 'NHL') out.devigList = await saveAtgDevig(db, rows, listDay)
+        if (lineRows.length) {
+          const w = await db.from('odds_lines').upsert(lineRows, { onConflict: 'event_id,odd_id,snap', ignoreDuplicates: true })
+          if (w.error) console.error(`[odds tick] list lines ${league}: ${w.error.message}`)
+        }
+        if (twoRows.length) {
+          const w = await db.from('odds_lines').upsert(twoRows, { onConflict: 'event_id,odd_id,snap', ignoreDuplicates: true })
+          if (w.error) console.error(`[odds tick] list 2+ ${league}: ${w.error.message}`)
+        }
+      }
+      out.listed.push({ league, games: events.length, rows: rows.length, lines: lineRows.length, twoPlus: twoRows.length, totals, players, matched })
+      console.log(`[odds tick] list ${league} ${listDay}: ${events.length} games, ${rows.length} rows, join ${matched}/${players}`)
+  
     }
-    out.listed.push({ league, games: events.length, rows: rows.length, lines: lineRows.length, twoPlus: twoRows.length, totals, players, matched })
-    console.log(`[odds tick] list ${league} ${date}: ${events.length} games, ${rows.length} rows, join ${matched}/${players}`)
   }
 
   // ── LOCK / CLOSE: the games inside a window, one eventIDs read ─────────
