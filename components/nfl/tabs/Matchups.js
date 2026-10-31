@@ -26,6 +26,7 @@ import GameFieldSmall from '../GameFieldSmall'
 import { ordinal } from '../../../lib/format'
 import { gameVenue } from '../../../lib/nfl/venueOf'
 import { roleLabel } from '../../../lib/nfl/roles'
+import { withTotalRow } from '../../../lib/nfl/dvpTotal'
 
 // Matchups -- the defenses to attack this week, then one defense read the
 // way MOONSHOT reads a starter (2026-09-28, Donovan: "the match up page on nfl
@@ -142,16 +143,17 @@ function ByPosition({ matchup, team, win, setWin, slateSeason }) {
   const blob = data?.dvp?.[win]?.[team]
   const roles = (data?.dvp_roles || []).filter((r) => blob?.[r])
   const labels = data?.dvp_labels || {}
-  const stats = (data?.dvp_stats || []).filter((st) => roles.some((r) => blob[r]?.[st] != null))
-  const rows = roles.map((r) => {
+  const roleStats = (data?.dvp_stats || []).filter((st) => roles.some((r) => blob[r]?.[st] != null))
+  const roleRows = roles.map((r) => {
     const o = { _id: r, role: r }
-    for (const st of stats) { const rk = blob[r]?.[`${st}_rank`]; o[st] = Number.isFinite(rk) ? 33 - rk : null; o[`${st}__v`] = blob[r]?.[st]; o[`${st}__r`] = rk }
+    for (const st of roleStats) { const rk = blob[r]?.[`${st}_rank`]; o[st] = Number.isFinite(rk) ? 33 - rk : null; o[`${st}__v`] = blob[r]?.[st]; o[`${st}__r`] = rk }
     return o
   })
+  const { rows, stats, labels: colLabels } = roleRows.length ? withTotalRow(data, team, win, roleRows, roleStats, labels) : { rows: roleRows, stats: roleStats, labels }
   const columns = [
     { key: 'role', label: 'Role', w: 70, heat: false, sticky: true, fmt: (v) => <b>{v}</b> },
     ...stats.map((st) => ({
-      key: st, label: labels[st] || st, w: 62, scale: 'seq', domain: [1, 32],
+      key: st, label: colLabels[st] || st, w: 62, scale: 'seq', domain: [1, 32],
       fmt: (v, r) => (v == null ? '—' : <span><b>{Number.isInteger(r[`${st}__v`]) ? r[`${st}__v`] : Number(r[`${st}__v`]).toFixed(1)}</b> <span style={{ fontSize: 10, opacity: 0.7 }}>#{r[`${st}__r`]}</span></span>),
     })),
   ]
@@ -174,7 +176,7 @@ function ByPosition({ matchup, team, win, setWin, slateSeason }) {
         <div style={{ fontSize: 12, color: C.text3 }}>{dvpSeason.state === 'loading' ? `Loading ${dvpSeason.showing} defense…` : `No ${dvpSeason.showing || ''} defense data for ${team} in this window.`}</div>
       )}
       <div style={{ marginTop: 5, fontSize: 11, color: C.text3, lineHeight: 1.5 }}>
-        Each cell: what {team} allow that role, and its rank of 32 (#1 allows the most). More orange = softer.
+        Each cell: what {team} allow that role, and its rank of 32 (#1 allows the most). Total is the whole defense; TOT YDS/G is receiving plus rushing yards a game. More orange = softer.
         {best?.standout ? <> Softest: <b style={{ color: C.green }}>{best.role}</b> in <b style={{ color: C.green }}>{best.label}</b>.</> : null}
       </div>
     </div>
@@ -194,17 +196,18 @@ export function GameDvp({ matchup, away, home, slateSeason, onOpenMatchups = nul
   const known = (data?.dvp_roles || []).filter((r) => blob?.[r])
   const roles = all ? known : known.filter((r) => STARTER_ROLES.includes(r))
   const labels = data?.dvp_labels || {}
-  const stats = (data?.dvp_stats || []).filter((st) => roles.some((r) => blob[r]?.[st] != null))
-  if (!known.length || !stats.length) return null
-  const rows = roles.map((r) => {
+  const roleStats = (data?.dvp_stats || []).filter((st) => roles.some((r) => blob[r]?.[st] != null))
+  if (!known.length || !roleStats.length) return null
+  const roleRows = roles.map((r) => {
     const o = { _id: r, role: r }
-    for (const st of stats) { const rk = blob[r]?.[`${st}_rank`]; o[st] = Number.isFinite(rk) ? 33 - rk : null; o[`${st}__v`] = blob[r]?.[st]; o[`${st}__r`] = rk }
+    for (const st of roleStats) { const rk = blob[r]?.[`${st}_rank`]; o[st] = Number.isFinite(rk) ? 33 - rk : null; o[`${st}__v`] = blob[r]?.[st]; o[`${st}__r`] = rk }
     return o
   })
+  const { rows, stats, labels: colLabels } = withTotalRow(data, def, 'season', roleRows, roleStats, labels)
   const columns = [
     { key: 'role', label: 'Role', w: 58, heat: false, sticky: true, group: 'Role', fmt: (v) => <b>{v}</b> },
     ...stats.map((st) => ({
-      key: st, label: labels[st] || st, w: 62, scale: 'seq', domain: [1, 32], group: 'Allowed · rank of 32',
+      key: st, label: colLabels[st] || st, w: 62, scale: 'seq', domain: [1, 32], group: 'Allowed · rank of 32',
       fmt: (v, r) => (v == null ? '—' : <span><b>{Number.isInteger(r[`${st}__v`]) ? r[`${st}__v`] : Number(r[`${st}__v`]).toFixed(1)}</b> <span style={{ fontSize: 10, opacity: 0.7 }}>#{r[`${st}__r`]}</span></span>),
     })),
   ]

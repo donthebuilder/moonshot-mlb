@@ -24,7 +24,7 @@ import json
 import os
 import re
 import requests
-from datetime import date, timezone, datetime
+from datetime import date, timezone, datetime, timedelta
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 SGO_BASE               = "https://api.sportsgameodds.com/v2"
@@ -84,10 +84,13 @@ def player_name_from_id(player_id: str) -> str:
     return s.replace('_', ' ').title()
 
 
-def kalshi_date_str() -> str:
-    """Returns e.g. '26OCT22' — Kalshi uses UTC date in tickers."""
-    now_utc = datetime.now(timezone.utc)
-    return now_utc.strftime("%y%b%d").upper()
+def kalshi_date_str(target_date: str = None) -> str:
+    """Returns e.g. '26OCT22' — Kalshi tickers use the game's local date, not UTC."""
+    if target_date:
+        d = date.fromisoformat(target_date)
+    else:
+        d = date.today()
+    return d.strftime("%y%b%d").upper()
 
 
 # ── SGO ────────────────────────────────────────────────────────────────────────
@@ -198,7 +201,7 @@ def fetch_sgo_atg(api_key: str, target_date: str) -> list:
 
 
 # ── Kalshi ─────────────────────────────────────────────────────────────────────
-def fetch_kalshi_markets() -> list:
+def fetch_kalshi_markets(target_date: str = None) -> list:
     """Fetch all open KXNHLGOAL 1-goal (ATG) markets for today."""
     try:
         r = requests.get(
@@ -208,7 +211,7 @@ def fetch_kalshi_markets() -> list:
         )
         r.raise_for_status()
         markets = r.json().get("markets", [])
-        date_slug = kalshi_date_str()
+        date_slug = kalshi_date_str(target_date)
         return [m for m in markets
                 if date_slug in m.get("ticker", "") and m.get("ticker", "").endswith("-1")]
     except Exception as e:
@@ -256,7 +259,10 @@ def main():
     parser = argparse.ArgumentParser(description="LAMP NHL ATG Devig — DASH Network")
     parser.add_argument("--min-ev", type=float, default=EV_MIN)
     parser.add_argument("--output", default="lamp_atg_results.json")
-    parser.add_argument("--date",   default=str(date.today()))
+    # Default: use game date in ET (games are evening events; past midnight UTC but before 6am ET = still previous day)
+    now_et = datetime.now(timezone.utc) - timedelta(hours=5)
+    game_date = now_et.date() if now_et.hour >= 6 else (now_et - timedelta(days=1)).date()
+    parser.add_argument("--date",   default=str(game_date))
     args = parser.parse_args()
 
     print("=" * 65)
@@ -276,7 +282,7 @@ def main():
         return
 
     print("\nFetching Kalshi order book depth...")
-    kalshi_markets = fetch_kalshi_markets()
+    kalshi_markets = fetch_kalshi_markets(args.date)
     print(f"  {len(kalshi_markets)} Kalshi ATG (1-goal) markets found")
 
     kalshi_depth_cache = {}
