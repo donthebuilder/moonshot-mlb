@@ -34,7 +34,7 @@ import { useCallGate, useLockOf } from '../MemberGate'
 import { localDayTime } from '../../lib/localTime'
 import { slateTotals, TD_WORD, TD_WORD_SHORT } from '../../lib/nfl/teamTdModel'
 import { expectedClause } from '../../lib/expectedLine'
-import InjuryOut from '../injuries/InjuryOut'
+import NflInjuryOut from './NflInjuryOut'
 import { useOutCounts } from '../injuries/InjuryLayer'
 import { nameKey } from '../../lib/injuries/lookup'
 import { depthRole } from '../../lib/nfl/roles'
@@ -274,7 +274,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
                     const mine = new Set(callsIn(picks, g).map(({ call }) => nameKey(call.name)))
                     const find = (e) => players.find((p) => p.team === e.team && nameKey(p.name) === nameKey(e.name)) || null
                     return (
-                      <InjuryOut sport="nfl" clubs={[g.away, g.home]} theme={{ C, NUM_FONT, accent: C.green }} title="Out this week" openSignal={panel === 'out'}
+                      <NflInjuryOut sport="nfl" clubs={[g.away, g.home]} theme={{ C, NUM_FONT, accent: C.green }} title="Out this week" openSignal={panel === 'out'}
                         isOurs={(e) => mine.has(nameKey(e.name)) || Boolean(find(e) && Number.isFinite(find(e).scores?.TD))}
                         openPlayer={(e) => { const p = find(e); return p ? () => onPlayerClick?.(p, 'TD') : null }}
                         roleOf={(e) => { const p = find(e); return p ? depthRole(matchup, p.player_id, p.position) : null }}
