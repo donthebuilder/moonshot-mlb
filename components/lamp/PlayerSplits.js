@@ -4,7 +4,11 @@ import LampTable from './LampTable'
 import Tap from '../Tap'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
 import { flatChip, FLAT_CHIP_CLASS } from '../../lib/chips'
-import { useLampSplits } from '../../lib/nhl/useLamp'
+import { useLampSplits, useLampWithout } from '../../lib/nhl/useLamp'
+import { useInjuryLayer } from '../injuries/InjuryLayer'
+import { BLOCKS } from '../../lib/injuries/statuses'
+import { findEntry } from '../../lib/injuries/lookup'
+import { withoutLines, withoutScan, rankMates } from '../../lib/nba/without'
 import { usePreview, ShowMoreButton } from '../ListPreview'
 import { Kicker, Loading, EmptyState, DelayedBanner, fmtPct1, fmt2, fmtSec, plusMinus } from './ui'
 import { SPLIT_GROUPS, THIN_GP, DOW_ORDER, splitRows, strengthRows, filterGames, aggregate, monthOf } from '../../lib/nhl/splits'
@@ -118,6 +122,84 @@ function Combo({ games }) {
   )
 }
 
+const sgn = (v, d = 2) => (v == null || !Number.isFinite(v) ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(d)}`)
+const NOT_STATS = ['split', 'gp', 'thin']
+// THE CHANGE ROW: the same columns, each cell = without minus with (rates only: a count of a few games would mislead).
+const RATE_KEYS = ['shPct', 'gPg', 'ptsPg', 'toi']
+const DELTA_COLS = COLS.map((c) => (NOT_STATS.includes(c.key) ? c : { ...c, fmt: (v, r) => (r._delta ? (RATE_KEYS.includes(c.key) ? (c.key === 'toi' ? plusMinus(v == null ? null : Math.round(v)) : c.key === 'shPct' ? sgn(v == null ? null : v * 100, 1) : sgn(v)) : '') : (c.fmt ? c.fmt(v, r) : v)) }))
+const deltaOf = (a, b) => Object.fromEntries(RATE_KEYS.map((k) => [k, a[k] != null && b[k] != null ? b[k] - a[k] : null]))
+// THE SCAN: every teammate, his points and goals a game with and without that man, and how his shots and ice time move.
+const SCAN_COLS = [
+  { key: 'who', label: 'Teammate out', group: 'Teammate', heat: false, w: 118, bold: true, sticky: true, numeric: false },
+  { key: 'gp', label: 'GP', group: 'Sample', heat: false, w: 38, title: 'His games while this teammate was out.' },
+  COLS[2],
+  { key: 'ptsW', label: 'WITH', group: 'PTS/GP', w: 46, fmt: fmt2, heat: false },
+  { key: 'ptsO', label: 'W/O', group: 'PTS/GP', w: 46, fmt: fmt2, bold: true },
+  { key: 'ptsPg', label: 'CHG', group: 'PTS/GP', w: 46, fmt: (v) => sgn(v) },
+  { key: 'gPg', label: 'G/GP', group: 'Change', w: 46, fmt: (v) => sgn(v) },
+  { key: 'shotsPg', label: 'S/GP', group: 'Change', w: 46, fmt: (v) => sgn(v, 1) },
+  { key: 'toi', label: 'TOI', group: 'Change', w: 52, fmt: (v) => plusMinus(v == null ? null : Math.round(v)), title: 'Seconds of ice time a game, without minus with.' },
+]
+const shotsPg = (a) => (a.gp ? a.shots / a.gp : null)
+
+// WITHOUT (2026-10-31, BUCKETS' twin: lib/nba/without.js runs both): his line in the games a teammate did not dress for. Teammates as chips
+// (whoever the injury report has OUT tonight first, then most points a game); two picked = both out. The splits rows join the box archive by game id.
+function Without({ games, playerId }) {
+  const { data: wo, loading } = useLampWithout(playerId)
+  const mates = wo?.mates ?? (loading ? null : [])
+  const [pick, setPick] = useState(null)
+  const layer = useInjuryLayer()
+  const gs = useMemo(() => games.map((g) => ({ ...g, id: String(g.gameId) })), [games])
+  const list = useMemo(() => rankMates(mates, new Set(gs.map((g) => g.id)), (m) => {
+    const e = layer?.index ? findEntry(layer.index, { player_id: m.id, name: m.name, team: m.team }) : null
+    return e && BLOCKS.has(e.status)
+  }), [mates, gs, layer])
+  const chosen = pick || (list[0] ? [list[0].id] : [])
+  const picked = chosen.map((id) => list.find((m) => m.id === id)).filter(Boolean)
+  const toggle = (id) => setPick(chosen.includes(id) ? chosen.filter((x) => x !== id) : [...chosen, id].slice(-2))
+  const names = picked.map((m) => m.label).join(' + ')
+  const lines = withoutLines(gs, picked, aggregate)
+  const pairRows = lines && lines.without.gp && lines.with.gp ? [
+    { _key: 'w', split: `With ${names}`, ...lines.with },
+    { _key: 'o', split: `Without ${names}`, ...lines.without },
+    { _key: 'd', _delta: true, split: 'Change', ...deltaOf(lines.with, lines.without), gp: null, thin: false },
+  ] : null
+  const scan = useMemo(() => withoutScan(gs, list, { agg: aggregate }).map(({ m, with: w, without: o }) => ({
+    _key: m.id, _raw: m, who: m.label, gp: o.gp, thin: o.gp < THIN_GP, ptsW: w.ptsPg, ptsO: o.ptsPg,
+    ptsPg: o.ptsPg != null && w.ptsPg != null ? o.ptsPg - w.ptsPg : null, gPg: o.gPg != null && w.gPg != null ? o.gPg - w.gPg : null,
+    shotsPg: shotsPg(o) != null && shotsPg(w) != null ? shotsPg(o) - shotsPg(w) : null, toi: o.toi != null && w.toi != null ? o.toi - w.toi : null,
+  })).sort((a, b) => (a.thin - b.thin) || ((b.ptsPg ?? -9) - (a.ptsPg ?? -9))), [gs, list])
+  const pv = usePreview(scan, 5)
+  if (mates == null) return <Loading what="his teammates" />
+  if (!list.length) return <EmptyState title="NO TEAMMATE MISSED A GAME" note={wo?.why || 'Nobody on his club sat out one of his games in this window.'} />
+  return (
+    <div id="lsplit-without" style={{ scrollMarginTop: 60, minWidth: 0, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 10 }}>
+      <div role="group" aria-label="Teammate out" className="chip-row" style={{ display: 'flex', gap: 6, overflowX: 'auto', margin: '0 -2px', padding: '0 2px', WebkitOverflowScrolling: 'touch' }}>
+        {list.map((m) => {
+          const on = chosen.includes(m.id)
+          return (
+            <button key={m.id} type="button" aria-pressed={on} onClick={() => toggle(m.id)} title={m.tonight ? `${m.name}: out tonight` : m.name} className={FLAT_CHIP_CLASS} style={{ ...flatChip(on, C.ice, C, NUM_FONT), flexShrink: 0 }}>
+              {m.label}{m.tonight ? <span style={{ font: `900 9px/1 ${NUM_FONT}`, color: C.bg, background: on ? C.ice : C.text2, borderRadius: 999, padding: '2px 5px' }}>OUT</span> : null}
+            </button>
+          )
+        })}
+      </div>
+      {!picked.length ? <div style={{ fontSize: 12, color: C.text3 }}>Pick a teammate. Two = both out.</div>
+        : !pairRows ? <div style={{ fontSize: 12, color: C.text3 }}>No games with {names} {picked.length > 1 ? 'both ' : ''}out and in in this window.</div>
+        : <Section id="without-pair" title={`Without ${names}`} meta={`${lines.without.gp} games`} rows={pairRows} columns={DELTA_COLS} preview={3} />}
+      <div style={{ minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+          <span style={{ fontSize: 13, fontWeight: 900, color: C.text }}>Without each teammate</span>
+          <span style={{ fontSize: 12, color: C.text3, fontFamily: NUM_FONT }}>{scan.length} men</span>
+        </div>
+        <LampTable rows={pv.shown} columns={SCAN_COLS.map((c) => (c.key === 'who' ? { ...c, link: (m) => () => setPick([m._raw.id]) } : c))} maxHeight={9999} maxRows={200} heatMode="standouts" initialSort={null} />
+        <ShowMoreButton open={pv.open} restN={pv.restN} toggle={pv.toggle} total={pv.total} itemWord="teammates" />
+      </div>
+      <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.5 }}>Out = his club played, the teammate didn&apos;t dress, while on the club.</div>
+    </div>
+  )
+}
+
 export default function PlayerSplits({ id, goalie = false, onOpenTeam = null, season = 'this' }) {
   const { data, error, loading } = useLampSplits(id, !goalie, season)
   const [active, setActive] = useState(null)
@@ -132,6 +214,7 @@ export default function PlayerSplits({ id, goalie = false, onOpenTeam = null, se
   const label = data?.seasonLabel || ''
   const hasPost = games.some((x) => x.type === 3)
   const pills = [...sections.map((s) => ({ key: s.g.key, label: s.g.label })), ...(strength.length ? [{ key: 'strength', label: 'EV / PP / SH' }] : []), ...(games.length ? [{ key: 'combo', label: 'Combine' }] : [])]
+  if (games.length && id) pills.splice(Math.min(1, pills.length), 0, { key: 'without', label: 'Without' })
   // ONE SPLIT ON SCREEN (2026-10-06, the player card's tabs): a pill shows its own table, so the tab is one screen, not seven stacked.
   const shownKey = pills.some((x) => x.key === active) ? active : pills[0]?.key
   const jump = (k) => setActive(k)
@@ -162,6 +245,7 @@ export default function PlayerSplits({ id, goalie = false, onOpenTeam = null, se
               caption="Even-strength goals are his goals minus power-play minus short-handed goals: the game log has no even-strength column, so this is that subtraction." />
           )}
           {shownKey === 'combo' && <Combo games={games} />}
+          {shownKey === 'without' && <Without games={games} playerId={id} />}
         </>
       )}
     </section>
