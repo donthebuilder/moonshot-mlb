@@ -352,6 +352,15 @@ export default function MobileCSS() {
         .chip-row {
           flex-wrap: nowrap !important; overflow-x: auto !important;
           -webkit-overflow-scrolling: touch; scrollbar-width: none;
+          /* EDGE FADE (2026-10-31, simplicity audit): a scrollable chip row with no
+             fade reads as clipped/broken, not "swipe me" -- HeadlineStrip, Ticker and
+             BucketsTicker already do this (their own inline styles); this is the same
+             treatment for every .chip-row (market/angle/POS/qualifier rows), done once
+             here instead of 42 separate places. Transparent at each edge only when
+             there's something to scroll to is not worth the complexity; a short row
+             just fades into nothing at an edge it can't scroll past, which is harmless. */
+          -webkit-mask-image: linear-gradient(90deg, transparent, black 16px, black calc(100% - 16px), transparent);
+          mask-image: linear-gradient(90deg, transparent, black 16px, black calc(100% - 16px), transparent);
         }
         .chip-row::-webkit-scrollbar { display: none; }
       }
