@@ -9,9 +9,10 @@ import { unstable_cache } from 'next/cache'
 import { hiddenCardGate } from '../../../lib/cards/hiddenGate'
 import { adminClient } from '../../../lib/supabase/admin'
 import { easternToday } from '../../../lib/data'
-import { CARD_SPORTS, CARD_WORDS, CARD_RULE_TEXT, CARD_LOCK_LEAD_MIN, STAKE, DOUBLE_SPORT, MARKETS, recordWords } from '../../../lib/card/core'
+import { CARD_SPORTS, CARD_WORDS, CARD_RULE_TEXT, STAKE, DOUBLE_SPORT, MARKETS, recordWords } from '../../../lib/card/core'
 import { latestCardDate, readCard, recordRows, recordsFor, currentPrices, trackedFor } from '../../../lib/card/store'
 import { HELD_LINE } from '../../../lib/card/reveal'
+import { leadMinFor } from '../../../lib/card/lockRules'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
@@ -52,7 +53,7 @@ export async function GET(request) {
   const gate = await hiddenCardGate(sport)
   if (gate.no) return gate.no
   const w = CARD_WORDS[sport]
-  const empty = { sport, market: w.market, window: w.window, lockLeadMin: CARD_LOCK_LEAD_MIN, stakes: STAKE, rule: CARD_RULE_TEXT, date: null, rows: [], prices: {}, held: null, revealed: false, records: null, words: null }
+  const empty = { sport, market: w.market, window: w.window, lockLeadMin: leadMinFor(sport), stakes: STAKE, rule: CARD_RULE_TEXT, date: null, rows: [], prices: {}, held: null, revealed: false, records: null, words: null }
   const db = adminClient()
   if (!db) return Response.json(empty, { headers: { 'Cache-Control': 'no-store' } })
   try {

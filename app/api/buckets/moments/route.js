@@ -11,7 +11,7 @@
 //     otherwise (#bucket channel, else the sport fallback). A claim sentinel
 //     on x_post_id ('posting') stops two racing ticks double-posting;
 //   · the push sweep is app/api/dash/push/tick (lib/dash/pushRules nbaEventsFrom).
-import { playerHref } from '../../../../lib/routes'
+import { playerHref, calledGameHref } from '../../../../lib/routes'
 import { cronAuthorized, adminClient } from '../../../../lib/supabase/admin'
 import { bucketsPublic } from '../../../../lib/nba/gate'
 import { scoreboardFor, reduceScoreboard, summaryFor, reduceBox } from '../../../../lib/nba/api'
@@ -20,6 +20,8 @@ import { momentRows, momentText, KIND, ddtdRows, ddtdText, DD_KIND, TD_KIND } fr
 import { easternToday, shiftDay, etHour } from '../../../../lib/data'
 import { hasX, postToDiscord, postToX } from '../../../../lib/dash/xPost'
 import { feedHooksFor } from '../../../../lib/dash/discordChannels'
+import { liveBoxOn, addLiveEvent } from '../../../../lib/dash/liveBox'
+import { nbaBoxEvent, NBA_BOX } from '../../../../lib/nba/liveBox'
 import { kindOn } from '../../../../lib/dash/longshotsPost'
 import { isMaintenanceMode } from '../../../../lib/edgeConfig'
 import { pregameQuotes, quoteKinds, receiptLineOf } from '../../../../lib/dash/quoteFor'
@@ -87,7 +89,14 @@ export async function GET(request) {
       const hooks = feedHooksFor('nba', r.status)
       let discord = false
       // a card linked to him on BUCKETS, in BUCKETS' colour (2026-10-04)
-      if (hooks) discord = await postToDiscord(text, { sport: 'nba', kind: 'nba30', link: r.player_id ? playerHref('nba', r.player_id) : null }, hooks).then((r) => Boolean(r?.ok)).catch((e) => { console.error(`[buckets moments] discord: ${e?.message || e}`); return false })
+      // LIVE_BOX_ON (lib/dash/liveBox.js): the night's 30s and doubles are ONE message in the room, edited in place; off (or the kinds SQL not run) = one post each, as always
+      let boxed = ''
+      if (hooks && liveBoxOn()) {
+        boxed = await addLiveEvent(db, { sport: 'nba', day: r.game_date, event: nbaBoxEvent(r), ...NBA_BOX, hooks, now: Date.now() })
+        if (/^(posted|edited|already-in)/.test(boxed)) discord = true
+        else console.error(`[buckets moments] live box: ${boxed}`)
+      }
+      if (hooks && !discord && !/^send-failed/.test(boxed)) discord = await postToDiscord(text, { sport: 'nba', kind: 'nba30', link: r.status === 'called' && r.game_id ? calledGameHref('nba', r.game_id) : r.player_id ? playerHref('nba', r.player_id) : null }, hooks).then((r) => Boolean(r?.ok)).catch((e) => { console.error(`[buckets moments] discord: ${e?.message || e}`); return false })
       let id = 'skipped'
       // X carries the 30 PIECE and the triple-double; a double-double stays in #buckets-nba (Donovan, 2026-10-23 volume review)
       if (r.status === 'called' && r.kind !== DD_KIND && hasX()) {

@@ -35,5 +35,15 @@ check(two.without.gp === 0 && two.with.gp === 0, 'two men: only games BOTH misse
 const scan = withoutScan(games, mates)
 check(scan.length === 1 && scan[0].m.name === 'STAR', 'scan lists only men he has games both with and without')
 
+// LAMP runs the same functions over lamp_box rows (TEST data): the value averaged is his own pick (points), and an aggregate of the caller's own
+const lrows = [1, 2, 3, 4].map((g) => ({ game_id: `g${g}`, game_date: day(g), season: 2027, team: 'TST', player_id: 1, name: 'HIM', points: 1 }))
+  .concat([1, 2].map((g) => ({ game_id: `g${g}`, game_date: day(g), season: 2027, team: 'TST', player_id: 2, name: 'STAR', points: 2 })))
+const lm = matesFrom(lrows, [], 1, { val: (r) => r.points })
+check(lm[0].ppg === 2 && lm[0].team === 'TST' && lm[0].out.length === 2, 'LAMP: val picks the averaged column; the teammate carries his club')
+const agg = (gs) => ({ gp: gs.length, sum: gs.reduce((a, x) => a + x.p, 0) })
+const lg = [1, 2, 3, 4].map((i) => ({ id: `g${i}`, p: i }))
+const ll = withoutLines(lg, [lm[0]], agg)
+check(ll.with.gp === 2 && ll.without.sum === 7 && withoutScan(lg, lm, { agg }).length === 1, 'LAMP: the caller\'s own aggregate builds the with / without lines')
+
 if (failed) { console.log(`\n${failed} check(s) failed`); process.exit(1) }
 console.log('\nall without checks ok')

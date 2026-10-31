@@ -6,6 +6,7 @@
 //   B  switch ON: THE DAY is the one briefing (every leg with market / price / status word / one-line why, best looks); a late window is a short (added) post of new legs only
 //   C  switch ON: card_members_<sport> is claimed and stored but nothing is sent
 //   D  switch ON: the write-up roundup: BEFORE the games (30 min before the soonest), later games in follow-ups (_2..), only games with a call, never twice, never to a public hook
+//   D5 box ON (MEMBERS_BOX_ON): the roundup is ONE message per sport and night, edited in place as later games become ready (no _2 posts)
 //   E  the members text never reaches X or a public webhook; no model chance, no banned words
 import './_no-injury-net.mjs'
 import fs from 'node:fs'
@@ -14,7 +15,7 @@ import assert from 'node:assert/strict'
 const U = (n) => `https://discord.com/api/webhooks/${n}/TEST-TOKEN`
 const MEM = U('7001')
 const PUB = { DISCORD_HOMER_WEBHOOK: U('1001'), DISCORD_MLB_WEBHOOKS: U('1002'), DISCORD_NFL_WEBHOOKS: U('1003'), DISCORD_NHL_WEBHOOKS: U('1004'), DISCORD_NBA_WEBHOOKS: U('1005') }
-const KEYS = [...Object.keys(PUB), 'DISCORD_MEMBERS_WEBHOOK', 'MEMBERS_FOLDS_ON', 'CARD_POSTS_PAUSE', 'X_WRITEUPS_PAUSE', 'BUCKETS_PUBLIC', 'X_API_KEY', 'X_API_SECRET', 'X_ACCESS_TOKEN', 'X_ACCESS_SECRET', 'NEXT_PUBLIC_SITE_URL']
+const KEYS = [...Object.keys(PUB), 'DISCORD_MEMBERS_WEBHOOK', 'MEMBERS_FOLDS_ON', 'MEMBERS_BOX_ON', 'CARD_POSTS_PAUSE', 'X_WRITEUPS_PAUSE', 'BUCKETS_PUBLIC', 'X_API_KEY', 'X_API_SECRET', 'X_ACCESS_TOKEN', 'X_ACCESS_SECRET', 'NEXT_PUBLIC_SITE_URL']
 const env = (extra = {}) => { for (const k of KEYS) delete process.env[k]; Object.assign(process.env, PUB, { DISCORD_MEMBERS_WEBHOOK: MEM, NEXT_PUBLIC_SITE_URL: 'https://site.test' }, extra) }
 
 const calls = []
@@ -159,6 +160,25 @@ await t('D2 ON: the roundup goes BEFORE the games (30 min before the soonest); l
   _resetRoundupMemo()
   assert.equal(await postRoundup(db, { sport: 'nhl', day: DAY, startsMs: starts, now: t2 - 10 * 60e3 }), 'nothing-to-say', 'never twice')
   assert.equal(sent().length, 2)
+})
+await t('D5 MEMBERS_BOX_ON: ONE night box per sport, edited in place (a later game is a new line, not a _2 post); never twice; members hook only', async () => {
+  env({ MEMBERS_FOLDS_ON: 'on', MEMBERS_BOX_ON: 'on' }); calls.length = 0; _resetTakenForTests(); _resetRoundupMemo()
+  const t1 = NOW + 3600e3, t2 = NOW + 3 * 3600e3
+  const db = fakeDb(); stored(db, [wrow('g1', t1)])
+  const posts = [], edits = []
+  const deps = { post: async (title, o, hook) => { posts.push({ title, hook, kind: o.kind }); return { ok: true, messages: [{ id: '9001', channel_id: '55' }] } }, edit: async (hook, m, o) => { edits.push({ hook, id: m.id, text: o.text }); return { ok: true } } }
+  const go = (now) => { _resetRoundupMemo(); return postRoundup(db, { sport: 'nhl', day: DAY, startsMs: [t1, t2], now, deps }) }
+  assert.equal(await go(NOW), 'not-yet')
+  assert.equal(await go(t1 - 25 * 60e3), 'posted')
+  assert.equal(posts.length, 1); assert.equal(posts[0].hook, MEM); assert.equal(posts[0].kind, roundupKind('nhl'))
+  assert.equal(await go(t1 + 10 * 60e3), 'nothing-to-say')
+  stored(db, [wrow('g2', t2)])
+  assert.equal(await go(t2 - 20 * 60e3), 'edited', 'the late game edits the same message')
+  assert.equal(posts.length, 1, 'no second post'); assert.equal(edits.length, 1); assert.equal(edits[0].id, '9001')
+  assert.ok(!db.rows.some((r) => r.kind === roundupKind('nhl', 2)), 'no _2 follow-up row')
+  assert.deepEqual(db.rows.find((r) => r.kind === roundupKind('nhl')).payload.events.map((e) => e.key), ['g1', 'g2'])
+  assert.equal(await go(t2 - 10 * 60e3), 'nothing-to-say', 'never twice')
+  assert.equal(sent().length, 0, 'nothing went through the plain post path')
 })
 await t('D2b a game that already started is never put in a roundup (its write-up is old news)', async () => {
   env({ MEMBERS_FOLDS_ON: 'on' }); calls.length = 0; _resetTakenForTests(); _resetRoundupMemo()

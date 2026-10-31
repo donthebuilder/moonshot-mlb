@@ -2,6 +2,7 @@
 import { Fragment, useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import CalledExport from '../../CalledExport'
+import { flatChip, FLAT_CHIP_CLASS } from '../../../lib/chips'
 import Tap from '../../Tap'
 import GameHeadRow from '../../slate/GameHeadRow'
 import TeamMark, { MatchLogos } from '../../TeamMark'
@@ -50,7 +51,7 @@ const SUBS = panelSubs('nba')
 const stateOf = (x) => (x.state === 'live' ? 'live' : x.state === 'final' ? 'final' : 'upcoming')
 const shiftDay = (d, n) => { const t = new Date(`${d}T12:00:00Z`); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10) }
 
-export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onOpenTeam, onOpenGame }) {
+export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onOpenTeam, onOpenGame, onOpenCalledList = null }) {
   const [m, setM] = useState(market)
   const [view, setView] = useState('games')
   const [gfilter, setGfilter] = useState('all')
@@ -131,7 +132,12 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
   return (
     <div className="slate-tight phone-slate">
       <PageHeader eyebrow="BUCKETS · SLATE" title="Slate" theme={C} numFont={NUM_FONT} accent={C.purple}
-        note="Tonight’s games, tip-off first." right={<CalledExport sport="nba" date={shown || null} C={C} NUM_FONT={NUM_FONT} accent={C.purple} />} />
+        note="Tonight’s games, tip-off first." right={(
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {onOpenCalledList ? <button type="button" className={FLAT_CHIP_CLASS} onClick={onOpenCalledList} style={flatChip(false, C.purple, C, NUM_FONT)}>📋 Called list</button> : null}
+            <CalledExport sport="nba" date={shown || null} C={C} NUM_FONT={NUM_FONT} accent={C.purple} />
+          </div>
+        )} />
       {/* desktop: day nav + search + team + game + Table|Games on ONE row (app/globals.css .slate-tight); phone: a plain block */}
       <div className="slate-bar">
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>

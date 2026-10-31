@@ -404,6 +404,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
   const seasonOpts = useMemo(() => seasonOptions(fullLog, slate?.season), [fullLog, slate?.season])
   const seasonKey = seasonOpts.some((o) => o.key === season) ? season : defaultSeason(seasonOpts)
   const slog = useMemo(() => (seasonOpts.length ? applySeason(fullLog, seasonKey, slate?.season) : fullLog), [fullLog, seasonKey, seasonOpts, slate?.season])
+  const peerNames = useMemo(() => Object.fromEntries((slate?.players || []).map((x) => [x.player_id, x.name])), [slate?.players])   // names for the Without chips (the log file carries none)
   // Escape lives in lib/useDialog.js now (2026-09-24), with focus and Tab.
 
   if (!player) return null
@@ -507,7 +508,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
       </div>
       {rightView === 'onhim'
         ? <NflOnHim bot={bot} />
-        : <NflSplitsGroups log={slog} market={market} dvp={matchup?.dvp?.season || null} role={roleLabel(player) || null} />}
+        : <NflSplitsGroups log={slog} market={market} dvp={matchup?.dvp?.season || null} role={roleLabel(player) || null} logs={logs} names={peerNames} playerId={player?.player_id} />}
       <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
         <PlayerNotes playerId={player.player_id} accent={C.green} />
         <StarMemory sport="nfl" id={player?.player_id} />
