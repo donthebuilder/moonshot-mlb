@@ -53,7 +53,7 @@ export default function GoalTracking({ p, spot, row, board, season: pick = 'this
   const sec = (label, node, key, open0 = false) => <Fold key={key} label={label} aria={key} open0={open0}>{node}</Fold>
   return (
     <>
-      {sec(`THE BAR · ${season}${tag} · ${rows.length} GAMES`, <GoalGrid rows={rows} bar={bar} setBar={setBar} lines={lines} setLines={setLines} seasonLabel={season} />, 'Goal threshold grid', true)}
+      {sec(`THE BAR · ${season}${tag} · ${rows.length} GAMES`, <GoalGrid rows={rows} bar={bar} setBar={setBar} lines={lines} setLines={setLines} seasonLabel={season} playerId={p.id} />, 'Goal threshold grid', true)}
       {sec(`HIS RUN · ${line}+ ${mk.label.toUpperCase()}`, <GoalRun rows={rows} bar={bar} line={line} today={ctx.today} />, 'His run', true)}
       {rates && sec(`GOALS PER 60 · ${season}${tag}`, (
         <div>
