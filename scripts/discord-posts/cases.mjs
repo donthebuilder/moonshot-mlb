@@ -281,6 +281,36 @@ const momentCases = [{
   },
 }]
 
+// ── PARTNER EVENT CARD, MOCK (lib/posts/partnerEvents.js): every event as DASH's card + a numerology line; sends nothing ───────────
+const pev = await import('../../lib/posts/partnerEvents.js')
+const partnerEventCases = [{
+  kinds: ['partner_event'],
+  load: async (ctx) => {
+    const { events } = await mf.historicalEvents(ctx.db, { days: ctx.days.length })
+    const out = []
+    for (const sport of ['nhl', 'mlb', 'nfl']) {
+      // the newest BASE-tier event of each sport (the everyday one a plain alert would be), else the newest of any tier
+      const mine = (events || []).filter((x) => x.sport === sport).sort((a, b) => (b.at || 0) - (a.at || 0))
+      const e = mine.find((x) => x.tier === 'base') || mine[0]
+      if (!e) { out.push({ kind: 'partner_event', skip: `no ${sport} event in the window` }); continue }
+      const line = mposting.momentLine(e.moment, e.row, e.who)
+      if (!line) { out.push({ kind: 'partner_event', error: `no line for ${e.who?.name} (${e.moment})` }); continue }
+      let man = null
+      if (sport === 'nhl') {
+        try {
+          const api = await import('../../lib/nhl/api.js'); const { reduceRoster } = await import('../../lib/nhl/reduce.js')
+          const r = reduceRoster(await api.rosterFor(e.who.team), e.who.team).find((x) => String(x.id) === String(e.who.playerId))
+          if (r) man = { number: Number.isFinite(Number(r.number)) ? Number(r.number) : null, birthDate: r.birthDate || null }
+        } catch { /* no roster: the day's number alone */ }
+      }
+      const discordLine = mpost.momentDiscordLine(line, e.status)
+      const embed = pev.withNumbers(mpost.momentDiscordEmbed(e, { name: e.who.name, discordLine, png: true }), pev.numberLine({ day: e.day, man }))
+      out.push({ kind: 'partner_event', sport, day: e.day, label: `MOCK ${sport} ${e.moment}: ${e.who.name}`, text: discordLine, embed, png: true, hooks: process.env.DISCORD_PARTNER_WEBHOOKS || 'https://discord.com/api/webhooks/0/DISCORD_PARTNER_WEBHOOKS' })
+    }
+    return out
+  },
+}]
+
 // ── POLLS (lib/dash/polls) ─────────────────────────────────────────────────────────────────────────────────────────────────
 const pollPost = await import('../../lib/dash/polls/post.js')
 const ADAPTERS = {
@@ -649,7 +679,7 @@ const partnerCases = [
   },
 ]
 
-export const CASES = [...partnerCases, ...adminCases, ...roomAlertCases, ...winsCases, ...nflWeekCases, ...nbaCases, ...donPlaysCases, ...lampExtraCases, ...momentCases, ...pollCases, ...multiCases, ...writeupCases, ...slateCases, ...showCases, ...membersCases, ...cardCases, ...receiptCases, ...alertCases]
+export const CASES = [...partnerCases, ...adminCases, ...roomAlertCases, ...winsCases, ...nflWeekCases, ...nbaCases, ...donPlaysCases, ...lampExtraCases, ...momentCases, ...partnerEventCases, ...pollCases, ...multiCases, ...writeupCases, ...slateCases, ...showCases, ...membersCases, ...cardCases, ...receiptCases, ...alertCases]
 
 /** Kinds that can reach Discord but are not rendered, each with the reason. */
 export const NOT_RENDERED = Object.freeze({
