@@ -36,7 +36,7 @@ process.env.DISCORD_OVERVIEW_WEBHOOK = U(7)
 check('receipt: with the network channel set, the network channel only, never #moonshot-mlb', (() => { const r = routeHooks('receipt', 'mlb', [U(1), U(2), U(5)]); return r.hooks.join() === U(7) })())
 process.env.DISCORD_PARTNER_WEBHOOKS = `${U(8)},${U(9)}`
 check('receipt: and every partner server when they are set', (() => { const r = routeHooks('receipt', 'mlb', [U(2)]); return r.hooks.sort().join() === [U(7), U(8), U(9)].sort().join() })())
-check('partner picks / top 5: the partner servers only', ['partner_picks', 'partner_top5'].every((k) => routeHooks(k, 'mlb', [U(8), U(9)]).hooks.sort().join() === [U(8), U(9)].join()))
+check('partner picks / top 5: the partner servers only', ['partner_picks', 'partner_top5', 'partner_box'].every((k) => routeHooks(k, 'mlb', [U(8), U(9)]).hooks.sort().join() === [U(8), U(9)].join()))
 delete process.env.DISCORD_PARTNER_WEBHOOKS
 check('slate / the five / film room / by the numbers: the network channel only', ['slate', 'the_five', 'film_room', 'by_numbers', 'card_double_result'].every((k) => routeHooks(k, 'mlb', [U(2)]).hooks.join() === U(7)))
 check('a no-cash receipt: the network room only', routeHooks('receipt_nocash', 'mlb', [U(5)]).hooks.join() === U(7))

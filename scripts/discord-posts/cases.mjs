@@ -606,6 +606,22 @@ const partnerCases = [
     },
   },
   {
+    kinds: ['partner_box'],
+    load: async (ctx) => {
+      const sports = await slateLoad.slateLoader({ day: ctx.today })()
+      const starts = sports.filter((x) => x.hasGames).map((x) => x.firstStartMs).filter(Number.isFinite)
+      const lists = partner.topFive(sports, starts.length ? Math.min(...starts) - 30 * 60e3 : Date.now())
+      let picks = []
+      for (const { day, rows } of await cardDays(ctx)) {
+        const at = Math.max(...rows.filter((r) => r.lane === 'bot').map((r) => Date.parse(r.locks_at)).filter(Number.isFinite)) + 60e3
+        picks = partner.leadPicks(rows, at)
+        if (picks.length) break
+      }
+      if (!picks.length && !lists.length) return [{ kind: 'partner_box', skip: 'no lead pick and no CALLED names yet' }]
+      return [{ kind: 'partner_box', sport: 'all', day: ctx.today, label: `${picks.length} picks + ${lists.length} top 5 lists`, text: partner.boxText({ day: ctx.today, picks, lists }), embed: partner.boxEmbed({ day: ctx.today, picks, lists }), hooks: process.env.DISCORD_PARTNER_WEBHOOKS || 'https://discord.com/api/webhooks/0/DISCORD_PARTNER_WEBHOOKS' }]
+    },
+  },
+  {
     kinds: ['partner_top5'],
     load: async (ctx) => {
       const sports = await slateLoad.slateLoader({ day: ctx.today })()
