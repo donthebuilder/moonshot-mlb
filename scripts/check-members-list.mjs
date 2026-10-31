@@ -56,7 +56,7 @@ await t('the text: count in the title, state line, one line a play, price at loc
   assert.ok(lines.some((l) => /^⏳ TEST A \(TST\) · TD · \+180 at lock · WAITING$/.test(l)), text)
   assert.ok(lines.some((l) => /rush yds o99\.5 · \+180 at lock · WAITING$/.test(l)), text)
   assert.ok(lines.some((l) => /· Two-Man · WAITING$/.test(l)), 'a Two-Man leg says so')
-  assert.ok(lines.includes('   why A'), 'the angle rides under the line')
+  assert.ok(lines.includes('   Why A'), 'the angle rides under the line, in plain words')
   assert.match(lines[lines.length - 1], /^The same list, on the site → DASH · TUDDY · Called list$/)
   assert.ok(!/https?:\/\//.test(text), 'words, never a URL')
   assert.ok(!/\d%|chance|probab/i.test(text), 'no chance printed')
