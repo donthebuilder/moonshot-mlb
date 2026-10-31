@@ -14,6 +14,9 @@ import { fmtTip, RimDot } from './ui'
 // allowed. A measured projection of a box-score count, NOT a probability and not the score. Shown on the two markets that
 // are about points (PTS, PRA); a dash with the reason for a player outside the rotation.
 export const XPTS_MARKETS = ['pts', 'pra']
+// the same projection for the other counts (2026-10-29): market -> [row field, column label, word]. Minutes x a per-minute rate (no opponent factor).
+export const XSTAT = { reb: ['xreb', 'xREB', 'rebounds'], ast: ['xast', 'xAST', 'assists'], '3pm': ['xtpm', 'x3PM', 'threes'] }
+export const xstatTitle = (word) => `Projected ${word}: his recent minutes x his ${word} a minute (pulled toward his season). A measured projection of a box-score count, not a probability. A dash: not in the rotation (under 12 minutes a game) or too few recent games.`
 export const XPTS_TITLE = 'Projected points: his recent minutes x his points a minute (pulled toward his season) x what the opponent allows. A measured projection of a box-score count, not a probability. A dash: not in the rotation (under 12 minutes a game) or too few recent games.'
 
 /** board route rows -> table rows (the game's matchup and tip joined on). `xpts` = Map(playerId -> { xpts, line }) from /api/buckets/expected. */
@@ -25,7 +28,7 @@ export function boardRows(data, { calledOnly = false, gameId = null, xpts = null
     .map((r) => {
       const g = games.get(r.gameId)
       const blow = g ? blowoutFor('nba', g.spreadHome, { home: g.home?.abbrev, away: g.away?.abbrev, team: r.team }) : null
-      return { ...r, xpts: xpts?.get(String(r.playerId))?.xpts ?? null, xptsLine: xpts?.get(String(r.playerId))?.line ?? null, _id: `${r.gameId}-${r.playerId}`, oppTxt: r.home ? r.opp : `@${r.opp}`, tip: g?.start || null, gameState: g?.state || null, blow: blow?.watch ? blow : null, ...Object.fromEntries(Object.entries(r.legs || {})) }
+      return { ...r, xpts: xpts?.get(String(r.playerId))?.xpts ?? null, xptsLine: xpts?.get(String(r.playerId))?.line ?? null, ...Object.fromEntries(Object.values(XSTAT).flatMap(([f]) => [[f, xpts?.get(String(r.playerId))?.[f] ?? null], [`${f}Line`, xpts?.get(String(r.playerId))?.[`${f}Line`] ?? null]])), _id: `${r.gameId}-${r.playerId}`, oppTxt: r.home ? r.opp : `@${r.opp}`, tip: g?.start || null, gameState: g?.state || null, blow: blow?.watch ? blow : null, ...Object.fromEntries(Object.entries(r.legs || {})) }
     })
 }
 
@@ -43,6 +46,7 @@ export function boardColumns(market, { onOpenTeam, onOpenGame, withGame = true, 
     // XPTS LEADS (2026-10-27, Donovan: 'I don't think we should lead showing our score ... first column expected score ... the little number score inside where the name is'): on xPTS markets the score rides the name line
     ...(withXpts && XPTS_MARKETS.includes(market) ? [{ key: 'score', label: 'Score', group: 'Call', w: 54, dp: 0, heat: false, subOnly: true, title: 'The market’s 0-100 score: a rank among tonight’s players, not a probability', fmt: (v, r) => (v == null ? (r.status === 'board' ? 'BOARD' : '') : `S ${v}`) }] : [    { key: 'score', label: 'Score', cset: 'lean', group: 'Call', w: 54, dp: 0, primary: true, scale: 'seq', domain: [0, 100], title: 'The market’s 0-100 score: a rank among tonight’s players, not a probability. A hidden pick shows ON THE BOARD with no number until tip.',
       fmt: (v, r) => (v == null ? (r.status === 'board' ? <CallStatusBadge status="board" accent={C.purple} short size={8} /> : <span style={{ color: C.text3 }}>—</span>) : v) }]),
+    ...(withXpts && XSTAT[market] ? [{ key: XSTAT[market][0], label: XSTAT[market][1], cset: 'lean', group: 'Call', w: 58, dp: 1, mono: true, title: xstatTitle(XSTAT[market][2]), fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span title={r[`${XSTAT[market][0]}Line`] || xstatTitle(XSTAT[market][2])}>{Number(v).toFixed(1)}</span>) }] : []),
     ...(whyCol ? [{ ...whyCol, cset: 'lean', group: 'Call' }] : []),
     { key: 'status', label: 'Status', group: 'Call', w: liveOf ? 220 : 156, heat: false, statusCol: true, fmt: (v, r) => (
       <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center', whiteSpace: 'nowrap' }}>

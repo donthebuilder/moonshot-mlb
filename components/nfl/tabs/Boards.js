@@ -25,6 +25,7 @@ import { useRankMove } from '../../../lib/useRankMove'
 import { nflGameDate } from '../../../lib/rankSnapshots/compute'
 import { RankMoveCell, RankMoveNote } from '../../RankMove'
 import { roleLabel, roleKeys, ROLE_PILLS } from '../../../lib/nfl/roles'
+import { useMarketRates } from '../../../lib/useMarketRates'
 
 // Same soft cap Touchdowns.js uses, so the two boards cut at the same depth.
 const SOFT_CAP = 60
@@ -243,10 +244,12 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   const capped = all ? rows : rows.slice(0, SOFT_CAP)
   const hidden = rows.length - capped.length
 
+  const mrates = useMarketRates('nfl')
   const marketOptions = useMemo(() => MARKETS.map(([key, label]) => ({
     key, label,
     count: (data?.players || []).filter((p) => Number.isFinite(p.scores?.[key]) && (showLow || !p.low_sample)).length,
-  })), [data, showLow])
+    rate: mrates.rateOf(key) ?? undefined, title: mrates.titleOf(key) || undefined,
+  })), [data, showLow, mrates.rateOf, mrates.titleOf])
 
   const lowCount = useMemo(
     () => (data?.players || []).filter(
