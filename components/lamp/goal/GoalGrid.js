@@ -1,9 +1,15 @@
 'use client'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import PropsMatrix from '../../player/PropsMatrix'
 import { Pills } from '../ui'
 import PropBars, { TeamTap } from '../../player/PropBars'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
+import { flatChip, FLAT_CHIP_CLASS } from '../../../lib/chips'
+import { useLampWithout } from '../../../lib/nhl/useLamp'
+import { useInjuryLayer } from '../../injuries/InjuryLayer'
+import { BLOCKS } from '../../../lib/injuries/statuses'
+import { findEntry } from '../../../lib/injuries/lookup'
+import { rankMates } from '../../../lib/nba/without'
 import { alpha } from '../../../lib/scales'
 import { GOAL_MARKETS, WINDOWS, THIN_N, thresholdRow, marketOf, val } from '../../../lib/nhl/goalLog'
 
@@ -15,8 +21,20 @@ import { GOAL_MARKETS, WINDOWS, THIN_N, thresholdRow, marketOf, val } from '../.
 // shared with MOONSHOT and TUDDY), a tap on a row picks the bar the run and the
 // cold case read, a chip moves the line. Every cell prints its fraction, and a
 // window of fewer than five games is dimmed and says so.
-export default function GoalGrid({ rows, bar, setBar, lines, setLines, seasonLabel }) {
+const WO_CHIPS = 6      // teammates offered as W/O chips (BUCKETS' PlayerBars offers the same: whoever is out tonight first, then most points a game)
+
+export default function GoalGrid({ rows: allRows, bar, setBar, lines, setLines, seasonLabel, playerId = null }) {
   const [pin, setPin] = useState(null)
+  // W/O (BUCKETS' bars chip, 2026-10-31): only the games a teammate did not dress for (lib/nba/without.js over lamp_box, /api/lamp/without). One at a time; off = all his games.
+  const { data: wo } = useLampWithout(playerId)
+  const layer = useInjuryLayer()
+  const [woPick, setWoPick] = useState(null)
+  const mates = useMemo(() => rankMates(wo?.mates, new Set(allRows.map((r) => String(r.gameId))), (x) => {
+    const e = layer?.index ? findEntry(layer.index, { player_id: x.id, name: x.name, team: x.team }) : null
+    return e && BLOCKS.has(e.status)
+  }).slice(0, WO_CHIPS), [wo, allRows, layer])
+  const woMate = mates.find((m) => m.id === woPick) || null
+  const rows = useMemo(() => (woMate ? allRows.filter((r) => woMate.out.includes(String(r.gameId))) : allRows), [allRows, woMate])
   const mk = marketOf(bar.mkt)
   const line = lines[mk.key] ?? mk.first
   const table = GOAL_MARKETS.map((m) => {
@@ -36,10 +54,20 @@ export default function GoalGrid({ rows, bar, setBar, lines, setLines, seasonLab
   const pinRow = p ? seg[games.indexOf(p)] : null
   return (
     <div>
+      {mates.length > 0 && (
+        <div role="group" aria-label="Without a teammate" className="chip-row" style={{ display: 'flex', gap: 6, alignItems: 'center', margin: '0 0 8px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <span style={{ color: C.text3, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.08em', flexShrink: 0 }}>W/O</span>
+          {mates.map((m) => (
+            <button key={m.id} type="button" aria-pressed={woPick === m.id} onClick={() => { setWoPick(woPick === m.id ? null : m.id); setPin(null) }} title={`Only games ${m.name} missed`}
+              className={FLAT_CHIP_CLASS} style={{ ...flatChip(woPick === m.id, C.ice, C, NUM_FONT), flexShrink: 0 }}>{m.label}{m.tonight ? ' · OUT' : ''}</button>
+          ))}
+        </div>
+      )}
+      {woPick && !rows.length ? <div style={{ color: C.text3, fontSize: 12, margin: '0 0 8px' }}>No games without {woMate?.name || 'him'} in this window.</div> : null}
       <PropsMatrix rows={table} windows={WINDOWS.map(([w]) => w)} C={C} NUM_FONT={NUM_FONT} accent={C.ice} look="dense" thin={THIN_N}
         activeKey={mk.key} onPick={(r) => { setBar({ mkt: r.mkt }); setPin(null) }}
         cellTitle={(c, r) => (c ? `${r.label}: ${c.ok} of ${c.n} games${c.full ? '' : ` (all he has played: ${c.n})`}${c.thin ? ' -- a thin sample, read it lightly' : ''}.` : 'no games in this window')} />
-      <div style={{ color: C.text3, fontSize: 12, lineHeight: 1.5, margin: '4px 0 0' }}>Hit rate at each bar over his last 5, 10, 20 games and the season, with the games it stands on. Tap a row to read it below.</div>
+      <div style={{ color: C.text3, fontSize: 12, lineHeight: 1.5, margin: '4px 0 0' }}>Hit rate at each bar over his last 5, 10, 20 games and the season, with the games it stands on. Tap a row to read it below.{woMate ? ` W/O: only the ${rows.length} games ${woMate.name} did not dress for.` : ''}</div>
       {mk.lines.length > 1 && (
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', margin: '8px 0 0', flexWrap: 'wrap' }}>
           <span style={{ color: C.text3, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.08em' }}>{mk.label.toUpperCase()} BAR</span>
