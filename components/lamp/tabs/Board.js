@@ -12,6 +12,7 @@ import usePositionFilter from '../../../lib/usePositionFilter'
 import { overallRanks, canonPos } from '../../../lib/positions'
 import BoardTopBar from '../../BoardTopBar'
 import FiltersDrawer, { DrawerSection, drawerChip } from '../../FiltersDrawer'
+import { useMarketRates } from '../../../lib/useMarketRates'
 import { TIME_WINDOWS, inWindow } from '../../BoardFilters'
 import RangeDual from '../../RangeDual'
 import GoalWatch from '../GoalWatch'
@@ -109,7 +110,8 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
     return [m.key, d ? (d.games || []).filter((g) => !g.noMarketLock).reduce((n, g) => n + g.rows.filter((r) => r.score != null && Number.isFinite(Number(r.score))).length, 0) : null]
   })), [bGoal.data, bSog.data, bPts.data, bAst.data, bG2.data, bFirst.data]) // eslint-disable-line react-hooks/exhaustive-deps
   // TEST is a small tag inside the chip, not a longer label: the record rule (no record until 30 graded nights) stays printed
-  const marketOptions = MARKETS.map((m) => ({ key: m.key, count: marketCounts[m.key] ?? undefined, title: m.label.replace(' \u00b7 TEST', '') + (m.test ? ' (a test: no record until 30 graded nights)' : ''),
+  const mrates = useMarketRates('nhl')
+  const marketOptions = MARKETS.map((m) => ({ key: m.key, count: marketCounts[m.key] ?? undefined, rate: mrates.rateOf(m.key) ?? undefined, title: m.label.replace(' \u00b7 TEST', '') + (m.test ? ' (a test: no record until 30 graded nights)' : '') + (mrates.titleOf(m.key) ? ` ${mrates.titleOf(m.key)}` : ''),
     label: <>{m.short}{m.test ? <span style={{ marginLeft: 6, padding: '1px 4px', borderRadius: 4, border: `1px solid ${C.border2}`, color: C.text3, font: `800 9px/1.2 ${NUM_FONT}`, letterSpacing: '.06em' }}>TEST</span> : null}</>, }))
   const games = data?.games || []
   const lockedN = games.filter((g) => g.locked).length

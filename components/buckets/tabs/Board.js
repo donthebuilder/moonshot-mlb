@@ -31,6 +31,7 @@ import { STATUS_WORD } from '../../../lib/callStatus'
 import { useRankMove } from '../../../lib/useRankMove'
 import { RankMoveNote } from '../../RankMove'
 import { useColumnSet } from '../../../lib/useColumnSet'
+import { useMarketRates } from '../../../lib/useMarketRates'
 
 // 🎯 PROPS -- the BUCKETS board for one market (lib/nba/boardRead.js): every
 // player on the night's rosters ranked by the market's score, one CALLED per
@@ -138,7 +139,8 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
     out[ALL] = ALL_KEYS.some((k) => boardsBy[k].data) ? seen.size : null
     return out
   }, [bPts.data, bReb.data, bAst.data, bTpm.data, bPra.data, bDd.data, bTd.data, bFirst.data]) // eslint-disable-line react-hooks/exhaustive-deps
-  const marketOptions = MARKET_PILLS.map((o) => ({ key: o.key, label: o.text, count: marketCounts[o.key] ?? undefined, title: o.key === ALL ? 'Every market side by side' : NBA_MARKETS[o.key]?.label }))
+  const mrates = useMarketRates('nba')
+  const marketOptions = MARKET_PILLS.map((o) => ({ key: o.key, label: o.text, count: marketCounts[o.key] ?? undefined, rate: o.key === ALL ? undefined : mrates.rateOf(o.key) ?? undefined, title: o.key === ALL ? 'Every market side by side' : `${NBA_MARKETS[o.key]?.label}${mrates.titleOf(o.key) ? ` ${mrates.titleOf(o.key)}` : ''}` }))
   const xp = useBucketsExpected(date)
   // the shared live Status: tonight's box lines, asked for only once a game has started
   const live = useBucketsLive(data?.date || date, Boolean(data?.rows?.some((r) => r.gameState && r.gameState !== 'pre'))).data

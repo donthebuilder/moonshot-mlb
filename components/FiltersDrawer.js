@@ -7,6 +7,7 @@ import LedgerChip from './LedgerChip'
 import WatchChip from './WatchChip'
 import { PositionRow } from './Filters'
 import ColumnSetSwitch from './ColumnSetSwitch'
+import { useIsPhone } from './MobileFold'
 
 // ══ THE BOARD FILTERS DRAWER, ONE FOR ALL THREE PRODUCTS (2026-09-28) ═══════
 // Donovan: "on the boards we can toggle teams, games, multi filters, all type
@@ -93,6 +94,7 @@ export default function FiltersDrawer({
 }) {
   const [open, setOpen] = useState(false)
   const wrap = useOutsideClose(open, setOpen)
+  const phone = useIsPhone(560)
   const chip = drawerChip
 
   const chipsEl = activeFilters.length > 0 && (
@@ -132,6 +134,11 @@ export default function FiltersDrawer({
             )}
           </button>
 
+          {open && phone && (
+            // PHONE (2026-10-29, Donovan: hard to get out of): a tap on the dimmed page closes the sheet, and Done / ✕ stay pinned
+            // at the top and the footer at the bottom while the sections scroll between them.
+            <div onClick={() => setOpen(false)} aria-hidden="true" style={{ position: 'fixed', inset: 0, zIndex: 89, background: 'rgba(0,0,0,.5)' }} />
+          )}
           {open && (
             <div style={{
               // Fixed to the viewport, pinned to both edges below ~560px —
@@ -141,11 +148,17 @@ export default function FiltersDrawer({
               position: 'fixed', zIndex: 90,
               top: 'calc(env(safe-area-inset-top, 0px) + 108px)',
               left: 8, right: 8, width: 'auto', maxWidth: 520, margin: '0 auto',
-              maxHeight: '72vh', overflowY: 'auto',
+              maxHeight: phone ? 'min(72vh, calc(100dvh - 200px))' : '72vh', overflowY: 'auto',
               background: 'rgba(17,17,19,0.98)', backdropFilter: 'blur(14px)',
               border: `1px solid ${C.border2}`, borderRadius: 12, padding: 14,
               boxShadow: '0 20px 60px rgba(0,0,0,.5)',
             }}>
+              {phone && (
+                <div style={{ position: 'sticky', top: -14, zIndex: 2, margin: '-14px -14px 10px', padding: '8px 10px 8px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgb(17,17,19)', borderBottom: `1px solid ${C.border}` }}>
+                  <span style={{ ...drawerLabel(), fontSize: 11 }}>Filters{activeCount > 0 ? ` · ${activeCount}` : ''}</span>
+                  <button type="button" onClick={() => setOpen(false)} aria-label="Close filters" style={{ ...chip(true), minHeight: 44, minWidth: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>Done ✕</button>
+                </div>
+              )}
               {compact && positions && (
                 <DrawerSection label="Position" hint="Pick several to see any of them. Ranks stay the board's overall ranks.">
                   <PositionRow control={positions} accent={accent} wrap label="" />
@@ -163,11 +176,11 @@ export default function FiltersDrawer({
                 <div style={{ fontSize: 10, color: accent, marginTop: 9 }}>{emptyNote}</div>
               ) : null}
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.border}`, ...(phone ? { position: 'sticky', bottom: -14, background: 'rgb(17,17,19)', margin: '12px -14px -14px', padding: '10px 14px calc(10px + env(safe-area-inset-bottom, 0px))' } : null) }}>
                 <span style={{ fontSize: 11, fontWeight: 800, color: shown < total ? accent : C.text3, fontFamily: NUM_FONT }}>{shown} of {total}</span>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  {active && <button onClick={reset} style={{ ...chip(false), border: `1px dashed ${C.border2}` }}>Reset all</button>}
-                  <button onClick={() => setOpen(false)} style={chip(true)}>Done</button>
+                  {active && <button onClick={reset} style={{ ...chip(false), border: `1px dashed ${C.border2}`, ...(phone ? { minHeight: 44 } : null) }}>Reset all</button>}
+                  <button onClick={() => setOpen(false)} style={{ ...chip(true), ...(phone ? { minHeight: 44, minWidth: 64 } : null) }}>Done</button>
                 </div>
               </div>
             </div>

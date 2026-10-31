@@ -26,6 +26,7 @@ import { useGameCalls } from '../GameCalls'
 import { useIsPhone } from '../../MobileFold'
 import { ViewSwitch } from '../NflBoardExtras'
 import ShareCardButton from '../../card/ShareCardButton'
+import { useMarketRates } from '../../../lib/useMarketRates'
 import { shareUrl, stamp, slug } from '../../../lib/cards/saveCard'
 import { nflCalled } from '../../../lib/calledGather'
 import { useMemberState } from '../../MemberGate'
@@ -130,7 +131,8 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
   const gameCalls = useGameCalls()
   const twoCount = useMemo(() => twoBoard(slate, matchup).rows.length, [slate, matchup])
   const counts = Object.fromEntries(MARKETS.map(([k]) => [k, OWN_MODEL_MARKETS.has(k) ? twoCount : (k === 'TD' ? (slate?.players || []) : (data?.players || [])).filter((p) => Number.isFinite(p.scores?.[k]) && (k === 'TD' || !p.low_sample)).length]))
-  const marketOptions = MARKETS.map(([key, label]) => ({ key, label, count: counts[key] }))
+  const mrates = useMarketRates('nfl')
+  const marketOptions = MARKETS.map(([key, label]) => ({ key, label, count: counts[key], rate: mrates.rateOf(key) ?? undefined, title: mrates.titleOf(key) || undefined }))
   const teams = useMemo(() => [...new Set((slate?.players || data?.players || []).map((p) => p.team).filter(Boolean))].sort(), [slate, data])
   const games = useMemo(() => nflGameOptions(slate?.games || data?.games), [slate, data])
   // CALLED ONLY (2026-10-25, Donovan: "add Called only to TUDDY and MOONSHOT Rankings, any market counts"): the men CALLED in ANY

@@ -61,7 +61,7 @@ function useOn() {
 }
 
 // ── the one pill recipe ─────────────────────────────────────────────────────
-export function FilterPill({ active, onClick, children, count, title, disabled, tall = false }) {
+export function FilterPill({ active, onClick, children, count, rate = null, title, disabled, tall = false }) {
   const on = useOn()
   const s = active ? on : STATE.off()
   // 2026-10-13 (phone tap targets): a pill in TUDDY / LAMP / BUCKETS is 44px tall on a touch screen (.fp-themed, app/globals.css).
@@ -84,6 +84,10 @@ export function FilterPill({ active, onClick, children, count, title, disabled, 
         {children}
         {count != null && (
           <span style={{ fontSize: tall ? 10.5 : 8.5, fontFamily: NUM_FONT, fontWeight: 700, opacity: 0.85 }}>{count}</span>
+        )}
+        {/* the hit rate of this market's CALLED picks (lib/useMarketRates.js); null prints nothing */}
+        {rate != null && (
+          <span style={{ fontSize: tall ? 10.5 : 9, fontFamily: NUM_FONT, fontWeight: 800, opacity: active ? 1 : 0.9 }}>{rate}%</span>
         )}
       </span>
     </button>
@@ -108,6 +112,7 @@ export function PillRow({ label, hint, value, options, onChange, flag, tall = fa
           active={value === o.key}
           onClick={() => onChange(o.key)}
           count={o.count}
+          rate={o.rate}
           title={o.title}
           disabled={o.disabled}
           tall={tall}

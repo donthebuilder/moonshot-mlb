@@ -8,7 +8,7 @@ import { useGatedBoard } from '../useGatedBoard'
 import { NBA_MARKETS, LEG_LABEL, fmtLeg, RAW_OF } from '../../../lib/nba/legs'
 import BucketsTable from '../BucketsTable'
 import NotScoredTable from '../../table/NotScoredTable'
-import { faceOf, XPTS_TITLE } from '../boardTable'
+import { faceOf, XPTS_TITLE, XSTAT, xstatTitle } from '../boardTable'
 import { EmptyState, DelayedBanner, Loading, DayPager, Why, fmtDay, fmtTip } from '../ui'
 
 // 📋 BOARDS -- every player the model rated that night, every market side by
@@ -55,7 +55,7 @@ export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onO
       for (const r of boards[k].data?.rows || []) {
         const id = `${r.gameId}-${r.playerId}`
         const g = gm.get(r.gameId)
-        const row = by.get(id) || { _id: id, playerId: r.playerId, name: r.name, pos: r.pos, team: r.team, opp: r.opp, oppTxt: r.home ? r.opp : `@${r.opp}`, gameId: r.gameId, tip: g?.start || null, gameState: g?.state || null, xpts: xptsBy.get(String(r.playerId))?.xpts ?? null, xptsLine: xptsBy.get(String(r.playerId))?.line ?? null }
+        const row = by.get(id) || { _id: id, playerId: r.playerId, name: r.name, pos: r.pos, team: r.team, opp: r.opp, oppTxt: r.home ? r.opp : `@${r.opp}`, gameId: r.gameId, tip: g?.start || null, gameState: g?.state || null, xpts: xptsBy.get(String(r.playerId))?.xpts ?? null, xptsLine: xptsBy.get(String(r.playerId))?.line ?? null, ...Object.fromEntries(Object.values(XSTAT).flatMap(([f]) => [[f, xptsBy.get(String(r.playerId))?.[f] ?? null], [`${f}Line`, xptsBy.get(String(r.playerId))?.[`${f}Line`] ?? null]])) }
         row[`s_${k}`] = r.score
         for (const [lk, lv] of Object.entries(r.legs || {})) if (lv != null && row[lk] == null) row[lk] = lv
         row[`st_${k}`] = r.status
@@ -85,6 +85,7 @@ export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onO
       title: `${NBA_MARKETS[k].label}: the 0-100 score and its status word`,
       fmt: (v, r) => (v == null ? (r[`st_${k}`] === 'board' ? <CallStatusBadge status="board" accent={C.purple} short size={8} /> : <span style={{ color: C.text3 }}>—</span>) : <span style={{ display: 'inline-grid', lineHeight: 1.15 }}><b>{v}</b>{r[`st_${k}`] && r[`st_${k}`] !== 'off' ? <CallStatusBadge status={r[`st_${k}`]} accent={C.purple} short size={8} /> : null}</span>) })),
     { key: 'xpts', label: 'xPTS', cset: 'read', group: 'Projected', w: 58, dp: 1, mono: true, title: XPTS_TITLE, fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span title={r.xptsLine || XPTS_TITLE}>{Number(v).toFixed(1)}</span>) },
+    ...Object.values(XSTAT).map(([f, lab, word]) => ({ key: f, label: lab, cset: 'read', group: 'Projected', w: 58, dp: 1, mono: true, title: xstatTitle(word), fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span title={r[`${f}Line`] || xstatTitle(word)}>{Number(v).toFixed(1)}</span>) })),
     ...LEG_KEYS.filter((k) => rows.some((r) => r[k] != null)).map((k) => ({ key: k, label: LEG_LABEL[k] || (k === 'multTd' || k === 'multDd' ? 'OPP ×' : k), group: 'Legs', w: 62, heat: false, mono: true,
       title: k === 'multTd' || k === 'multDd' ? 'What his opponent allows of the stats he reaches, against the league mean, shrunk for a small sample and clamped to 0.8-1.25. It scales his own rate for the ranking; 1.00 = no change.' : `${LEG_LABEL[k] || k}: his own measured rate, one of the legs the ${KEYS.filter((m) => NBA_MARKETS[m].legs.some((l) => (RAW_OF[l] || l) === k)).map((m) => NBA_MARKETS[m].label.toLowerCase()).join(' / ')} score is built from.`,
       fmt: (v) => (k === 'multTd' || k === 'multDd' ? (v == null ? '—' : Number(v).toFixed(2)) : fmtLeg(k, v)) })),
