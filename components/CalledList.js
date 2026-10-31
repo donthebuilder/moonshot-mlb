@@ -49,8 +49,8 @@ export default function CalledList({ sport, theme: C, numFont: NUM_FONT, accent,
     { key: 'team', label: 'Tm', group: 'Game', w: 44, numeric: false, heat: false },
     { key: 'opp', label: 'Opp', group: 'Game', w: 44, numeric: false, heat: false },
     { key: 'game', label: 'Game', group: 'Game', w: 104, numeric: false, heat: false, fmt: (v) => timeWords(v), link: onOpenGame ? (r) => () => onOpenGame(r._raw.gameId) : undefined },
-    { key: 'play', label: 'Play', group: 'Game', w: 130, numeric: false, heat: false },
-    { key: 'angle', label: 'Angle', group: 'Why', w: 260, numeric: false, heat: false, title: 'Why the model likes him here' },
+    { key: 'play', label: 'Play', group: 'Game', w: 210, numeric: false, heat: false },
+    { key: 'angle', label: 'Angle', group: 'Why', w: 640, numeric: false, heat: false, title: 'Why the model likes him here' },
   ]
   const cols = useMemo(() => tagIdentity(columns, sport, rows), [rows])   // eslint-disable-line react-hooks/exhaustive-deps
   const counts = res?.counts || {}
