@@ -18,7 +18,7 @@ import { useGameCalls } from '../GameCalls'
 import { useTeamNav } from '../../../lib/teamNav'
 import { buildNflTeam } from '../../../lib/team/nfl'
 import { TeamDefenders } from '../DefenseSections'
-import InjuryOut from '../../injuries/InjuryOut'
+import NflInjuryOut from '../NflInjuryOut'
 import UsageTreemap from '../../charts/UsageTreemap'
 import { USAGE_METRICS, USAGE_GROUPS } from '../../../lib/nfl/teamUsage'
 
@@ -72,7 +72,7 @@ export default function Team({ data, picks = null, matchup = null, logs = null, 
     defense: TeamDefenders,
     usage: ({ usage }) => <UsageTreemap usage={usage} metrics={USAGE_METRICS} groups={USAGE_GROUPS} theme={{ C, NUM_FONT, accent: C.green }}
       onOpen={(p) => (live.current.openPlayer && live.current.has(p.id) ? live.current.openPlayer(p.id) : null)} />,
-    injuries: ({ clubs }) => <InjuryOut sport="nfl" clubs={clubs} theme={{ C, NUM_FONT, accent: C.green }} title="Out this week" onOpenTeam={(a) => live.current.openTeam?.(a)}
+    injuries: ({ clubs }) => <NflInjuryOut sport="nfl" clubs={clubs} theme={{ C, NUM_FONT, accent: C.green }} title="Out this week" onOpenTeam={(a) => live.current.openTeam?.(a)}
       openPlayer={(e) => (live.current.openPlayer && live.current.has(e.player_id) ? () => live.current.openPlayer(e.player_id) : null)} />,
   }), [])
   if (!code) return <Empty title="NO CLUB PICKED" note="Tap a club's logo anywhere on TUDDY — a board, a game, standings — to open its page." />

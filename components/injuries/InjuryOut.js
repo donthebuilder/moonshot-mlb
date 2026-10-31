@@ -23,9 +23,10 @@ const PREVIEW = 6
  * @param openPlayer  (entry) => (() => void) | null   a link when the man has a page in this product
  * @param onOpenTeam  (abbr) => void
  * @param roleOf      (entry) => string | null          NFL: RB1 / WR2 via lib/nfl/roles.js; otherwise his position
+ * @param nextUpOf    (entry) => { role, next } | null  NFL: who steps up behind an OUT man, from ESPN's own depth chart (lib/nfl/depthChart.js); nothing guessed
  * @param openSignal  true when the page's "Out" pill was tapped: opens the module
  */
-export default function InjuryOut({ sport, clubs, theme, title = 'Out tonight', isOurs = () => false, openPlayer = null, onOpenTeam = null, roleOf = null, openSignal = false }) {
+export default function InjuryOut({ sport, clubs, theme, title = 'Out tonight', isOurs = () => false, openPlayer = null, onOpenTeam = null, roleOf = null, nextUpOf = null, openSignal = false }) {
   const layer = useInjuryLayer()
   const { C, NUM_FONT, accent } = theme
   const [open, setOpen] = useState(false)
@@ -91,7 +92,7 @@ export default function InjuryOut({ sport, clubs, theme, title = 'Out tonight', 
                       </td>
                       <td style={{ ...td, color: C.text2, fontFamily: NUM_FONT }}>{(roleOf && roleOf(e)) || e.position || '·'}</td>
                       <td style={{ ...td, whiteSpace: 'nowrap' }}><InjuryChip entry={e} C={C} font={NUM_FONT} size={11} label={STATUS_INFO[e.status].word} style={{ marginLeft: 0, letterSpacing: '.02em', padding: '1px 4px' }} /></td>
-                      <td style={{ ...td, color: C.text2, minWidth: 96 }}>{e.note || '·'}<div style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 11, marginTop: 2 }}>{updatedLabel(e.updatedAt).replace('updated ', '') || ''}</div></td>
+                      <td style={{ ...td, color: C.text2, minWidth: 96 }}>{e.note || '·'}{(() => { const up = nextUpOf && BLOCKS.has(e.status) ? nextUpOf(e) : null; return up ? <div style={{ color: accent, font: `800 11px/1.3 ${NUM_FONT}`, marginTop: 2 }}>NEXT UP · {up.next} ({up.role})</div> : null })()}<div style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 11, marginTop: 2 }}>{updatedLabel(e.updatedAt).replace('updated ', '') || ''}</div></td>
                     </tr>
                   )
                 })}
@@ -103,7 +104,7 @@ export default function InjuryOut({ sport, clubs, theme, title = 'Out tonight', 
               {all ? 'SHOW FEWER' : `+${rows.length - PREVIEW} MORE`}
             </button>
           )}
-          <div style={{ padding: '2px 13px 6px', fontSize: 11, color: C.text3 }}>Source: ESPN injury report. A report can change up to game time.</div>
+          <div style={{ padding: '2px 13px 6px', fontSize: 11, color: C.text3 }}>Source: ESPN injury report{nextUpOf ? ' and depth chart (NEXT UP = the next healthy name on his own line)' : ''}. A report can change up to game time.</div>
         </div>
       )}
     </section>
