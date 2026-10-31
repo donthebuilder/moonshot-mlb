@@ -29,6 +29,7 @@
 // prints), the odds file, and the pair-history summary.
 
 import { mlbQuotes } from '../../../../../lib/dash/quoteFor'
+import { voidedKeys, filedElsewhere } from '../../../../../lib/dash/homerVoid'
 import { isCut } from '../../../../../lib/dash/routing'
 import { playerHref } from '../../../../../lib/routes'
 import { storyThreadsOn, postStoryResults } from '../../../../../lib/dash/storyThread'
@@ -2018,7 +2019,12 @@ async function mlbTick(request) {
   })
   }
 
-  const homers = withLockedBoard(homersFrom(snap, day, board, odds), await lockIndex(day))
+  // a home run already voided (lib/dash/homerVoid.js: the final box score did not have it) is never inserted, or posted, a second time
+  const seen = withLockedBoard(homersFrom(snap, day, board, odds), await lockIndex(day))
+  const voided = seen.length ? await voidedKeys(db, day) : new Set()      // one tiny read, only when there is a homer to insert
+  // ...and one already filed under ANOTHER day (a game that ran past the day's roll: 5 homers on 09-07, 09-08 and 09-23 sat under two days) is the same homer
+  const elsewhere = seen.length ? await filedElsewhere(db, day, [...new Set(seen.map((h) => h.game_pk).filter(Boolean))]) : new Set()
+  const homers = voided.size || elsewhere.size ? seen.filter((h) => !voided.has(`${h.player_id}:${h.hr_n}`) && !elsewhere.has(`${h.game_pk}|${h.player_id}|${h.hr_n}`)) : seen
   const totals = { day, seen: homers.length, fresh: 0, discord: 0, x: 0, xFailed: 0, board: board.size, mode: MODE, backfill, receipt: receiptResult }
 
   // ── 1. claim the new ones ────────────────────────────────────────────────
