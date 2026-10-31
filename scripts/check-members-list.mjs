@@ -188,5 +188,11 @@ await t('MEMBERS_BOX_ON: moments and write-ups reach the public sport room only,
   for (const k of ks) { const r = R.routeOf(k); assert.ok(r.rooms.includes('sport') && !r.rooms.includes('members'), k) }
   delete process.env.MEMBERS_BOX_ON
 })
+await t('a called game link lands on the Called list filtered to that game; no game = the whole list', async () => {
+  const Rt = await import('../lib/routes.js')
+  assert.equal(Rt.calledGameHref('nba', '401909279'), '/app#sport=nba&tab=calledlist&game=401909279')
+  assert.equal(Rt.calledGameHref('nfl', null), Rt.appHref('nfl', 'calledlist'))
+  assert.match(Rt.calledGameHref('nhl', 'a b'), /&game=a%20b$/)
+})
 console.log(failed ? `\n${failed} FAILED` : '\nall ok')
 process.exit(failed ? 1 : 0)

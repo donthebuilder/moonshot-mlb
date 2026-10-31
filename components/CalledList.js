@@ -25,6 +25,12 @@ const dayWords = (d) => { try { return new Date(`${d}T12:00:00Z`).toLocaleDateSt
 
 export default function CalledList({ sport, theme: C, numFont: NUM_FONT, accent, Table = DenseTable, onOpenPlayer = null, onOpenGame = null, preview = 0, onOpenList = null }) {
   const [res, setRes] = useState(undefined)   // undefined = reading, null = unreadable, else the route's answer
+  // ONE GAME (2026-10-30, Donovan: a post's link should land on "the specific called picks for that game"): #...&tab=calledlist&game=<id> filters the
+  // table to that game, with a chip to see them all. Read once at mount, before the app's router rewrites the hash; never on the Home strip.
+  const [gameOnly, setGameOnly] = useState(() => {
+    if (preview || typeof window === 'undefined') return null
+    try { return new URLSearchParams(window.location.hash.replace(/^#/, '')).get('game') || null } catch { return null }
+  })
   useEffect(() => {
     let live = true
     setRes(undefined)
@@ -36,7 +42,9 @@ export default function CalledList({ sport, theme: C, numFont: NUM_FONT, accent,
     _key: e.key, _raw: e, name: e.name, team: e.team, opp: e.opp || '—', game: e.startAt, play: e.play + (e.withName ? ` · with ${e.withName}` : ''),
     market: e.marketShort || e.marketWords, marketLong: e.marketWords, price: e.price, status: e.status, angle: e.angle || '—',
   })), [res])
-  const shown = preview ? rows.slice(0, preview) : rows
+  const inGame = gameOnly ? rows.filter((r) => String(r._raw.gameId) === String(gameOnly)) : rows
+  const gameLabel = inGame[0] ? `${inGame[0].team} vs ${inGame[0].opp}` : null
+  const shown = preview ? rows.slice(0, preview) : inGame
 
   const word = (s) => LIST_STATUS_WORD[s] || s.toUpperCase()
   const tone = (s) => (s === 'hit' || s === 'live' ? accent : s === 'miss' || s === 'scratched' || s === 'pushed' ? C.text3 : C.text2)
@@ -77,7 +85,13 @@ export default function CalledList({ sport, theme: C, numFont: NUM_FONT, accent,
       {res && rows.length ? (
         <>
           {!preview && stateLine ? <div style={{ font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.1em', color: C.text3 }}>{`${rows.length} ${rows.length === 1 ? 'PLAY' : 'PLAYS'} · ${stateLine.toUpperCase()}`}</div> : null}
-          <Table rows={shown} columns={cols} maxHeight={9999} maxRows={rows.length} heatMode="standouts" initialSort={null} accent={accent} />
+          {gameOnly && !preview ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.1em', color: C.text2 }}>{inGame.length ? `THIS GAME · ${gameLabel}` : 'NO CALLED PLAYS IN THIS GAME'}</span>
+              <button type="button" className={FLAT_CHIP_CLASS} onClick={() => setGameOnly(null)} style={{ ...flatChip(false, accent, C, NUM_FONT), marginLeft: 'auto' }}>{`All plays (${rows.length})`}</button>
+            </div>
+          ) : null}
+          {shown.length ? <Table rows={shown} columns={cols} maxHeight={9999} maxRows={shown.length} heatMode="standouts" initialSort={null} accent={accent} /> : null}
           {res.held > 0 && !preview ? <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{`${res.held} more ${res.held === 1 ? 'play is' : 'plays are'} held back. ${HELD_LINE}`}</div> : null}
         </>
       ) : null}

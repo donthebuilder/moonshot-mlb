@@ -11,7 +11,7 @@
 //     otherwise (#bucket channel, else the sport fallback). A claim sentinel
 //     on x_post_id ('posting') stops two racing ticks double-posting;
 //   · the push sweep is app/api/dash/push/tick (lib/dash/pushRules nbaEventsFrom).
-import { playerHref } from '../../../../lib/routes'
+import { playerHref, calledGameHref } from '../../../../lib/routes'
 import { cronAuthorized, adminClient } from '../../../../lib/supabase/admin'
 import { bucketsPublic } from '../../../../lib/nba/gate'
 import { scoreboardFor, reduceScoreboard, summaryFor, reduceBox } from '../../../../lib/nba/api'
@@ -96,7 +96,7 @@ export async function GET(request) {
         if (/^(posted|edited|already-in)/.test(boxed)) discord = true
         else console.error(`[buckets moments] live box: ${boxed}`)
       }
-      if (hooks && !discord && !/^send-failed/.test(boxed)) discord = await postToDiscord(text, { sport: 'nba', kind: 'nba30', link: r.player_id ? playerHref('nba', r.player_id) : null }, hooks).then((r) => Boolean(r?.ok)).catch((e) => { console.error(`[buckets moments] discord: ${e?.message || e}`); return false })
+      if (hooks && !discord && !/^send-failed/.test(boxed)) discord = await postToDiscord(text, { sport: 'nba', kind: 'nba30', link: r.status === 'called' && r.game_id ? calledGameHref('nba', r.game_id) : r.player_id ? playerHref('nba', r.player_id) : null }, hooks).then((r) => Boolean(r?.ok)).catch((e) => { console.error(`[buckets moments] discord: ${e?.message || e}`); return false })
       let id = 'skipped'
       // X carries the 30 PIECE and the triple-double; a double-double stays in #buckets-nba (Donovan, 2026-10-23 volume review)
       if (r.status === 'called' && r.kind !== DD_KIND && hasX()) {
