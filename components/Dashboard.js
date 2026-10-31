@@ -12,6 +12,8 @@ import { canonLedgerHash, queueLedgerView, carryLedgerView } from '../lib/ledger
 import { queueSlipSeed } from '../lib/slipSeed'
 import LedgerShell from './pages/LedgerShell'
 import CardSection from './card/CardSection'
+import CalledList from './CalledList'
+import DenseTable from './DenseTable'
 import { usePageTitle } from '../lib/usePageTitle'
 import TabNotFound from './TabNotFound'
 import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows, keepNewerSlate, easternDate, mlbScheduleSpan } from '../lib/data'
@@ -1042,10 +1044,11 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'home'        && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} />}
             {/* TOP TOTALS now ride each game (components/GameTotalLine.js: on the game's card and its slate card); the record stays in the Ledger.
                 The Card is one line, under the slate (it was a block above the first game). */}
-            {tab === 'games'       && <Games players={players} allPlayers={allPlayers} slateDate={slateDate} slateMode={mode} pairHistorySummary={pairSummary} results={resultsForSlate} odds={odds} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
+            {tab === 'games'       && <Games players={players} allPlayers={allPlayers} slateDate={slateDate} slateMode={mode} pairHistorySummary={pairSummary} results={resultsForSlate} odds={odds} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} onOpenCalledList={() => setTab('calledlist')} />}
             {tab === 'games'       && <CardSection sport="mlb" compact />}
             {tab === 'pitchers'    && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'matchups'    && <Matchups players={players} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
+            {tab === 'calledlist'  && <CalledList sport="mlb" theme={C} numFont={NUM_FONT} accent={C.orange} Table={DenseTable} onOpenGame={(pk) => { setTab('games') }} onOpenPlayer={(e) => { const p = allPlayers.find((x) => String(x.player_id) === String(e.playerId)); if (p) setModalPlayer(p) }} />}
             {tab === 'openings'    && <Openings players={allPlayers} games={headerGames} onPlayerClick={setModalPlayer} />}
             {/* PROPS GRID — the mobile pilot page (2026-08-23). Its own tab
                 per Donovan's sequencing call: the grid stays an entry point,

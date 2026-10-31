@@ -10,6 +10,7 @@
 // /api/buckets/access lets in, and every /api/buckets route enforces the same.
 import LedgerShell from '../pages/LedgerShell'
 import BucketsTable from './BucketsTable'
+import CalledList from '../CalledList'
 import CardSection from '../card/CardSection'
 import { useMemo } from 'react'
 import { TeamNav } from '../../lib/teamNav'
@@ -142,11 +143,12 @@ export default function BucketsDashboard() {
             {tab === 'fullboard' && <Board date={date} setDate={setDate} market={market} {...nav} />}
             {tab === 'scores' && <Scores date={date} setDate={setDate} onOpenGame={openGame} onOpenTeam={openTeam} />}
             {/* TOP TOTALS now ride each game (components/GameTotalLine.js); the record stays in the Ledger */}
-            {tab === 'games' && <Slate date={date} setDate={setDate} market={market} {...nav} />}
+            {tab === 'games' && <Slate date={date} setDate={setDate} market={market} {...nav} onOpenCalledList={() => setTab('calledlist')} />}
             {/* THE CARD (2026-10-20, Donovan "turn it on"): one line under the slate, as LAMP's; its record is in the Ledger (LedgerShell's Record) */}
             {tab === 'games' && <CardSection sport="nba" Table={BucketsTable} compact />}
             {tab === 'game' && <Game id={gameId} {...nav} backLabel={backLabel('scores')} onBack={() => goBack('scores')} />}
             {tab === 'odds' && <BucketsOdds date={date} onOpenPlayer={peekPlayer} />}
+            {tab === 'calledlist' && <CalledList sport="nba" theme={C} numFont={NUM_FONT} accent={C.purple} Table={BucketsTable} onOpenGame={openGame} onOpenPlayer={(e) => peekPlayer(e.playerId)} />}
             {tab === 'trending' && <Trending onOpenPlayer={peekPlayer} />}
             {tab === 'storylines' && <StorylinesPage sport="nba" previewGames={4} eyebrow="BUCKETS · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.purple} onOpenPlayer={peekPlayer} onOpenGame={openGame} date={date} />}
             {tab === 'watchlist' && <Watchlist onOpenPlayer={peekPlayer} onOpenTeam={openTeam} onOpenGame={openGame} />}

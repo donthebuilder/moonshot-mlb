@@ -441,7 +441,7 @@ function ArmBubble({ s }) {
 //     way but its own button state, and the real live experience —
 //     AtThePlate — now lives on Home's own view system instead (see
 //     components/tabs/Home.js). #tab=atplate opens that directly.
-export default function Games({ players, allPlayers = [], slateDate = '', pairHistorySummary, results, odds = null, onAdd, onWatch, watchIds, onPlayerClick, slateMode = 'today', initialMode }) {
+export default function Games({ players, allPlayers = [], slateDate = '', pairHistorySummary, results, odds = null, onAdd, onWatch, watchIds, onPlayerClick, slateMode = 'today', initialMode, onOpenCalledList = null }) {
   // 2026-08-30, Donovan: "have the games open up full table instead of
   // cards first, the game chips take up too much screen space." Table is
   // the SAME sortable/filterable board ProjectedOutput already builds for
@@ -750,6 +750,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
     <div style={{ display: 'flex', gap: 6 }}>
       <button onClick={() => setMode('default')} style={btnStyle(C.orange, mode === 'default')}>Default</button>
       <button onClick={() => setMode('lineups')} style={btnStyle(C.green,  mode === 'lineups')}>Lineups</button>
+      {onOpenCalledList ? <button onClick={onOpenCalledList} style={btnStyle(C.orange, false)}>📋 Called list</button> : null}
     </div>
   )
 

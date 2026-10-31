@@ -528,7 +528,7 @@ await t('the migration: the table, the guard trigger (insert / update / delete),
 await t('the admin form: gated by ADMIN_EMAILS (404 otherwise), refuses a save once the lock has passed or a game started; the page is not indexed', () => {
   const api = fs.readFileSync(new URL('../app/api/admin/two-man/route.js', import.meta.url), 'utf8')
   assert.ok(/isAdminUser\(user\)/.test(api) && /status: 404/.test(api))
-  assert.ok(/onTime\(win, now\)/.test(api) && /now < lockAtOf\(win\.first_start_ms\) && now < win\.first_start_ms/.test(api) && /donovanRow\(/.test(api) && /allowLate: true/.test(api), 'always open: the route classifies on time vs LATE with the same lock rule')
+  assert.ok(/onTime\(sport, win, now\)/.test(api) && /now < lockAtFor\(sport, win\.first_start_ms\) && now < win\.first_start_ms/.test(api) && /donovanRow\(/.test(api) && /allowLate: true/.test(api), 'always open: the route classifies on time vs LATE with the same lock rule')
   const page = fs.readFileSync(new URL('../app/admin/two-man/page.js', import.meta.url), 'utf8')
   assert.ok(/notFound\(\)/.test(page) && /robots/.test(page) && /isAdminUser/.test(page))
   const pub = fs.readFileSync(new URL('../app/api/card/route.js', import.meta.url), 'utf8')

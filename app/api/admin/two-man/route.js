@@ -27,7 +27,7 @@ import { hasSupabaseConfig } from '../../../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
 import { adminClient } from '../../../../lib/supabase/admin'
 import { isAdminUser, adminDenyReason, sameOriginJson } from '../../../../lib/admin'
-import { CARD_SPORTS, CARD_VERSION, DOUBLE_SPORT, LATE_LANE, DON_SLOTS, DON_MAX_POSTS, LATE_EDIT_MIN, NMAN_MIN, NMAN_MAX, NMAN_UNITS, lockAtOf, donovanRow, donovanDoubleRow, NOTE_MAX_LINES, NOTE_MAX_CHARS } from '../../../../lib/card/core'
+import { CARD_SPORTS, CARD_VERSION, DOUBLE_SPORT, LATE_LANE, DON_SLOTS, DON_MAX_POSTS, LATE_EDIT_MIN, NMAN_MIN, NMAN_MAX, NMAN_UNITS, lockAtFor, donovanRow, donovanDoubleRow, NOTE_MAX_LINES, NOTE_MAX_CHARS } from '../../../../lib/card/core'
 import { loadWindows, loadCandidates, loadAnytimePrices } from '../../../../lib/card/sources'
 import { saveDonovan, withdrawDonovan, donovanEntry, donovanRowsOf, lateEntries } from '../../../../lib/card/store'
 import { pickerRow, nhlSeasonOf, etWhen } from '../../../../lib/card/picker'
@@ -63,7 +63,7 @@ const AHEAD = 2
 const OVER_MS = 5 * 3600e3
 const notOver = (now) => (w) => !(Number.isFinite(w.last_start_ms) && now > w.last_start_ms + OVER_MS)
 /** On time = before the card's lock AND before any game of the slate starts. Anything later is LATE. */
-const onTime = (win, now) => now < lockAtOf(win.first_start_ms) && now < win.first_start_ms
+const onTime = (sport, win, now) => now < lockAtFor(sport, win.first_start_ms) && now < win.first_start_ms
 
 // HIS DOUBLE: each sport's window for the day, its board (real ids, best score first) and the lock
 async function doubleWindows(date, now, withBoards) {
@@ -72,7 +72,7 @@ async function doubleWindows(date, now, withBoards) {
     const w = await loadWindows(sport, now)
     const win = w.ok ? w.windows.find((x) => x.card_date === date) : null
     if (!win) { out[sport] = { sport, error: w.ok ? `no ${sport} games on ${date}` : w.why }; return }
-    const o = { sport, win, first_start: new Date(win.first_start_ms).toISOString(), locks_at: new Date(lockAtOf(win.first_start_ms)).toISOString(), field: null }
+    const o = { sport, win, first_start: new Date(win.first_start_ms).toISOString(), locks_at: new Date(lockAtFor(sport, win.first_start_ms)).toISOString(), field: null }
     if (withBoards) {
       const c = await loadCandidates(sport, win, now, { all: true })
       if (!c.ok) o.error = c.why
@@ -110,11 +110,11 @@ export async function GET(request) {
     const allLate = await donovanRowsOf(db, sport, win.card_date, LATE_LANE)
     return {
       card_date: win.card_date, label: win.label, games: win.games ?? null, first_start: new Date(win.first_start_ms).toISOString(), first_when: etWhen(new Date(win.first_start_ms).toISOString()),
-      locks_at: new Date(lockAtOf(win.first_start_ms)).toISOString(),
+      locks_at: new Date(lockAtFor(sport, win.first_start_ms)).toISOString(),
       // ALWAYS OPEN: `open` is "on time" (the verified entry still possible); a form is offered either way, and a save after it is stored LATE
       // mode: on_time (before the lock) | lock_now (after the lock, before the first game: a save is verified and locks at that moment) | live (games under
       // way: a pick whose game has started is LATE, a pick whose game has not is still verified and locks at save)
-      open: onTime(win, now), mode: onTime(win, now) ? 'on_time' : now < win.first_start_ms ? 'lock_now' : 'live',
+      open: onTime(sport, win, now), mode: onTime(sport, win, now) ? 'on_time' : now < win.first_start_ms ? 'lock_now' : 'live',
       entry: slimEntry(rawTwo), late_entry: slimEntry(await donovanEntry(db, sport, win.card_date, 'two_man', CARD_VERSION, LATE_LANE)),
       n_entry: slimEntry(rawN), n_late_entry: slimEntry(await donovanEntry(db, sport, win.card_date, 'n_man', CARD_VERSION, LATE_LANE)),
       // POSTS TODAY (2026-10-12, up to 3 a day and sport): how many of his entries for this slate have gone out, and which (lib/card/post.js donovanPostsToday). A read failure shows nothing.
@@ -180,10 +180,10 @@ export async function POST(request) {
   if (!w.ok) return Response.json({ error: `The slate could not be read: ${w.why}` }, { status: 502 })
   const win = w.windows.filter(notOver(now)).find((x) => x.card_date === date)
   if (!win) return Response.json({ error: `No ${sport} games to come on ${date} (a slate that is over is not offered).` }, { status: 404 })
-  const lockAtMs = lockAtOf(win.first_start_ms)
+  const lockAtMs = lockAtFor(sport, win.first_start_ms)
   if (body.action === 'withdraw') {
     // the on-time entry only before its lock (the database holds it too); a LATE entry only inside its typo window (the database holds that)
-    if (body.lane !== 'late' && !onTime(win, now)) return Response.json({ error: 'The lock has passed; the entry is closed.' }, { status: 409 })
+    if (body.lane !== 'late' && !onTime(sport, win, now)) return Response.json({ error: 'The lock has passed; the entry is closed.' }, { status: 409 })
     const r = await withdrawDonovan(db, { sport, card_date: date, product, lane: body.lane === 'late' ? LATE_LANE : 'donovan', slot: reqSlot || 1 })
     return r.ok ? Response.json({ ok: true }) : Response.json({ error: r.error }, { status: 409 })
   }
