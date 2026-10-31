@@ -166,14 +166,25 @@ await t('the box: one embed, accent bar, a section per play kind, a mark on ever
   assert.ok(!/%|chance|probab/i.test(JSON.stringify(e)))
   assert.equal(L.listEmbed({ sport: 'nfl', day: DAY, entries: [], now: NOW }), null)
 })
-await t('MEMBERS_BOX_ON cuts exactly the repeat kinds (leg checks, graded recap) and nothing that grades or pings; off by default', async () => {
+await t('MEMBERS_BOX_ON cuts exactly the repeat kinds (leg checks, graded recap, the day post, roundup) and nothing that grades or pings; off by default', async () => {
   const R = await import('../lib/dash/routing.js')
   delete process.env.MEMBERS_BOX_ON
   assert.equal(R.isCut('card_members_leg_nfl_two_man_1_1'), false)
   process.env.MEMBERS_BOX_ON = 'on'
   assert.equal(R.isCut('card_members_leg_nfl_two_man_1_1'), true)
   assert.equal(R.isCut('card_members_graded'), true)
-  for (const k of ['card_members_win_nfl_straight_1', 'card_members_day', 'card_members_day_2', 'card_result_nfl', 'card_members_list_nfl', 'members_roundup_nhl']) assert.equal(R.isCut(k), false, k)
+  for (const k of ['card_members_day', 'card_members_day_2', 'card_members_day_4', 'members_roundup_nhl', 'members_roundup_nba_2']) assert.equal(R.isCut(k), true, k)
+  for (const k of ['card_members_win_nfl_straight_1', 'card_result_nfl', 'card_members_list_nfl']) assert.equal(R.isCut(k), false, k)
+  delete process.env.MEMBERS_BOX_ON
+  for (const k of ['card_members_day', 'members_roundup_nhl']) assert.equal(R.isCut(k), false, `${k} off`)
+})
+await t('MEMBERS_BOX_ON: moments and write-ups reach the public sport room only, never #members; off = both as before', async () => {
+  const R = await import('../lib/dash/routing.js')
+  const ks = ['moment_nfl_000038543_s2026w7_yd', 'moment_nba', 'writeup_nhl_2026020187', 'writeup_nba_1', 'writeup_mlb']
+  delete process.env.MEMBERS_BOX_ON
+  for (const k of ks) assert.ok(R.routeOf(k).rooms.includes('members'), `${k} off`)
+  process.env.MEMBERS_BOX_ON = 'on'
+  for (const k of ks) { const r = R.routeOf(k); assert.ok(r.rooms.includes('sport') && !r.rooms.includes('members'), k) }
   delete process.env.MEMBERS_BOX_ON
 })
 console.log(failed ? `\n${failed} FAILED` : '\nall ok')
