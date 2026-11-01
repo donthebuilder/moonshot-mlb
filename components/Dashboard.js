@@ -1,5 +1,6 @@
 'use client'
 import HighlightBar from './HighlightBar'
+import { LoadingLine } from './TabLoading'
 import { TodayContext } from './TodayContext'
 import { useHashFilter, readHashKey, FILTER_KEYS } from '../lib/filterHash'
 import { hashParams, writeHash, cardKeep, cardViewPush, closeOpenedStack, applyAliasParams } from '../lib/urlState'
@@ -58,7 +59,7 @@ import { useTabView } from '../lib/tabView'
 // it is opened, then cached. PlayerModal is always mounted but empty until a
 // player is picked, so it loads just after first paint instead of blocking it.
 function TabLoading() {
-  return <div aria-busy="true" style={{ minHeight: '60vh' }}><span style={{ position: 'absolute', left: -9999 }}>Loading…</span></div>
+  return <div aria-busy="true" style={{ minHeight: '60vh' }}><LoadingLine /></div>
 }
 const MyPicks = dynamic(() => import('./tabs/MyPicks'), { loading: TabLoading })
 const Guide = dynamic(() => import('./tabs/Guide'), { loading: TabLoading })

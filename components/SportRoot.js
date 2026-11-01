@@ -8,6 +8,7 @@ import dynamic from 'next/dynamic'
 import AccountNudge from './AccountNudge'
 import AlertsAsk from './AlertsAsk'
 import ExplainToast from './ExplainToast'
+import { LoadingLine } from './TabLoading'
 import EarlyTag from './EarlyTag'
 import { InjuryLayer } from './injuries/InjuryLayer'
 
@@ -58,8 +59,8 @@ import { InjuryLayer } from './injuries/InjuryLayer'
 // dashboard never mounts on a LAMP link. Costs MOONSHOT itself one commit.
 function Shell() {
   return (
-    <div aria-busy="true" style={{ minHeight: '100vh', background: C.bg }}>
-      <span style={{ position: 'absolute', left: -9999 }}>Loading…</span>
+    <div aria-busy="true" style={{ minHeight: '100vh', background: C.bg, paddingTop: 'max(72px, env(safe-area-inset-top))' }}>
+      <LoadingLine />
     </div>
   )
 }

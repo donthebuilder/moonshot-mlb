@@ -651,7 +651,7 @@ export default function Home({
       {view === 'tonight' && <>
       <style>{`
         @keyframes homePulse { 0%,100%{opacity:1} 50%{opacity:.35} }
-        @keyframes homeFade { from{opacity:0; transform:translateY(3px)} to{opacity:1; transform:none} }
+        @keyframes homeFade { from{transform:translateY(3px)} to{transform:none} }   /* movement only (10-31): see .tab-fade in MobileCSS */
         .home-headline:hover { filter: brightness(1.12); }
         .home-headlines-viewport::-webkit-scrollbar { display: none; }
       `}</style>
