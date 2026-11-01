@@ -2032,7 +2032,7 @@ function LiveStamp({ meta, anyLive, onRefresh }) {
       <span style={{ width: 7, height: 7, borderRadius: 999, background: color, boxShadow: anyLive && !bad ? `0 0 6px ${color}` : 'none', flexShrink: 0 }} />
       <span
         title={meta.stale && meta.reason ? `Live feed status: ${meta.reason}` : undefined}
-        style={{ color: bad ? C.red : C.text2, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        style={{ color: bad ? C.red : C.text2, minWidth: 0, ...(meta.stale ? { lineHeight: 1.35 } : { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }) }}   // the error wraps: one line cut it to "scores b…" on a phone
       >
         {meta.offDay && !anyLive
           ? 'no MLB games today'

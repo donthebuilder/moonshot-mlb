@@ -152,7 +152,7 @@ export default function RedZone({ data, matchup = null, onPlayerClick }) {
         initialSort="rz"
         nameCell="player" faceOf={(r) => (r._raw?.espn_id ? { sport: 'nfl', espnId: String(r._raw.espn_id), name: r._raw.name } : null)}
         onRowClick={onPlayerClick ? (r) => onPlayerClick(r?._raw ?? r, 'TD') : null}
-        maxRows={rows.length}
+        maxRows={25 /* 10-31 audit: was every man (272 DOM rows); the top 25 by RZ, "show N more" for the rest */}
         dimRow={(r) => r._raw?.carryover || r._raw?.low_sample}
       />
 
