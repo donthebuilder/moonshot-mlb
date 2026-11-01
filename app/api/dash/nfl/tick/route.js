@@ -73,7 +73,8 @@ import {
   tdCallNeighbors, tdCallNeighborsText,
   spotlightPick, spotlightText,
 } from '../../../../../lib/nfl/tweetFeed'
-import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
+import { fetchNflLive, fetchNflGamesOn } from '../../../../../lib/nfl/liveSlate'
+import { dayIsFinal } from '../../../../../lib/nfl/gamesFinal'
 import { nflReachedLine } from '../../../../../lib/history/nfl'
 import { buildTdEvent, eventFromRow, rowFromEvent, tdEmbed, tdPostText, touchdownsInSnap } from '../../../../../lib/nfl/tdFeed'
 import { tdCard } from '../../../../../lib/nfl/tdCard'
@@ -646,6 +647,12 @@ async function runWeeklyContentTick(db, day) {
           .match({ day: yday, kind: 'nfl_board' }).maybeSingle()
         const boardPicks = prior?.payload?.picks || []
         if (!boardPicks.length) { out[sl.kind] = 'no-board-to-grade'; continue }
+        // WAIT FOR THE NIGHT TO END (batch 3, 2026-10-26): this kind is event-driven, so no hour held it back and it went out at 00:00:35 ET on
+        // 10-12, 10-19 and 10-26 while a game could still be on. Nothing is claimed until every game of yesterday is final.
+        let ydayGames = null
+        try { ydayGames = await fetchNflGamesOn(yday) } catch (e) { console.error(`[nfl-tick] results: schedule read failed: ${e?.message || e}`) }
+        const fin = dayIsFinal(ydayGames)
+        if (!fin.ok) { out[sl.kind] = `held: ${fin.why}`; continue }
         // By gsis_id (bot audit 10-03 #7: name-only matching missed Jr. / III
         // spellings); a TD that never joined the slate falls back to its name.
         const { data: tds } = await db.from('nfl_td_feed').select('scorer_name, gsis_id').eq('day', yday)

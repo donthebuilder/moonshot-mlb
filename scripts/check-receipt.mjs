@@ -434,7 +434,7 @@ await ok('policy: the receipt is a write-up-tier post (stops at 18 of 20), exemp
 await ok('policy: with 18 counted posts today the receipt waits; with 17 it goes (the gate\'s own count, fake rows)', async () => {
   reset()
   const now = Date.now()
-  const day = SCH.phxDayWindow(now).day
+  const day = (await import('../lib/data.js')).easternDate(now)   // the cap counts the ET day a post is MADE (batch 3), so the fixture day is today's ET date
   // the cap counts the ET day (xBudget.etDayWindow), which ends 3 hours before the Phoenix day does: stamp the rows one minute into that window, whatever the hour the check runs
   const seen = new Date(Date.parse(BUD.etDayWindow(day)[0]) + 60e3).toISOString()
   const counted = (k) => Array.from({ length: k }, (_, i) => ({ day: DAY, kind: 'list_mlb', x_post_id: String(100 + i), seen_at: seen, payload: {} }))
@@ -446,7 +446,8 @@ await ok('policy: with 18 counted posts today the receipt waits; with 17 it goes
 })
 await ok('post: X\'s daily cap skips X, never Discord (2026-10-25: a capped receipt was held every tick and reached no channel 10-22..10-24)', async () => {
   reset(); delete process.env.MISS_REPLIES_OFF      // the misses recap is on here: a capped night must not send it to X either
-  const seen = new Date(Date.parse(BUD.etDayWindow(DAY)[0]) + 60e3).toISOString()
+  // the morning-after receipt is MADE on the ET day of T0 (10-10), and that is the day the cap counts (batch 3): stamp the 18 rows into it
+  const seen = new Date(Date.parse(BUD.etDayWindow('2026-10-10')[0]) + 60e3).toISOString()
   const full = Array.from({ length: 18 }, (_, i) => ({ day: DAY, kind: 'list_mlb', x_post_id: String(100 + i), seen_at: seen, payload: {} }))
   const db = fakeDb({ homer_feed_posts: [...posts(), ...full], fact_posts: [] })
   await RC.postReceiptOnce(db, { day: DAY, load: load(mixed()), hooks: 'https://discord.test/a', now: T0 })
@@ -619,6 +620,16 @@ await ok('NFL game guard (Kittle, 10-25): a TD cashes only in the named game, on
   const m = mixed(); m.results.nfl = res([row({ gsis_id: 'n1', game_id: 'wrong' })]); m.results.nfl.players = new Map()
   const w = RC.assembleReceipt({ day: DAY, rows: posts(), ...m, now: T0 })
   assert.equal(w.state, 'waiting'); assert.match(w.reason, /not graded yet/)
+})
+await ok('an NBA write-up names players for the receipt (writeup_nba_<game> was missing from WRITEUP_SPORT, so BUCKETS men were never graded, batch 3)', async () => {
+  const prev = process.env.BUCKETS_PUBLIC; process.env.BUCKETS_PUBLIC = 'on'
+  try {
+    const S2 = await import('../lib/posts/slate.js')
+    if (!S2.isPublicSport('nba')) return   // the switch is read at import in some builds: then the sport is hidden here and there is nothing to assert
+    const row = { kind: 'writeup_nba_0022500001', x_post_id: '5501', payload: { game_id: '0022500001', named: ['b1'], writeup: { players: [{ player_id: 'b1', name: 'Test Guard One', team: 'TST' }] } } }
+    const { players } = RC.namedPlayers([row])
+    assert.deepEqual(players.map((p) => `${p.sport}:${p.id}`), ['nba:b1'])
+  } finally { if (prev === undefined) delete process.env.BUCKETS_PUBLIC; else process.env.BUCKETS_PUBLIC = prev }
 })
 await ok('loader: a failed read is "not ready", never a miss (schedule down -> null games)', async () => {
   const LD = await import('../lib/posts/receiptLoad.js')

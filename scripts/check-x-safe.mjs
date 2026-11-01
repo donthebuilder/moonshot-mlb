@@ -106,6 +106,7 @@ function fakeDb(tables = {}) {
   return { tables, from: (name) => new Q_(name) }
 }
 const today = '2026-10-09'
+const NOWT = Date.parse(`${today}T20:00:00Z`)   // the fixture day's own clock: the cap counts the ET day a post is MADE
 const seenAt = (hhmmUtc, day = today) => `${day}T${hhmmUtc}:00Z`   // 2026-10-09 15:00Z = 11:00 ET
 
 // ═══ 1. NO LINKS ANYWHERE ON X ═══════════════════════════════════════════════
@@ -238,22 +239,33 @@ await ok('cap: the ET day is the day a post was made, across the DST change', ()
   assert.deepEqual(B.etDayWindow('2026-10-09'), ['2026-10-09T04:00:00.000Z', '2026-10-10T04:00:00.000Z'])
   assert.deepEqual(B.etDayWindow('2026-11-01'), ['2026-11-01T04:00:00.000Z', '2026-11-02T05:00:00.000Z'])
 })
+await ok('cap: the day counted is the ET day the post is MADE, not the slate day on its row (batch 3: 7 of 14 days sat at 18 and the after-midnight card results were refused against yesterday\'s full window)', async () => {
+  // 01:30 ET on 10-10: a post FILED under slate day 10-09 is made in ET day 10-10
+  const NOW = Date.parse('2026-10-10T05:30:00Z')
+  const mk = (n, iso) => Array.from({ length: n }, (_, i) => ({ day: '2026-10-09', kind: `list_${i}`, x_post_id: String(200 + i), seen_at: iso }))
+  // 18 posts already made TODAY (ET 10-10), yesterday's window nearly empty: the cap must hold the writeup-tier post
+  const full = fakeDb({ homer_feed_posts: mk(18, '2026-10-10T05:10:00Z'), fact_posts: [], nfl_td_feed: [] })
+  assert.equal((await G.admit(full, { day: '2026-10-09', kind: 'moment_nhl_11_1_ht3', now: NOW, repeat: false })).state, 'capped')
+  // 18 posts made YESTERDAY, none yet today: the slate-day-10-09 post made after midnight must go
+  const yday = fakeDb({ homer_feed_posts: mk(18, '2026-10-09T20:00:00Z'), fact_posts: [], nfl_td_feed: [] })
+  assert.equal((await G.admit(yday, { day: '2026-10-09', kind: 'moment_nhl_11_1_ht3', now: NOW, repeat: false })).state, 'go')
+})
 await ok('cap: admit() lets a CALLED/board kind through at any count and holds the lower tiers as the day fills', async () => {
   const rows = []
   const db = fakeDb({ homer_feed_posts: rows, fact_posts: [], nfl_td_feed: [] })
   for (let i = 0; i < 12; i++) rows.push({ day: today, kind: `list_${i}`, x_post_id: String(100 + i), seen_at: seenAt('15:00') })
-  assert.equal((await G.admit(db, { day: today, kind: 'numerology', repeat: false })).state, 'capped')   // 12 of 20: numerology is out
-  assert.equal((await G.admit(db, { day: today, kind: 'nfl_botpoll', repeat: false })).state, 'go')
+  assert.equal((await G.admit(db, { day: today, now: NOWT, kind: 'numerology', repeat: false })).state, 'capped')   // 12 of 20: numerology is out
+  assert.equal((await G.admit(db, { day: today, now: NOWT, kind: 'nfl_botpoll', repeat: false })).state, 'go')
   for (let i = 12; i < 20; i++) rows.push({ day: today, kind: `list_${i}`, x_post_id: String(100 + i), seen_at: seenAt('15:00') })
-  assert.equal((await G.admit(db, { day: today, kind: 'pregame', repeat: false })).state, 'capped')      // 20 of 20: even the slate waits
-  assert.equal((await G.admit(db, { day: today, kind: 'homer' })).state, 'go')
-  assert.equal((await G.admit(db, { day: today, kind: 'board' })).state, 'go')
+  assert.equal((await G.admit(db, { day: today, now: NOWT, kind: 'pregame', repeat: false })).state, 'capped')      // 20 of 20: even the slate waits
+  assert.equal((await G.admit(db, { day: today, now: NOWT, kind: 'homer' })).state, 'go')
+  assert.equal((await G.admit(db, { day: today, now: NOWT, kind: 'board' })).state, 'go')
 })
 await ok('cap: the emergency switches work (pause = no scheduled posts, CALLED still go)', async () => {
   const db = fakeDb({ homer_feed_posts: [], fact_posts: [], nfl_td_feed: [] })
   process.env.X_POSTS_PAUSE = 'on'
-  assert.equal((await G.admit(db, { day: today, kind: 'pregame', repeat: false })).state, 'capped')
-  assert.equal((await G.admit(db, { day: today, kind: 'homer' })).state, 'go')
+  assert.equal((await G.admit(db, { day: today, now: NOWT, kind: 'pregame', repeat: false })).state, 'capped')
+  assert.equal((await G.admit(db, { day: today, now: NOWT, kind: 'homer' })).state, 'go')
   delete process.env.X_POSTS_PAUSE
 })
 

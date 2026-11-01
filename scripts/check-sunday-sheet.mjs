@@ -56,6 +56,10 @@ const clock = { day: SUN, dow: 0, min: 8 * 60 }
 let drawn = null
 ok(/^none/.test(await S.postSheetOnce(db, { day: SUN, clock, load: async () => ({ ok: false, why: 'no week file' }), draw: async () => null })), 'no board: nothing posts')
 S._resetSheetForTests()
+// batch 3 (2026-10-26): a board with no week label printed 'WEEK ?' (a required field must fail loudly, never default)
+const noWeek = await S.postSheetOnce(db, { day: SUN, clock, load: async () => ({ ok: true, model: { ...model, dayWord: '' } }), draw: async () => null })
+ok(/^none/.test(noWeek) && !db.store?.some?.((x) => x.kind === 'sunday_sheet') , `no week on the board: nothing posts, nothing claimed (${noWeek})`)
+S._resetSheetForTests?.()
 const r1 = await S.postSheetOnce(db, { day: SUN, clock, load: async () => ({ ok: true, model }), draw: async (kind, m) => { drawn = { kind, m }; return Buffer.from('PNG') } })
 ok(/^posted/.test(r1) && drawn?.kind === 'ranked' && drawn.m.kicker === 'THE SUNDAY SHEET · ANYTIME TD', `posts with the retitled card (${r1})`)
 ok(store.find((x) => x.kind === 'sunday_sheet')?.payload?.picture === true && store[0].payload.names.length === 5, 'the row records the names and the picture')

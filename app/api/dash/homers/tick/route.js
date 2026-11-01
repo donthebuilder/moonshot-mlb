@@ -200,7 +200,7 @@ async function fiveTick(db, { mlb = undefined } = {}) {
   try {
     const clock = phxClock(Date.now())
     if (!fiveDue(clock)) return 'not-due'
-    return await postFiveOnce(db, { day: clock.day, clock, load: slateLoader(mlb ? { day: clock.day, mlb } : { day: clock.day }), hooks: FEED_WEBHOOKS() })
+    return await postFiveOnce(db, { day: clock.day, clock, load: slateLoader(mlb ? { day: clock.day, mlb, nflThroughDays: 3 } : { day: clock.day, nflThroughDays: 3 }), hooks: FEED_WEBHOOKS() })   // THE FIVE reads the NFL weekend, Fri-Mon (batch 3)
   } catch (err) {
     console.error('[homers] the five threw', err)
     return `error: ${String(err?.message || err)}`
@@ -389,7 +389,8 @@ async function claimAndPostStat(db, day, kind, hourGate, text, cardSpec, payload
     if (r.ok && r.id) { patch.x_post_id = r.id; logPosted({ day, kind, ids: named, tweetId: r.id, text }) }
     else console.error(`[homers] ${kind} refused: ${r.status} ${r.error}`)
   }
-  await db.from('homer_feed_posts').update(patch).match({ day, kind })
+  const saved = await db.from('homer_feed_posts').update(patch).match({ day, kind })
+  if (saved?.error) console.error(`[homers] ${kind} posted but the row did not record it: ${saved.error.message}`)   // an unrecorded post is uncounted and invisible to the repeat guard (batch 3)
   return true
 }
 
@@ -2543,9 +2544,11 @@ async function mlbTick(request) {
             // A rate limit or a server-side failure releases the claim so a
             // later tick can try; a refusal (403 and the like) is recorded and
             // never retried -- no loop against a wall.
-            const transient = r.status === 429 || !r.status || r.status >= 500
-            await db.from('homer_feed').update({ mlbhr_reply_id: transient ? null : `refused:${r.status}` }).match(where)
-            if (r.status === 429) break
+            // settled by the shared rule (lib/dash/xFail.js settleAlert, batch 3): a credits-breaker block (402 / 401, no request made) waits for the block to lapse instead of
+            // closing every pending reply as 'refused:402'; an account-level or content refusal closes; a transient one retries a few times
+            const st = settleAlert(r, { key: `mlbhr|${row.day}|${row.player_id}|${row.hr_n ?? ''}` })
+            await db.from('homer_feed').update({ mlbhr_reply_id: st.value === null ? null : st.value === 'skipped' ? `refused:${r.status}` : st.value }).match(where)
+            if (st.stop) break
           }
         }
       }

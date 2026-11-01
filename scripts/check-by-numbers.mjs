@@ -141,6 +141,14 @@ const db = { from: () => {
 } }
 for (const k of ['X_API_KEY', 'X_API_SECRET', 'X_ACCESS_TOKEN', 'X_ACCESS_SECRET', 'X_BEARER_TOKEN']) delete process.env[k]
 const stubs = { draw: async () => Buffer.from('PNG'), ...look, read: async () => ({ nhlGames, nbaBoard }), rosters: async () => rosters }
+// batch 3 (2026-10-26): a LAMP / BUCKETS read that FAILED is not 'no games': it used to return nhlGames: [] and the night slept 3 hours (or posted without the sport)
+N._resetNumbersForTests()
+const failedRead = { read: async () => ({ nhlGames: [], nbaBoard: null, failed: ['nhl'] }), draw: stubs.draw, rosters: stubs.rosters }
+const f1 = await N.postNumbersOnce(db, { day: DAY, now: T - 3 * 3600e3, ...failedRead })
+ok(/^held: .*LAMP.*unreadable/.test(f1), `a failed LAMP read holds and says so, tried again in minutes (${f1})`)
+ok(await N.postNumbersOnce(db, { day: DAY, now: T - 3 * 3600e3 + 6 * 60e3, ...failedRead }) !== 'waiting' && !/no games still ahead/.test(f1), 'it is asked again after five minutes, not after three hours')
+const f3 = await N.postNumbersOnce(db, { day: DAY, now: T - 3 * 3600e3 + 100 * 60e3, ...failedRead })
+ok(!/unreadable/.test(f3), `after 90 minutes of failure it goes on without the dead board (${f3})`)
 N._resetNumbersForTests()
 const early = await N.postNumbersOnce(db, { day: DAY, now: T - 3 * 3600e3, ...stubs })
 ok(early === 'held: too early', `too early (${early})`)

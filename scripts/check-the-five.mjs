@@ -26,12 +26,41 @@ ok(p.map((c) => c.id).join() === 'nfl-T1,nhl-T2,nfl-T2,nfl-T3,nba-T2', `share or
 ok(!p.some((c) => c.problem), 'nobody with an open problem')
 ok(F.pickFive([{ sport: 'nhl', cands: [cand('nhl', 1, 1, 400), cand('nhl', 2, 1, 400)] }]).length === 2, 'never invents a fifth')
 
+// 1b. FOOTBALL (batch 3, 2026-10-26, Donovan: "make THE FIVE include football, using the weekend's NFL men"): the Five posts on a Friday and NFL plays Sunday, so the
+// day-only NFL slate was always empty and "One from every board" was false for TUDDY. The Five reads the NFL weekend (Friday through Monday).
+{
+  const NFLM = await import('../lib/posts/nfl.js')
+  const FRI = '2026-10-09', SUN_KICK = '2026-10-11T17:00:00Z', NOWF = Date.parse('2026-10-09T22:30:00Z')
+  const week = { games: [{ game_id: 'g1', kickoff: SUN_KICK, away: 'KC', home: 'BUF', away_name: 'Kansas City Chiefs', home_name: 'Buffalo Bills' }],
+    players: [{ player_id: 'n1', name: 'Test Back One', team: 'KC', opp: 'BUF', position: 'RB', scores: { TD: 99 }, stats: { RZ: 3.2 } }, { player_id: 'n2', name: 'Test Receiver Two', team: 'BUF', opp: 'KC', position: 'WR', scores: { TD: 98 }, stats: { RZ: 2.1 } },
+      ...Array.from({ length: 300 }, (_, i) => ({ player_id: `f${i}`, name: `Test Filler ${i}`, team: 'ZZZ', position: 'WR', scores: { TD: 50 - i / 100 }, stats: {} }))] }
+  const picks = { card: { TD: { rungs: [{ rank: 1, player_id: 'n1' }, { rank: 2, player_id: 'n2' }] } } }
+  const dayOnly = NFLM.nflSlate({ data: week, picks, day: FRI, now: NOWF })
+  const weekend = NFLM.nflSlate({ data: week, picks, day: FRI, now: NOWF, throughDays: 3 })
+  ok(!dayOnly.hasGames && dayOnly.cands.length === 0, 'the Slate (one day): a Friday has no Sunday football')
+  ok(weekend.hasGames && weekend.cands.length === 2 && weekend.cands.every((c) => c.sport === 'nfl'), `the Five reads the weekend: Sunday's CALLED men are candidates (${weekend.cands.length})`)
+  ok(Number.isFinite(weekend.firstStartMs) && weekend.firstStartMs === Date.parse(SUN_KICK), 'and the weekend\'s first start is the Sunday kickoff')
+}
+{
+  // the copy says what is true: one from every board PLAYING, and the football row is in the post
+  const cs = [cand('nhl', 1, 1, 400), cand('mlb', 2, 1, 400), cand('nfl', 3, 1, 400)]
+  const picks = F.pickFive([{ sport: 'nhl', cands: [cs[0]] }, { sport: 'mlb', cands: [cs[1]] }, { sport: 'nfl', cands: [cs[2]] }])
+  const text = F.fiveText({ picks, day: '2026-10-09', limit: 900 })
+  ok(/One from every board playing this weekend/.test(text) && text.includes('\u{1F3C8}'), 'the copy: "every board playing this weekend", and the football row is named')
+}
 // 2. the timing: Friday from 3:45 PM Phoenix; three usable at least; waits for a LAMP lock until 5 PM
 ok(F.fiveDue({ dow: 5, min: 15 * 60 + 45 }) && !F.fiveDue({ dow: 5, min: 15 * 60 + 44 }) && !F.fiveDue({ dow: 4, min: 18 * 60 }), 'due Friday from 3:45 PM Phoenix')
 const wait = F.fiveTiming({ sports: [...sports.slice(0, 1), { ...sports[1], lockWait: { reason: 'lock not written' } }, sports[2]], clock: { dow: 5, min: 16 * 60 } })
 ok(!wait.go && /waiting for nhl/.test(wait.reason), `waits for LAMP's lock (${wait.reason})`)
 ok(F.fiveTiming({ sports: [...sports.slice(0, 1), { ...sports[1], lockWait: {} }, sports[2]], clock: { dow: 5, min: 17 * 60 } }).go, 'at 5 PM it goes without the late board')
 ok(!F.fiveTiming({ sports: [{ sport: 'nhl', cands: [cand('nhl', 1, 1, 400)] }], clock: { dow: 5, min: 16 * 60 } }).go, 'fewer than three usable: no post')
+// batch 3 (2026-10-26): a sport whose feed FAILED carries `hold` and no candidates; the Five used to post 'One from every board' without it. It waits like a lock does, then goes without it at 5 PM
+const held = [...sports.slice(0, 1), { sport: 'nhl', hasGames: true, hold: 'the LAMP board failed', cands: [] }, sports[2]]
+const hw = F.fiveTiming({ sports: held, clock: { dow: 5, min: 16 * 60 } })
+ok(!hw.go && /waiting for nhl/.test(hw.reason), `a sport whose read failed (hold) is waited for, not silently dropped (${hw.reason})`)
+ok(F.fiveTiming({ sports: held, clock: { dow: 5, min: 17 * 60 } }).go, 'at 5 PM it goes without the failed board')
+const src = (await import('node:fs')).readFileSync(new URL('../lib/posts/slateLoad.js', import.meta.url), 'utf8')
+ok(!/never a reason to hold the others/.test(src) && /BUCKETS board unreadable/.test(src) && /the BUCKETS board failed/.test(src), 'an unreadable BUCKETS scoreboard (public since 10-19) is a HOLD like every other sport, not "no games"')
 
 // 3. the post: head, hook, five rows with the proof, the ask; the bare 280 drops the proofs, never a name; clean
 const t = F.fiveText({ picks: p, day: FRI, limit: 890 })
@@ -91,7 +120,7 @@ ok(sql.includes("''the_five''") && /\) not valid'/.test(sql), 'the kind migratio
 const route = fs.readFileSync(new URL('../app/api/dash/homers/tick/route.js', import.meta.url), 'utf8')
 // 2026-10-21 (KNOWN-ISSUES #8): its own step, fiveTick, with tonight's MLB rows on the in-season path
 ok(/async function fiveTick\(db, \{ mlb = undefined \} = \{\}\)/.test(route) && /if \(!fiveDue\(clock\)\) return 'not-due'/.test(route), 'fiveTick: its own step, not due = no reads')
-ok(/load: slateLoader\(mlb \? \{ day: clock\.day, mlb \} : \{ day: clock\.day \}\)/.test(route), 'fiveTick: THE SLATE\'s loader, with MLB when it is handed in')
+ok(/load: slateLoader\(mlb \? \{ day: clock\.day, mlb, nflThroughDays: 3 \} : \{ day: clock\.day, nflThroughDays: 3 \}\)/.test(route), 'fiveTick: THE SLATE\'s loader, with MLB when it is handed in, and the NFL WEEKEND (Friday through Monday) for football')
 ok((route.match(/await fiveTick\(db/g) || []).length === 3, 'fiveTick called on all three paths (offseason, no MLB games, in season)')
 ok(/fiveTick\(db, \{ mlb: \{ rows: boardUsable \? boardRows\(\) : \[\], live, hold: boardUsable \? null : \(boardHold \|\| 'no-board'\)/.test(route), 'in season: the same MLB rows and board gate THE SLATE gets')
 const receipt = route.slice(route.indexOf('async function receiptTick'), route.indexOf('async function receiptTick') + 4000)
