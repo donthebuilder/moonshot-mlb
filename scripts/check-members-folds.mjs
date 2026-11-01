@@ -132,7 +132,7 @@ await t('D1 items: only live, called, folded-for-roundup games, in kickoff order
   assert.deepEqual(items.map((i) => i.game_id), ['g1', 'g2'])
   const text = roundupText({ sport: 'nhl', day: DAY, items })
   assert.match(text, /LAMP · tonight's games\*\* · Oct 16\n\n2 games with a pick/)
-  assert.match(text, /\*\*AAA at BBB\*\* · Test g1\n<https:\/\/site\.test\/app#sport=nhl&tab=game&game=g1>/)   // <link>: no site preview card under the post
+  assert.match(text, /\*\*AAA at BBB\*\* · \d{1,2}:\d\d [AP]M ET\nTest g1\n<https:\/\/site\.test\/app#sport=nhl&tab=game&game=g1>/)   // matchup + game time, the called names, the page   // <link>: no site preview card under the post
   assert.ok(!/% chance|probab|\block/i.test(text))
   const many = roundupItems(Array.from({ length: 24 }, (_, i) => wrow(`g${100 + i}`, NOW - 7200e3 + i * 1000)))
   const long = roundupText({ sport: 'nhl', day: DAY, items: many })
@@ -143,15 +143,13 @@ await t('D2 ON: the roundup goes BEFORE the games (30 min before the soonest); l
   const t1 = NOW + 3600e3, t2 = NOW + 3 * 3600e3      // a 1-hour-away game and a late one
   const db = fakeDb(); stored(db, [wrow('g1', t1)])      // a write-up exists from ~75 minutes before its game: the late one is not written yet
   const starts = [t1, t2]
-  assert.equal(await postRoundup(db, { sport: 'nhl', day: DAY, startsMs: starts, now: NOW }), 'not-yet', 'an hour before the first game: not yet')
-  assert.equal(sent().length, 0)
-  assert.equal(await postRoundup(db, { sport: 'nhl', day: DAY, startsMs: starts, now: t1 - 25 * 60e3 }), 'posted', '25 minutes before the first game: the roundup')
+  assert.equal(await postRoundup(db, { sport: 'nhl', day: DAY, startsMs: starts, now: NOW }), 'posted', 'an hour before the first game: the roundup (its calls are in)')
   assert.equal(sent().length, 1); assert.equal(sent()[0].url, MEM)
   const first = db.rows.find((r) => r.kind === roundupKind('nhl'))
   assert.ok(first && first.payload.games.includes('g1') && !first.payload.games.includes('g2'), 'the late game waits for its own post')
   assert.match(JSON.parse(sent()[0].body).content, /LAMP · tonight's games/)
   _resetRoundupMemo()
-  assert.equal(await postRoundup(db, { sport: 'nhl', day: DAY, startsMs: starts, now: t1 + 10 * 60e3 }), 'nothing-to-say', 'between the two: nothing (g1 sent, g2 not written yet)')
+  assert.equal(await postRoundup(db, { sport: 'nhl', day: DAY, startsMs: starts, now: t1 + 10 * 60e3 }), 'nothing-to-say', 'between the two: nothing (g1 sent, g2 has no calls yet)')
   stored(db, [wrow('g2', t2)])                          // the late game's write-up lands ~75 minutes before it
   _resetRoundupMemo()
   assert.equal(await postRoundup(db, { sport: 'nhl', day: DAY, startsMs: starts, now: t2 - 20 * 60e3 }), 'posted', 'the follow-up, before the late game')
@@ -168,8 +166,7 @@ await t('D5 MEMBERS_BOX_ON: ONE night box per sport, edited in place (a later ga
   const posts = [], edits = []
   const deps = { post: async (title, o, hook) => { posts.push({ title, hook, kind: o.kind }); return { ok: true, messages: [{ id: '9001', channel_id: '55' }] } }, edit: async (hook, m, o) => { edits.push({ hook, id: m.id, text: o.text }); return { ok: true } } }
   const go = (now) => { _resetRoundupMemo(); return postRoundup(db, { sport: 'nhl', day: DAY, startsMs: [t1, t2], now, deps }) }
-  assert.equal(await go(NOW), 'not-yet')
-  assert.equal(await go(t1 - 25 * 60e3), 'posted')
+  assert.equal(await go(NOW), 'posted', 'the box goes up as soon as a game has calls (no wait for the last minutes)')
   assert.equal(posts.length, 1); assert.equal(posts[0].hook, MEM); assert.equal(posts[0].kind, roundupKind('nhl'))
   assert.equal(await go(t1 + 10 * 60e3), 'nothing-to-say')
   stored(db, [wrow('g2', t2)])
@@ -179,6 +176,22 @@ await t('D5 MEMBERS_BOX_ON: ONE night box per sport, edited in place (a later ga
   assert.deepEqual(db.rows.find((r) => r.kind === roundupKind('nhl')).payload.events.map((e) => e.key), ['g1', 'g2'])
   assert.equal(await go(t2 - 10 * 60e3), 'nothing-to-say', 'never twice')
   assert.equal(sent().length, 0, 'nothing went through the plain post path')
+})
+await t('D6 EVERY game with a called player is listed, write-up or not (10-31: six of ten LAMP games had no write-up, the goalie was not confirmed)', async () => {
+  env({ MEMBERS_FOLDS_ON: 'on' }); calls.length = 0; _resetTakenForTests(); _resetRoundupMemo()
+  const t1 = NOW + 3600e3, t2 = NOW + 2 * 3600e3, t3 = NOW + 3 * 3600e3
+  const db = fakeDb(); stored(db, [wrow('g1', t1), { kind: 'writeup_nhl_g2', payload: { mode: 'skipped', reason: 'starting goalie not confirmed' } }])
+  const called = [
+    { game_id: 'g1', teams: ['AAA', 'BBB'], names: ['Test Called Z'], kickoff: new Date(t1).toISOString() },       // has a write-up: the write-up's names win
+    { game_id: 'g2', teams: ['CCC', 'DDD'], names: ['Test Skater Y', 'Test Skater X'], kickoff: new Date(t2).toISOString() },
+    { game_id: 'g3', teams: ['EEE', 'FFF'], names: ['Test Skater W'], kickoff: new Date(t3).toISOString() },
+  ]
+  assert.equal(await postRoundup(db, { sport: 'nhl', day: DAY, startsMs: [t1, t2, t3], now: NOW, called }), 'posted')
+  const body = JSON.parse(sent()[0].body).content
+  assert.match(body, /3 games with a pick/); assert.match(body, /\*\*CCC at DDD\*\* · \d{1,2}:\d\d [AP]M ET\nTest Skater Y, Test Skater X/); assert.match(body, /EEE at FFF/)
+  assert.ok(body.indexOf('AAA at BBB') < body.indexOf('CCC at DDD') && body.indexOf('CCC at DDD') < body.indexOf('EEE at FFF'), 'in game-time order')
+  assert.ok(!/Test Called Z/.test(body), 'a game with a write-up keeps the write-up\'s names')
+  assert.deepEqual(db.rows.find((r) => r.kind === roundupKind('nhl')).payload.games, ['g1', 'g2', 'g3'])
 })
 await t('D2b a game that already started is never put in a roundup (its write-up is old news)', async () => {
   env({ MEMBERS_FOLDS_ON: 'on' }); calls.length = 0; _resetTakenForTests(); _resetRoundupMemo()
