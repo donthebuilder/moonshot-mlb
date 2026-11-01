@@ -1,4 +1,5 @@
 'use client'
+import { LoadingLine } from '../../TabLoading'
 import { dayLine } from '../../../lib/dayLine'
 import { useEffect, useState } from 'react'
 import HeadlineStrip from '../../HeadlineStrip'
@@ -141,7 +142,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
           faceOf={(c) => { const url = c.playerId && c.team ? nhlMug(board.data?.season?.current || board.data?.season?.id, c.team, c.playerId) : null; return url ? <PlayerFace sport="nhl" photo={url} variant="table" size={22} theme={C} /> : null }} />
       </HomeGreeting>
 
-      {!ready ? <div aria-busy="true" style={{ minHeight: '100vh' }}><span style={{ position: 'absolute', left: -9999 }}>Loading…</span></div> : <>
+      {!ready ? <div aria-busy="true" style={{ minHeight: '100vh' }}><LoadingLine /></div> : <>
       {/* THE CALLED LIST (2026-10-25): the locked Card as a table, three rows and a link to the full list; silent until a card is locked */}
       <CalledList sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} Table={LampTable} preview={3} onOpenList={() => setTab?.('calledlist')} onOpenPlayer={(e) => onOpenPlayer?.(e.playerId)} />
 

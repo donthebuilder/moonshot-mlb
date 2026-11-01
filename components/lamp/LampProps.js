@@ -1,4 +1,5 @@
 'use client'
+import { LoadingLine } from '../TabLoading'
 import { STATUS_WORD } from '../../lib/callStatus'
 import { useMemo } from 'react'
 import PropCards from '../props/PropCards'
@@ -125,7 +126,7 @@ export default function LampProps({ date = null, onOpenPlayer, children = null }
   // Until the board lands this holds a full screen of height, so nothing below
   // it (the link, the footer) sits in view to be pushed down when the cards
   // arrive (LAMP layout shift, 2026-10-06). `children` render after the cards.
-  if (!goal.data && !sog.data) return !(goal.loading || sog.loading) ? null : <div aria-busy="true" style={{ minHeight: '100vh' }}><span style={{ position: 'absolute', left: -9999 }}>Loading…</span></div>
+  if (!goal.data && !sog.data) return !(goal.loading || sog.loading) ? null : <div aria-busy="true" style={{ minHeight: '100vh' }}><LoadingLine /></div>
   return (<>
     <PropCards a={a} rows={rows} date={date} onOpen={(r) => onOpenPlayer?.(r.id)}
       onWatch={(r) => following.toggle({ id: r.id, name: r.name, team: r.team, position: r.pos })}

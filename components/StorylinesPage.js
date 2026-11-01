@@ -131,7 +131,7 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
               caption="Each kind of story: how often it came true, against everyone"
               rows={data.summary.map((r) => ({ ...r, _key: r.type, rate: r.n ? r.hit / r.n : null, baseRate: r.base?.players ? r.base.hits / r.base.players : null }))}
               columns={[
-                { key: 'type', label: 'Story', heat: false, sticky: true, w: 180, fmt: (v, r) => <span>{TYPE_LABEL[v] || v}{r.bar ? <span style={{ color: C.text3 }}> · {barWord(r.bar)}</span> : null}</span> },
+                { key: 'type', label: 'Story', heat: false, sticky: true, w: 180, fmt: (v, r) => <span>{TYPE_LABEL[v] || v}{r.bar ? <span style={{ display: 'block', color: C.text3, fontSize: 11 }}>{barWord(r.bar)}</span> : null}</span> },   // the bar on its own line: one line cut "Fun fact · product…" at 180px
                 { key: 'n', label: 'Graded', w: 56, dp: 0 },
                 { key: 'rate', label: 'Came true', w: 76, fmt: (_, r) => (r.n >= MIN_PCT ? `${Math.round((100 * r.hit) / r.n)}%` : `${r.hit} of ${r.n}`), tone: () => ({ color: C.text }) },
                 { key: 'baseRate', label: 'Everyone', w: 76, fmt: (_, r) => (r.base ? (r.base.players >= MIN_PCT ? `${Math.round((100 * r.base.hits) / r.base.players)}%` : `${r.base.hits} of ${r.base.players}`) : '—'), tone: () => ({ color: C.text3 }) },

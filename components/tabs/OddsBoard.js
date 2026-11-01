@@ -739,7 +739,7 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
 
   return (
     <div>
-      <style>{'@keyframes oddsIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}@keyframes oddsDot{0%,100%{opacity:1}50%{opacity:.25}}'}</style>
+      <style>{'@keyframes oddsIn{from{transform:translateY(7px)}to{transform:none}}@keyframes oddsDot{0%,100%{opacity:1}50%{opacity:.25}}'}</style>
 
       {viewBar}
 

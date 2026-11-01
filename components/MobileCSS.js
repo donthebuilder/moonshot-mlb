@@ -1191,9 +1191,14 @@ export default function MobileCSS() {
       *::-webkit-scrollbar-thumb:hover { background: #f97316; }
       *::-webkit-scrollbar-track { background: transparent; }
 
-      /* Tab switches breathe: content fades up 4px instead of teleporting. */
+      /* Tab switches breathe: content rises 4px instead of teleporting.
+         Movement only, never opacity (2026-10-31 audit): a heavy tab (Red
+         Zone, Goalies) keeps the main thread busy, the fade sat at opacity 0
+         and the page read as black for seconds; a mid-fade screenshot made
+         the Guide look washed out. */
       .tab-fade { animation: tabFade .16s ease-out; }
-      @keyframes tabFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+      @keyframes tabFade { from { transform: translateY(4px); } to { transform: none; } }
+      @media (prefers-reduced-motion: reduce) { .tab-fade { animation: none; } }
 
       /* Cards lift a hair on hover — grids that respond feel alive.
          GATED (2026-08-16): on touch there is no pointer to leave, so an
